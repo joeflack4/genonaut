@@ -18,8 +18,10 @@ MANIFEST
 /*.json
 */cache/*
 !*/cache/.keep
-/env/*
-!/env/.env.example
+# Environment files
+.env
+.env.*
+!/env/env.example
 .ipynb_checkpoints/
 *.parquet*
 /venv/
@@ -33,6 +35,8 @@ backup/
 *.code-workspace
 *.dmp
 output/
+bak/
+scratchpads/
 
 # Frontend
 # - JS: CreateReactApp
@@ -51,14 +55,13 @@ node_modules
 # production
 /build
 # misc
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 npm-debug.log*
 /frontend/.yarn/*
 yarn-debug.log*
 yarn-error.log*
+
+# LLM
+.claude/
 
 # Test
 frontend/playwright-report/index.html
