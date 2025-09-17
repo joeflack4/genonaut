@@ -1,0 +1,13 @@
+distlib==0.4.0
+filelock==3.19.1
+numpy==2.3.3
+pandas==2.3.2
+platformdirs==4.4.0
+python-dateutil==2.9.0.post0
+pytz==2025.2
+six==1.17.0
+stevedore==5.5.0
+tzdata==2025.2
+virtualenv==20.34.0
+virtualenv-clone==0.5.7
+virtualenvwrapper==6.1.1

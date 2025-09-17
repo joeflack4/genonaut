@@ -1,0 +1,64 @@
+# Boilerplate
+__pycache__/
+_archive/
+_dev/
+.idea/
+build/
+dev/
+dist/
+ignored/
+*~$*
+*.DS_Store
+*.egg-info
+*.swp
+tags
+MANIFEST
+
+# Custom
+/*.json
+*/cache/*
+!*/cache/.keep
+/env/*
+!/env/.env.example
+.ipynb_checkpoints/
+*.parquet*
+/venv/
+junk
+*/junk.json
+*.ipynb
+.idea
+.DS_Store
+backup/
+.vscode/
+*.code-workspace
+*.dmp
+output/
+
+# Frontend
+# - JS: CreateReactApp
+#   See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+#   dependencies
+node_modules
+/.pnp
+.pnp.js
+# testing
+/coverage
+/frontend/test-results/
+/frontend/playwright-report/
+/frontend/playwright/.cache/
+/frontend/tests/playwright/performance/*
+!/frontend/tests/playwright/performance/.keep
+# production
+/build
+# misc
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+npm-debug.log*
+/frontend/.yarn/*
+yarn-debug.log*
+yarn-error.log*
+
+# Test
+frontend/playwright-report/index.html
