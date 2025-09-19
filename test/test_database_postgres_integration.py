@@ -69,8 +69,9 @@ class TestPostgresDatabaseIntegration:
         admin_engine.dispose()
         
         # Test rw user connection
-        base_url = '/'.join(self.test_db_url.split('/')[:-1]) + '/' + self.test_db_url.split('/')[-1]
-        rw_url = base_url.replace('genonaut_admin:' + admin_password, f'genonaut_rw:{rw_password}')
+        from sqlalchemy.engine.url import make_url
+        url_obj = make_url(self.test_db_url)
+        rw_url = url_obj.set(username='genonaut_rw', password=rw_password)
         rw_engine = create_engine(rw_url)
         with rw_engine.connect() as conn:
             result = conn.execute(text("SELECT current_user"))
@@ -78,7 +79,8 @@ class TestPostgresDatabaseIntegration:
         rw_engine.dispose()
         
         # Test ro user connection
-        ro_url = base_url.replace('genonaut_admin:' + admin_password, f'genonaut_ro:{ro_password}')
+        ro_password = os.getenv('DB_PASSWORD_RO')
+        ro_url = url_obj.set(username='genonaut_ro', password=ro_password)
         ro_engine = create_engine(ro_url)
         with ro_engine.connect() as conn:
             result = conn.execute(text("SELECT current_user"))
@@ -207,10 +209,11 @@ class TestPostgresDatabaseIntegration:
         rw_password = os.getenv('DB_PASSWORD_RW')
         ro_password = os.getenv('DB_PASSWORD_RO')
         
-        base_url = '/'.join(self.test_db_url.split('/')[:-1]) + '/' + self.test_db_url.split('/')[-1]
+        from sqlalchemy.engine.url import make_url
+        url_obj = make_url(self.test_db_url)
 
         # Test RW user can insert/update/delete
-        rw_url = base_url.replace('genonaut_admin:' + admin_password, f'genonaut_rw:{rw_password}')
+        rw_url = url_obj.set(username='genonaut_rw', password=rw_password)
         rw_engine = create_engine(rw_url)
         RWSession = sessionmaker(bind=rw_engine)
         rw_session = RWSession()
@@ -227,7 +230,7 @@ class TestPostgresDatabaseIntegration:
         rw_engine.dispose()
         
         # Test RO user can only read
-        ro_url = base_url.replace('genonaut_admin:' + admin_password, f'genonaut_ro:{ro_password}')
+        ro_url = url_obj.set(username='genonaut_ro', password=ro_password)
         ro_engine = create_engine(ro_url)
         ROSession = sessionmaker(bind=ro_engine)
         ro_session = ROSession()

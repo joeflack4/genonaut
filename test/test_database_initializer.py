@@ -10,8 +10,14 @@ import pytest
 from unittest.mock import patch, MagicMock
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.engine.url import make_url
 
-from genonaut.db.init import DatabaseInitializer, initialize_database
+from genonaut.db.init import (
+    PROJECT_ROOT,
+    DatabaseInitializer,
+    initialize_database,
+    resolve_seed_path,
+)
 from genonaut.db.schema import Base, User, ContentItem
 
 
@@ -78,6 +84,29 @@ class TestDatabaseInitializer:
         
         expected_url = "postgresql://postgres:testpass@localhost:5432/genonaut"
         assert initializer.database_url == expected_url
+
+    @patch.dict(os.environ, {
+        'DATABASE_URL_TEST': 'postgresql://genonaut_admin:test_admin@localhost:5432/genonaut_test_data'
+    }, clear=True)
+    def test_get_database_url_uses_explicit_test_url(self):
+        """Ensure the test environment honours the dedicated database URL."""
+        initializer = DatabaseInitializer(environment="test")
+
+        assert initializer.database_url == 'postgresql://genonaut_admin:test_admin@localhost:5432/genonaut_test_data'
+        assert initializer.environment == "test"
+
+    @patch.dict(os.environ, {
+        'DATABASE_URL': 'postgresql://genonaut_admin:admin@localhost:5432/genonaut'
+    }, clear=True)
+    def test_get_database_url_test_environment_falls_back(self):
+        """Test URLs fall back to the main connection with a test database name."""
+        initializer = DatabaseInitializer(environment="test")
+
+        parsed_url = make_url(initializer.database_url)
+        assert parsed_url.username == "genonaut_admin"
+        assert parsed_url.host == "localhost"
+        assert parsed_url.database == "genonaut_test"
+        assert initializer.environment == "test"
     
     def test_create_engine_and_session_success(self):
         """Test successful engine and session factory creation."""
@@ -187,7 +216,7 @@ class TestDatabaseInitializer:
         
         # Verify template was rendered and executed
         mock_open.assert_called_once()
-        mock_create_engine.assert_called_with("postgresql://postgres:postgres@localhost:5432/postgres")
+        mock_create_engine.assert_called_with("postgresql://user:pass@localhost:5432/postgres")
         mock_subprocess_run.assert_called_once()
 
     @patch.dict(os.environ, {
@@ -238,3 +267,47 @@ class TestDatabaseInitializer:
             mock_engine.assert_called_once()
             mock_upgrade.assert_called_once_with("postgresql://genonaut_admin:pass@localhost:5432/testdb")
             mock_seed.assert_called_once_with(seed_dir)
+
+
+    def test_initialize_database_auto_drops_for_test_environment(self, tmp_path):
+        """Test databases should auto-drop existing tables before seeding."""
+        seed_dir = tmp_path / "seed"
+        seed_dir.mkdir()
+
+        mock_initializer = MagicMock()
+        mock_initializer.environment = "test"
+        mock_initializer.is_test = True
+        mock_initializer.database_url = "postgresql://genonaut_admin:pass@localhost:5432/genonaut_test"
+        mock_initializer.engine = MagicMock()
+
+        with patch('genonaut.db.init.DatabaseInitializer', return_value=mock_initializer) as mock_init_class, \
+             patch('genonaut.db.init.load_project_config') as mock_load_config, \
+             patch('genonaut.db.init.resolve_seed_path') as mock_resolve_seed_path, \
+             patch('genonaut.db.init._run_alembic_upgrade') as mock_upgrade:
+
+            mock_load_config.return_value = {'seed_data': {'test': str(seed_dir)}}
+            mock_resolve_seed_path.return_value = seed_dir
+
+            initialize_database(environment="test", create_db=False)
+
+            mock_init_class.assert_called_once()
+            mock_initializer.create_database_and_users.assert_not_called()
+            mock_initializer.drop_tables.assert_not_called()
+            mock_initializer.truncate_tables.assert_called_once()
+            mock_initializer.seed_from_tsv_directory.assert_called_once_with(seed_dir)
+            mock_upgrade.assert_called_once_with(mock_initializer.database_url)
+
+
+def test_resolve_seed_path_test_environment_falls_back(tmp_path):
+    """Test seed path resolution uses demo data when dedicated test data is absent."""
+
+    demo_seed_dir = tmp_path / "demo_seed"
+    demo_seed_dir.mkdir()
+
+    relative_demo_path = os.path.relpath(demo_seed_dir, PROJECT_ROOT)
+    config = {"seed_data": {"demo": relative_demo_path}}
+
+    resolved_path = resolve_seed_path(config, "test")
+
+    assert resolved_path is not None
+    assert resolved_path == demo_seed_dir.resolve()

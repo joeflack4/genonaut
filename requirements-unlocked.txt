@@ -1,7 +1,13 @@
 alembic
+email-validator
+fastapi
 jinja2
 pandas
 psycopg2-binary
+pydantic
+pydantic-settings
 pytest
 python-dotenv
+python-multipart
 sqlalchemy
+uvicorn

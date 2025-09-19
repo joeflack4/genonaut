@@ -14,48 +14,23 @@ Installation steps:
   - Run: `make init` or `python -m genonaut.db.init`
 
 ### Environment variables
-Genonaut requires database configuration via environment variables. 
+Configure database and API settings via environment variables:
 
 **Setup:**
 1. Copy the example environment file: `cp env/env.example .env`
 2. Edit `.env` with your actual database credentials.
 
 **Required Variables:**
+- `DB_PASSWORD_ADMIN` - Admin user password (full database privileges)
+- `DB_PASSWORD_RW` - Read/write user password (data operations only)  
+- `DB_PASSWORD_RO` - Read-only user password (select operations only)
 
-| Variable            | Description                                      | Example               | Default |
-|---------------------|--------------------------------------------------|-----------------------|---------|
-| `DB_PASSWORD_ADMIN` | Admin user password (full database privileges)   | `your_admin_password` | None    |
-| `DB_PASSWORD_RW`    | Read/write user password (data operations only)  | `your_rw_password`    | None    |
-| `DB_PASSWORD_RO`    | Read-only user password (select operations only) | `your_ro_password`    | None    |
+**Key Optional Variables:**
+- `DATABASE_URL` - Complete PostgreSQL connection URL (recommended for production)
+- `API_SECRET_KEY` - Secret key for JWT tokens and cryptographic operations
+- `API_ENVIRONMENT` - Which database to use by default (`dev`/`demo`/`test`)
 
-**Optional Variables:**
-
-| Variable       | Description                                                     | Example                                                          | Default     |
-|----------------|-----------------------------------------------------------------|------------------------------------------------------------------|-------------|
-| `DATABASE_URL` | Complete PostgreSQL connection URL (recommended for production) | `postgresql://genonaut_admin:admin_pass@localhost:5432/genonaut` | None        |
-| `DB_HOST`      | Database host                                                   | `localhost`                                                      | `localhost` |
-| `DB_PORT`      | Database port                                                   | `5432`                                                           | `5432`      |
-| `DB_NAME`      | Database name                                                   | `genonaut`                                                       | `genonaut`  |
-| `DB_NAME_DEMO` | Demo database name                                              | `genonaut_demo`                                                  | `genonaut_demo` |
-| `DB_USER`      | Legacy database username                                        | `postgres`                                                       | `postgres`  |
-| `DB_PASSWORD`  | Legacy database password                                        | `your_secure_password`                                           | None        |
-| `DB_ECHO`      | Enable SQL query logging                                        | `true`                                                           | `false`     |
-| `DEMO`         | When truthy, operate against the demo database                  | `1`                                                              | `0`         |
-
-**Three-Tier User System:**
-Genonaut uses a three-tier database user system for security:
-- **Admin User** (`genonaut_admin`): Full privileges for database initialization, schema creation, and administration
-- **Read/Write User** (`genonaut_rw`): Can insert, update, and delete data but cannot modify database structure
-- **Read-Only User** (`genonaut_ro`): Can only read data, useful for reporting and analytics
-
-**Configuration Behavior:**
-- If `DATABASE_URL` is provided and not empty, it will be used directly
-- Otherwise, the system will construct the database URL from the individual DB_* variables
-- For initialization, admin credentials (`DB_PASSWORD_ADMIN`) are used by default
-- For production, using `DATABASE_URL` with admin credentials is recommended for database setup
-
-**Notes:**
-- The `.env` file is gitignored and should never be committed
+For complete environment variable documentation, configuration behavior, and troubleshooting, see [Database Documentation](docs/db.md).
 
 ### Database Setup
 
@@ -64,20 +39,53 @@ After configuring environment variables, initialize the database:
 ```bash
 make init          # main database
 make init-demo     # demo database
+make init-test     # test database (truncates & re-seeds with demo fixtures)
 ```
 
-This will create the necessary database tables and schema for Genonaut. Alembic
-migrations can be applied via `make migrate-dev` and `make migrate-demo`.
-
-Seed-data directories for the main and demo databases are configured in
-`config.json` at the project root. Adjust those paths if you relocate the TSV
-fixtures.
+This creates the necessary database tables and schema. For detailed database documentation including schema details, JSONB usage, and troubleshooting, see [Database Documentation](docs/db.md).
 
 ## Running
-`python -m genonaut`
+
+### API Server
+
+Genonaut provides a complete REST API with 77 endpoints across 6 categories (Users, Content, Interactions, Recommendations, Generation Jobs, System).
+
+```bash
+# Start API server
+make api-dev                # Development database
+make api-demo               # Demo database  
+make api-test               # Test database
+```
+
+**Quick Access:**
+- Interactive docs: `http://localhost:8000/docs`
+- Health check: `http://localhost:8000/api/v1/health`
+
+For complete API documentation, endpoint details, configuration options, and troubleshooting, see [API Documentation](docs/api.md).
+
+## Testing
+
+Genonaut uses a three-tier testing approach: unit tests (no dependencies), database tests (requires DB), and API integration tests (requires web server).
+
+### Essential Commands
+```bash
+# Quick testing during development
+make test-unit              # Unit tests only (< 10 seconds)
+make test-db                # Database tests (30-60 seconds)
+make test-api               # API integration tests (2-5 minutes)
+
+# Comprehensive testing
+make test-all               # Run all test suites
+
+# Test database setup
+make init-test              # Initialize test database
+make api-test               # Start API server for testing
+```
+
+For detailed testing documentation, setup requirements, troubleshooting, and best practices, see [Testing Documentation](docs/testing.md).
 
 ## Developer docs
 Running tests:
 `make test` or `pytest test/ -v` (`-v` optional, for verbosity) 
 
-See more: [full dev docs](docs/developer.md))
+See more: [full dev docs](docs/developer.md)

@@ -1,0 +1,1 @@
+"""API tests for Genonaut FastAPI application."""

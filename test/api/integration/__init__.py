@@ -1,0 +1,1 @@
+"""Integration tests for API endpoints that require running web server."""

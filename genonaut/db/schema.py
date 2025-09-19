@@ -109,6 +109,7 @@ class ContentItem(Base):
     item_metadata = Column(JSONColumn, default=dict)
     creator_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     tags = Column(JSONColumn, default=list)
     quality_score = Column(Float, default=0.0)
     is_public = Column(Boolean, default=True, nullable=False)
@@ -190,6 +191,7 @@ class Recommendation(Base):
     algorithm_version = Column(String(50), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     is_served = Column(Boolean, default=False, nullable=False)
+    served_at = Column(DateTime, nullable=True)
     rec_metadata = Column(JSONColumn, default=dict)
     
     # Relationships
@@ -197,10 +199,7 @@ class Recommendation(Base):
     content_item = relationship("ContentItem", back_populates="recommendations")
     
     # Constraints and indexes
-    __table_args__ = (
-        UniqueConstraint('user_id', 'content_item_id', 'algorithm_version', 
-                        name='unique_user_content_recommendation'),
-    )
+    __table_args__ = ()
 
 
 class GenerationJob(Base):
@@ -229,6 +228,7 @@ class GenerationJob(Base):
     status = Column(String(20), default='pending', nullable=False, index=True)  # pending, running, completed, failed
     result_content_id = Column(Integer, ForeignKey('content_items.id'), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     error_message = Column(Text, nullable=True)
