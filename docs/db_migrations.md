@@ -3,12 +3,15 @@
 **Principle:** Forward-only in prod; rollbacks are for local/dev.
 
 ## SOP: Changing database schema 
-1) Change SQLAlchemy models.
-- Alternatively, ONLY if asked: plan/create raw SQL to execute to make the changes.
-2) Create revision: Autogen (ORM): `alembic revision --autogenerate -m "xyz"`  
-- Alternatively, ONLY if asked: Manual (SQL): `alembic revision -m "xyz"`
-3) Review and edit the new script under `alembic/versions/*.py` (write `downgrade()` only for safe, local use).  
-4) Apply: `alembic upgrade head`  
+1) Create, modify, or delete SQLAlchemy models.
+- DO NOT DO: plan/create raw SQL to execute to make the changes.
+2) Create revision: Autogen (ORM): Run the makefile goals to do `alembic revision --autogenerate -m "xyz"` on respective
+DBs, which follow the pattern, `migrate-*`, e.g. `migrate-demo`.
+- DO NOT DO: Manual (SQL): `alembic revision -m "xyz"`
+3) Optional (Probably for humans only; agents can skip this): Review and edit the new script under 
+`alembic/versions/*.py` (write `downgrade()` only for safe, local use).  
+4) Apply: Run the makefile goals to do `alembic upgrade head` on respective DBs, which follow the pattern, 
+`migrate-step2-*`, e.g. `migrate-step2-demo`.    
 5) CI/CD: run migrations during deploy (if applicable); use one DB per env.
 
 ## Data migrations (safe patterns)

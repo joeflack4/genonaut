@@ -1,4 +1,4 @@
-title	content_type	content_data	item_metadata	creator_username	tags	quality_score	is_public
-AI-Generated Sci-Fi Story	text	In the year 2157, humanity discovered...	{"word_count": 1500, "genre": "sci-fi"}	alice_creator	["sci-fi", "future", "ai", "space"]	0.85	true
-Fantasy Landscape	image	/images/fantasy_landscape_001.png	{"resolution": "1024x768", "style": "digital_art"}	bob_artist	["fantasy", "landscape", "digital_art"]	0.92	true
-Mystery Audio Drama	audio	/audio/mystery_drama_001.mp3	{"duration": 1800, "format": "mp3"}	bob_artist	["mystery", "audio_drama", "suspense"]	0.78	true
+title	content_type	content_data	item_metadata	creator_username	tags	quality_score	is_public	is_private
+AI-Generated Sci-Fi Story	text	In the year 2157, humanity discovered...	{"word_count": 1500, "genre": "sci-fi"}	alice_creator	["sci-fi", "future", "ai", "space"]	0.85	true	true
+Fantasy Landscape	image	/images/fantasy_landscape_001.png	{"resolution": "1024x768", "style": "digital_art"}	bob_artist	["fantasy", "landscape", "digital_art"]	0.92	true	false
+Mystery Audio Drama	audio	/audio/mystery_drama_001.mp3	{"duration": 1800, "format": "mp3"}	bob_artist	["mystery", "audio_drama", "suspense"]	0.78	true	false

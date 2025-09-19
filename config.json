@@ -1,6 +1,6 @@
 {
   "seed_data": {
     "main": "io/input/init/rdbms",
-    "demo": "io/input/init/demo_rdbms"
+    "demo": "io/input/init/demo_rdbms/rdbms"
   }
 }

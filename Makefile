@@ -1,8 +1,8 @@
 # Makefile for Genonaut project
 # Provides common development tasks and utilities
 
-.PHONY: help init-all init-dev init-demo test test-verbose test-specific clear-excess-test-schemas install install-dev \
-lint format clean migrate-all migrate-dev migrate-demo
+.PHONY: help init-all init-dev init-demo re-seed-demo re-seed-demo-force test test-verbose test-specific clear-excess-test-schemas install install-dev \
+lint format clean migrate-all migrate-dev migrate-demo migrate-step2-all migrate-step2-dev migrate-step2-demo
 
 ifneq (,$(wildcard ./env/.env))
 include ./env/.env
@@ -15,6 +15,8 @@ help:
 	@echo "  help                     Show this help message"
 	@echo "  init                     Initialize database with schema"
 	@echo "  init-demo                Initialize demo database with schema"
+	@echo "  re-seed-demo             Re-seed demo database (prompts for confirmation)"
+	@echo "  re-seed-demo-force       Re-seed demo database (no confirmation prompt)"
 	@echo "  test                     Run all tests"
 	@echo "  test-verbose             Run all tests with verbose output"
 	@echo "  test-specific TEST=name  Run specific test module or test case"
@@ -37,6 +39,14 @@ init-dev:
 init-demo:
 	@echo "Initializing demo database..."
 	DEMO=1 python -m genonaut.db.init
+
+re-seed-demo:
+	@echo "Re-seeding demo database..."
+	@python -c "import sys; sys.path.append('.'); from genonaut.db.init import reseed_demo; reseed_demo(force=False)"
+
+re-seed-demo-force:
+	@echo "Re-seeding demo database (forced)..."
+	@python -c "import sys; sys.path.append('.'); from genonaut.db.init import reseed_demo; reseed_demo(force=True)"
 
 # Tests
 test:
@@ -100,35 +110,33 @@ init-db-drop:
 	python -c "from genonaut.db.init import initialize_database; initialize_database(drop_existing=True)"
 
 # DB migration
-migrate-new:
-	alembic revision --autogenerate -m "$(m)"
-
-migrate-up:
-	alembic upgrade head
-
 migrate-all: migrate-dev migrate-demo
 
-# todo: this feels hacky, but works. Otherwise, would get 'sqlalchemy.exc.ArgumentError: Could not parse SQLAlchemy URL from given URL string'
-# todo: maybe get this from the .env file, and use DATABASE_URL=${DATABASE_URL} and DATABASE_URL=${DATABASE_URL_DEMO} respectively.
-# todo: - seems to be correctly importing .env at top of makefile now. just need to finish.
-# todo: - https://chatgpt.com/c/68cd85ae-4f9c-8330-ba29-b096cf9c3741
-#migrate-dev:
-#	@ALEMBIC_SQLALCHEMY_URL="$$(python -c 'from genonaut.db.utils import get_database_url; print(get_database_url(), end="")')" alembic upgrade head
-
-#migrate-demo:
-#	@DEMO=1 ALEMBIC_SQLALCHEMY_URL="$$(python -c 'from genonaut.db.utils import get_database_url; print(get_database_url(), end="")')" DEMO=1 alembic upgrade head
-
 migrate-dev:
-	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL} DATABASE_URL=${DATABASE_URL} alembic upgrade head
+	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL} DATABASE_URL=${DATABASE_URL} alembic revision --autogenerate -m "$(m)"
 
 migrate-demo:
+	@DEMO=1 ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic revision --autogenerate -m "$(m)"
+
+migrate-step2-all: migrate-step2-dev migrate-step2-demo
+
+migrate-step2-dev:
+	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL} DATABASE_URL=${DATABASE_URL} alembic upgrade head
+
+migrate-step2-demo:
 	@DEMO=1 ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic upgrade head
 
-migrate-down:
-	alembic downgrade -1
+migrate-down-dev:
+	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL} DATABASE_URL=${DATABASE_URL} alembic downgrade -1
 
-migrate-heads:
-	alembic heads
+migrate-heads-dev:
+	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL} DATABASE_URL=${DATABASE_URL} alembic heads
+
+migrate-down-demo:
+	@DEMO=1 ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic downgrade -1
+
+migrate-heads-demo:
+	@DEMO=1 ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic heads
 
 # Coverage
 test-coverage:

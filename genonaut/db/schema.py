@@ -112,6 +112,7 @@ class ContentItem(Base):
     tags = Column(JSONColumn, default=list)
     quality_score = Column(Float, default=0.0)
     is_public = Column(Boolean, default=True, nullable=False)
+    is_private = Column(Boolean, default=False, nullable=False)
     
     # Relationships
     creator = relationship("User", back_populates="content_items")

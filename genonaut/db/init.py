@@ -577,6 +577,61 @@ class DatabaseInitializer:
             raise SQLAlchemyError(f"Failed to seed database: {e}")
 
 
+def reseed_demo(force: bool = False) -> None:
+    """Re-seed the demo database by truncating all tables and re-running the seeding process.
+    
+    Args:
+        force: If False, prompts user for confirmation. If True, proceeds without prompting.
+        
+    Raises:
+        SQLAlchemyError: If re-seeding fails.
+        SystemExit: If user chooses not to proceed when prompted.
+    """
+    if not force:
+        response = input("Are you sure you want to truncate all tables and re-seed the demo database? (y/N): ")
+        if response.lower() not in ['y', 'yes']:
+            print("Operation cancelled.")
+            return
+    
+    print("Re-seeding demo database...")
+    
+    # Get demo database configuration
+    initializer = DatabaseInitializer(demo=True)
+    initializer.create_engine_and_session()
+    
+    # Get seed data path
+    config = load_project_config()
+    seed_path = resolve_seed_path(config, demo=True)
+    
+    if not seed_path:
+        raise ValueError("Could not resolve seed data path for demo database")
+    
+    # Truncate all tables (preserve schema)
+    model_classes = [GenerationJob, Recommendation, UserInteraction, ContentItem, User]  # Order matters for FK constraints
+    
+    if not initializer.session_factory:
+        raise ValueError("Session factory not initialized")
+    
+    session = initializer.session_factory()
+    try:
+        # Truncate tables in reverse dependency order
+        for model_class in model_classes:
+            table_name = model_class.__tablename__
+            session.execute(text(f"TRUNCATE TABLE {table_name} RESTART IDENTITY CASCADE"))
+        session.commit()
+        print("All tables truncated successfully")
+        
+        # Re-seed with TSV data
+        initializer.seed_from_tsv_directory(seed_path)
+        print("Demo database re-seeded successfully")
+        
+    except Exception as e:
+        session.rollback()
+        raise SQLAlchemyError(f"Failed to re-seed demo database: {e}")
+    finally:
+        session.close()
+
+
 def initialize_database(
     database_url: Optional[str] = None,
     create_db: bool = True,
