@@ -1,0 +1,9 @@
+[project]
+name = "genonaut"
+
+always_read = [
+  "AGENTS.md",
+  "README.md",
+  "docs/db_migrations.md",
+  "docs/developer.md"
+]
