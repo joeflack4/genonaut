@@ -40,3 +40,20 @@ history. Always generate a new revision with `alembic revision -m "..."` and put
 need to change the schema, add it in a new migration file rather than modifying or deleting old ones.
 
 Read this too: [DB migrations docs](./docs/db_migrations.md), particularly the "SOP: Changing database schema" section.
+
+### Service Management
+If at any point you need a service to be running (e.g. database, backend web API, frontend, or other services), you should:
+
+1. **Start required services**: Go ahead and try to start the process as a background process using appropriate commands (e.g., `make start-db`, `npm run dev`, `python -m uvicorn app:app`, etc.).
+
+2. **Restart existing services**: If you need to restart a service that is already running, try to stop and start the process again. Use commands like:
+   - `pkill -f <process_name>` or `killall <service>` to stop
+   - Then start the service again with the appropriate command
+   
+3. **Check service status**: Before starting, you can check if a service is already running using commands like:
+   - `ps aux | grep <service_name>`
+   - `lsof -i :<port_number>` for services running on specific ports
+   
+4. **Use project-specific commands**: Look for Makefile targets, npm scripts, or other project-specific commands for service management (e.g., `make start-services`, `docker-compose up -d`, etc.).
+
+Always prioritize using project-specific service management commands when available, as they are likely configured with the correct parameters and dependencies.
