@@ -11,7 +11,7 @@ from unittest.mock import patch, MagicMock
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
-from genonaut.db.init import DatabaseInitializer
+from genonaut.db.init import DatabaseInitializer, initialize_database
 from genonaut.db.schema import Base, User, ContentItem
 
 
@@ -160,9 +160,10 @@ class TestDatabaseInitializer:
         'DB_PASSWORD_RW': 'rw_pass', 
         'DB_PASSWORD_RO': 'ro_pass'
     })
+    @patch('subprocess.run')
     @patch('genonaut.db.init.create_engine')
     @patch('builtins.open')
-    def test_create_database_and_users_success(self, mock_open, mock_create_engine):
+    def test_create_database_and_users_success(self, mock_open, mock_create_engine, mock_subprocess_run):
         """Test successful database and user creation using SQL template."""
         # Mock file reading
         mock_file = MagicMock()
@@ -175,6 +176,7 @@ class TestDatabaseInitializer:
         
         mock_postgres_engine.connect.return_value.__enter__.return_value = mock_connection
         mock_create_engine.return_value = mock_postgres_engine
+        mock_subprocess_run.return_value = MagicMock(returncode=0, stdout='', stderr='')
         
         # Set up initializer with test URL
         test_url = "postgresql://user:pass@localhost:5432/testdb"
@@ -186,3 +188,53 @@ class TestDatabaseInitializer:
         # Verify template was rendered and executed
         mock_open.assert_called_once()
         mock_create_engine.assert_called_with("postgresql://postgres:postgres@localhost:5432/postgres")
+        mock_subprocess_run.assert_called_once()
+
+    @patch.dict(os.environ, {
+        'DB_PASSWORD_ADMIN': 'demo_admin',
+        'DB_HOST': 'demo-host',
+        'DB_PORT': '5439',
+        'DB_NAME_DEMO': 'genonaut_demo_custom'
+    }, clear=True)
+    def test_get_database_url_demo_flag(self):
+        """DatabaseInitializer should resolve demo URLs when requested."""
+        initializer = DatabaseInitializer(demo=True)
+        assert initializer.database_url == "postgresql://genonaut_admin:demo_admin@demo-host:5439/genonaut_demo_custom"
+
+    @patch.dict(os.environ, {
+        'DEMO': '1',
+        'DB_PASSWORD_ADMIN': 'admin_pass',
+        'DB_NAME_DEMO': 'genonaut_demo'
+    }, clear=True)
+    def test_get_database_url_respects_demo_env(self):
+        """Demo mode should be inferred from the DEMO environment variable."""
+        initializer = DatabaseInitializer()
+        assert initializer.database_url == "postgresql://genonaut_admin:admin_pass@localhost:5432/genonaut_demo"
+
+    def test_initialize_database_auto_seeds_for_postgres(self, tmp_path):
+        """Automatic seeding should occur for Postgres when no path is provided."""
+        seed_dir = tmp_path / "seed"
+        seed_dir.mkdir()
+
+        with patch.object(DatabaseInitializer, 'create_database_and_users') as mock_create_db, \
+             patch.object(DatabaseInitializer, 'create_engine_and_session') as mock_engine, \
+             patch.object(DatabaseInitializer, 'enable_extensions') as mock_enable, \
+             patch.object(DatabaseInitializer, 'drop_tables') as mock_drop, \
+             patch('genonaut.db.init._run_alembic_upgrade') as mock_upgrade, \
+             patch.object(DatabaseInitializer, 'seed_from_tsv_directory') as mock_seed, \
+             patch('genonaut.db.init.load_project_config') as mock_load_config, \
+             patch('genonaut.db.init.resolve_seed_path') as mock_resolve_seed_path:
+
+            mock_load_config.return_value = {'seed_data': {'main': str(seed_dir)}}
+            mock_resolve_seed_path.return_value = seed_dir
+
+            initialize_database(
+                database_url="postgresql://genonaut_admin:pass@localhost:5432/testdb",
+                create_db=False,
+                drop_existing=False
+            )
+
+            mock_create_db.assert_not_called()
+            mock_engine.assert_called_once()
+            mock_upgrade.assert_called_once_with("postgresql://genonaut_admin:pass@localhost:5432/testdb")
+            mock_seed.assert_called_once_with(seed_dir)

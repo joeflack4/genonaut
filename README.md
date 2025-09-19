@@ -36,9 +36,11 @@ Genonaut requires database configuration via environment variables.
 | `DB_HOST`      | Database host                                                   | `localhost`                                                      | `localhost` |
 | `DB_PORT`      | Database port                                                   | `5432`                                                           | `5432`      |
 | `DB_NAME`      | Database name                                                   | `genonaut`                                                       | `genonaut`  |
+| `DB_NAME_DEMO` | Demo database name                                              | `genonaut_demo`                                                  | `genonaut_demo` |
 | `DB_USER`      | Legacy database username                                        | `postgres`                                                       | `postgres`  |
 | `DB_PASSWORD`  | Legacy database password                                        | `your_secure_password`                                           | None        |
 | `DB_ECHO`      | Enable SQL query logging                                        | `true`                                                           | `false`     |
+| `DEMO`         | When truthy, operate against the demo database                  | `1`                                                              | `0`         |
 
 **Three-Tier User System:**
 Genonaut uses a three-tier database user system for security:
@@ -60,10 +62,16 @@ Genonaut uses a three-tier database user system for security:
 After configuring environment variables, initialize the database:
 
 ```bash
-make init
+make init          # main database
+make init-demo     # demo database
 ```
 
-This will create the necessary database tables and schema for Genonaut.
+This will create the necessary database tables and schema for Genonaut. Alembic
+migrations can be applied via `make migrate-dev` and `make migrate-demo`.
+
+Seed-data directories for the main and demo databases are configured in
+`config.json` at the project root. Adjust those paths if you relocate the TSV
+fixtures.
 
 ## Running
 `python -m genonaut`

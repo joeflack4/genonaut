@@ -16,6 +16,7 @@ MANIFEST
 
 # Custom
 /*.json
+!config.json
 */cache/*
 !*/cache/.keep
 # Environment files

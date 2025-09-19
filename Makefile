@@ -1,13 +1,14 @@
 # Makefile for Genonaut project
 # Provides common development tasks and utilities
 
-.PHONY: help init test test-verbose test-specific clear-excess-test-schemas install install-dev lint format clean
+.PHONY: help init init-demo test test-verbose test-specific clear-excess-test-schemas install install-dev lint format clean migrate-dev migrate-demo
 
 # Default target
 help:
 	@echo "Available targets:"
 	@echo "  help                     Show this help message"
 	@echo "  init                     Initialize database with schema"
+	@echo "  init-demo                Initialize demo database with schema"
 	@echo "  test                     Run all tests"
 	@echo "  test-verbose             Run all tests with verbose output"
 	@echo "  test-specific TEST=name  Run specific test module or test case"
@@ -17,11 +18,17 @@ help:
 	@echo "  lint                     Run code linting"
 	@echo "  format                   Format code"
 	@echo "  clean                    Clean temporary files"
+	@echo "  migrate-dev              Upgrade main database schema"
+	@echo "  migrate-demo             Upgrade demo database schema"
 
 # Database initialization
 init:
 	@echo "Initializing database..."
-	python -m genonaut.db.init
+	DEMO=0 python -m genonaut.db.init
+
+init-demo:
+	@echo "Initializing demo database..."
+	DEMO=1 python -m genonaut.db.init
 
 # Tests
 test:
@@ -90,6 +97,16 @@ migrate-new:
 
 migrate-up:
 	alembic upgrade head
+
+.PHONY: migrate-all
+migrate-all: migrate-dev migrate-demo
+
+# todo: this feels hacky, but works. Otherwise, would get 'sqlalchemy.exc.ArgumentError: Could not parse SQLAlchemy URL from given URL string'
+migrate-dev:
+	@ALEMBIC_SQLALCHEMY_URL="$$(python -c 'from genonaut.db.utils import get_database_url; print(get_database_url(), end="")')" alembic upgrade head
+
+migrate-demo:
+	@DEMO=1 ALEMBIC_SQLALCHEMY_URL="$$(python -c 'from genonaut.db.utils import get_database_url; print(get_database_url(), end="")')" DEMO=1 alembic upgrade head
 
 migrate-down:
 	alembic downgrade -1

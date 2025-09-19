@@ -1,22 +1,17 @@
-"""PostgreSQL integration tests for database initialization and schema management.
-
-Tests the full database initialization process with PostgreSQL using admin credentials
-and proper test schema isolation.
-"""
+"""PostgreSQL integration tests for database initialization and role management."""
 
 import pytest
 import os
-from unittest.mock import patch
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from genonaut.db.init import initialize_database, DatabaseInitializer
 from genonaut.db.schema import Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob
-from .utils import get_admin_database_url, get_next_test_schema_name, clear_excess_test_schemas
+from .utils import get_admin_database_url
 
 
 class TestPostgresDatabaseIntegration:
-    """PostgreSQL integration test cases for database operations with proper schema isolation."""
+    """PostgreSQL integration tests using separate databases for isolation."""
     
     @pytest.fixture(scope="class", autouse=True)
     def setup_class(self):
@@ -31,6 +26,7 @@ class TestPostgresDatabaseIntegration:
         
         try:
             self.__class__.admin_db_url = get_admin_database_url()
+            self.__class__.admin_demo_db_url = get_admin_database_url(demo=True)
             # Test connection to ensure database is available
             engine = create_engine(self.__class__.admin_db_url)
             with engine.connect() as conn:
@@ -42,24 +38,15 @@ class TestPostgresDatabaseIntegration:
     @pytest.fixture(autouse=True)
     def setup_method(self):
         """Set up test environment for each test."""
-        # Get next available test schema name using admin credentials
-        self.test_schema = get_next_test_schema_name(self.__class__.admin_db_url)
+        # Work directly in the public schema of the admin database
         self.test_db_url = self.__class__.admin_db_url
-        
-        # Clean up any excess test schemas (keep latest 3)
-        clear_excess_test_schemas(self.__class__.admin_db_url, keep_latest=3)
-    
-    def teardown_method(self):
-        """Clean up after each test."""
-        # Drop the test schema if it exists
-        try:
-            engine = create_engine(self.__class__.admin_db_url)
-            with engine.connect() as conn:
-                conn.execute(text(f"DROP SCHEMA IF EXISTS {self.test_schema} CASCADE"))
-                conn.commit()
-            engine.dispose()
-        except Exception:
-            pass  # Best effort cleanup
+        self.admin_demo_db_url = self.__class__.admin_demo_db_url
+        # Ensure a clean slate before each test
+        initialize_database(
+            database_url=self.test_db_url,
+            create_db=True,
+            drop_existing=True
+        )
     
     def test_database_and_user_creation(self):
         """Test database and user creation using the SQL template."""
@@ -99,158 +86,121 @@ class TestPostgresDatabaseIntegration:
         ro_engine.dispose()
     
     def test_schema_creation_and_table_setup(self):
-        """Test schema creation and table setup in test schema."""
-        # Initialize database with test schema
+        """Tables should exist in the public schema after initialization."""
         initialize_database(
             database_url=self.test_db_url,
             create_db=True,
-            drop_existing=False,
-            schema_name=self.test_schema
+            drop_existing=True
         )
-        
-        # Verify the test schema exists
+
         engine = create_engine(self.admin_db_url)
         with engine.connect() as conn:
             result = conn.execute(text("""
-                SELECT schema_name 
-                FROM information_schema.schemata 
-                WHERE schema_name = :schema_name
-            """), {"schema_name": self.test_schema})
-            
-            assert result.fetchone() is not None, f"Test schema {self.test_schema} should exist"
-        
-        # Verify tables exist in the test schema
-        with engine.connect() as conn:
-            result = conn.execute(text("""
-                SELECT table_name 
-                FROM information_schema.tables 
-                WHERE table_schema = :schema_name
-            """), {"schema_name": self.test_schema})
-            
-            tables = [row[0] for row in result]
-            expected_tables = ['users', 'content_items', 'user_interactions', 'recommendations', 'generation_jobs']
-            
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+            """))
+
+            tables = {row[0] for row in result}
+            expected_tables = {'users', 'content_items', 'user_interactions', 'recommendations', 'generation_jobs'}
+
             for expected_table in expected_tables:
-                assert expected_table in tables, f"Table {expected_table} should exist in schema {self.test_schema}"
-        
+                assert expected_table in tables, f"Table {expected_table} should exist in public schema"
+
         engine.dispose()
     
-    def test_app_and_demo_schema_creation(self):
-        """Test creation of app and demo schemas with tables."""
-        # Initialize database without specifying test schema (normal mode)
+    def test_main_and_demo_databases_have_tables(self):
+        """Ensure both main and demo databases expose the expected tables in public schema."""
+        # Initialize primary and demo databases separately
         initialize_database(
-            database_url=self.test_db_url,
             create_db=True,
-            drop_existing=False
+            drop_existing=True,
+            demo=False
         )
-        
-        # Verify both app and demo schemas exist
-        engine = create_engine(self.admin_db_url)
-        with engine.connect() as conn:
-            result = conn.execute(text("""
-                SELECT schema_name 
-                FROM information_schema.schemata 
-                WHERE schema_name IN ('app', 'demo')
-                ORDER BY schema_name
-            """))
-            
-            schemas = [row[0] for row in result]
-            assert 'app' in schemas, "App schema should exist"
-            assert 'demo' in schemas, "Demo schema should exist"
-        
-        # Verify tables exist in both schemas
-        for schema in ['app', 'demo']:
+
+        initialize_database(
+            create_db=True,
+            drop_existing=True,
+            demo=True
+        )
+
+        expected_tables = {
+            'users',
+            'content_items',
+            'user_interactions',
+            'recommendations',
+            'generation_jobs'
+        }
+
+        targets = [
+            (self.admin_db_url, 'main'),
+            (self.admin_demo_db_url, 'demo')
+        ]
+
+        for url, label in targets:
+            engine = create_engine(url)
             with engine.connect() as conn:
                 result = conn.execute(text("""
-                    SELECT table_name 
-                    FROM information_schema.tables 
-                    WHERE table_schema = :schema_name
-                """), {"schema_name": schema})
-                
-                tables = [row[0] for row in result]
-                expected_tables = ['users', 'content_items', 'user_interactions', 'recommendations', 'generation_jobs']
-                
+                    SELECT table_name
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                """))
+                tables = {row[0] for row in result}
                 for expected_table in expected_tables:
-                    assert expected_table in tables, f"Table {expected_table} should exist in schema {schema}"
-        
-        engine.dispose()
-    
-    def test_test_schema_isolation(self):
-        """Test that multiple test schemas can be created and are isolated."""
-        # Create first test schema
-        schema1 = self.test_schema
-        initialize_database(
-            database_url=self.test_db_url,
-            create_db=True,
-            drop_existing=False,
-            schema_name=schema1
-        )
-        
-        # Create data in first schema
-        schema1_url = f"{self.test_db_url}?options=-csearch_path%3D{schema1}"
-        engine1 = create_engine(schema1_url)
-        Session1 = sessionmaker(bind=engine1)
-        session1 = Session1()
-        
-        user1 = User(username="schema1_user", email="schema1@example.com")
-        session1.add(user1)
-        session1.commit()
-        session1.close()
-        
-        # Get second test schema
-        schema2 = get_next_test_schema_name(self.admin_db_url)
-        initialize_database(
-            database_url=self.test_db_url,
-            create_db=True,
-            drop_existing=False,
-            schema_name=schema2
-        )
-        
-        # Create different data in second schema
-        schema2_url = f"{self.test_db_url}?options=-csearch_path%3D{schema2}"
-        engine2 = create_engine(schema2_url)
-        Session2 = sessionmaker(bind=engine2)
-        session2 = Session2()
-        
-        user2 = User(username="schema2_user", email="schema2@example.com")
-        session2.add(user2)
-        session2.commit()
-        session2.close()
-        
-        # Verify isolation - each schema should only see its own data
-        session1 = Session1()
-        users_in_schema1 = session1.query(User).all()
-        assert len(users_in_schema1) == 1
-        assert users_in_schema1[0].username == "schema1_user"
-        session1.close()
-        
-        session2 = Session2()
-        users_in_schema2 = session2.query(User).all()
-        assert len(users_in_schema2) == 1
-        assert users_in_schema2[0].username == "schema2_user"
-        session2.close()
-        
-        # Clean up second schema
-        try:
-            engine = create_engine(self.admin_db_url)
-            with engine.connect() as conn:
-                conn.execute(text(f"DROP SCHEMA IF EXISTS {schema2} CASCADE"))
-                conn.commit()
+                    assert expected_table in tables, (
+                        f"Table {expected_table} should exist in public schema for the {label} database"
+                    )
             engine.dispose()
-        except Exception:
-            pass
-        
-        engine1.dispose()
-        engine2.dispose()
+    
+    def test_database_isolation_between_main_and_demo(self):
+        """Data inserted into main database should not appear in demo database."""
+        # Initialize both databases
+        initialize_database(
+            database_url=self.test_db_url,
+            create_db=True,
+            drop_existing=True
+        )
+
+        initialize_database(
+            database_url=get_admin_database_url(demo=True),
+            create_db=True,
+            drop_existing=True,
+            demo=True
+        )
+
+        main_engine = create_engine(self.test_db_url)
+        demo_engine = create_engine(self.admin_demo_db_url)
+
+        MainSession = sessionmaker(bind=main_engine)
+        DemoSession = sessionmaker(bind=demo_engine)
+
+        main_session = MainSession()
+        demo_session = DemoSession()
+
+        username = "integration_main_user"
+
+        try:
+            user = User(username=username, email="main@example.com")
+            main_session.add(user)
+            main_session.commit()
+
+            # Main database should have the record
+            assert main_session.query(User).filter_by(username=username).count() == 1
+
+            # Demo database should remain empty
+            assert demo_session.query(User).filter_by(username=username).count() == 0
+        finally:
+            main_session.close()
+            demo_session.close()
+            main_engine.dispose()
+            demo_engine.dispose()
     
     def test_user_permissions(self):
         """Test that different user roles have appropriate permissions."""
-        # Create test schema with tables
         initialize_database(
             database_url=self.test_db_url,
             create_db=True,
-            drop_existing=False,
-            schema_name=self.test_schema
+            drop_existing=True
         )
         
         admin_password = os.getenv('DB_PASSWORD_ADMIN')
@@ -258,10 +208,9 @@ class TestPostgresDatabaseIntegration:
         ro_password = os.getenv('DB_PASSWORD_RO')
         
         base_url = '/'.join(self.test_db_url.split('/')[:-1]) + '/' + self.test_db_url.split('/')[-1]
-        
+
         # Test RW user can insert/update/delete
         rw_url = base_url.replace('genonaut_admin:' + admin_password, f'genonaut_rw:{rw_password}')
-        rw_url += f"?options=-csearch_path%3D{self.test_schema}"
         rw_engine = create_engine(rw_url)
         RWSession = sessionmaker(bind=rw_engine)
         rw_session = RWSession()
@@ -279,7 +228,6 @@ class TestPostgresDatabaseIntegration:
         
         # Test RO user can only read
         ro_url = base_url.replace('genonaut_admin:' + admin_password, f'genonaut_ro:{ro_password}')
-        ro_url += f"?options=-csearch_path%3D{self.test_schema}"
         ro_engine = create_engine(ro_url)
         ROSession = sessionmaker(bind=ro_engine)
         ro_session = ROSession()
@@ -299,5 +247,3 @@ class TestPostgresDatabaseIntegration:
         ro_session.rollback()
         ro_session.close()
         ro_engine.dispose()
-
-

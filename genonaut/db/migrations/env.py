@@ -5,7 +5,11 @@ import os
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool, text
+from sqlalchemy import create_engine, pool, text
+
+import genonaut.db.schema  # ensure package is imported for migration references
+
+ALEMBIC_ENV_URL_VAR = "ALEMBIC_SQLALCHEMY_URL"
 
 from genonaut.db.schema import Base
 from genonaut.db.utils import get_database_url
@@ -27,9 +31,23 @@ def include_object(obj, name, type_, reflected, compare_to):
     return True
 
 
+# Helper to resolve the database URL. Allows programmatic runners to inject the
+# target via alembic.ini while preserving the existing environment behaviour.
+def _resolved_database_url() -> str:
+    env_url = os.getenv(ALEMBIC_ENV_URL_VAR)
+    if env_url and env_url.strip():
+        return env_url.strip()
+
+    configured_url = config.get_main_option("sqlalchemy.url")
+    if configured_url and configured_url.strip():
+        return configured_url.strip()
+
+    return get_database_url()
+
+
 # --- Offline mode (generates SQL) ---
 def run_migrations_offline() -> None:
-    url = get_database_url()
+    url = _resolved_database_url()
     config.set_main_option("sqlalchemy.url", url)
 
     context.configure(
@@ -49,13 +67,10 @@ def run_migrations_offline() -> None:
 # --- Online mode (applies to the DB) ---
 def run_migrations_online() -> None:
     # Inject env URL so alembic.ini can keep sqlalchemy.url blank
-    config.set_main_option("sqlalchemy.url", get_database_url())
+    url = _resolved_database_url()
+    config.set_main_option("sqlalchemy.url", url)
 
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    connectable = create_engine(url, poolclass=pool.NullPool)
 
     with connectable.connect() as connection:
         context.configure(

@@ -4,17 +4,22 @@ This module provides functionality to create the PostgreSQL database schema
 and seed it with initial data for development and testing purposes.
 """
 
+import json
 import os
 import re
 import logging
-from dotenv import load_dotenv
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError
-from jinja2 import Template
+from sqlalchemy.engine.url import make_url
+from sqlalchemy.orm import sessionmaker, Session
+
+from alembic import command
+from alembic.config import Config
 
 from genonaut.db.schema import Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob
 from genonaut.db.utils import get_database_url
@@ -22,8 +27,67 @@ from genonaut.db.utils import get_database_url
 
 # Load environment variables from .env file in the env/ directory
 # Path from genonaut/db/init.py -> project_root/env/.env
-env_path = Path(__file__).parent.parent.parent / "env" / ".env"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+env_path = PROJECT_ROOT / "env" / ".env"
 load_dotenv(dotenv_path=env_path)
+
+CONFIG_PATH = PROJECT_ROOT / "config.json"
+
+logger = logging.getLogger(__name__)
+
+
+def load_project_config() -> Dict[str, Any]:
+    """Load repository-level configuration from config.json.
+
+    Returns:
+        Parsed JSON configuration dictionary. Returns an empty dictionary when
+        the config file is absent or invalid.
+    """
+
+    if not CONFIG_PATH.exists():
+        return {}
+
+    try:
+        with CONFIG_PATH.open("r", encoding="utf-8") as config_file:
+            return json.load(config_file)
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Failed to load config.json: %s", exc)
+        return {}
+
+
+def resolve_seed_path(config: Dict[str, Any], demo: bool) -> Optional[Path]:
+    """Resolve the seed-data directory path for the requested database."""
+
+    seed_section = config.get("seed_data", {}) if isinstance(config, dict) else {}
+    seed_key = "demo" if demo else "main"
+    raw_path = seed_section.get(seed_key)
+
+    if not raw_path:
+        return None
+
+    candidate = (PROJECT_ROOT / raw_path).resolve()
+    if not candidate.exists():
+        logger.warning("Seed path %s does not exist", candidate)
+        return None
+
+    return candidate
+
+
+def _is_truthy(value: Optional[str]) -> bool:
+    """Lightweight helper to interpret environment flags."""
+
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _run_alembic_upgrade(database_url: str) -> None:
+    """Run Alembic upgrade to head for the provided database URL."""
+
+    alembic_cfg = Config(str(PROJECT_ROOT / "alembic.ini"))
+    alembic_cfg.set_main_option("sqlalchemy.url", database_url)
+    os.environ["ALEMBIC_SQLALCHEMY_URL"] = database_url
+    command.upgrade(alembic_cfg, "head")
 
 
 def _class_name_to_snake_case(class_name: str) -> str:
@@ -50,13 +114,21 @@ class DatabaseInitializer:
     Handles database connection, schema creation, and initial data seeding.
     """
     
-    def __init__(self, database_url: Optional[str] = None):
+    def __init__(self, database_url: Optional[str] = None, demo: Optional[bool] = None):
         """Initialize the database initializer.
         
         Args:
             database_url: PostgreSQL connection URL. If None, will use environment variable.
+            demo: Optional flag indicating the demo database should be targeted.
         """
-        self.database_url = database_url or get_database_url()
+        self.demo = demo if demo is not None else None
+        self.database_url = database_url or get_database_url(demo=demo)
+        try:
+            self._url = make_url(self.database_url)
+            self.database_name = self._url.database
+        except Exception:
+            self._url = None
+            self.database_name = None
         self.engine = None
         self.session_factory = None
 
@@ -107,6 +179,11 @@ class DatabaseInitializer:
         sql_content = template_content.replace('{{ DB_PASSWORD_ADMIN }}', admin_password)
         sql_content = sql_content.replace('{{ DB_PASSWORD_RW }}', rw_password)
         sql_content = sql_content.replace('{{ DB_PASSWORD_RO }}', ro_password)
+
+        database_name = self.database_name or os.getenv('DB_NAME', 'genonaut')
+        if not database_name:
+            raise ValueError("Database name could not be determined for initialization")
+        sql_content = sql_content.replace('{{ DB_NAME }}', database_name)
         
         # Create connection URL to 'postgres' database for admin operations
         # We need to use existing superuser credentials to create the new users
@@ -159,7 +236,7 @@ class DatabaseInitializer:
                 result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True)
                 
                 if result.returncode == 0:
-                    print("Database and users created successfully")
+                    print(f"Database '{database_name}' and users created successfully")
                 else:
                     print(f"psql output: {result.stdout}")
                     print(f"psql errors: {result.stderr}")
@@ -172,16 +249,16 @@ class DatabaseInitializer:
                 except OSError:
                     pass
             
-            print("Database and users created successfully")
+            print(f"Database '{database_name}' and users created successfully")
                     
         except SQLAlchemyError as e:
             raise SQLAlchemyError(f"Failed to create database and users: {e}")
     
-    def create_schemas(self, schema_names: List[str] = None) -> None:
+    def create_schemas(self, schema_names: Optional[List[str]] = None) -> None:
         """Create the specified schemas.
         
         Args:
-            schema_names: List of schema names to create. Defaults to ['demo', 'app']
+            schema_names: List of schema names to create.
             
         Raises:
             SQLAlchemyError: If schema creation fails
@@ -189,8 +266,8 @@ class DatabaseInitializer:
         if not self.engine:
             raise ValueError("Engine not initialized. Call create_engine_and_session() first.")
         
-        if schema_names is None:
-            schema_names = ['demo', 'app']
+        if not schema_names:
+            return
         
         try:
             with self.engine.connect() as conn:
@@ -292,18 +369,20 @@ class DatabaseInitializer:
             if schema_name and self.database_url.startswith('postgresql://'):
                 # PostgreSQL: Execute raw SQL to create tables in the specific schema
                 with self.engine.connect() as conn:
-                    # Set the search path to the target schema
+                    # Set the search path to the target schema (transaction scoped)
                     conn.execute(text(f"SET search_path TO {schema_name}, public"))
-                    conn.commit()
-                    
+
                     # Now create all tables (they will be created in the schema)
-                    Base.metadata.create_all(conn)
-                    
-                    # Commit the table creation first
-                    conn.commit()
+                    try:
+                        Base.metadata.create_all(conn)
+                        conn.commit()
+                    except Exception:
+                        conn.rollback()
+                        raise
                     
                     # Create GIN indexes for JSONB columns (PostgreSQL only) in a separate transaction
                     try:
+                        conn.execute(text(f"SET search_path TO {schema_name}, public"))
                         self._create_gin_indexes_for_schema(conn, schema_name)
                         conn.commit()
                     except Exception as e:
@@ -361,7 +440,6 @@ class DatabaseInitializer:
                 with self.engine.connect() as conn:
                     # Set the search path to the target schema
                     conn.execute(text(f"SET search_path TO {schema_name}, public"))
-                    conn.commit()
                     
                     # Drop all tables
                     Base.metadata.drop_all(conn)
@@ -372,13 +450,14 @@ class DatabaseInitializer:
                     
                 print(f"Database tables dropped successfully from schema: {schema_name}")
             elif self.database_url.startswith('postgresql://'):
-                # PostgreSQL: Drop tables from all schemas
+                # PostgreSQL: Drop tables from public schema (and legacy schemas for cleanup)
+                legacy_schemas = ['app', 'demo']
                 with self.engine.connect() as conn:
-                    for schema in ['demo', 'app', 'public']:
+                    for schema in ['public'] + legacy_schemas:
                         try:
                             conn.execute(text(f"SET search_path TO {schema}, public"))
-                            conn.commit()
                             Base.metadata.drop_all(conn)
+                            conn.commit()
                             print(f"Dropped tables from schema: {schema}")
                         except Exception as e:
                             print(f"Warning: Could not drop tables from {schema}: {e}")
@@ -387,7 +466,7 @@ class DatabaseInitializer:
                     conn.execute(text("SET search_path TO public"))
                     conn.commit()
                     
-                print("Database tables dropped successfully from all schemas")
+                print("Database tables dropped successfully from public schema")
             else:
                 # SQLite: Just drop all tables (no schema support)
                 Base.metadata.drop_all(self.engine)
@@ -498,110 +577,94 @@ class DatabaseInitializer:
             raise SQLAlchemyError(f"Failed to seed database: {e}")
 
 
-def initialize_database(database_url: Optional[str] = None, 
-                       create_db: bool = True,
-                       drop_existing: bool = False,
-                       app_seed_data_path: Optional[Path] = None,
-                       demo_seed_data_path: Optional[Path] = None,
-                       schema_name: Optional[str] = None) -> None:
+def initialize_database(
+    database_url: Optional[str] = None,
+    create_db: bool = True,
+    drop_existing: bool = False,
+    schema_name: Optional[str] = None,
+    demo: bool = False,
+    seed_data_path: Optional[Path] = None,
+) -> None:
     """Initialize the database with schema and optional data seeding.
-    
+
     Args:
-        database_url: PostgreSQL connection URL
-        create_db: Whether to create the database if it doesn't exist
-        drop_existing: Whether to drop existing tables before creating new ones
-        app_seed_data_path: Optional path to directory containing TSV files for seeding 'app' schema
-        demo_seed_data_path: Optional path to directory containing TSV files for seeding 'demo' schema
-        schema_name: Optional specific schema name for table creation (for testing)
-        
+        database_url: Database connection URL. Uses environment configuration when
+            omitted.
+        create_db: Whether to create the database if it doesn't exist.
+        drop_existing: Whether to drop existing tables before creating new ones.
+        schema_name: Optional schema name for table creation (primarily for tests).
+        demo: When True, targets the demo database.
+        seed_data_path: Optional directory containing TSV files for seeding data.
+
     Raises:
-        SQLAlchemyError: If initialization fails
+        SQLAlchemyError: If initialization fails.
     """
-    initializer = DatabaseInitializer(database_url)
-    
+
+    initializer = DatabaseInitializer(database_url, demo=demo)
+
+    target_url = initializer.database_url or ""
+    is_postgresql = target_url.startswith('postgresql://')
+    is_sqlite = target_url.startswith('sqlite://')
+
     if create_db:
-        # Only create database and users for PostgreSQL
-        if database_url and database_url.startswith('postgresql://'):
-            initializer.create_database_and_users()
-        elif not database_url and not os.getenv('DATABASE_URL', '').startswith('sqlite://'):
-            # Environment suggests PostgreSQL setup
-            initializer.create_database_and_users()
-    
-    initializer.create_engine_and_session()
-    
-    # Enable required extensions for JSONB features
-    initializer.enable_extensions()
-    
-    # Create schemas if not in test mode and using PostgreSQL
-    if not schema_name:
-        # Check if using PostgreSQL (schemas supported)
-        is_postgresql = (database_url and database_url.startswith('postgresql://')) or \
-                       (not database_url and not os.getenv('DATABASE_URL', '').startswith('sqlite://'))
-        
         if is_postgresql:
-            initializer.create_schemas(['demo', 'app'])
-            
-            if drop_existing:
-                initializer.drop_tables()
-            
-            # Create tables in both schemas
-            initializer.create_tables('demo')
-            initializer.create_tables('app')
-            
-            # Seed the schemas
-            if app_seed_data_path:
-                initializer.seed_from_tsv_directory(app_seed_data_path, 'app')
-            
-            if demo_seed_data_path:
-                initializer.seed_from_tsv_directory(demo_seed_data_path, 'demo')
+            initializer.create_database_and_users()
+        elif not is_sqlite:
+            # Non-SQLite setups rely on admin role creation as well
+            initializer.create_database_and_users()
+
+    initializer.create_engine_and_session()
+    initializer.enable_extensions()
+
+    resolved_seed_path: Optional[Path] = None
+    candidate_path: Optional[Path] = None
+
+    if seed_data_path is not None:
+        candidate_path = Path(seed_data_path)
+    elif schema_name is None and not is_sqlite:
+        candidate_path = resolve_seed_path(load_project_config(), demo)
+
+    if candidate_path:
+        if candidate_path.exists() and candidate_path.is_dir():
+            resolved_seed_path = candidate_path
         else:
-            # SQLite - just create tables without schemas
-            if drop_existing:
-                initializer.drop_tables()
-            
-            initializer.create_tables()
-            
-            # Seed with app_seed_data_path if provided (ignore demo for SQLite)
-            if app_seed_data_path:
-                initializer.seed_from_tsv_directory(app_seed_data_path)
-    else:
-        # Test mode - create schema and tables in specified schema (PostgreSQL only)
-        is_postgresql = (database_url and database_url.startswith('postgresql://')) or \
-                       (not database_url and not os.getenv('DATABASE_URL', '').startswith('sqlite://'))
-        
+            logger.warning("Seed data path %s is not a valid directory", candidate_path)
+
+    if schema_name:
         if is_postgresql:
             initializer.create_schemas([schema_name])
-            
-            if drop_existing:
-                initializer.drop_tables()
-            
-            initializer.create_tables(schema_name)
-            
-            # Seed with app_seed_data_path if provided
-            if app_seed_data_path:
-                initializer.seed_from_tsv_directory(app_seed_data_path, schema_name)
+        if drop_existing:
+            initializer.drop_tables(schema_name)
+        initializer.create_tables(schema_name)
+        if resolved_seed_path:
+            initializer.seed_from_tsv_directory(resolved_seed_path, schema_name)
+    else:
+        if drop_existing:
+            if is_postgresql:
+                with initializer.engine.connect() as conn:
+                    conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
+                    conn.commit()
+            initializer.drop_tables()
+
+        if is_postgresql:
+            _run_alembic_upgrade(initializer.database_url)
         else:
-            # SQLite test mode - just create tables
-            if drop_existing:
-                initializer.drop_tables()
-            
             initializer.create_tables()
-            
-            # Seed with app_seed_data_path if provided
-            if app_seed_data_path:
-                initializer.seed_from_tsv_directory(app_seed_data_path)
-    
+
+        if resolved_seed_path:
+            initializer.seed_from_tsv_directory(resolved_seed_path)
+
     print("Database initialization completed successfully")
 
 
 if __name__ == "__main__":
-    # Example usage
-    app_seed_path = Path("io/input/init/rdbms/")
-    demo_seed_path = Path("docs/demo/demo_app/init/rdbms")
-    
+    config = load_project_config()
+    demo_mode = _is_truthy(os.getenv("DEMO"))
+    seed_path = resolve_seed_path(config, demo_mode)
+
     initialize_database(
         create_db=True,
         drop_existing=False,
-        app_seed_data_path=app_seed_path if app_seed_path.exists() else None,
-        demo_seed_data_path=demo_seed_path if demo_seed_path.exists() else None
+        demo=demo_mode,
+        seed_data_path=seed_path
     )

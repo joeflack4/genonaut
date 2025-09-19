@@ -22,19 +22,19 @@ END$$;
 -- 1) Database
 -----------------------
 -- Drop/create optional (uncomment drop if you really want a fresh DB)
--- DROP DATABASE IF EXISTS genonaut;
+-- DROP DATABASE IF EXISTS {{ DB_NAME }};
 
 -- Create database (will fail if exists, that's ok)
-CREATE DATABASE genonaut OWNER genonaut_admin;
+CREATE DATABASE {{ DB_NAME }} OWNER genonaut_admin;
 
 -----------------------
 -- 2) Wire up privileges in the DB
 -----------------------
-\connect genonaut
+\connect {{ DB_NAME }}
 
 -- Tighten DB entry points
-REVOKE CONNECT ON DATABASE genonaut FROM PUBLIC;
-GRANT  CONNECT ON DATABASE genonaut TO genonaut_ro, genonaut_rw, genonaut_admin;
+REVOKE CONNECT ON DATABASE {{ DB_NAME }} FROM PUBLIC;
+GRANT  CONNECT ON DATABASE {{ DB_NAME }} TO genonaut_ro, genonaut_rw, genonaut_admin;
 
 -- Public schema lockdown
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;

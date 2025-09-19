@@ -157,23 +157,26 @@ class TestDatabaseEndToEnd:
     def test_database_initialization_with_environment_variables(self, mock_print):
         """Test database initialization using environment variables."""
         # Test that initialization works when no URL is provided (uses env vars)
-        with patch('genonaut.db.init.DatabaseInitializer') as mock_init_class:
+        with patch('genonaut.db.init.DatabaseInitializer') as mock_init_class, \
+             patch('genonaut.db.init._run_alembic_upgrade') as mock_upgrade:
             mock_initializer = mock_init_class.return_value
-            
+            mock_initializer.database_url = "postgresql://mock:pass@localhost:5432/mockdb"
+
             # Call initialize_database without explicit URL
             initialize_database(
                 database_url=None,  # Should use environment variables
                 create_db=True,
                 drop_existing=False
             )
-            
+
             # Verify DatabaseInitializer was called with None (will use env vars)
-            mock_init_class.assert_called_once_with(None)
-            
+            mock_init_class.assert_called_once_with(None, demo=False)
+
             # Verify all methods were called
             mock_initializer.create_database_and_users.assert_called_once()
             mock_initializer.create_engine_and_session.assert_called_once()
-            # Note: In normal mode, create_schemas and create_tables are called for both app and demo schemas
+            # The initializer should proceed with table creation in the active schema
+            mock_upgrade.assert_called_once_with("postgresql://mock:pass@localhost:5432/mockdb")
     
     def test_database_schema_validation(self):
         """Test that the database schema matches expectations."""
@@ -258,6 +261,5 @@ class TestDatabaseEndToEnd:
             initialize_database(
                 database_url="invalid://bad:url/format",
                 create_db=True,
-                drop_existing=False,
-                app_seed_data_path=None
+                drop_existing=False
             )

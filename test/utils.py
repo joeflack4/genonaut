@@ -10,14 +10,16 @@ import os
 import re
 from datetime import datetime
 from typing import Dict, List, Any, Optional
+
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import sessionmaker
 
 from genonaut.db.schema import Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob
 
 
-def get_admin_database_url() -> str:
+def get_admin_database_url(demo: bool = False) -> str:
     """Get database URL with admin credentials for schema management.
     
     Returns:
@@ -26,32 +28,32 @@ def get_admin_database_url() -> str:
     Raises:
         ValueError: If required environment variables are not set
     """
-    # Try to get full DATABASE_URL first and modify it
-    database_url = os.getenv('DATABASE_URL')
+    admin_password = os.getenv('DB_PASSWORD_ADMIN')
+    if not admin_password:
+        raise ValueError("Admin password must be provided via DB_PASSWORD_ADMIN environment variable")
+
+    target_db = os.getenv('DB_NAME_DEMO' if demo else 'DB_NAME', 'genonaut_demo' if demo else 'genonaut')
+    url_env_key = 'DATABASE_URL_DEMO' if demo else 'DATABASE_URL'
+    database_url = os.getenv(url_env_key)
+
     if database_url and database_url.strip():
-        # Replace user credentials with admin credentials
-        admin_password = os.getenv('DB_PASSWORD_ADMIN')
-        if not admin_password:
-            raise ValueError("Admin password must be provided via DB_PASSWORD_ADMIN environment variable")
-        
-        # Parse URL and replace credentials
-        import re
-        pattern = r'postgresql://([^:]+):([^@]+)@(.+)'
-        match = re.match(pattern, database_url)
-        if match:
-            _, _, host_db = match.groups()
-            return f"postgresql://genonaut_admin:{admin_password}@{host_db}"
-    
+        url_obj = make_url(database_url.strip())
+        url_obj = url_obj.set(username='genonaut_admin', password=admin_password, database=target_db)
+        return str(url_obj)
+
+    # Fall back to main DATABASE_URL when demo-specific value is absent
+    if demo:
+        base_url = os.getenv('DATABASE_URL')
+        if base_url and base_url.strip():
+            url_obj = make_url(base_url.strip())
+            url_obj = url_obj.set(username='genonaut_admin', password=admin_password, database=target_db)
+            return str(url_obj)
+
     # Otherwise, construct from individual components with admin user
     host = os.getenv('DB_HOST', 'localhost')
     port = os.getenv('DB_PORT', '5432')
-    database = os.getenv('DB_NAME', 'genonaut')
-    admin_password = os.getenv('DB_PASSWORD_ADMIN')
-    
-    if not admin_password:
-        raise ValueError("Admin password must be provided via DB_PASSWORD_ADMIN environment variable")
-    
-    return f"postgresql://genonaut_admin:{admin_password}@{host}:{port}/{database}"
+
+    return f"postgresql://genonaut_admin:{admin_password}@{host}:{port}/{target_db}"
 
 
 def load_tsv_data(file_path: str) -> List[Dict[str, Any]]:
@@ -382,3 +384,4 @@ def create_test_database_url(base_url: str, schema_name: str) -> str:
             return f"{base_url}&options=-csearch_path%3D{schema_name}"
         else:
             return f"{base_url}?options=-csearch_path%3D{schema_name}"
+

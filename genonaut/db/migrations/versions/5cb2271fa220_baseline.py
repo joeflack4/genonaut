@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+import genonaut.db.schema
 
 
 # revision identifiers, used by Alembic.
