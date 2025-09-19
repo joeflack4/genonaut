@@ -37,7 +37,7 @@ backup/
 *.dmp
 output/
 bak/
-scratchpads/
+#scratchpads/  # actually; commit these; when done, can put the files in _archive/.
 
 # Frontend
 # - JS: CreateReactApp
