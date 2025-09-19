@@ -2,14 +2,14 @@
 **When to use:** Any schema or data change.  
 **Principle:** Forward-only in prod; rollbacks are for local/dev.
 
-## Daily workflow SOP
-1) Change SQLAlchemy models (or plan raw SQL).  
-2) Create revision:
-- Autogen (ORM): `alembic revision --autogenerate -m "xyz"`  
-- Manual (SQL): `alembic revision -m "xyz"`
+## SOP: Changing database schema 
+1) Change SQLAlchemy models.
+- Alternatively, ONLY if asked: plan/create raw SQL to execute to make the changes.
+2) Create revision: Autogen (ORM): `alembic revision --autogenerate -m "xyz"`  
+- Alternatively, ONLY if asked: Manual (SQL): `alembic revision -m "xyz"`
 3) Review and edit the new script under `alembic/versions/*.py` (write `downgrade()` only for safe, local use).  
 4) Apply: `alembic upgrade head`  
-5) CI/CD: run migrations during deploy; use one DB per env.
+5) CI/CD: run migrations during deploy (if applicable); use one DB per env.
 
 ## Data migrations (safe patterns)
 - Prefer **forward fixes** in prod; avoid `downgrade` there.  

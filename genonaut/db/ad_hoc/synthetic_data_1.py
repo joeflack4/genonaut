@@ -9,7 +9,7 @@ import pandas as pd
 
 project_root = Path(os.path.dirname(os.path.abspath(__file__))).parent.parent.parent
 # sys.path.insert(0, str(project_root))
-demo_data_dir = project_root / 'docs' / 'init' / 'rdmbs'
+demo_data_dir = project_root / 'io' / 'input' / 'init' / 'demo_rdbms'
 backup_dir = demo_data_dir / 'bak'
 
 gen_jobs_path = demo_data_dir / "generation_jobs1.tsv"

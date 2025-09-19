@@ -1,7 +1,13 @@
 # Makefile for Genonaut project
 # Provides common development tasks and utilities
 
-.PHONY: help init init-demo test test-verbose test-specific clear-excess-test-schemas install install-dev lint format clean migrate-dev migrate-demo
+.PHONY: help init-all init-dev init-demo test test-verbose test-specific clear-excess-test-schemas install install-dev \
+lint format clean migrate-all migrate-dev migrate-demo
+
+ifneq (,$(wildcard ./env/.env))
+include ./env/.env
+export  # export included vars to child processes
+endif
 
 # Default target
 help:
@@ -22,7 +28,9 @@ help:
 	@echo "  migrate-demo             Upgrade demo database schema"
 
 # Database initialization
-init:
+init-all: init-dev init-demo
+
+init-dev:
 	@echo "Initializing database..."
 	DEMO=0 python -m genonaut.db.init
 
@@ -98,15 +106,23 @@ migrate-new:
 migrate-up:
 	alembic upgrade head
 
-.PHONY: migrate-all
 migrate-all: migrate-dev migrate-demo
 
 # todo: this feels hacky, but works. Otherwise, would get 'sqlalchemy.exc.ArgumentError: Could not parse SQLAlchemy URL from given URL string'
+# todo: maybe get this from the .env file, and use DATABASE_URL=${DATABASE_URL} and DATABASE_URL=${DATABASE_URL_DEMO} respectively.
+# todo: - seems to be correctly importing .env at top of makefile now. just need to finish.
+# todo: - https://chatgpt.com/c/68cd85ae-4f9c-8330-ba29-b096cf9c3741
+#migrate-dev:
+#	@ALEMBIC_SQLALCHEMY_URL="$$(python -c 'from genonaut.db.utils import get_database_url; print(get_database_url(), end="")')" alembic upgrade head
+
+#migrate-demo:
+#	@DEMO=1 ALEMBIC_SQLALCHEMY_URL="$$(python -c 'from genonaut.db.utils import get_database_url; print(get_database_url(), end="")')" DEMO=1 alembic upgrade head
+
 migrate-dev:
-	@ALEMBIC_SQLALCHEMY_URL="$$(python -c 'from genonaut.db.utils import get_database_url; print(get_database_url(), end="")')" alembic upgrade head
+	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL} DATABASE_URL=${DATABASE_URL} alembic upgrade head
 
 migrate-demo:
-	@DEMO=1 ALEMBIC_SQLALCHEMY_URL="$$(python -c 'from genonaut.db.utils import get_database_url; print(get_database_url(), end="")')" DEMO=1 alembic upgrade head
+	@DEMO=1 ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic upgrade head
 
 migrate-down:
 	alembic downgrade -1
