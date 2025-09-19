@@ -27,7 +27,9 @@ def _create_full_text_index(table: str, column: str, index_name: str) -> None:
     op.execute(
         sa.text(
             f"CREATE INDEX IF NOT EXISTS {index_name} "
-            f"ON {table} USING GIN (to_tsvector('{FULL_TEXT_CONFIG}', {column}));"
+            f"ON {table} USING GIN ("
+            f"to_tsvector('{FULL_TEXT_CONFIG}', coalesce({column}, ''))"
+            ");"
         )
     )
 
@@ -53,12 +55,12 @@ def upgrade() -> None:
     _create_full_text_index(
         table="generation_jobs",
         column="prompt",
-        index_name="ix_generation_jobs_prompt_fts",
+        index_name="gj_prompt_fts_idx",
     )
     _create_full_text_index(
         table="content_items",
         column="title",
-        index_name="ix_content_items_title_fts",
+        index_name="ci_title_fts_idx",
     )
 
 
@@ -67,5 +69,5 @@ def downgrade() -> None:
     if not _is_postgresql():
         return
 
-    _drop_index("ix_content_items_title_fts")
-    _drop_index("ix_generation_jobs_prompt_fts")
+    _drop_index("ci_title_fts_idx")
+    _drop_index("gj_prompt_fts_idx")

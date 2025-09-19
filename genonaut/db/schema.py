@@ -6,8 +6,8 @@ This module contains SQLAlchemy models for the PostgreSQL database.
 from datetime import datetime
 from typing import Optional, Union, Tuple
 from sqlalchemy import (
-    Column, Integer, String, Text, DateTime, Float, Boolean, 
-    ForeignKey, JSON, UniqueConstraint, Index, event
+    Column, Integer, String, Text, DateTime, Float, Boolean,
+    ForeignKey, JSON, UniqueConstraint, Index, event, func, literal_column,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, declarative_base
@@ -45,6 +45,14 @@ def create_gin_index_if_postgresql(index_name: str, column_name: str) -> Union[I
 
 Base = declarative_base()
 
+FTS_LANGUAGE = "english"
+
+
+def _fts_language_literal() -> literal_column:
+    """Return a literal SQL fragment for the configured full-text search language."""
+
+    return literal_column(f"'{FTS_LANGUAGE}'")
+
 
 class User(Base):
     """User model for storing user information and preferences.
@@ -73,7 +81,7 @@ class User(Base):
     interactions = relationship("UserInteraction", back_populates="user")
     recommendations = relationship("Recommendation", back_populates="user")
     
-    # Table arguments - GIN indexes will be created separately for PostgreSQL
+    # Table arguments - reserved for future indexes
     __table_args__ = ()
 
 
@@ -110,8 +118,18 @@ class ContentItem(Base):
     interactions = relationship("UserInteraction", back_populates="content_item")
     recommendations = relationship("Recommendation", back_populates="content_item")
     
-    # Table arguments - GIN indexes will be created separately for PostgreSQL
-    __table_args__ = ()
+    # Full-text search configuration for PostgreSQL
+    __table_args__ = (
+        Index(
+            "ci_title_fts_idx",
+            func.to_tsvector(
+                _fts_language_literal(),
+                func.coalesce(title, ""),
+            ),
+            postgresql_using="gin",
+            info={"postgres_only": True},
+        ),
+    )
 
 
 class UserInteraction(Base):
@@ -218,5 +236,44 @@ class GenerationJob(Base):
     user = relationship("User", foreign_keys=[user_id])
     result_content = relationship("ContentItem", foreign_keys=[result_content_id])
     
-    # Table arguments - GIN indexes will be created separately for PostgreSQL
-    __table_args__ = ()
+    # Full-text search configuration for PostgreSQL
+    __table_args__ = (
+        Index(
+            "gj_prompt_fts_idx",
+            func.to_tsvector(
+                _fts_language_literal(),
+                func.coalesce(prompt, ""),
+            ),
+            postgresql_using="gin",
+            info={"postgres_only": True},
+        ),
+    )
+
+
+def _strip_non_postgres_indexes(metadata, connection, **_) -> None:
+    """Temporarily remove PostgreSQL-only indexes when using other dialects."""
+
+    if connection.dialect.name == "postgresql":
+        return
+
+    for table in metadata.tables.values():
+        pending = table.info.setdefault("_postgres_only_indexes", set())
+        for index in list(table.indexes):
+            if index.info.get("postgres_only"):
+                table.indexes.remove(index)
+                pending.add(index)
+
+
+def _restore_non_postgres_indexes(metadata, _connection, **_) -> None:
+    """Restore PostgreSQL-only indexes after temporary removal."""
+
+    for table in metadata.tables.values():
+        pending = table.info.pop("_postgres_only_indexes", None)
+        if pending:
+            table.indexes.update(pending)
+
+
+event.listen(Base.metadata, "before_create", _strip_non_postgres_indexes)
+event.listen(Base.metadata, "after_create", _restore_non_postgres_indexes)
+event.listen(Base.metadata, "before_drop", _strip_non_postgres_indexes)
+event.listen(Base.metadata, "after_drop", _restore_non_postgres_indexes)

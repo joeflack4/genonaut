@@ -35,8 +35,8 @@ are asked to fix a one-off script or command), then make sure to run the command
 not to or otherwise if you think it is inadvisable to do so.
 
 ### When changing DB schema
-Caution!: DO NOT edit existing files in `alembic/versions/`. Treat them as immutable history. Always generate a new 
-revision with `alembic revision -m "..."` and put upgrade/downgrade code there. If you need to change the schema, add it
-in a new migration file rather than modifying or deleting old ones.
+Caution!: DO NOT edit existing files Alembic version files!: `genonaut/db/migrations/versions/`. Treat them as immutable
+history. Always generate a new revision with `alembic revision -m "..."` and put upgrade/downgrade code there. If you 
+need to change the schema, add it in a new migration file rather than modifying or deleting old ones.
 
-Read this too: [DB migrations docs](./docs/db_migrations.md)
+Read this too: [DB migrations docs](./docs/db_migrations.md), particularly the "SOP: Changing database schema" section.
