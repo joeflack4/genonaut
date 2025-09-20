@@ -471,7 +471,86 @@ class TestGenerationService:
         assert failed_job.status == "failed"
         assert failed_job.error_message == error_message
         assert failed_job.completed_at is not None
-    
+
+    def test_cancel_pending_job(self, test_db_session, sample_user):
+        """Test cancelling a pending generation job."""
+        service = GenerationService(test_db_session)
+
+        # Create pending job
+        job = GenerationJob(
+            user_id=sample_user.id,
+            job_type="text_generation",
+            prompt="Test prompt",
+            status="pending"
+        )
+        test_db_session.add(job)
+        test_db_session.commit()
+
+        reason = "User requested cancellation"
+        cancelled_job = service.cancel_job(job.id, reason=reason)
+        assert cancelled_job.status == "cancelled"
+        assert cancelled_job.error_message == f"Cancelled: {reason}"
+        assert cancelled_job.completed_at is not None
+
+    def test_cancel_running_job(self, test_db_session, sample_user):
+        """Test cancelling a running generation job."""
+        service = GenerationService(test_db_session)
+
+        # Create running job
+        job = GenerationJob(
+            user_id=sample_user.id,
+            job_type="text_generation",
+            prompt="Test prompt",
+            status="running",
+            started_at=datetime.utcnow()
+        )
+        test_db_session.add(job)
+        test_db_session.commit()
+
+        cancelled_job = service.cancel_job(job.id)
+        assert cancelled_job.status == "cancelled"
+        assert cancelled_job.error_message is None
+        assert cancelled_job.completed_at is not None
+
+    def test_cancel_job_invalid_status(self, test_db_session, sample_user):
+        """Test that cancelling completed/failed jobs raises error."""
+        service = GenerationService(test_db_session)
+
+        # Test completed job
+        completed_job = GenerationJob(
+            user_id=sample_user.id,
+            job_type="text_generation",
+            prompt="Test prompt",
+            status="completed"
+        )
+        test_db_session.add(completed_job)
+        test_db_session.commit()
+
+        with pytest.raises(ValidationError) as exc_info:
+            service.cancel_job(completed_job.id)
+        assert "Cannot cancel job with status 'completed'" in str(exc_info.value)
+
+        # Test failed job
+        failed_job = GenerationJob(
+            user_id=sample_user.id,
+            job_type="text_generation",
+            prompt="Test prompt",
+            status="failed"
+        )
+        test_db_session.add(failed_job)
+        test_db_session.commit()
+
+        with pytest.raises(ValidationError) as exc_info:
+            service.cancel_job(failed_job.id)
+        assert "Cannot cancel job with status 'failed'" in str(exc_info.value)
+
+    def test_cancel_nonexistent_job(self, test_db_session):
+        """Test cancelling a non-existent job raises error."""
+        service = GenerationService(test_db_session)
+
+        with pytest.raises(EntityNotFoundError):
+            service.cancel_job(999)
+
     def test_get_queue_statistics(self, test_db_session, sample_user):
         """Test getting queue statistics."""
         service = GenerationService(test_db_session)
@@ -495,16 +574,24 @@ class TestGenerationService:
                 job_type="text_generation",
                 prompt="Completed job",
                 status="completed"
+            ),
+            GenerationJob(
+                user_id=sample_user.id,
+                job_type="text_generation",
+                prompt="Cancelled job",
+                status="cancelled"
             )
         ]
         test_db_session.add_all(jobs)
         test_db_session.commit()
-        
+
         stats = service.get_queue_statistics()
         assert "pending_jobs" in stats
         assert "running_jobs" in stats
         assert "completed_jobs" in stats
         assert "failed_jobs" in stats
+        assert "cancelled_jobs" in stats
         assert stats["pending_jobs"] >= 1
         assert stats["running_jobs"] >= 1
         assert stats["completed_jobs"] >= 1
+        assert stats["cancelled_jobs"] >= 1

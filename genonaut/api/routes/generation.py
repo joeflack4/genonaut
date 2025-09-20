@@ -7,10 +7,11 @@ from sqlalchemy.orm import Session
 from genonaut.api.dependencies import get_database_session
 from genonaut.api.services.generation_service import GenerationService
 from genonaut.api.models.requests import (
-    GenerationJobCreateRequest, 
+    GenerationJobCreateRequest,
     GenerationJobUpdateRequest,
     GenerationJobStatusUpdateRequest,
     GenerationJobResultRequest,
+    GenerationJobCancelRequest,
     GenerationJobSearchRequest
 )
 from genonaut.api.models.responses import (
@@ -129,6 +130,23 @@ async def set_job_result(
         return GenerationJobResponse.model_validate(job)
     except EntityNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post("/{job_id}/cancel", response_model=GenerationJobResponse)
+async def cancel_generation_job(
+    job_id: int,
+    cancel_data: GenerationJobCancelRequest = GenerationJobCancelRequest(),
+    db: Session = Depends(get_database_session)
+):
+    """Cancel a generation job (only pending or running jobs)."""
+    service = GenerationService(db)
+    try:
+        job = service.cancel_job(job_id, reason=cancel_data.reason)
+        return GenerationJobResponse.model_validate(job)
+    except EntityNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
 
 
 @router.get("/", response_model=GenerationJobListResponse)
@@ -318,11 +336,29 @@ async def get_failed_jobs(
     """Get failed generation jobs."""
     service = GenerationService(db)
     jobs = service.get_failed_jobs(user_id=user_id, days=days, limit=limit)
-    
+
     return GenerationJobListResponse(
         items=[GenerationJobResponse.model_validate(job) for job in jobs],
         total=len(jobs),
         skip=0,
+        limit=limit
+    )
+
+
+@router.get("/cancelled/all", response_model=GenerationJobListResponse)
+async def get_cancelled_jobs(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_database_session)
+):
+    """Get cancelled generation jobs."""
+    service = GenerationService(db)
+    jobs = service.get_jobs_by_status('cancelled', skip=skip, limit=limit)
+
+    return GenerationJobListResponse(
+        items=[GenerationJobResponse.model_validate(job) for job in jobs],
+        total=len(jobs),
+        skip=skip,
         limit=limit
     )
 

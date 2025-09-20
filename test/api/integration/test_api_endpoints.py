@@ -553,10 +553,103 @@ class TestGenerationJobEndpoints:
         }
         response = api_client.put(f"/api/v1/generation-jobs/{job_id}/status", json_data=status_data)
         assert response.status_code == 200
-        
+
         data = response.json()
         assert data["status"] == "running"
         assert "updated_at" in data
+
+    def test_cancel_generation_job(self, api_client, test_user_data):
+        """Test cancelling a generation job."""
+        # Create user first
+        user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        user_id = user_response.json()["id"]
+
+        # First create a generation job
+        job_data = {
+            "user_id": user_id,
+            "job_type": "text_generation",
+            "prompt": "Test prompt for cancellation",
+            "parameters": {
+                "max_length": 100,
+                "temperature": 0.7
+            }
+        }
+
+        create_response = api_client.post("/api/v1/generation-jobs", json_data=job_data)
+        assert create_response.status_code == 201
+        job_id = create_response.json()["id"]
+
+        # Cancel the job with a reason
+        cancel_data = {
+            "reason": "User requested cancellation"
+        }
+        response = api_client.post(f"/api/v1/generation-jobs/{job_id}/cancel", json_data=cancel_data)
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["status"] == "cancelled"
+        assert data["error_message"] == "Cancelled: User requested cancellation"
+        assert "completed_at" in data
+
+    def test_cancel_generation_job_without_reason(self, api_client, test_user_data):
+        """Test cancelling a generation job without providing a reason."""
+        # Create user first
+        user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        user_id = user_response.json()["id"]
+
+        # First create a generation job
+        job_data = {
+            "user_id": user_id,
+            "job_type": "text_generation",
+            "prompt": "Test prompt for cancellation",
+            "parameters": {}
+        }
+
+        create_response = api_client.post("/api/v1/generation-jobs", json_data=job_data)
+        assert create_response.status_code == 201
+        job_id = create_response.json()["id"]
+
+        # Cancel the job without a reason
+        response = api_client.post(f"/api/v1/generation-jobs/{job_id}/cancel", json_data={})
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["status"] == "cancelled"
+        assert data["error_message"] is None
+        assert "completed_at" in data
+
+    def test_cancel_nonexistent_job(self, api_client):
+        """Test cancelling a non-existent job."""
+        response = api_client.post("/api/v1/generation-jobs/999999/cancel", json_data={})
+        assert response.status_code == 404
+
+    def test_cancel_completed_job(self, api_client, test_user_data):
+        """Test that cancelling a completed job fails."""
+        # Create user first
+        user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        user_id = user_response.json()["id"]
+
+        # First create a generation job
+        job_data = {
+            "user_id": user_id,
+            "job_type": "text_generation",
+            "prompt": "Test prompt",
+            "parameters": {}
+        }
+
+        create_response = api_client.post("/api/v1/generation-jobs", json_data=job_data)
+        assert create_response.status_code == 201
+        job_id = create_response.json()["id"]
+
+        # Mark it as completed
+        status_data = {"status": "completed"}
+        status_response = api_client.put(f"/api/v1/generation-jobs/{job_id}/status", json_data=status_data)
+        assert status_response.status_code == 200
+
+        # Try to cancel it - should fail
+        response = api_client.post(f"/api/v1/generation-jobs/{job_id}/cancel", json_data={})
+        assert response.status_code == 422
+        assert "Cannot cancel job with status 'completed'" in response.json()["detail"]
 
 
 class TestErrorHandling:

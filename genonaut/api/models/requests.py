@@ -171,13 +171,18 @@ class GenerationJobUpdateRequest(BaseModel):
 
 class GenerationJobStatusUpdateRequest(BaseModel):
     """Request model for updating generation job status."""
-    status: str = Field(..., pattern="^(pending|running|completed|failed)$", description="New job status")
+    status: str = Field(..., pattern="^(pending|running|completed|failed|cancelled)$", description="New job status")
     error_message: Optional[str] = Field(None, description="Error message for failed jobs")
 
 
 class GenerationJobResultRequest(BaseModel):
     """Request model for setting generation job result."""
     content_id: int = Field(..., gt=0, description="ID of the generated content item")
+
+
+class GenerationJobCancelRequest(BaseModel):
+    """Request model for cancelling a generation job."""
+    reason: Optional[str] = Field(None, description="Optional reason for cancellation")
 
 
 # Search and filter request models
@@ -234,7 +239,7 @@ class GenerationJobSearchRequest(BaseModel):
     """Request model for searching generation jobs."""
     user_id: Optional[int] = Field(None, gt=0, description="Filter by user ID")
     job_type: Optional[JobType] = Field(None, description="Filter by job type")
-    status: Optional[str] = Field(None, pattern="^(pending|running|completed|failed)$", description="Filter by status")
+    status: Optional[str] = Field(None, pattern="^(pending|running|completed|failed|cancelled)$", description="Filter by status")
     days: Optional[int] = Field(None, ge=1, le=365, description="Days to look back")
     skip: int = Field(0, ge=0, description="Number of records to skip")
     limit: int = Field(100, ge=1, le=1000, description="Maximum number of records to return")

@@ -50,7 +50,7 @@ class GenerationJobRepository(BaseRepository[GenerationJob, Dict[str, Any], Dict
         """Get generation jobs by status.
         
         Args:
-            status: Job status (pending, running, completed, failed)
+            status: Job status (pending, running, completed, failed, cancelled)
             skip: Number of records to skip
             limit: Maximum number of records to return
             

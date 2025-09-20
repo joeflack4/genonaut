@@ -211,7 +211,7 @@ class GenerationJob(Base):
         job_type: Type of generation job (text, image, video, audio)
         prompt: The prompt used for generation
         parameters: Generation parameters (model, temperature, etc.)
-        status: Job status (pending, running, completed, failed)
+        status: Job status (pending, running, completed, failed, cancelled)
         result_content_id: Foreign key to the generated content item
         created_at: Timestamp when job was created
         started_at: Timestamp when job processing started
@@ -225,7 +225,7 @@ class GenerationJob(Base):
     job_type = Column(String(50), nullable=False, index=True)  # text, image, video, audio
     prompt = Column(Text, nullable=False)
     parameters = Column(JSONColumn, default=dict)
-    status = Column(String(20), default='pending', nullable=False, index=True)  # pending, running, completed, failed
+    status = Column(String(20), default='pending', nullable=False, index=True)  # pending, running, completed, failed, cancelled
     result_content_id = Column(Integer, ForeignKey('content_items.id'), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

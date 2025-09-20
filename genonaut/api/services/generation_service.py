@@ -182,7 +182,7 @@ class GenerationService:
         
         Args:
             job_id: Job ID
-            status: New status (pending, running, completed, failed)
+            status: New status (pending, running, completed, failed, cancelled)
             error_message: Optional error message for failed jobs
             
         Returns:
@@ -193,7 +193,7 @@ class GenerationService:
             ValidationError: If status is invalid
         """
         # Validate status
-        valid_statuses = ['pending', 'running', 'completed', 'failed']
+        valid_statuses = ['pending', 'running', 'completed', 'failed', 'cancelled']
         if status not in valid_statuses:
             raise ValidationError(f"Invalid status. Must be one of: {valid_statuses}")
         
@@ -350,7 +350,7 @@ class GenerationService:
         # Get the job to check its status
         job = self.repository.get_or_404(job_id)
         
-        # Only allow deletion of completed or failed jobs
+        # Only allow deletion of completed, failed, or cancelled jobs
         if job.status in ['pending', 'running']:
             raise ValidationError("Cannot delete pending or running jobs")
         
@@ -467,7 +467,43 @@ class GenerationService:
         }
         
         return self.repository.update(job_id, update_data)
-    
+
+    def cancel_job(self, job_id: int, reason: Optional[str] = None) -> GenerationJob:
+        """Cancel a generation job.
+
+        Args:
+            job_id: Job ID to cancel
+            reason: Optional reason for cancellation
+
+        Returns:
+            Updated generation job with cancelled status
+
+        Raises:
+            EntityNotFoundError: If job not found
+            ValidationError: If job cannot be cancelled
+        """
+        # Get the job and verify it exists
+        job = self.repository.get_or_404(job_id)
+
+        # Only allow cancelling pending or running jobs
+        if job.status not in ['pending', 'running']:
+            raise ValidationError(f"Cannot cancel job with status '{job.status}'. Only pending or running jobs can be cancelled.")
+
+        # Update job status to cancelled and set timestamp
+        from datetime import datetime
+
+        update_data = {
+            'status': 'cancelled',
+            'completed_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow()
+        }
+
+        # Add cancellation reason to error_message field if provided
+        if reason:
+            update_data['error_message'] = f"Cancelled: {reason.strip()}"
+
+        return self.repository.update(job_id, update_data)
+
     def get_queue_statistics(self) -> Dict[str, Any]:
         """Get queue statistics showing job counts by status.
         
@@ -479,14 +515,16 @@ class GenerationService:
         running_jobs = self.repository.count({'status': 'running'})
         completed_jobs = self.repository.count({'status': 'completed'})
         failed_jobs = self.repository.count({'status': 'failed'})
-        
-        total_jobs = pending_jobs + running_jobs + completed_jobs + failed_jobs
-        
+        cancelled_jobs = self.repository.count({'status': 'cancelled'})
+
+        total_jobs = pending_jobs + running_jobs + completed_jobs + failed_jobs + cancelled_jobs
+
         return {
             'pending_jobs': pending_jobs,
             'running_jobs': running_jobs,
             'completed_jobs': completed_jobs,
             'failed_jobs': failed_jobs,
+            'cancelled_jobs': cancelled_jobs,
             'total_jobs': total_jobs
         }
     
