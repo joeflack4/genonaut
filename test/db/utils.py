@@ -384,4 +384,3 @@ def create_test_database_url(base_url: str, schema_name: str) -> str:
             return f"{base_url}&options=-csearch_path%3D{schema_name}"
         else:
             return f"{base_url}?options=-csearch_path%3D{schema_name}"
-

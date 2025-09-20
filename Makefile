@@ -1,7 +1,7 @@
 # Makefile for Genonaut project
 # Provides common development tasks and utilities
 
-.PHONY: help init-all init-dev init-demo init-test re-seed-demo re-seed-demo-force test test-verbose test-specific test-unit test-db test-api test-all clear-excess-test-schemas install install-dev \
+.PHONY: help init-all init-dev init-demo init-test re-seed-demo re-seed-demo-force test test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-all clear-excess-test-schemas install install-dev \
 lint format clean migrate-all migrate-dev migrate-demo migrate-test migrate-step2-all migrate-step2-dev migrate-step2-demo migrate-step2-test api-dev api-demo api-test
 
 ifneq (,$(wildcard ./env/.env))
@@ -23,6 +23,8 @@ help:
 	@echo "  test-specific TEST=name  Run specific test module or test case"
 	@echo "  test-unit                Run unit tests (no external dependencies)"
 	@echo "  test-db                  Run database tests (requires database)"
+	@echo "  test-db-unit             Run database unit tests (no external dependencies)"
+	@echo "  test-db-integration      Run database integration tests (requires database)"
 	@echo "  test-api                 Run API integration tests (requires web server)"
 	@echo "  test-all                 Run all test suites (unit + db + api)"
 	@echo "  clear-excess-test-schemas Clear excess test database schemas"
@@ -85,7 +87,18 @@ test-db:
 	@echo "Running database tests (database server required)..."
 	@echo "Testing: repositories, services, database operations"
 	@echo "Make sure your test database is initialized (make init-test) and configured in .env"
-	pytest test/api/db/ test/test_database*.py test/test_schema.py -v
+	pytest test/api/db/ test/db/ -v
+
+test-db-unit:
+	@echo "Running database unit tests (no external dependencies required)..."
+	@echo "Testing: Database models, utilities, initialization logic"
+	pytest test/db/unit/ -v
+
+test-db-integration:
+	@echo "Running database integration tests (database server required)..."
+	@echo "Testing: Database operations, seeding, end-to-end workflows"
+	@echo "Make sure your test database is initialized (make init-test) and configured in .env"
+	pytest test/db/integration/ -v
 
 test-api:
 	@echo "Running API integration tests (web server required)..."

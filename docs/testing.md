@@ -40,7 +40,9 @@ make test-api              # HTTP integration tests (hits api-test instance)
 make test-unit
 
 # Database tests (requires DB setup)
-make test-db
+make test-db              # All database tests
+make test-db-unit         # Database unit tests only (no DB required)
+make test-db-integration  # Database integration tests only (DB required)
 
 # API integration tests (requires web server running)
 make test-api
@@ -70,7 +72,7 @@ make test-unit
 
 ### 2. Database Tests (`make test-db`)
 **Requires database server** 🗄️
-- **What's tested:** Repositories, services, database operations, JSONB queries
+- **What's tested:** Repositories, services, database operations, JSONB queries, schema models, DB initialization
 - **Setup required:** PostgreSQL database running with credentials in `.env`
 - **Speed:** Medium (30-60 seconds)
 - **Use case:** Validate data layer and business logic
@@ -84,9 +86,29 @@ make test-unit
 # Setup database first
 make init-dev
 
-# Run database tests
+# Run all database tests
 make test-db
+
+# Run only database unit tests (no DB required)
+make test-db-unit
+
+# Run only database integration tests (DB required)
+make test-db-integration
 ```
+
+#### Database Test Breakdown
+
+**Database Unit Tests (`make test-db-unit`)**
+- **No external dependencies required** ✅
+- **What's tested:** SQLAlchemy models, database initialization logic
+- **Speed:** Very fast (< 5 seconds)
+- **Use case:** Quick validation of database models and utilities
+
+**Database Integration Tests (`make test-db-integration`)**
+- **Requires database server** 🗄️
+- **What's tested:** Full database operations, seeding, PostgreSQL-specific features
+- **Speed:** Medium (20-45 seconds)
+- **Use case:** Validate database operations and data integrity
 
 ### 3. API Integration Tests (`make test-api`)
 **Requires web server + database** 🌐
@@ -141,13 +163,24 @@ test/
 │   │   ├── test_models.py         # Pydantic model validation
 │   │   ├── test_config.py         # Configuration testing
 │   │   └── test_exceptions.py     # Exception handling
-│   ├── db/                        # Database tests (DB required)
+│   ├── db/                        # API database tests (DB required)
 │   │   ├── test_repositories.py   # Repository CRUD operations
 │   │   └── test_services.py       # Business logic services
 │   └── integration/               # API tests (web server required)
 │       ├── test_api_endpoints.py  # Individual endpoint tests
 │       └── test_workflows.py      # Complete workflow tests
-└── test_database*.py             # Legacy database tests
+└── db/                            # Database-specific tests
+    ├── unit/                      # Database unit tests (no dependencies)
+    │   ├── test_schema.py         # SQLAlchemy model tests
+    │   └── test_database_initializer.py  # DB initialization logic
+    ├── integration/               # Database integration tests (DB required)
+    │   ├── test_database_integration.py     # Full DB operations
+    │   ├── test_database_seeding.py        # Data seeding tests
+    │   ├── test_database_end_to_end.py     # End-to-end DB workflows
+    │   └── test_database_postgres_integration.py  # PostgreSQL-specific tests
+    ├── utils.py                   # Database test utilities
+    └── input/                     # Test data files
+        └── rdbms_init/           # TSV files for seeding
 ```
 
 ## Development Workflow

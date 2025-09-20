@@ -18,7 +18,7 @@ sys.path.insert(0, test_dir)
 
 from genonaut.db.init import DatabaseInitializer
 from genonaut.db.schema import Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob
-from .utils import seed_database_from_tsv, get_next_test_schema_name, create_test_database_url
+from ..utils import seed_database_from_tsv, get_next_test_schema_name, create_test_database_url
 
 
 class TestDatabaseSeeding:
@@ -150,7 +150,7 @@ class TestDatabaseSeeding:
     def test_seed_database_with_custom_input_dir(self):
         """Test seeding database with custom input directory."""
         # Get the test input directory
-        test_input_dir = os.path.join(os.path.dirname(__file__), 'input', 'rdbms_init')
+        test_input_dir = os.path.join(os.path.dirname(__file__), '..', 'input', 'rdbms_init')
         
         # Seed with explicit directory
         seed_database_from_tsv(self.session, test_input_dir)
@@ -274,5 +274,3 @@ class TestDatabaseSeeding:
             assert isinstance(rec.recommendation_score, float)
             assert rec.recommendation_score >= 0.0
             assert rec.recommendation_score <= 1.0
-
-

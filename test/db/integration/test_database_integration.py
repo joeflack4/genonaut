@@ -371,5 +371,3 @@ class TestDatabaseIntegration:
         assert retrieved_user.email == "persistent@example.com"
         
         session2.close()
-
-

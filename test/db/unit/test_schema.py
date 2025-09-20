@@ -289,5 +289,3 @@ class TestSchemaModels:
         # Check that created_at and updated_at are close to now
         time_diff = datetime.utcnow() - user.created_at
         assert time_diff.total_seconds() < 5  # Within 5 seconds
-
-

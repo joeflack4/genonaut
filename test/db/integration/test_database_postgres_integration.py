@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 
 from genonaut.db.init import initialize_database, DatabaseInitializer
 from genonaut.db.schema import Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob
-from .utils import get_admin_database_url
+from ..utils import get_admin_database_url
 
 
 class TestPostgresDatabaseIntegration:
