@@ -433,7 +433,7 @@ class TestRecommendationEndpoints:
         user_response = api_client.post("/api/v1/users", json_data=test_user_data)
         user_id = user_response.json()["id"]
         
-        response = api_client.get(f"/api/v1/users/{user_id}/recommendations")
+        response = api_client.get(f"/api/v1/recommendations/user/{user_id}/recommendations")
         assert response.status_code == 200
         
         data = response.json()

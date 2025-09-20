@@ -128,13 +128,7 @@ async def get_content_list(
     
     try:
         if search_params.search_term or search_params.metadata_filter or search_params.tags:
-            content_list = service.search_content(
-                search_term=search_params.search_term,
-                metadata_filter=search_params.metadata_filter,
-                tags=search_params.tags,
-                skip=search_params.skip,
-                limit=search_params.limit,
-            )
+            content_list = service.search_content(search_params.model_dump())
         else:
             # Handle filtering
             content_list = service.get_content_list(
@@ -180,13 +174,7 @@ async def search_content_endpoint(
     """Search content via POST payload."""
     service = ContentService(db)
     try:
-        content_list = service.search_content(
-            search_term=search_request.search_term,
-            metadata_filter=search_request.metadata_filter,
-            tags=search_request.tags,
-            skip=search_request.skip,
-            limit=search_request.limit,
-        )
+        content_list = service.search_content(search_request.model_dump())
 
         if search_request.content_type:
             content_list = [

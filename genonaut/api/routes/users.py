@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from genonaut.api.dependencies import get_database_session
 from genonaut.api.services.user_service import UserService
 from genonaut.api.services.interaction_service import InteractionService
-from genonaut.api.services.recommendation_service import RecommendationService
 from genonaut.api.models.requests import (
     UserCreateRequest, 
     UserUpdateRequest, 
@@ -23,8 +22,6 @@ from genonaut.api.models.responses import (
     UserActivityStatsResponse,
     InteractionListResponse,
     InteractionResponse,
-    RecommendationListResponse,
-    RecommendationResponse,
     SuccessResponse,
 )
 from genonaut.api.exceptions import EntityNotFoundError, ValidationError, DatabaseError
@@ -199,70 +196,6 @@ async def get_user_interactions(
     )
 
 
-@router.get("/{user_id}/recommendations", response_model=RecommendationListResponse)
-async def get_user_recommendations_for_user(
-    user_id: int,
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_database_session)
-):
-    """List recommendations attached to a user."""
-
-    recommendation_service = RecommendationService(db)
-    try:
-        recommendations = recommendation_service.get_user_recommendations(
-            user_id=user_id,
-            skip=skip,
-            limit=limit,
-        )
-    except (EntityNotFoundError, ValidationError) as exc:
-        status_code = status.HTTP_404_NOT_FOUND if isinstance(exc, EntityNotFoundError) else status.HTTP_422_UNPROCESSABLE_ENTITY
-        raise HTTPException(status_code=status_code, detail=str(exc))
-    except DatabaseError as exc:
-        if "UndefinedTable" in str(exc):
-            return RecommendationListResponse(items=[], total=0, skip=skip, limit=limit)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
-
-    total = recommendation_service.repository.count({'user_id': user_id})
-
-    return RecommendationListResponse(
-        items=[RecommendationResponse.model_validate(rec) for rec in recommendations],
-        total=total,
-        skip=skip,
-        limit=limit,
-    )
-
-
-@router.get("/{user_id}/recommendations/unserved", response_model=RecommendationListResponse)
-async def get_user_unserved_recommendations(
-    user_id: int,
-    limit: int = 20,
-    db: Session = Depends(get_database_session)
-):
-    """List unserved recommendations for a user."""
-
-    recommendation_service = RecommendationService(db)
-    try:
-        recommendations = recommendation_service.get_user_recommendations(
-            user_id=user_id,
-            limit=limit,
-            unserved_only=True,
-        )
-    except (EntityNotFoundError, ValidationError) as exc:
-        status_code = status.HTTP_404_NOT_FOUND if isinstance(exc, EntityNotFoundError) else status.HTTP_422_UNPROCESSABLE_ENTITY
-        raise HTTPException(status_code=status_code, detail=str(exc))
-    except DatabaseError as exc:
-        if "UndefinedTable" in str(exc):
-            return RecommendationListResponse(items=[], total=0, skip=0, limit=limit)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
-
-    return RecommendationListResponse(
-        items=[RecommendationResponse.model_validate(rec) for rec in recommendations],
-        total=len(recommendations),
-        skip=0,
-        limit=limit,
-    )
-
 
 @router.post("/{user_id}/deactivate", response_model=UserResponse)
 async def deactivate_user(
@@ -304,18 +237,11 @@ async def get_user_statistics(
     except EntityNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
-    total_interactions = db.query(func.count(UserInteraction.id)).filter(UserInteraction.user_id == user_id).scalar() or 0
-    content_created = db.query(func.count(ContentItem.id)).filter(ContentItem.creator_id == user_id).scalar() or 0
-    avg_rating = db.query(func.avg(UserInteraction.rating)).filter(
-        UserInteraction.user_id == user_id,
-        UserInteraction.rating.isnot(None),
-    ).scalar()
-    avg_rating = float(avg_rating) if avg_rating is not None else 0.0
-
+    stats = service.get_user_statistics(user_id)
     return UserActivityStatsResponse(
-        total_interactions=total_interactions,
-        content_created=content_created,
-        avg_rating_given=avg_rating,
+        total_interactions=stats["total_interactions"],
+        content_created=stats["content_created"],
+        avg_rating_given=stats["avg_rating_given"],
     )
 
 

@@ -85,7 +85,7 @@ class TestCompleteUserWorkflow:
         assert "recommendations" in recommendations
         
         # Step 6: Get user's recommendations
-        user_recs_response = make_request("GET", f"/api/v1/users/{user_id}/recommendations")
+        user_recs_response = make_request("GET", f"/api/v1/recommendations/user/{user_id}/recommendations")
         assert user_recs_response.status_code == 200
         user_recs = user_recs_response.json()
         assert "items" in user_recs
@@ -242,7 +242,7 @@ class TestRecommendationWorkflow:
         assert "recommendations" in generated_recs
         
         # Step 5: Get unserved recommendations
-        unserved_response = make_request("GET", f"/api/v1/users/{users[0]['id']}/recommendations/unserved")
+        unserved_response = make_request("GET", f"/api/v1/recommendations/user/{users[0]['id']}/recommendations?unserved_only=true")
         assert unserved_response.status_code == 200
         unserved = unserved_response.json()
         assert "items" in unserved
