@@ -1,0 +1,92 @@
+import { Box, Card, CardContent, List, ListItem, ListItemText, Skeleton, Stack, Typography } from '@mui/material'
+import { useContentList, useCurrentUser, useUserStats } from '../../hooks'
+
+const DEFAULT_USER_ID = 1
+
+const statItems = [
+  { key: 'totalRecommendations' as const, label: 'Total Recommendations' },
+  { key: 'servedRecommendations' as const, label: 'Served Recommendations' },
+  { key: 'generatedContent' as const, label: 'Generated Content' },
+]
+
+export function DashboardPage() {
+  const { data: currentUser } = useCurrentUser()
+  const userId = currentUser?.id ?? DEFAULT_USER_ID
+
+  const { data: stats, isLoading: statsLoading } = useUserStats(userId)
+  const { data: recentContent, isLoading: recentContentLoading } = useContentList({
+    limit: 5,
+    sort: 'recent',
+  })
+
+  return (
+    <Stack spacing={4} component="section">
+      <Stack spacing={1}>
+        <Typography component="h1" variant="h4" fontWeight={600} gutterBottom>
+          Welcome back{currentUser?.name ? `, ${currentUser.name}` : ''}
+        </Typography>
+        {stats?.lastActiveAt && (
+          <Typography variant="body2" color="text.secondary">
+            Last active {new Date(stats.lastActiveAt).toLocaleString()}
+          </Typography>
+        )}
+      </Stack>
+
+      <Box
+        component="section"
+        sx={{
+          display: 'grid',
+          gap: 3,
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+        }}
+      >
+        {statItems.map(({ key, label }) => (
+          <Card key={key} sx={{ height: '100%', bgcolor: 'background.paper' }}>
+            <CardContent>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                {label}
+              </Typography>
+              {statsLoading ? (
+                <Skeleton variant="text" height={48} width={80} />
+              ) : (
+                <Typography variant="h4" fontWeight={600}>
+                  {stats ? stats[key] : '—'}
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </Box>
+
+      <Card component="section">
+        <CardContent>
+          <Typography variant="h6" component="h2" gutterBottom>
+            Recent Content
+          </Typography>
+          {recentContentLoading ? (
+            <Stack spacing={2}>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} variant="rectangular" height={56} />
+              ))}
+            </Stack>
+          ) : recentContent && recentContent.items.length > 0 ? (
+            <List>
+              {recentContent.items.map((item) => (
+                <ListItem key={item.id} disableGutters divider>
+                  <ListItemText
+                    primary={item.title}
+                    secondary={item.createdAt ? new Date(item.createdAt).toLocaleString() : undefined}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              No recent content available.
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
+    </Stack>
+  )
+}

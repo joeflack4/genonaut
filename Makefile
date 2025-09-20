@@ -2,7 +2,9 @@
 # Provides common development tasks and utilities
 
 .PHONY: help init-all init-dev init-demo init-test re-seed-demo re-seed-demo-force test test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-all clear-excess-test-schemas install install-dev \
-lint format clean migrate-all migrate-dev migrate-demo migrate-test migrate-step2-all migrate-step2-dev migrate-step2-demo migrate-step2-test api-dev api-demo api-test
+lint format clean migrate-all migrate-dev migrate-demo migrate-test migrate-step2-all migrate-step2-dev migrate-step2-demo migrate-step2-test api-dev api-demo api-test \
+frontend-install frontend-dev frontend-build frontend-preview frontend-test frontend-test-unit frontend-test-watch frontend-test-coverage frontend-test-e2e frontend-test-e2e-headed frontend-test-e2e-ui frontend-lint frontend-type-check frontend-format frontend-format-write \
+test-frontend test-frontend-unit test-frontend-watch test-frontend-coverage test-frontend-e2e test-frontend-e2e-headed test-frontend-e2e-ui
 
 ifneq (,$(wildcard ./env/.env))
 include ./env/.env
@@ -18,7 +20,7 @@ help:
 	@echo "  init-test                Initialize test database with schema"
 	@echo "  re-seed-demo             Re-seed demo database (prompts for confirmation)"
 	@echo "  re-seed-demo-force       Re-seed demo database (no confirmation prompt)"
-	@echo "  test                     Run all tests (legacy command)"
+	@echo "  test                     Run backend tests (legacy command)"
 	@echo "  test-verbose             Run all tests with verbose output"
 	@echo "  test-specific TEST=name  Run specific test module or test case"
 	@echo "  test-unit                Run unit tests (no external dependencies)"
@@ -39,6 +41,32 @@ help:
 	@echo "  api-dev                  Start FastAPI server for development database"
 	@echo "  api-demo                 Start FastAPI server for demo database"
 	@echo "  api-test                 Start FastAPI server for test database"
+	@echo ""
+	@echo "Frontend commands:"
+	@echo "  frontend-install         Install frontend dependencies"
+	@echo "  frontend-dev             Start frontend dev server"
+	@echo "  frontend-build           Build frontend for production"
+	@echo "  frontend-preview         Preview built frontend"
+	@echo "  frontend-test            Run all frontend tests (unit + e2e)"
+	@echo "  frontend-test-unit       Run frontend unit tests only"
+	@echo "  frontend-test-watch      Run frontend tests in watch mode"
+	@echo "  frontend-test-coverage   Run frontend tests with coverage"
+	@echo "  frontend-test-e2e        Run frontend Playwright e2e tests"
+	@echo "  frontend-test-e2e-headed Run Playwright tests in headed mode"
+	@echo "  frontend-test-e2e-ui     Run Playwright UI mode"
+	@echo "  frontend-lint            Lint frontend code"
+	@echo "  frontend-type-check      Type-check frontend code"
+	@echo "  frontend-format          Check frontend formatting"
+	@echo "  frontend-format-write    Format frontend code"
+	@echo ""
+	@echo "Frontend test aliases (test-frontend* variants):"
+	@echo "  test-frontend            Alias for frontend-test (all tests)"
+	@echo "  test-frontend-unit       Alias for frontend-test-unit"
+	@echo "  test-frontend-watch      Alias for frontend-test-watch"
+	@echo "  test-frontend-coverage   Alias for frontend-test-coverage"
+	@echo "  test-frontend-e2e        Alias for frontend-test-e2e"
+	@echo "  test-frontend-e2e-headed Alias for frontend-test-e2e-headed"
+	@echo "  test-frontend-e2e-ui     Alias for frontend-test-e2e-ui"
 
 # Database initialization
 init-all: init-dev init-demo init-test
@@ -231,3 +259,73 @@ api-demo:
 api-test:
 	@echo "Starting FastAPI server for test database..."
 	API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Frontend helpers
+frontend-install:
+	@echo "Installing frontend dependencies..."
+	npm --prefix frontend install
+
+frontend-dev:
+	@echo "Starting frontend dev server..."
+	npm --prefix frontend run dev
+
+frontend-build:
+	@echo "Building frontend..."
+	npm --prefix frontend run build
+
+frontend-preview:
+	@echo "Previewing built frontend..."
+	npm --prefix frontend run preview
+
+frontend-test-unit:
+	@echo "Running frontend unit tests..."
+	npm --prefix frontend run test-unit
+
+frontend-test:
+	@echo "Running all frontend tests (unit + e2e)..."
+	npm --prefix frontend run test
+
+frontend-test-watch:
+	@echo "Running frontend tests in watch mode..."
+	npm --prefix frontend run test:watch
+
+frontend-test-coverage:
+	@echo "Running frontend tests with coverage..."
+	npm --prefix frontend run test:coverage
+
+frontend-test-e2e:
+	@echo "Running frontend Playwright tests..."
+	npm --prefix frontend run test:e2e
+
+frontend-test-e2e-headed:
+	@echo "Running frontend Playwright tests in headed mode..."
+	npm --prefix frontend run test:e2e:headed
+
+frontend-test-e2e-ui:
+	@echo "Running Playwright UI mode..."
+	npm --prefix frontend run test:e2e:ui
+
+frontend-lint:
+	@echo "Linting frontend code..."
+	npm --prefix frontend run lint
+
+frontend-type-check:
+	@echo "Type-checking frontend code..."
+	npm --prefix frontend run type-check
+
+frontend-format:
+	@echo "Checking frontend formatting..."
+	npm --prefix frontend run format
+
+frontend-format-write:
+	@echo "Formatting frontend code..."
+	npm --prefix frontend run format:write
+
+# Frontend test aliases (test-frontend* variants)
+test-frontend: frontend-test
+test-frontend-unit: frontend-test-unit
+test-frontend-watch: frontend-test-watch
+test-frontend-coverage: frontend-test-coverage
+test-frontend-e2e: frontend-test-e2e
+test-frontend-e2e-headed: frontend-test-e2e-headed
+test-frontend-e2e-ui: frontend-test-e2e-ui
