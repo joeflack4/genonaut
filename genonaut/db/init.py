@@ -14,7 +14,7 @@ from typing import Optional, List, Dict, Any
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, ProgrammingError
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.orm import sessionmaker, Session
 
@@ -22,7 +22,7 @@ from alembic import command
 from alembic.config import Config
 
 from genonaut.db.schema import Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob
-from genonaut.db.utils import get_database_url
+from genonaut.db.utils import get_database_url, resolve_database_environment
 
 
 # Load environment variables from .env file in the env/ directory
@@ -55,12 +55,22 @@ def load_project_config() -> Dict[str, Any]:
         return {}
 
 
-def resolve_seed_path(config: Dict[str, Any], demo: bool) -> Optional[Path]:
+def resolve_seed_path(config: Dict[str, Any], environment: str) -> Optional[Path]:
     """Resolve the seed-data directory path for the requested database."""
 
     seed_section = config.get("seed_data", {}) if isinstance(config, dict) else {}
-    seed_key = "demo" if demo else "main"
+
+    env_key_map = {
+        "dev": "main",
+        "demo": "demo",
+        "test": "test",
+    }
+    seed_key = env_key_map.get(environment, "main")
     raw_path = seed_section.get(seed_key)
+
+    if raw_path is None and environment == "test":
+        # Fall back to demo seed data when dedicated test fixtures are absent
+        raw_path = seed_section.get("demo")
 
     if not raw_path:
         return None
@@ -81,13 +91,13 @@ def _is_truthy(value: Optional[str]) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _run_alembic_upgrade(database_url: str) -> None:
+def _run_alembic_upgrade(database_url: str, target: str = "head") -> None:
     """Run Alembic upgrade to head for the provided database URL."""
 
     alembic_cfg = Config(str(PROJECT_ROOT / "alembic.ini"))
     alembic_cfg.set_main_option("sqlalchemy.url", database_url)
     os.environ["ALEMBIC_SQLALCHEMY_URL"] = database_url
-    command.upgrade(alembic_cfg, "head")
+    command.upgrade(alembic_cfg, target)
 
 
 def _class_name_to_snake_case(class_name: str) -> str:
@@ -114,15 +124,23 @@ class DatabaseInitializer:
     Handles database connection, schema creation, and initial data seeding.
     """
     
-    def __init__(self, database_url: Optional[str] = None, demo: Optional[bool] = None):
+    def __init__(
+        self,
+        database_url: Optional[str] = None,
+        demo: Optional[bool] = None,
+        environment: Optional[str] = None,
+    ):
         """Initialize the database initializer.
         
         Args:
             database_url: PostgreSQL connection URL. If None, will use environment variable.
             demo: Optional flag indicating the demo database should be targeted.
+            environment: Explicit environment identifier (``dev``, ``demo``, ``test``).
         """
-        self.demo = demo if demo is not None else None
-        self.database_url = database_url or get_database_url(demo=demo)
+        self.environment = resolve_database_environment(demo=demo, environment=environment)
+        self.demo = self.environment == "demo"
+        self.is_test = self.environment == "test"
+        self.database_url = database_url or get_database_url(environment=self.environment)
         try:
             self._url = make_url(self.database_url)
             self.database_name = self._url.database
@@ -180,27 +198,52 @@ class DatabaseInitializer:
         sql_content = sql_content.replace('{{ DB_PASSWORD_RW }}', rw_password)
         sql_content = sql_content.replace('{{ DB_PASSWORD_RO }}', ro_password)
 
-        database_name = self.database_name or os.getenv('DB_NAME', 'genonaut')
+        if self.environment == "test":
+            database_name = self.database_name or os.getenv('DB_NAME_TEST', 'genonaut_test')
+        elif self.environment == "demo":
+            database_name = self.database_name or os.getenv('DB_NAME_DEMO', 'genonaut_demo')
+        else:
+            database_name = self.database_name or os.getenv('DB_NAME', 'genonaut')
         if not database_name:
             raise ValueError("Database name could not be determined for initialization")
         sql_content = sql_content.replace('{{ DB_NAME }}', database_name)
         
         # Create connection URL to 'postgres' database for admin operations
-        # We need to use existing superuser credentials to create the new users
-        # Try to get fallback credentials for the initial setup
-        fallback_user = os.getenv('DB_USER', 'postgres')
-        fallback_password = os.getenv('DB_PASSWORD')
-        
-        if fallback_password:
-            # Use fallback credentials to connect to postgres database
-            host = os.getenv('DB_HOST', 'localhost')
-            port = os.getenv('DB_PORT', '5432')
-            postgres_url = f"postgresql://{fallback_user}:{fallback_password}@{host}:{port}/postgres"
+        # Prefer credentials embedded in the configured URL; fall back to explicit env overrides
+        postgres_url: Optional[str] = None
+        psql_user: Optional[str] = None
+        psql_password: Optional[str] = None
+        psql_host: Optional[str] = None
+        psql_port: Optional[str] = None
+        if self._url and self._url.username and self._url.password:
+            postgres_url = self._url.set(database='postgres').render_as_string(hide_password=False)
+            psql_user = self._url.username
+            psql_password = self._url.password
+            psql_host = self._url.host or os.getenv('DB_HOST', 'localhost')
+            psql_port = str(self._url.port or os.getenv('DB_PORT', '5432'))
         else:
-            # If no fallback, try to modify the current URL to use postgres database
-            postgres_url = '/'.join(self.database_url.split('/')[:-1]) + '/postgres'
-        
+            fallback_user = os.getenv('DB_USER', 'postgres')
+            fallback_password = os.getenv('DB_PASSWORD')
+
+            if fallback_password:
+                host = self._url.host if self._url and self._url.host else os.getenv('DB_HOST', 'localhost')
+                port = self._url.port if self._url and self._url.port else os.getenv('DB_PORT', '5432')
+                postgres_url = f"postgresql://{fallback_user}:{fallback_password}@{host}:{port}/postgres"
+                psql_user = fallback_user
+                psql_password = fallback_password
+                psql_host = host
+                psql_port = str(port)
+            elif self.database_url:
+                postgres_url = '/'.join(self.database_url.split('/')[:-1]) + '/postgres'
+                psql_user = self._url.username if self._url and self._url.username else fallback_user
+                psql_password = self._url.password if self._url and self._url.password else None
+                psql_host = self._url.host or os.getenv('DB_HOST', 'localhost') if self._url else os.getenv('DB_HOST', 'localhost')
+                psql_port = str(self._url.port) if self._url and self._url.port else os.getenv('DB_PORT', '5432')
+
         try:
+            if not postgres_url:
+                raise ValueError("Unable to determine connection URL for postgres maintenance database")
+
             postgres_engine = create_engine(postgres_url)
             
             # Execute the SQL using psql for better PostgreSQL compatibility
@@ -215,24 +258,27 @@ class DatabaseInitializer:
             
             try:
                 # Extract connection details for psql
-                fallback_user = os.getenv('DB_USER', 'postgres')
-                host = os.getenv('DB_HOST', 'localhost')
-                port = os.getenv('DB_PORT', '5432')
-                
+                effective_user = psql_user or os.getenv('DB_USER', 'postgres')
+                host = psql_host or os.getenv('DB_HOST', 'localhost')
+                port = psql_port or os.getenv('DB_PORT', '5432')
+
                 # Execute SQL using psql
                 psql_cmd = [
                     'psql',
                     '-h', host,
                     '-p', port,
-                    '-U', fallback_user,
+                    '-U', effective_user,
                     '-d', 'postgres',
                     '-f', temp_file_path
                 ]
-                
+
                 # Set password via environment variable
                 env = os.environ.copy()
-                env['PGPASSWORD'] = fallback_password
-                
+                if psql_password:
+                    env['PGPASSWORD'] = psql_password
+                elif 'PGPASSWORD' in env:
+                    env.pop('PGPASSWORD')
+
                 result = subprocess.run(psql_cmd, env=env, capture_output=True, text=True)
                 
                 if result.returncode == 0:
@@ -476,7 +522,101 @@ class DatabaseInitializer:
                     print("Database tables dropped successfully")
         except SQLAlchemyError as e:
             raise SQLAlchemyError(f"Failed to drop tables: {e}")
-    
+
+    def ensure_legacy_full_text_indexes(self) -> None:
+        """Ensure legacy full-text indexes exist before running migrations."""
+
+        if not self.engine or not self.database_url.startswith('postgresql://'):
+            return
+
+        statements = [
+            (
+                "content_items",
+                """
+                CREATE INDEX IF NOT EXISTS ix_content_items_title_fts
+                ON content_items
+                USING GIN (to_tsvector('english', coalesce(title, '')))
+                """,
+            ),
+            (
+                "generation_jobs",
+                """
+                CREATE INDEX IF NOT EXISTS ix_generation_jobs_prompt_fts
+                ON generation_jobs
+                USING GIN (to_tsvector('english', coalesce(prompt, '')))
+                """,
+            ),
+        ]
+
+        with self.engine.connect() as conn:
+            for table_name, statement in statements:
+                exists_query = text(
+                    "SELECT to_regclass(:table_name) IS NOT NULL"
+                )
+                table_exists = conn.execute(
+                    exists_query, {"table_name": f"public.{table_name}"}
+                ).scalar()
+                if table_exists:
+                    logger.info(
+                        "Creating legacy FTS index for table %s if missing", table_name
+                    )
+                    conn.execute(text(statement))
+            conn.commit()
+
+    def drop_new_full_text_indexes(self) -> None:
+        """Drop the newer FTS indexes so migrations can recreate them."""
+
+        if not self.engine or not self.database_url.startswith('postgresql://'):
+            return
+
+        statements = [
+            "DROP INDEX IF EXISTS ci_title_fts_idx",
+            "DROP INDEX IF EXISTS gj_prompt_fts_idx",
+        ]
+
+        with self.engine.connect() as conn:
+            for statement in statements:
+                logger.info("Dropping FTS index with statement: %s", statement.strip())
+                conn.execute(text(statement))
+            conn.commit()
+
+    def truncate_tables(self, schema_name: Optional[str] = None) -> None:
+        """Truncate tables while preserving schema artifacts like indexes.
+
+        Args:
+            schema_name: Optional schema to target; defaults to the primary schema.
+
+        Raises:
+            SQLAlchemyError: When truncation fails.
+            ValueError: When the session factory is uninitialized.
+        """
+
+        if not self.session_factory:
+            raise ValueError("Session factory not initialized")
+
+        session = self.session_factory()
+        try:
+            model_order = [GenerationJob, Recommendation, UserInteraction, ContentItem, User]
+
+            if self.database_url.startswith('postgresql://'):
+                for model in model_order:
+                    table_name = model.__tablename__
+                    if schema_name:
+                        table_name = f"{schema_name}.{table_name}"
+                    session.execute(
+                        text(f"TRUNCATE TABLE {table_name} RESTART IDENTITY CASCADE")
+                    )
+                session.commit()
+            else:
+                for model in reversed(model_order):
+                    session.query(model).delete()
+                session.commit()
+        except Exception as exc:
+            session.rollback()
+            raise SQLAlchemyError(f"Failed to truncate tables: {exc}")
+        finally:
+            session.close()
+
     def seed_from_tsv_directory(self, tsv_directory: Path, schema_name: Optional[str] = None) -> None:
         """Seed database with data from TSV files in the specified directory.
         
@@ -601,7 +741,7 @@ def reseed_demo(force: bool = False) -> None:
     
     # Get seed data path
     config = load_project_config()
-    seed_path = resolve_seed_path(config, demo=True)
+    seed_path = resolve_seed_path(config, "demo")
     
     if not seed_path:
         raise ValueError("Could not resolve seed data path for demo database")
@@ -639,6 +779,7 @@ def initialize_database(
     schema_name: Optional[str] = None,
     demo: bool = False,
     seed_data_path: Optional[Path] = None,
+    environment: Optional[str] = None,
 ) -> None:
     """Initialize the database with schema and optional data seeding.
 
@@ -648,14 +789,22 @@ def initialize_database(
         create_db: Whether to create the database if it doesn't exist.
         drop_existing: Whether to drop existing tables before creating new ones.
         schema_name: Optional schema name for table creation (primarily for tests).
-        demo: When True, targets the demo database.
+        demo: When True, targets the demo database (legacy flag).
         seed_data_path: Optional directory containing TSV files for seeding data.
+        environment: Explicit environment identifier (``dev``, ``demo``, ``test``).
 
     Raises:
         SQLAlchemyError: If initialization fails.
     """
 
-    initializer = DatabaseInitializer(database_url, demo=demo)
+    # Only pass environment if it's explicitly set (not None)
+    init_kwargs = {
+        'demo': demo
+    }
+    if environment is not None:
+        init_kwargs['environment'] = environment
+    
+    initializer = DatabaseInitializer(database_url, **init_kwargs)
 
     target_url = initializer.database_url or ""
     is_postgresql = target_url.startswith('postgresql://')
@@ -677,7 +826,10 @@ def initialize_database(
     if seed_data_path is not None:
         candidate_path = Path(seed_data_path)
     elif schema_name is None and not is_sqlite:
-        candidate_path = resolve_seed_path(load_project_config(), demo)
+        candidate_path = resolve_seed_path(
+            load_project_config(),
+            initializer.environment,
+        )
 
     if candidate_path:
         if candidate_path.exists() and candidate_path.is_dir():
@@ -702,9 +854,27 @@ def initialize_database(
             initializer.drop_tables()
 
         if is_postgresql:
-            _run_alembic_upgrade(initializer.database_url)
+            try:
+                _run_alembic_upgrade(initializer.database_url)
+            except ProgrammingError as exc:
+                message = str(exc)
+                if "ix_content_items_title_fts" in message or "ix_generation_jobs_prompt_fts" in message:
+                    initializer.drop_new_full_text_indexes()
+                    initializer.ensure_legacy_full_text_indexes()
+                    _run_alembic_upgrade(initializer.database_url)
+                elif "ci_title_fts_idx" in message or "gj_prompt_fts_idx" in message:
+                    initializer.drop_new_full_text_indexes()
+                    _run_alembic_upgrade(initializer.database_url)
+                else:
+                    raise
         else:
             initializer.create_tables()
+
+        if initializer.is_test and resolved_seed_path:
+            try:
+                initializer.truncate_tables()
+            except SQLAlchemyError as exc:
+                logger.warning("Failed to truncate tables before test seeding: %s", exc)
 
         if resolved_seed_path:
             initializer.seed_from_tsv_directory(resolved_seed_path)
@@ -714,12 +884,13 @@ def initialize_database(
 
 if __name__ == "__main__":
     config = load_project_config()
-    demo_mode = _is_truthy(os.getenv("DEMO"))
-    seed_path = resolve_seed_path(config, demo_mode)
+    environment = resolve_database_environment()
+    seed_path = resolve_seed_path(config, environment)
 
     initialize_database(
         create_db=True,
         drop_existing=False,
-        demo=demo_mode,
-        seed_data_path=seed_path
+        demo=(environment == "demo"),
+        seed_data_path=seed_path,
+        environment=environment,
     )

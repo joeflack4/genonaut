@@ -1,0 +1,1 @@
+"""Genonaut FastAPI application package."""

@@ -7,7 +7,7 @@ image, video, audio) based on user preferences.
 
 ## How to familiarize yourself with the project
 - Read the `README.md` file in the root of the repository. Follow any links in that file, or any other files it links 
-to, e.g. [full dev docs](docs/developer.md)), and read those files as well.
+to, e.g. [full dev docs](docs/developer.md), and read those files as well.
 
 ## Code / architecture style
 - Whenever possible, functions / methods should be pure functions.
@@ -15,24 +15,41 @@ to, e.g. [full dev docs](docs/developer.md)), and read those files as well.
 
 ## Standard Operating Procedures
 ### Common steps to do whenever creating/updating any task / feature
-1. Add end-to-end and/or integration tests, where applicable.
-2. Add unit tests for any functions/methods.
-3. Add documentation: Module level docstrings, class level docstrings, function level docstrings, and method / function
+1. If there is a major task that you are working on (involves many steps / tests), there should be a `.md` file in 
+`scratchpads/` where the design is documented and there are checklists. If this doesn't exist, but you think the feature
+is substantial enough to merit such a document, then before you start, suggest this to the user.
+2. Consult `scratchpads/general.md`. This is a list of uncategorized todo's / plans. See if any of these apply to your 
+current task at hand. If any todos seem like they should belong in the scratchpad document you are working on, move them
+there. If they are already done, check them off. Example: It may be that a test is currently being skipped, but when you
+implement some functionality you are planning, you will want to enable these tests. Claude specifically: You have 
+TodoWrite and TodoRead functionality. You can utilize those tools here.
+3. Add tests following the three-tier testing approach:
+   - Unit tests (`make test-unit`) for individual functions/methods
+   - Database tests (`make test-db`) for repository and service layer functionality
+   - API integration tests (`make test-api`) for complete workflows and endpoints
+5. Add documentation: Module level docstrings, class level docstrings, function level docstrings, and method / function
 level docstrings. Function / method docstrings should include information about parameters and returns, and a 
 description. 
-4. Periodic code commenting. For example, for a function that has several distinct steps, where each step involves a 
-block of code (e.g. a `for` loop with several operations), put at least 1 comment above eaach block, explaining what it 
+6. Periodic code commenting. For example, for a function that has several distinct steps, where each step involves a 
+block of code (e.g. a `for` loop with several operations), put at least 1 comment above each block, explaining what it 
 does.
-5. If any new Python requirements / packages are added to the project, include them (unversioned) in the 
+7. If any new Python requirements / packages are added to the project, include them (unversioned) in the 
 `requirements-unlocked.txt` file.
-6. If the new feature has a CLI, document it in a "Features" section in the `README.md`. Include a table showing the 
+8. If the new feature has a CLI, document it in a "Features" section in the `README.md`. Include a table showing the 
 args, their description, defaults, data types, etc.
-7. Consider otherwise any other documentation that might need to be added or updated in `README.md` after adding a 
+9. Consider otherwise any other documentation that might need to be added or updated in `README.md` after adding a 
 feature, and either do those updates or ask for input.
-8. Ensure that the whole test suite passes before completion of a feature or major task.
-9. If there is a command involved that needs to work, but for which it does not make sense to have a test (like if you 
+10. Ensure that the whole test suite passes before completion of a feature or major task.
+11. If there is a command involved that needs to work, but for which it does not make sense to have a test (like if you 
 are asked to fix a one-off script or command), then make sure to run the command to ensure that it works, unless asked 
 not to or otherwise if you think it is inadvisable to do so.
+
+### Documentation updates
+When adding documentation:
+- For detailed documentation, create files in `docs/` (e.g., `docs/api.md`, `docs/db.md`, `docs/testing.md`)
+- Keep `README.md` concise with essential commands and links to detailed docs
+- Update `docs/developer.md` with links to new documentation files
+- Ensure cross-references between documentation files are working
 
 ### When changing DB schema
 Caution!: DO NOT edit existing files Alembic version files!: `genonaut/db/migrations/versions/`. Treat them as immutable
