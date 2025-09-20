@@ -1,38 +1,49 @@
-# Frontend Documentation
+# Frontend MVP spec
 
-This document outlines the frontend development approach for Genonaut, including recommended technologies, architecture, and integration with the FastAPI backend.
+This document outlines the frontend development approach for Genonaut, including recommended technologies, architecture,
+and integration with the FastAPI backend.
+
+## Introduciton
+We would like to implement a frontend for our app: genonaut. Right now we have a folder called genonaut, which is 
+actually for backend code (Python, SQL, etc). I'd like to put the frontend in its own sibling folder; call it 
+`frontend`.
+
+Follow an architecture that follows the outline of this document. But, try to avoid upgrading to anything too advanced 
+beyond this, as my dev team does not have advanced React / JavaScript developers, so we'd like to start with something 
+that requires more intermediate level ReactJS ability to maintain.
+
+For testing: Do TDD.
+
+The backend API is well documented. See: docs/api.md. Also, Swagger / OpenAPI docs are running on localhost:8000/docs
+
+What do I want the app to do?
+This is a sort of recommender system for generative AI. In the future, I'm thinking about various modalities, but right 
+now we are going to stick to image generation. We should have some basic common pages, such as login, sign up, and 
+user/app settings. There is no authentication right now. So you can just treat it as if the user is already logged in, 
+and their name can just be "Admin".
 
 ## Current Status
 
 **🚧 Frontend Development Planned**
 
-The backend API is complete and ready for frontend integration. The frontend implementation is the recommended next development phase for the MVP.
+The backend API is complete and ready for frontend integration
 
 ## Technology Recommendations
 
-### Primary Framework Options
+### Primary Framework
 
-**Option 1: React + TypeScript (Recommended)**
-- **Advantages:** Large ecosystem, excellent TypeScript support, extensive community
-- **Best for:** Complex interactive UIs, real-time features, component reusability
-- **Libraries:** React Query (API integration), Material-UI or Chakra UI (components)
-
-**Option 2: Vue.js + TypeScript**
-- **Advantages:** Gentle learning curve, excellent documentation, good TypeScript support
-- **Best for:** Rapid development, clean template syntax, progressive adoption
-- **Libraries:** Pinia (state management), Vuetify or Quasar (components)
-
-**Option 3: Svelte/SvelteKit + TypeScript**
-- **Advantages:** Minimal bundle size, excellent performance, simpler state management
-- **Best for:** Fast loading times, minimal overhead, modern development experience
-- **Libraries:** SvelteKit (full-stack), Tailwind CSS (styling)
+**React + TypeScript**
+- **Libraries:** React Query (API integration), Material-UI
 
 ### Development Stack
 
 **Build Tools:**
+- **NPM** - Package manager
 - **Vite** - Fast build tool with excellent TypeScript support
 - **ESLint + Prettier** - Code quality and formatting
 - **Vitest** - Unit testing framework
+- **PlayWright** - End-to-end testing framework. 
+  - Pair with @playwright/test runner (already included in Playwright).
 
 **API Integration:**
 - **Axios or Fetch** - HTTP client for API requests
@@ -40,23 +51,20 @@ The backend API is complete and ready for frontend integration. The frontend imp
 - **OpenAPI Generator** - Auto-generate TypeScript types from API schema
 
 **Styling:**
-- **Tailwind CSS** - Utility-first CSS framework
-- **Styled Components** - CSS-in-JS (for React)
-- **Component Library** - Material-UI, Chakra UI, or Mantine
+- **Component Library** - Material-UI
 
 **State Management:**
 - **React Context + useReducer** (for React)
-- **Zustand** (lightweight state management)
-- **Pinia** (for Vue.js)
 
 ## Architecture Overview
 
 ### Application Structure
 
 ```
+docs/frontend/               # Frontend documentation
 frontend/
 ├── src/
-│   ├── components/           # Reusable UI components
+│   ├── components/          # Reusable UI components
 │   │   ├── common/          # Generic components (Button, Input, etc.)
 │   │   ├── layout/          # Layout components (Header, Sidebar, etc.)
 │   │   └── domain/          # Domain-specific components
@@ -72,8 +80,7 @@ frontend/
 │   ├── stores/              # State management
 │   └── assets/              # Static assets
 ├── public/                  # Public assets
-├── tests/                   # Test files
-└── docs/                    # Frontend documentation
+└── tests/                   # Test files
 ```
 
 ### API Integration Layer
@@ -124,30 +131,81 @@ npx openapi-typescript http://localhost:8000/openapi.json --output src/types/api
 ### MVP Feature Set
 
 **1. User Management Interface**
+Overview:
 - User registration and profile management
 - User preferences configuration
-- User statistics dashboard
+
+This will be its own section with 1+ pages.
 
 **2. Content Browser**
+Right now the only content will be images. And there is metadata about those images.
+
+Overview:
 - Content listing with pagination and filtering
 - Content detail views
-- Content creation and editing forms
 - Content search functionality
 
-**3. Interaction Tracking**
-- Automatic interaction tracking (views, clicks)
-- Rating and feedback components
-- User interaction history
+This will be its own section with 1+ pages.
 
-**4. Recommendation Display**
+This app is high throughput. A typical user will likely have several thousand images of their own that they have used AI
+to generate, and after doing so, they will come here to browse the results, rate, and tag them. They should be able to 
+see the images as well as their metadata. They should be able to update certain metadata, such as the rating 
+(quality_score in the db), tags, title, and is_private status. Obviously some certain fields and operations will require
+user ownership in order for the user to make changes. For example, they won't be able to change the title of images 
+created by another user, or the average rating shown for the item, or is_private status or the public tags for such 
+items, but they can add their own personal tags and their own rating to an item that is not owned by them (I still need
+to implement that on the backend). If they have ownership of an item, they can do all these changes, including delete
+the item. The user should also be able to do filtering: tags (multiple select), rating (1 - 10) (the backend currently
+has this as as a 0 to 1 scale, but that will change). And, the user should also be able to filter based searching for
+prompts that match a text query. There will be a text box for that. Then, there will be some toggles: "match on
+inclusion of any word", "match on inclusion of all words", "match on inclusion of only quoted words", "match on general
+similarity". This should be a dropdown menu, with "match on general similarity" being the default.
+
+Ater any filters are aplied, images can be sorted by date or popularity (rating).
+
+**3. Recommendation Display**
 - Personalized recommendation feed
 - Recommendation explanation/reasoning
 - Recommendation feedback collection
 
-**5. System Dashboard**
+This will be a subsection of the "Content browser" section. The user should be able to see content that are personalized
+recommendations vs content that is not.
+
+The overall content browser should let the user see content of the following kinds of major categories:
+- Global: Not recommended; just browsing by global catelog, which can further be filtered by tags.
+- Recommended based on solid user preferences.
+- Recommended based on exploring the users preference space.
+- Recommended based on preferences of similar users.
+- Recommended based on exploring the preference space f similar users.
+
+**4. Generation**
+This will be its own section with 1+ pages.
+
+Later, this section will have lots of options, but for now, it will not have a lot. There will be a "Generate" button 
+(green). When it is activated, there should be some status UI saying "generating". If generating is active, then the 
+normally green "generate" button should instead be red and say "Stop". The page should have an integer input field for 
+"batch size". The default should be 200, and max should be 1,000,000. Minimum should be 1. There should be a section 
+called "Exploration options", for which there will be the following toggles: "Novel (based on my preferences)", "Novel 
+(based on users like me)", "Novel (popular preferences)", "Stuff I'll probably like (based on my preferences)", "Stuff 
+I'll probably like (based on users like me)", and ""Stuff I'll probably like (popular preferences)". Actually, I guess 
+these labels are kind of redundant, so perhaps you can make this a table of checkboxes, with "Novel" and "Stuff I'll 
+probably like" as row labels, and "Based on my preferences", "Based on users like me", and "Popular preferences" as the 
+column headers.
+
+**5. Interaction Tracking**
+- Automatic interaction tracking (views, clicks)
+- Rating and feedback components
+- User interaction history
+
+Unsure where to put these parts in the app; just know we want them.
+
+**6. System Dashboard**
+Overview:
 - Global statistics visualization
 - System health monitoring
 - Basic analytics charts
+
+This will be its own section with 1+ pages.
 
 ### User Interface Pages
 
@@ -175,6 +233,20 @@ npx openapi-typescript http://localhost:8000/openapi.json --output src/types/api
 - `/dashboard` - Personal dashboard
 - `/analytics` - System analytics (admin)
 - `/stats` - Global statistics
+
+**Generation**
+- `/generation` – Create a new generation job (enter prompt + parameters).
+- `/generation/:id` – View details of a specific generation job.
+- `/generation/:id/edit` – Update a pending job’s parameters.
+- `/generation/:id/status` – Monitor or update the job’s status.
+- `/generation/:id/result` – View or set the generated result content.
+- `/generation/history` – Browse past generation jobs with filters (by status, type, or user).
+- `/generation/pending` – View all pending jobs (queue).
+- `/generation/running` – View currently running jobs.
+- `/generation/completed` – View completed jobs (last 30 days by default).
+- `/generation/failed` – View failed jobs (last 7 days by default).
+- `/generation/stats` – Overview of generation job statistics (global or per-user).
+- `/generation/queue` – Queue monitoring: see stats (pending, running) and process queue manually (admin).
 
 ## Component Design System
 
@@ -206,6 +278,7 @@ interface InputProps {
 - `Header` - Navigation and user menu
 - `Sidebar` - Main navigation sidebar
 - `Footer` - Site footer
+  - Hidden by default. Perhaps can activate to show notifications and status (such as: "generating...")
 - `Layout` - Main layout wrapper
 - `Container` - Content container with responsive padding
 
@@ -410,7 +483,7 @@ export function handleApiError(error: any): ApiError {
 
 ## Testing Strategy
 
-### Testing Framework Setup
+### Testing Framework Setup: Vitest
 
 ```typescript
 // vitest.config.ts
@@ -453,7 +526,7 @@ test('renders content card with title', () => {
 });
 ```
 
-### API Mocking
+### API Mocking (if / as needed)
 
 ```typescript
 // test/mocks/handlers.ts
@@ -483,6 +556,9 @@ export const handlers = [
   }),
 ];
 ```
+
+### Testing Framework: Playwright
+TODO: add information regarding set up, commands, workflows, etc.
 
 ## Deployment
 
@@ -520,6 +596,9 @@ VITE_API_BASE_URL=https://staging-api.genonaut.com
 VITE_ENABLE_DEV_TOOLS=true
 ```
 
+## Additional notes on styles
+- Dark mode vs Light mode: User should be able to toggle this in settings. Default should be dark.
+
 ## Future Enhancements
 
 ### Advanced Features
@@ -528,7 +607,6 @@ VITE_ENABLE_DEV_TOOLS=true
 - **Progressive Web App:** Service workers and offline functionality
 - **Advanced Analytics:** Data visualization with Chart.js or D3.js
 - **Collaborative Features:** Multi-user editing and sharing
-- **Mobile App:** React Native or Flutter mobile application
 
 ### Performance Optimization
 
@@ -542,6 +620,5 @@ VITE_ENABLE_DEV_TOOLS=true
 - **WCAG Compliance:** Ensure AA-level accessibility compliance
 - **Screen Reader Support:** Proper ARIA labels and semantic HTML
 - **Keyboard Navigation:** Full keyboard accessibility
-- **Color Contrast:** High contrast themes and color blind considerations
 
 This frontend architecture provides a solid foundation for building a modern, scalable user interface that integrates seamlessly with the Genonaut FastAPI backend.
