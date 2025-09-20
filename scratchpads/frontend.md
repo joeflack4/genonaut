@@ -52,9 +52,12 @@ The backend API is complete and ready for frontend integration
 
 **Styling:**
 - **Component Library** - Material-UI
+- Use `sx` prop and theme overrides for styling.
+- Wrap MUI components for extended logic or consistent props where needed.
 
 **State Management:**
 - **React Context + useReducer** (for React)
+  - *Note: If state grows complex, we may migrate to Zustand later.*
 
 ## Architecture Overview
 
@@ -73,7 +76,7 @@ frontend/
 │   │   ├── content/         # Content management pages
 │   │   ├── recommendations/ # Recommendation pages
 │   │   └── dashboard/       # Dashboard and analytics
-│   ├── hooks/               # Custom hooks (React) or composables (Vue)
+│   ├── hooks/               # Custom hooks (React)
 │   ├── services/            # API service layer
 │   ├── types/               # TypeScript type definitions
 │   ├── utils/               # Utility functions
@@ -132,7 +135,7 @@ npx openapi-typescript http://localhost:8000/openapi.json --output src/types/api
 
 **1. User Management Interface**
 Overview:
-- User registration and profile management
+- User registration and profile management (forms + mocked responses)
 - User preferences configuration
 
 This will be its own section with 1+ pages.
@@ -161,7 +164,9 @@ prompts that match a text query. There will be a text box for that. Then, there 
 inclusion of any word", "match on inclusion of all words", "match on inclusion of only quoted words", "match on general
 similarity". This should be a dropdown menu, with "match on general similarity" being the default.
 
-Ater any filters are aplied, images can be sorted by date or popularity (rating).
+After any filters are aplied, images can be sorted by date or popularity (rating).
+
+Large lists should use virtualization (`react-window` or `react-virtualized`).
 
 **3. Recommendation Display**
 - Personalized recommendation feed
@@ -179,6 +184,12 @@ The overall content browser should let the user see content of the following kin
 - Recommended based on exploring the preference space f similar users.
 
 **4. Generation**
+Overview:
+- Job creation with prompt + parameters
+- Cancel/stop job (`/generation/:id/cancel`, mocked if backend not implemented)
+- Batch size input (1–1,000,000)
+- Exploration options table with toggles
+
 This will be its own section with 1+ pages.
 
 Later, this section will have lots of options, but for now, it will not have a lot. There will be a "Generate" button 
@@ -203,17 +214,17 @@ Unsure where to put these parts in the app; just know we want them.
 Overview:
 - Global statistics visualization
 - System health monitoring
-- Basic analytics charts
+- Basic analytics charts (Chart.js or Recharts)
 
 This will be its own section with 1+ pages.
 
 ### User Interface Pages
 
 **Authentication & User Management:**
-- `/login` - User login (future)
-- `/register` - User registration
+- `/login` - User login (future, mocked for now)
+- `/register` - User registration (mocked)
 - `/profile` - User profile management
-- `/profile/preferences` - User preferences
+- `/profile/preferences` - User preferences (includes dark mode toggle)
 - `/users` - User directory/search
 
 **Content Management:**
@@ -240,6 +251,7 @@ This will be its own section with 1+ pages.
 - `/generation/:id/edit` – Update a pending job’s parameters.
 - `/generation/:id/status` – Monitor or update the job’s status.
 - `/generation/:id/result` – View or set the generated result content.
+- `/generation/:id/cancel` – Cancel a running job (mock if backend not available).
 - `/generation/history` – Browse past generation jobs with filters (by status, type, or user).
 - `/generation/pending` – View all pending jobs (queue).
 - `/generation/running` – View currently running jobs.
@@ -253,27 +265,6 @@ This will be its own section with 1+ pages.
 ### Base Components
 
 **Form Components:**
-```typescript
-// Button component with variants
-interface ButtonProps {
-  variant: 'primary' | 'secondary' | 'danger';
-  size: 'sm' | 'md' | 'lg';
-  loading?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-}
-
-// Input component with validation
-interface InputProps {
-  label: string;
-  type: 'text' | 'email' | 'password' | 'number';
-  value: string;
-  onChange: (value: string) => void;
-  error?: string;
-  required?: boolean;
-}
-```
-
 **Layout Components:**
 - `Header` - Navigation and user menu
 - `Sidebar` - Main navigation sidebar
@@ -288,6 +279,8 @@ interface InputProps {
 - `Badge` - Status indicators and tags
 - `Avatar` - User profile images
 - `Rating` - Star rating component
+
+**Form Components:** Use Material-UI form inputs (`TextField`, `Select`, `Checkbox`, etc.)
 
 ### Domain Components
 
@@ -414,7 +407,7 @@ npm run dev
 # Build for production
 npm run build
 
-# Run tests
+# Run unit tests
 npm run test
 
 # Run linting
@@ -558,7 +551,62 @@ export const handlers = [
 ```
 
 ### Testing Framework: Playwright
-TODO: add information regarding set up, commands, workflows, etc.
+**Setup**
+```bash
+npm install -D @playwright/test
+npx playwright install
+```
+
+**Configuration** (`playwright.config.ts`)
+```ts
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './tests/e2e',
+  timeout: 30_000,
+  use: {
+    baseURL: process.env.VITE_API_BASE_URL || 'http://localhost:5173',
+    headless: true,
+    viewport: { width: 1280, height: 720 },
+    ignoreHTTPSErrors: true,
+    video: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+  },
+});
+```
+
+**Example Test** (`tests/e2e/home.spec.ts`)
+```ts
+import { test, expect } from '@playwright/test';
+
+test('home page loads', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('h1')).toContainText('Genonaut');
+});
+```
+
+**Makefile Goals**
+```makefile
+# Run all Playwright tests
+test-e2e:
+	@npx playwright test
+
+# Run headed mode (see browser UI)
+test-e2e-ui:
+	@npx playwright test --ui
+
+# Debug mode
+test-e2e-debug:
+    @npx playwright test --debug
+```
+
+**Workflow**
+1. `make test-e2e` – CI safe, runs all tests headless.  
+2. `make test-e2e-ui` – Interactive mode for local dev.  
+3. `make test-e2e-debug` – Debug with inspector.  
+4. Test reports (`playwright-report/`) and traces (`test-results/`) generated automatically.  
+
+---
 
 ## Deployment
 
