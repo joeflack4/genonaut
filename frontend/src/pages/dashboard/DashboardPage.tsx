@@ -4,8 +4,8 @@ import { useContentList, useContentStats, useCurrentUser } from '../../hooks'
 const DEFAULT_USER_ID = 1
 
 const contentStatItems = [
-  { key: 'userContentCount' as const, label: 'User Content' },
-  { key: 'totalContentCount' as const, label: 'Community Content' },
+  { key: 'userContentCount' as const, label: 'Your works' },
+  { key: 'totalContentCount' as const, label: 'Community works' },
 ]
 
 export function DashboardPage() {
@@ -13,6 +13,11 @@ export function DashboardPage() {
   const userId = currentUser?.id ?? DEFAULT_USER_ID
 
   const { data: contentStats, isLoading: contentStatsLoading } = useContentStats(userId)
+  const { data: userRecentContent, isLoading: userRecentContentLoading } = useContentList({
+    limit: 5,
+    sort: 'recent',
+    creator_id: userId,
+  })
   const { data: recentContent, isLoading: recentContentLoading } = useContentList({
     limit: 5,
     sort: 'recent',
@@ -55,7 +60,37 @@ export function DashboardPage() {
       <Card component="section">
         <CardContent>
           <Typography variant="h6" component="h2" gutterBottom>
-            Recent Content
+            Your recent works
+          </Typography>
+          {userRecentContentLoading ? (
+            <Stack spacing={2}>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} variant="rectangular" height={56} />
+              ))}
+            </Stack>
+          ) : userRecentContent && userRecentContent.items.length > 0 ? (
+            <List>
+              {userRecentContent.items.map((item) => (
+                <ListItem key={item.id} disableGutters divider>
+                  <ListItemText
+                    primary={item.title}
+                    secondary={item.createdAt ? new Date(item.createdAt).toLocaleString() : undefined}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              No recent works available.
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card component="section">
+        <CardContent>
+          <Typography variant="h6" component="h2" gutterBottom>
+            Recent community works
           </Typography>
           {recentContentLoading ? (
             <Stack spacing={2}>
@@ -76,7 +111,7 @@ export function DashboardPage() {
             </List>
           ) : (
             <Typography variant="body2" color="text.secondary">
-              No recent content available.
+              No recent community works available.
             </Typography>
           )}
         </CardContent>

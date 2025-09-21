@@ -66,7 +66,33 @@ test.describe('Dashboard', () => {
         },
       },
       {
-        pattern: '/api/v1/content.*limit=5.*sort=recent',
+        pattern: '/api/v1/content.*limit=5.*sort=recent.*creator_id=1',
+        body: {
+          items: [
+            {
+              id: 1,
+              title: 'User Content Item',
+              description: 'Content created by user',
+              image_url: null,
+              quality_score: 0.9,
+              created_at: '2024-01-10T00:00:00Z',
+              updated_at: '2024-01-10T00:00:00Z',
+              content_type: 'text',
+              content_data: 'Sample content',
+              item_metadata: {},
+              creator_id: 1,
+              tags: [],
+              is_public: true,
+              is_private: false,
+            },
+          ],
+          total: 1,
+          limit: 5,
+          skip: 0,
+        },
+      },
+      {
+        pattern: '/api/v1/content.*limit=5.*sort=recent(?!.*creator_id)',
         body: {
           items: [
             {
@@ -99,8 +125,11 @@ test.describe('Dashboard', () => {
     await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible()
     await expect(page.getByRole('heading', { name: '1' })).toBeVisible() // User content count
     await expect(page.getByRole('heading', { name: '3' })).toBeVisible() // Total content count
-    await expect(page.getByText('User Content')).toBeVisible()
-    await expect(page.getByText('Community Content')).toBeVisible()
-    await expect(page.getByText('Surreal Landscape')).toBeVisible()
+    await expect(page.getByText('Your works').first()).toBeVisible()
+    await expect(page.getByText('Community works').first()).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Your recent works' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Recent community works' })).toBeVisible()
+    await expect(page.getByText('User Content Item')).toBeVisible() // User's recent content
+    await expect(page.getByText('Surreal Landscape')).toBeVisible() // Community recent content
   })
 })

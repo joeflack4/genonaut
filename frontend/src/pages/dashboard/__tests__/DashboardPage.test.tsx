@@ -58,36 +58,60 @@ describe('DashboardPage', () => {
       isLoading: false,
     })
 
-    mockedUseContentList.mockReturnValue({
-      data: {
-        items: [
-          {
-            id: 1,
-            title: 'Surreal Landscape',
-            description: null,
-            imageUrl: null,
-            qualityScore: 0.9,
-            createdAt: '2024-01-10T00:00:00Z',
-            updatedAt: '2024-01-10T00:00:00Z',
-          },
-        ],
-        total: 1,
-        limit: 5,
-        skip: 0,
-      },
-      isLoading: false,
-    })
+    mockedUseContentList
+      .mockReturnValueOnce({
+        data: {
+          items: [
+            {
+              id: 1,
+              title: 'User Content Item',
+              description: null,
+              imageUrl: null,
+              qualityScore: 0.9,
+              createdAt: '2024-01-10T00:00:00Z',
+              updatedAt: '2024-01-10T00:00:00Z',
+            },
+          ],
+          total: 1,
+          limit: 5,
+          skip: 0,
+        },
+        isLoading: false,
+      })
+      .mockReturnValueOnce({
+        data: {
+          items: [
+            {
+              id: 2,
+              title: 'Surreal Landscape',
+              description: null,
+              imageUrl: null,
+              qualityScore: 0.9,
+              createdAt: '2024-01-10T00:00:00Z',
+              updatedAt: '2024-01-10T00:00:00Z',
+            },
+          ],
+          total: 3,
+          limit: 5,
+          skip: 0,
+        },
+        isLoading: false,
+      })
   })
 
   it('displays content stats and recent content', () => {
     renderDashboard()
 
     expect(mockedUseContentStats).toHaveBeenCalledWith(1)
+    expect(mockedUseContentList).toHaveBeenCalledWith({ limit: 5, sort: 'recent', creator_id: 1 })
     expect(mockedUseContentList).toHaveBeenCalledWith({ limit: 5, sort: 'recent' })
     expect(screen.getByText('1')).toBeInTheDocument() // User content count
     expect(screen.getByText('3')).toBeInTheDocument() // Total content count
-    expect(screen.getByText('User Content')).toBeInTheDocument()
-    expect(screen.getByText('Community Content')).toBeInTheDocument()
-    expect(screen.getByText('Surreal Landscape')).toBeInTheDocument()
+    expect(screen.getByText('Your works')).toBeInTheDocument()
+    expect(screen.getByText('Community works')).toBeInTheDocument()
+    expect(screen.getByText('Your recent works')).toBeInTheDocument()
+    expect(screen.getByText('Recent community works')).toBeInTheDocument()
+    expect(screen.getByText('User Content Item')).toBeInTheDocument() // User's recent content
+    expect(screen.getByText('Surreal Landscape')).toBeInTheDocument() // Community recent content
   })
 })
