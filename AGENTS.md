@@ -74,3 +74,14 @@ If at any point you need a service to be running (e.g. database, backend web API
 4. **Use project-specific commands**: Look for Makefile targets, npm scripts, or other project-specific commands for service management (e.g., `make start-services`, `docker-compose up -d`, etc.).
 
 Always prioritize using project-specific service management commands when available, as they are likely configured with the correct parameters and dependencies.
+
+### Web Requests
+When making web requests:
+
+1. **External domains**: Always ask for user permission before making web requests to domains outside of localhost, 0.0.0.0, or 127.0.0.1
+2. **Local development**: You may proceed without asking for permission when making requests to:
+   - localhost
+   - 0.0.0.0
+   - 127.0.0.1
+
+These local addresses are considered safe for development and testing purposes.
