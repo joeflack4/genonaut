@@ -63,6 +63,17 @@ make api-test               # Test database
 
 For complete API documentation, endpoint details, configuration options, and troubleshooting, see [API Documentation](docs/api.md).
 
+### Frontend
+
+The React frontend lives in `frontend/` and mirrors the API feature set with dashboard, content, recommendation, settings, and auth placeholder pages.
+
+- Install deps: `cd frontend && npm install`
+- Dev server: `npm run dev`
+- Tests & linting: `npm run test` (all tests), `npm run test-unit` (unit only), `npm run lint`
+- Make helpers: `make frontend-dev`, `make frontend-test`, `make frontend-build`
+
+See [Frontend Overview](docs/frontend/overview.md) for architecture, commands, and testing notes.
+
 ## Testing
 
 Genonaut uses a three-tier testing approach: unit tests (no dependencies), database tests (requires DB), and API integration tests (requires web server).

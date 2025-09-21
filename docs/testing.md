@@ -284,9 +284,120 @@ make init-dev
 | API Integration | 2-5 minutes | ❌ No |
 | All Tests | 3-6 minutes | ⚠️ Sequential |
 
+## Frontend Testing
+
+Genonaut's React frontend has a comprehensive testing setup covering unit tests and end-to-end testing.
+
+### Frontend Test Types
+
+| Test Type | Framework | Purpose | Speed |
+|-----------|-----------|---------|-------|
+| **Unit/Integration** | Vitest + Testing Library | React components, hooks, services | ⚡ Fast |
+| **End-to-End** | Playwright | Full user workflows | 🔄 Medium |
+
+### Frontend Test Commands
+
+```bash
+# Unit tests only (fastest)
+npm run test-unit          # Run unit tests only
+make frontend-test-unit    # Same via Makefile
+
+# All frontend tests (unit + e2e)
+npm run test               # Run both unit and e2e tests
+make frontend-test         # Same via Makefile
+
+# E2E tests only
+npm run test:e2e           # Run Playwright tests
+make frontend-test-e2e     # Same via Makefile
+
+# Additional test options
+npm run test:watch         # Unit tests in watch mode
+npm run test:coverage      # Unit tests with coverage
+npm run test:e2e:headed    # E2E tests with browser UI
+npm run test:e2e:ui        # Playwright UI mode
+```
+
+### Frontend Test Structure
+
+```
+frontend/
+├── src/
+│   ├── components/__tests__/      # Component unit tests
+│   ├── hooks/__tests__/           # React hooks unit tests
+│   ├── pages/__tests__/           # Page component tests
+│   ├── services/__tests__/        # API service tests
+│   └── app/__tests__/             # App shell and provider tests
+└── tests/
+    └── e2e/                       # Playwright end-to-end tests
+        ├── auth.spec.ts           # Authentication flows
+        ├── content.spec.ts        # Content management
+        ├── dashboard.spec.ts      # Dashboard functionality
+        ├── recommendations.spec.ts # Recommendation features
+        └── settings.spec.ts       # Settings and profile
+```
+
+### Frontend Testing Setup
+
+**Prerequisites for unit tests:**
+- Node.js and npm dependencies installed
+- No additional setup required
+
+**Prerequisites for e2e tests:**
+- Backend API server running (for full integration)
+- Playwright browsers installed: `npx playwright install`
+
+```bash
+# Install frontend dependencies
+cd frontend && npm install
+
+# Install Playwright browsers (if not already done)
+npx playwright install
+
+# Run frontend tests
+npm run test                    # All tests
+npm run test-unit              # Unit tests only
+npm run test:e2e               # E2E tests only
+```
+
+### Frontend Test Configuration
+
+**Vitest Configuration (`vite.config.ts`):**
+- Uses jsdom environment for DOM simulation
+- Includes only `src/**/*.{test,spec}.{ts,tsx}` files
+- Excludes e2e tests to prevent framework conflicts
+- Coverage reporting with V8 provider
+
+**Playwright Configuration:**
+- Tests run against built frontend with mock API
+- Supports headed/headless modes
+- Configurable base URL for different environments
+
+### Frontend Development Workflow
+
+```bash
+# During development
+npm run test:watch            # Auto-run unit tests on changes
+npm run test-unit            # Quick unit test validation
+
+# Before committing
+npm run test                 # Run all frontend tests
+npm run lint                 # Code quality checks
+npm run type-check          # TypeScript validation
+
+# For debugging
+npm run test:e2e:headed     # Run e2e tests with browser UI
+npm run test:e2e:ui         # Use Playwright's debug UI
+```
+
 ## Coverage Targets
 
+**Backend:**
 - **Unit Tests:** > 95% for models, utilities, exceptions
-- **Database Tests:** > 90% for repositories and services  
+- **Database Tests:** > 90% for repositories and services
 - **API Integration:** > 85% for endpoints and workflows
-- **Overall:** > 85% combined coverage
+
+**Frontend:**
+- **Unit Tests:** > 90% for components, hooks, services
+- **E2E Tests:** Cover critical user journeys and workflows
+
+**Overall:** > 85% combined coverage across frontend and backend
