@@ -125,6 +125,7 @@ Seed-data directories for the main and demo databases are configured in `config.
 - Includes the same columns (`title`, `content_type`, `content_data`, `item_metadata`, `tags`, `quality_score`, `is_public`, `is_private`, timestamps)
 - Maintains a foreign key to `users.id` for attribution
 - Adds a dedicated full-text search index (`cia_title_fts_idx`) for PostgreSQL deployments
+- Exposed through the `/api/v1/content-auto` REST endpoints for CRUD, search, analytics, and statistics
 
 **User Interactions Table (`user_interactions`):**
 - `id` (Primary Key): Unique interaction identifier

@@ -30,11 +30,11 @@ frontend/
 ## Core concepts
 
 - **Providers** – `AppProviders` wires QueryClient + ThemeMode contexts. `ThemeModeProvider` persists the palette and exposes `useThemeMode`.
-- **Services** – `ApiClient` centralises HTTP behaviour (base URL, error handling). `UserService`, `ContentService`, and `RecommendationService` expose typed operations against the backend.
+- **Services** – `ApiClient` centralises HTTP behaviour (base URL, error handling). `UserService`, `GalleryService`, and `RecommendationService` expose typed operations against the backend.
 - **Hooks** – `useCurrentUser`, `useContentList`, `useUserStats`, `useRecommendations`, and mutation hooks encapsulate React Query usage. All hooks have unit tests.
 - **Pages** –
   - **Dashboard** shows user stats and recent content cards.
-  - **Content** provides search/sort filters with pagination.
+  - **Gallery** provides search/sort filters with pagination.
   - **Recommendations** lists current suggestions with “mark as served”.
   - **Settings** updates profile fields and exposes the theme toggle.
   - **Auth placeholders** (login/signup) guard authenticated users and explain the stubbed state.

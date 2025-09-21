@@ -13,7 +13,7 @@ import genonaut.db.schema
 
 
 revision: str = 'bc2a56d7c5f4'
-down_revision: Union[str, Sequence[str], None] = 'cd63f72bf45b'
+down_revision: Union[str, Sequence[str], None] = '528831014776'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -13,7 +13,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from genonaut.db.init import DatabaseInitializer
-from genonaut.db.schema import Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob
+from genonaut.db.schema import Base, User, ContentItem, ContentItemAuto, UserInteraction, Recommendation, GenerationJob
 
 
 class TestDatabaseIntegration:
@@ -50,7 +50,14 @@ class TestDatabaseIntegration:
         
         # Verify tables exist by checking metadata
         table_names = [table.name for table in Base.metadata.tables.values()]
-        expected_tables = ['users', 'content_items', 'user_interactions', 'recommendations', 'generation_jobs']
+        expected_tables = [
+            'users',
+            'content_items',
+            'content_items_auto',
+            'user_interactions',
+            'recommendations',
+            'generation_jobs'
+        ]
         
         for expected_table in expected_tables:
             assert expected_table in table_names
@@ -88,10 +95,19 @@ class TestDatabaseIntegration:
             content_type="image",
             content_data="/path/to/test/image.jpg",
             creator_id=user.id,
-            metadata={"size": "1024x768"}
+            item_metadata={"size": "1024x768"}
         )
         
-        session.add_all([content1, content2])
+        auto_item = ContentItemAuto(
+            title="Automated Content",
+            content_type="text",
+            content_data="Automated payload",
+            creator_id=user.id,
+            item_metadata={"source": "auto"},
+            tags=["automation"]
+        )
+
+        session.add_all([content1, content2, auto_item])
         session.commit()
         
         # Test forward relationships (user -> content)
@@ -104,8 +120,13 @@ class TestDatabaseIntegration:
         
         # Test ORM relationship properties
         assert len(user.content_items) == 2
+        assert len(user.auto_content_items) == 1
         assert content1 in user.content_items
         assert content2 in user.content_items
+        assert auto_item in user.auto_content_items
+
+        # Auto item should mirror fields of regular content
+        assert auto_item.item_metadata["source"] == "auto"
         
         session.close()
     
@@ -141,7 +162,7 @@ class TestDatabaseIntegration:
                 content_item_id=content.id,
                 interaction_type="view",
                 duration=300,
-                metadata={"device": "mobile"}
+                interaction_metadata={"device": "mobile"}
             ),
             UserInteraction(
                 user_id=viewer.id,
@@ -154,7 +175,7 @@ class TestDatabaseIntegration:
                 content_item_id=content.id,
                 interaction_type="view",
                 duration=150,
-                metadata={"device": "desktop"}
+                interaction_metadata={"device": "desktop"}
             )
         ]
         
@@ -217,14 +238,14 @@ class TestDatabaseIntegration:
                 content_item_id=content1.id,
                 recommendation_score=0.85,
                 algorithm_version="test_v1.0",
-                metadata={"reason": "collaborative_filtering"}
+                rec_metadata={"reason": "collaborative_filtering"}
             ),
             Recommendation(
                 user_id=user2.id,
                 content_item_id=content2.id,
                 recommendation_score=0.72,
                 algorithm_version="test_v1.0",
-                metadata={"reason": "content_based"}
+                rec_metadata={"reason": "content_based"}
             )
         ]
         
@@ -291,7 +312,7 @@ class TestDatabaseIntegration:
             content_type="text",
             content_data="Once upon a time in a digital realm...",
             creator_id=user.id,
-            metadata={"generated_by": "test-gpt"}
+            item_metadata={"generated_by": "test-gpt"}
         )
 
         session.add(result_content)

@@ -1,7 +1,7 @@
 # Makefile for Genonaut project
 # Provides common development tasks and utilities
 
-.PHONY: help init-all init-dev init-demo init-test re-seed-demo re-seed-demo-force test test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-all clear-excess-test-schemas install install-dev \
+.PHONY: help init-all init-dev init-demo init-test reset-db-demo reset-db-test re-seed-demo re-seed-demo-force test test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-all clear-excess-test-schemas install install-dev \
 lint format clean migrate-all migrate-dev migrate-demo migrate-test migrate-step2-all migrate-step2-dev migrate-step2-demo migrate-step2-test api-dev api-demo api-test \
 frontend-install frontend-dev frontend-build frontend-preview frontend-test frontend-test-unit frontend-test-watch frontend-test-coverage frontend-test-e2e frontend-test-e2e-headed frontend-test-e2e-ui frontend-lint frontend-type-check frontend-format frontend-format-write \
 test-frontend test-frontend-unit test-frontend-watch test-frontend-coverage test-frontend-e2e test-frontend-e2e-headed test-frontend-e2e-ui
@@ -18,6 +18,8 @@ help:
 	@echo "  init                     Initialize database with schema"
 	@echo "  init-demo                Initialize demo database with schema"
 	@echo "  init-test                Initialize test database with schema"
+	@echo "  reset-db-demo            Truncate and re-initialize the demo database"
+	@echo "  reset-db-test            Truncate and re-initialize the test database"
 	@echo "  re-seed-demo             Re-seed demo database (prompts for confirmation)"
 	@echo "  re-seed-demo-force       Re-seed demo database (no confirmation prompt)"
 	@echo "  test                     Run backend tests (legacy command)"
@@ -83,6 +85,14 @@ init-test:
 	@echo "Initializing test database..."
 	@TEST_URL=$${DATABASE_URL_TEST:-$${DATABASE_URL}}; \
 	GENONAUT_DB_ENVIRONMENT=test TEST=1 DATABASE_URL=$$TEST_URL DATABASE_URL_TEST=$$TEST_URL python -m genonaut.db.init
+
+reset-db-demo:
+	@echo "Resetting demo database..."
+	@python -m genonaut.db.utils reset-db --environment demo
+
+reset-db-test:
+	@echo "Resetting test database..."
+	@python -m genonaut.db.utils reset-db --environment test
 
 re-seed-demo:
 	@echo "Re-seeding demo database..."

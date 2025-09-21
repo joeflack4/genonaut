@@ -1,14 +1,16 @@
 """Database utility functions for Genonaut.
 
 This module provides utility functions for database operations including
-URL construction and configuration management.
+URL construction, configuration management, and maintenance helpers.
 """
 
 from __future__ import annotations
 
+import argparse
 import os
+import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 
 from dotenv import load_dotenv
 from sqlalchemy.engine.url import make_url
@@ -148,3 +150,141 @@ def get_database_url(demo: Optional[bool] = None, environment: Optional[str] = N
         )
 
     return f"postgresql://{username}:{password}@{host}:{port}/{database_name}"
+
+
+def _ensure_allowed_database(name: str, allowed_suffixes: Sequence[str]) -> None:
+    """Validate that the database name matches one of the allowed suffixes."""
+
+    if not name:
+        raise ValueError("Unable to determine database name for reset operation")
+
+    if not any(name.endswith(suffix) for suffix in allowed_suffixes):
+        suffix_list = ", ".join(allowed_suffixes)
+        raise ValueError(
+            f"Refusing to reset database '{name}'. Allowed suffixes: {suffix_list}."
+        )
+
+
+def _ensure_seed_utilities_importable() -> None:
+    """Make sure test database utilities are available for initialization seeding."""
+
+    project_root = Path(__file__).resolve().parent.parent.parent
+    candidate_dirs = [
+        project_root / "test",
+        project_root / "test" / "db",
+        Path.cwd() / "test",
+        Path.cwd() / "test" / "db",
+    ]
+
+    for path in candidate_dirs:
+        if path.exists():
+            path_str = str(path)
+            if path_str not in sys.path:
+                sys.path.insert(0, path_str)
+
+
+def reset_db(
+    environment: Optional[str] = None,
+    database_url: Optional[str] = None,
+) -> None:
+    """Truncate all rows in the selected database and re-run initialization.
+
+    The target database must end with ``_test`` or ``_demo``. The user is prompted for
+    confirmation before any destructive action occurs.
+
+    Args:
+        environment: Optional explicit environment name (``demo`` or ``test``).
+        database_url: Optional explicit database URL. Defaults to resolved configuration.
+
+    Raises:
+        ValueError: If the database cannot be safely reset based on its name.
+        SQLAlchemyError: Propagated when initialization utilities encounter errors.
+    """
+
+    resolved_environment = resolve_database_environment(environment=environment)
+    target_url = database_url or get_database_url(environment=resolved_environment)
+    url_obj = make_url(target_url)
+    database_name = url_obj.database or ""
+
+    _ensure_allowed_database(database_name, ("_demo", "_test"))
+
+    confirmation = input(
+        "Are you sure? This will clear all rows in the database and re-initialize. (yes/no): "
+    ).strip().lower()
+    if confirmation != "yes":
+        print("Aborted.")
+        return
+
+    # Import lazily to avoid circular dependencies at module import time
+    from genonaut.db.init import (
+        DatabaseInitializer,
+        initialize_database,
+        load_project_config,
+        resolve_seed_path,
+    )
+
+    print(f"Truncating tables in database '{database_name}' ({resolved_environment}).")
+    initializer = DatabaseInitializer(database_url=target_url, environment=resolved_environment)
+    initializer.create_engine_and_session()
+    initializer.truncate_tables()
+
+    # Dispose connections before re-running initialization to ensure a clean slate
+    if initializer.engine is not None:
+        initializer.engine.dispose()
+
+    _ensure_seed_utilities_importable()
+    seed_path = resolve_seed_path(load_project_config(), resolved_environment)
+
+    print("Re-initializing database with migrations and seed data (if configured)...")
+    initialize_database(
+        database_url=target_url,
+        create_db=False,
+        drop_existing=False,
+        environment=resolved_environment,
+        demo=(resolved_environment == "demo"),
+        seed_data_path=seed_path,
+    )
+
+    print("Database reset completed successfully.")
+
+
+def _build_cli_parser() -> argparse.ArgumentParser:
+    """Construct the CLI parser for database utilities."""
+
+    parser = argparse.ArgumentParser(
+        description="Utilities for managing Genonaut database environments",
+    )
+    subparsers = parser.add_subparsers(dest="command")
+
+    reset_parser = subparsers.add_parser(
+        "reset-db",
+        help="Truncate and re-initialize the demo or test database",
+    )
+    reset_parser.add_argument(
+        "--environment",
+        "-e",
+        choices=("demo", "test"),
+        help="Target database environment. Defaults to configuration resolution.",
+    )
+    reset_parser.add_argument(
+        "--database-url",
+        help="Optional explicit database URL override.",
+    )
+
+    return parser
+
+
+def main(argv: Optional[Sequence[str]] = None) -> None:
+    """Entry point for the module's CLI interface."""
+
+    parser = _build_cli_parser()
+    args = parser.parse_args(argv)
+
+    if args.command == "reset-db":
+        reset_db(environment=getattr(args, "environment", None), database_url=getattr(args, "database_url", None))
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()

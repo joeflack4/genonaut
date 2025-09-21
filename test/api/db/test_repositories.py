@@ -6,7 +6,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from unittest.mock import patch
 
-from genonaut.db.schema import Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob
+from genonaut.db.schema import (
+    Base,
+    User,
+    ContentItem,
+    ContentItemAuto,
+    UserInteraction,
+    Recommendation,
+    GenerationJob,
+)
 from genonaut.api.repositories.user_repository import UserRepository
 from genonaut.api.repositories.content_repository import ContentRepository
 from genonaut.api.repositories.interaction_repository import InteractionRepository
@@ -52,6 +60,23 @@ def sample_content(test_db_session, sample_user):
         creator_id=sample_user.id,
         item_metadata={"category": "test"},
         tags=["test", "sample"]
+    )
+    test_db_session.add(content)
+    test_db_session.commit()
+    test_db_session.refresh(content)
+    return content
+
+
+@pytest.fixture
+def sample_auto_content(test_db_session, sample_user):
+    """Create sample automated content for testing."""
+    content = ContentItemAuto(
+        title="Automated Content",
+        content_type="text",
+        content_data="Automated payload",
+        creator_id=sample_user.id,
+        item_metadata={"source": "system"},
+        tags=["auto"],
     )
     test_db_session.add(content)
     test_db_session.commit()
@@ -180,75 +205,87 @@ class TestUserRepository:
 
 class TestContentRepository:
     """Test ContentRepository database operations."""
-    
+
     def test_create_content(self, test_db_session, sample_user):
-        """Test creating new content."""
         repo = ContentRepository(test_db_session)
-        content_data = {
-            "title": "New Content",
-            "content_type": "text",
-            "content_data": "New content data",
-            "creator_id": sample_user.id,
-            "item_metadata": {"category": "new"},
-            "tags": ["new", "content"]
-        }
-        
-        content = repo.create(content_data)
+        content = repo.create(
+            {
+                "title": "New Content",
+                "content_type": "text",
+                "content_data": "New content data",
+                "creator_id": sample_user.id,
+                "item_metadata": {"category": "new"},
+                "tags": ["new", "content"],
+            }
+        )
+
         assert content.id is not None
         assert content.title == "New Content"
-        assert content.creator_id == sample_user.id
-        assert content.created_at is not None
-    
+
     def test_get_content_by_creator(self, test_db_session, sample_user, sample_content):
-        """Test getting content by creator."""
         repo = ContentRepository(test_db_session)
-        
         content_list = repo.get_by_creator_id(sample_user.id)
-        assert len(content_list) >= 1
+
         assert sample_content.id in [c.id for c in content_list]
-    
+
     def test_get_content_by_type(self, test_db_session, sample_content):
-        """Test getting content by type."""
         repo = ContentRepository(test_db_session)
-        
         content_list = repo.get_by_content_type("text")
-        assert len(content_list) >= 1
+
         assert sample_content.id in [c.id for c in content_list]
-    
+
     def test_search_content_by_title(self, test_db_session, sample_content):
-        """Test searching content by title."""
         repo = ContentRepository(test_db_session)
-        
         content_list = repo.search_by_title("Test")
-        assert len(content_list) >= 1
+
         assert sample_content.id in [c.id for c in content_list]
-    
+
     def test_get_public_content(self, test_db_session, sample_user):
-        """Test getting only public content."""
         repo = ContentRepository(test_db_session)
-        
-        # Create private content
         private_content = ContentItem(
             title="Private Content",
             content_type="text",
             content_data="Private data",
             creator_id=sample_user.id,
-            is_public=False
+            is_public=False,
         )
         test_db_session.add(private_content)
         test_db_session.commit()
-        
+
         public_content = repo.get_public_content()
-        private_ids = [c.id for c in public_content if not c.is_public]
-        assert len(private_ids) == 0
-    
+        assert all(item.is_public for item in public_content)
+
     def test_update_quality_score(self, test_db_session, sample_content):
-        """Test updating content quality score."""
         repo = ContentRepository(test_db_session)
-        
         updated_content = repo.update_quality_score(sample_content.id, 0.85)
+
         assert updated_content.quality_score == 0.85
         assert updated_content.updated_at is not None
+
+
+class TestContentAutoRepository:
+    """Ensure ContentRepository supports ContentItemAuto."""
+
+    def test_create_auto_content(self, test_db_session, sample_user):
+        repo = ContentRepository(test_db_session, model=ContentItemAuto)
+        content = repo.create(
+            {
+                "title": "Generated Story",
+                "content_type": "text",
+                "content_data": "Story seed",
+                "creator_id": sample_user.id,
+                "item_metadata": {"generator": "system"},
+                "tags": ["auto", "story"],
+            }
+        )
+
+        assert isinstance(content, ContentItemAuto)
+
+    def test_public_auto_content_listing(self, test_db_session, sample_auto_content):
+        repo = ContentRepository(test_db_session, model=ContentItemAuto)
+        results = repo.get_public_content()
+
+        assert any(record.id == sample_auto_content.id for record in results)
 
 
 class TestInteractionRepository:

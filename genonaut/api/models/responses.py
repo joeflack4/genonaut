@@ -74,6 +74,21 @@ class ContentListResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ContentAutoResponse(ContentResponse):
+    """Response model for automatically generated content."""
+
+
+class ContentAutoListResponse(BaseModel):
+    """Response model for list of automatically generated content."""
+
+    items: List[ContentAutoResponse] = Field(..., description="List of automated content items")
+    total: int = Field(..., description="Total number of automated content items")
+    skip: int = Field(..., description="Number of records skipped")
+    limit: int = Field(..., description="Maximum number of records returned")
+
+    model_config = {"from_attributes": True}
+
+
 class ContentStatsResponse(BaseModel):
     """Response model for content statistics."""
     total_content: int = Field(..., description="Total number of content items")

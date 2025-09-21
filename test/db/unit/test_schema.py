@@ -113,7 +113,7 @@ class TestSchemaModels:
             content_type="text",
             content_data="This is test content",
             creator_id=self.test_user1.id,
-            metadata={"word_count": 4},
+            item_metadata={"word_count": 4},
             tags=["test", "sample"]
         )
         
@@ -123,7 +123,7 @@ class TestSchemaModels:
         assert content.title == "Test Content"
         assert content.content_type == "text"
         assert content.creator_id == self.test_user1.id
-        assert content.metadata["word_count"] == 4
+        assert content.item_metadata["word_count"] == 4
         assert "test" in content.tags
         assert content.is_public
         assert content.quality_score == 0.0
@@ -204,7 +204,7 @@ class TestSchemaModels:
             interaction_type="view",
             rating=4,
             duration=120,
-            metadata={"device": "mobile"}
+            interaction_metadata={"device": "mobile"}
         )
         
         self.session.add(interaction)
@@ -213,7 +213,7 @@ class TestSchemaModels:
         assert interaction.interaction_type == "view"
         assert interaction.rating == 4
         assert interaction.duration == 120
-        assert interaction.metadata["device"] == "mobile"
+        assert interaction.interaction_metadata["device"] == "mobile"
     
     def test_user_interaction_relationships(self):
         """Test UserInteraction relationships with User and ContentItem."""
@@ -258,7 +258,7 @@ class TestSchemaModels:
             content_item_id=content.id,
             recommendation_score=0.85,
             algorithm_version="v2.0",
-            metadata={"model": "collaborative_filtering"}
+            rec_metadata={"model": "collaborative_filtering"}
         )
         
         self.session.add(recommendation)
@@ -267,7 +267,7 @@ class TestSchemaModels:
         assert recommendation.recommendation_score == 0.85
         assert recommendation.algorithm_version == "v2.0"
         assert not recommendation.is_served
-        assert recommendation.metadata["model"] == "collaborative_filtering"
+        assert recommendation.rec_metadata["model"] == "collaborative_filtering"
     
     def test_generation_job_creation(self):
         """Test GenerationJob model creation and status tracking."""

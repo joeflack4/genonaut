@@ -6,9 +6,17 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from unittest.mock import patch, MagicMock
 
-from genonaut.db.schema import Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob
+from genonaut.db.schema import (
+    Base,
+    User,
+    ContentItem,
+    ContentItemAuto,
+    UserInteraction,
+    Recommendation,
+    GenerationJob,
+)
 from genonaut.api.services.user_service import UserService
-from genonaut.api.services.content_service import ContentService
+from genonaut.api.services.content_service import ContentAutoService, ContentService
 from genonaut.api.services.interaction_service import InteractionService
 from genonaut.api.services.recommendation_service import RecommendationService
 from genonaut.api.services.generation_service import GenerationService
@@ -52,6 +60,23 @@ def sample_content(test_db_session, sample_user):
         creator_id=sample_user.id,
         item_metadata={"category": "test"},
         tags=["test", "sample"]
+    )
+    test_db_session.add(content)
+    test_db_session.commit()
+    test_db_session.refresh(content)
+    return content
+
+
+@pytest.fixture
+def sample_auto_content(test_db_session, sample_user):
+    """Create sample automated content for testing."""
+    content = ContentItemAuto(
+        title="Auto Test Content",
+        content_type="text",
+        content_data="Automatically generated content",
+        creator_id=sample_user.id,
+        item_metadata={"generator": "system"},
+        tags=["auto"],
     )
     test_db_session.add(content)
     test_db_session.commit()
@@ -229,6 +254,34 @@ class TestContentService:
         assert "avg_rating" in analytics
         assert analytics["total_views"] >= 1
         assert analytics["total_likes"] >= 1
+
+
+class TestContentAutoService:
+    """Verify automated content is handled separately."""
+
+    def test_create_auto_content_success(self, test_db_session, sample_user):
+        service = ContentAutoService(test_db_session)
+        content = service.create_content(
+            {
+                "title": "Auto Generated",
+                "content_type": "text",
+                "content_data": "Auto body",
+                "creator_id": sample_user.id,
+                "item_metadata": {"source": "automation"},
+                "tags": ["auto"],
+            }
+        )
+
+        assert isinstance(content, ContentItemAuto)
+        assert content.title == "Auto Generated"
+
+    def test_auto_content_list_filters(self, test_db_session, sample_auto_content):
+        service = ContentAutoService(test_db_session)
+        results = service.get_content_list()
+
+        assert any(isinstance(item, ContentItemAuto) for item in results)
+        stats = service.get_content_stats()
+        assert stats["total_content"] >= 1
 
 
 class TestInteractionService:

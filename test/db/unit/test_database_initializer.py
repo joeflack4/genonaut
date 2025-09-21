@@ -45,7 +45,11 @@ class TestDatabaseInitializer:
         assert initializer.engine is None
         assert initializer.session_factory is None
     
-    @patch.dict(os.environ, {'DATABASE_URL': 'postgresql://env:pass@host:5432/envdb'})
+    @patch.dict(os.environ, {
+        'DATABASE_URL': 'postgresql://env:pass@host:5432/envdb',
+        'GENONAUT_DB_ENVIRONMENT': 'dev',
+        'DB_NAME_TEST': 'genonaut_test'
+    })
     def test_get_database_url_from_env_var(self):
         """Test getting database URL from DATABASE_URL environment variable."""
         initializer = DatabaseInitializer()
@@ -298,8 +302,8 @@ class TestDatabaseInitializer:
             mock_upgrade.assert_called_once_with(mock_initializer.database_url)
 
 
-def test_resolve_seed_path_test_environment_falls_back(tmp_path):
-    """Test seed path resolution uses demo data when dedicated test data is absent."""
+def test_resolve_seed_path_prefers_builtin_test_directory(tmp_path):
+    """Seed path resolution should use the bundled test fixtures when available."""
 
     demo_seed_dir = tmp_path / "demo_seed"
     demo_seed_dir.mkdir()
@@ -309,5 +313,6 @@ def test_resolve_seed_path_test_environment_falls_back(tmp_path):
 
     resolved_path = resolve_seed_path(config, "test")
 
-    assert resolved_path is not None
-    assert resolved_path == demo_seed_dir.resolve()
+    expected_test_seed = (PROJECT_ROOT / "test" / "db" / "input" / "rdbms_init").resolve()
+
+    assert resolved_path == expected_test_seed

@@ -72,13 +72,26 @@ def resolve_seed_path(config: Dict[str, Any], environment: str) -> Optional[Path
         # Fall back to demo seed data when dedicated test fixtures are absent
         raw_path = seed_section.get("demo")
 
-    if not raw_path:
-        return None
+    candidate: Optional[Path] = None
+    if raw_path:
+        candidate = (PROJECT_ROOT / raw_path).resolve()
+        if not candidate.exists():
+            logger.warning("Seed path %s does not exist", candidate)
+            candidate = None
 
-    candidate = (PROJECT_ROOT / raw_path).resolve()
-    if not candidate.exists():
-        logger.warning("Seed path %s does not exist", candidate)
-        return None
+    if environment == "test":
+        default_test_seed = (PROJECT_ROOT / "test" / "db" / "input" / "rdbms_init").resolve()
+        if default_test_seed.exists():
+            if candidate is None:
+                return default_test_seed
+            # Prefer explicit config, but fall back when it points elsewhere without files
+            if not any(default_test_seed.glob("*.tsv")):
+                logger.warning(
+                    "Default test seed directory %s is empty; continuing with configured path",
+                    default_test_seed,
+                )
+            elif candidate is None or not any(candidate.glob("*.tsv")):
+                return default_test_seed
 
     return candidate
 
