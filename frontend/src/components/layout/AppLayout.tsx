@@ -95,7 +95,7 @@ export function AppLayout() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Tooltip title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} enterDelay={1500} arrow>
               <Button
-                variant="outlined"
+                variant={showButtonLabels ? "outlined" : "text"}
                 color="inherit"
                 onClick={toggleMode}
                 startIcon={

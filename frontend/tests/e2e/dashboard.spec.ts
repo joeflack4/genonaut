@@ -128,7 +128,7 @@ test.describe('Dashboard', () => {
     await expect(page.getByText('Your works').first()).toBeVisible()
     await expect(page.getByText('Community works').first()).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Your recent works' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Recent community works' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Community recent works' })).toBeVisible()
     await expect(page.getByText('User Content Item')).toBeVisible() // User's recent content
     await expect(page.getByText('Surreal Landscape')).toBeVisible() // Community recent content
   })

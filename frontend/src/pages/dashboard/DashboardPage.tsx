@@ -90,7 +90,7 @@ export function DashboardPage() {
       <Card component="section">
         <CardContent>
           <Typography variant="h6" component="h2" gutterBottom>
-            Recent community works
+            Community recent works
           </Typography>
           {recentContentLoading ? (
             <Stack spacing={2}>
@@ -111,7 +111,7 @@ export function DashboardPage() {
             </List>
           ) : (
             <Typography variant="body2" color="text.secondary">
-              No recent community works available.
+              No community recent works available.
             </Typography>
           )}
         </CardContent>

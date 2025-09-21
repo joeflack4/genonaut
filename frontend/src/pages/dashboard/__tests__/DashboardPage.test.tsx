@@ -110,7 +110,7 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Your works')).toBeInTheDocument()
     expect(screen.getByText('Community works')).toBeInTheDocument()
     expect(screen.getByText('Your recent works')).toBeInTheDocument()
-    expect(screen.getByText('Recent community works')).toBeInTheDocument()
+    expect(screen.getByText('Community recent works')).toBeInTheDocument()
     expect(screen.getByText('User Content Item')).toBeInTheDocument() // User's recent content
     expect(screen.getByText('Surreal Landscape')).toBeInTheDocument() // Community recent content
   })
