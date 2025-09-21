@@ -6,13 +6,35 @@
 1) Create, modify, or delete SQLAlchemy models.
 - DO NOT DO: plan/create raw SQL to execute to make the changes.
 2) Create revision: Autogen (ORM): Run the makefile goals to do `alembic revision --autogenerate -m "xyz"` on respective
-DBs, which follow the pattern, `migrate-*`, e.g. `migrate-demo`.
+DBs, which follow the pattern, `migrate-*`, e.g. `migrate-demo`. But before running this, follow the "special 
+considerations" subsection below.
 - DO NOT DO: Manual (SQL): `alembic revision -m "xyz"`
 3) Optional (Probably for humans only; agents can skip this): Review and edit the new script under 
 `alembic/versions/*.py` (write `downgrade()` only for safe, local use).  
 4) Apply: Run the makefile goals to do `alembic upgrade head` on respective DBs, which follow the pattern, 
 `migrate-step2-*`, e.g. `migrate-step2-demo`.    
 5) CI/CD: run migrations during deploy (if applicable); use one DB per env.
+
+### Special considerations
+Always start by syncing with main, then run `PYTHONPATH=. alembic heads` (or `alembic history --verbose | tail`) to 
+confirm there is exactly one head and note its revision id. If more than one head appears, stop and reconcile before 
+creating anything new.
+
+Make sure your target database is on that same head with `alembic current` (or `alembic current -n <name>` for each DSN 
+you maintain). Upgrade or downgrade until everything reports the single head revision.
+
+Generate new migrations with Alembic’s CLI (`alembic revision --autogenerate -m "<message>"`). The tool automatically 
+sets`down_revision` to the sole current head. Avoid hand-copying the template unless you have to; if you do, paste the 
+revision id you saw from `alembic heads` into the `down_revision` field instead of reusing an older value.
+
+After the new file is created, re-run `alembic heads`. You should again see only one head (the new revision). If you see 
+two, the `down_revision` was wrong—fix it before proceeding.
+
+Run `alembic upgrade head` (against every environment you maintain: dev, demo, test, etc.) to verify the migration 
+applies cleanly and leaves the `alembic_version` table at the new revision.
+
+Only then run the rest of the test suite. Because each environment has been upgraded in lockstep, integration tests 
+shouldn't trip over multiple heads or schema drift.
 
 ## Data migrations (safe patterns)
 - Prefer **forward fixes** in prod; avoid `downgrade` there.  

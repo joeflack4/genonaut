@@ -18,7 +18,18 @@ export function DashboardPage() {
     sort: 'recent',
     creator_id: userId,
   })
+  // TODO: Replace with actual auto-gen filtering when API supports it
+  const { data: userRecentAutoGens, isLoading: userRecentAutoGensLoading } = useContentList({
+    limit: 5,
+    sort: 'recent',
+    creator_id: userId,
+  })
   const { data: recentContent, isLoading: recentContentLoading } = useContentList({
+    limit: 5,
+    sort: 'recent',
+  })
+  // TODO: Replace with actual auto-gen filtering when API supports it
+  const { data: communityRecentAutoGens, isLoading: communityRecentAutoGensLoading } = useContentList({
     limit: 5,
     sort: 'recent',
   })
@@ -90,6 +101,36 @@ export function DashboardPage() {
       <Card component="section">
         <CardContent>
           <Typography variant="h6" component="h2" gutterBottom>
+            Your recent auto-gens
+          </Typography>
+          {userRecentAutoGensLoading ? (
+            <Stack spacing={2}>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} variant="rectangular" height={56} />
+              ))}
+            </Stack>
+          ) : userRecentAutoGens && userRecentAutoGens.items.length > 0 ? (
+            <List>
+              {userRecentAutoGens.items.map((item) => (
+                <ListItem key={item.id} disableGutters divider>
+                  <ListItemText
+                    primary={item.title}
+                    secondary={item.createdAt ? new Date(item.createdAt).toLocaleString() : undefined}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              No recent auto-gens available.
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card component="section">
+        <CardContent>
+          <Typography variant="h6" component="h2" gutterBottom>
             Community recent works
           </Typography>
           {recentContentLoading ? (
@@ -112,6 +153,36 @@ export function DashboardPage() {
           ) : (
             <Typography variant="body2" color="text.secondary">
               No community recent works available.
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card component="section">
+        <CardContent>
+          <Typography variant="h6" component="h2" gutterBottom>
+            Community recent auto-gens
+          </Typography>
+          {communityRecentAutoGensLoading ? (
+            <Stack spacing={2}>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} variant="rectangular" height={56} />
+              ))}
+            </Stack>
+          ) : communityRecentAutoGens && communityRecentAutoGens.items.length > 0 ? (
+            <List>
+              {communityRecentAutoGens.items.map((item) => (
+                <ListItem key={item.id} disableGutters divider>
+                  <ListItemText
+                    primary={item.title}
+                    secondary={item.createdAt ? new Date(item.createdAt).toLocaleString() : undefined}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              No community recent auto-gens available.
             </Typography>
           )}
         </CardContent>

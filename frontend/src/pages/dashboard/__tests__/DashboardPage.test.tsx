@@ -82,6 +82,25 @@ describe('DashboardPage', () => {
         data: {
           items: [
             {
+              id: 3,
+              title: 'User Auto-Gen Item',
+              description: null,
+              imageUrl: null,
+              qualityScore: 0.8,
+              createdAt: '2024-01-10T00:00:00Z',
+              updatedAt: '2024-01-10T00:00:00Z',
+            },
+          ],
+          total: 1,
+          limit: 5,
+          skip: 0,
+        },
+        isLoading: false,
+      })
+      .mockReturnValueOnce({
+        data: {
+          items: [
+            {
               id: 2,
               title: 'Surreal Landscape',
               description: null,
@@ -97,6 +116,25 @@ describe('DashboardPage', () => {
         },
         isLoading: false,
       })
+      .mockReturnValueOnce({
+        data: {
+          items: [
+            {
+              id: 4,
+              title: 'Community Auto-Gen Item',
+              description: null,
+              imageUrl: null,
+              qualityScore: 0.85,
+              createdAt: '2024-01-10T00:00:00Z',
+              updatedAt: '2024-01-10T00:00:00Z',
+            },
+          ],
+          total: 2,
+          limit: 5,
+          skip: 0,
+        },
+        isLoading: false,
+      })
   })
 
   it('displays content stats and recent content', () => {
@@ -104,14 +142,20 @@ describe('DashboardPage', () => {
 
     expect(mockedUseContentStats).toHaveBeenCalledWith(1)
     expect(mockedUseContentList).toHaveBeenCalledWith({ limit: 5, sort: 'recent', creator_id: 1 })
+    expect(mockedUseContentList).toHaveBeenCalledWith({ limit: 5, sort: 'recent', creator_id: 1 })
+    expect(mockedUseContentList).toHaveBeenCalledWith({ limit: 5, sort: 'recent' })
     expect(mockedUseContentList).toHaveBeenCalledWith({ limit: 5, sort: 'recent' })
     expect(screen.getByText('1')).toBeInTheDocument() // User content count
     expect(screen.getByText('3')).toBeInTheDocument() // Total content count
     expect(screen.getByText('Your works')).toBeInTheDocument()
     expect(screen.getByText('Community works')).toBeInTheDocument()
     expect(screen.getByText('Your recent works')).toBeInTheDocument()
+    expect(screen.getByText('Your recent auto-gens')).toBeInTheDocument()
     expect(screen.getByText('Community recent works')).toBeInTheDocument()
+    expect(screen.getByText('Community recent auto-gens')).toBeInTheDocument()
     expect(screen.getByText('User Content Item')).toBeInTheDocument() // User's recent content
+    expect(screen.getByText('User Auto-Gen Item')).toBeInTheDocument() // User's recent auto-gen
     expect(screen.getByText('Surreal Landscape')).toBeInTheDocument() // Community recent content
+    expect(screen.getByText('Community Auto-Gen Item')).toBeInTheDocument() // Community recent auto-gen
   })
 })
