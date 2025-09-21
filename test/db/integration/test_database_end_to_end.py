@@ -12,7 +12,15 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from genonaut.db.init import initialize_database, DatabaseInitializer
-from genonaut.db.schema import Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob
+from genonaut.db.schema import (
+    Base,
+    User,
+    ContentItem,
+    ContentItemAuto,
+    UserInteraction,
+    Recommendation,
+    GenerationJob,
+)
 
 
 class TestDatabaseEndToEnd:
@@ -59,7 +67,11 @@ class TestDatabaseEndToEnd:
             # Verify ContentItems table exists
             content_items = session.query(ContentItem).all()
             assert len(content_items) == 0  # Should be empty
-            
+
+            # Verify ContentItemsAuto table exists
+            auto_items = session.query(ContentItemAuto).all()
+            assert len(auto_items) == 0
+
             # Verify UserInteractions table exists
             interactions = session.query(UserInteraction).all()
             assert len(interactions) == 0  # Should be empty
@@ -95,6 +107,7 @@ class TestDatabaseEndToEnd:
             # All tables should exist but be empty
             assert session.query(User).count() == 0
             assert session.query(ContentItem).count() == 0
+            assert session.query(ContentItemAuto).count() == 0
             assert session.query(UserInteraction).count() == 0
             assert session.query(Recommendation).count() == 0
             assert session.query(GenerationJob).count() == 0
@@ -191,7 +204,14 @@ class TestDatabaseEndToEnd:
         
         # Verify all expected tables exist
         inspector = engine.dialect.get_table_names(engine.connect())
-        expected_tables = ['users', 'content_items', 'user_interactions', 'recommendations', 'generation_jobs']
+        expected_tables = [
+            'users',
+            'content_items',
+            'content_items_auto',
+            'user_interactions',
+            'recommendations',
+            'generation_jobs',
+        ]
         
         for table in expected_tables:
             assert table in inspector
@@ -208,13 +228,33 @@ class TestDatabaseEndToEnd:
         for col in expected_user_columns:
             assert col in user_columns
         
-        # Test ContentItems table structure  
+        # Test ContentItems table structure
         content_table = metadata.tables['content_items']
         content_columns = [col.name for col in content_table.columns]
-        expected_content_columns = ['id', 'title', 'content_type', 'content_data', 'item_metadata', 'creator_id', 'created_at', 'tags', 'quality_score', 'is_public']
-        
+        expected_content_columns = [
+            'id',
+            'title',
+            'content_type',
+            'content_data',
+            'item_metadata',
+            'creator_id',
+            'created_at',
+            'updated_at',
+            'tags',
+            'quality_score',
+            'is_public',
+            'is_private',
+        ]
+
         for col in expected_content_columns:
             assert col in content_columns
+
+        # Test ContentItemsAuto table structure mirrors ContentItems
+        auto_table = metadata.tables['content_items_auto']
+        auto_columns = [col.name for col in auto_table.columns]
+
+        for col in expected_content_columns:
+            assert col in auto_columns
         
         engine.dispose()
     

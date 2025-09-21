@@ -10,7 +10,13 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
 
 from genonaut.db.schema import (
-    Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob
+    Base,
+    User,
+    ContentItem,
+    ContentItemAuto,
+    UserInteraction,
+    Recommendation,
+    GenerationJob,
 )
 
 
@@ -121,7 +127,31 @@ class TestSchemaModels:
         assert "test" in content.tags
         assert content.is_public
         assert content.quality_score == 0.0
-    
+
+    def test_content_item_auto_creation(self):
+        """Test ContentItemAuto mirrors ContentItem defaults and columns."""
+        auto_item = ContentItemAuto(
+            title="Auto Content",
+            content_type="text",
+            content_data="Automated content payload",
+            creator_id=self.test_user1.id,
+            item_metadata={"generator": "system"},
+            tags=["auto", "system"],
+        )
+
+        self.session.add(auto_item)
+        self.session.commit()
+
+        assert auto_item.title == "Auto Content"
+        assert auto_item.content_type == "text"
+        assert auto_item.creator_id == self.test_user1.id
+        assert auto_item.item_metadata["generator"] == "system"
+        assert "auto" in auto_item.tags
+        assert auto_item.is_public
+        assert auto_item.quality_score == 0.0
+        assert not auto_item.is_private
+        assert hasattr(auto_item, "updated_at")
+
     def test_content_item_creator_relationship(self):
         """Test ContentItem relationship with User."""
         content = ContentItem(
@@ -139,6 +169,21 @@ class TestSchemaModels:
         
         # Test backward relationship
         assert content in self.test_user1.content_items
+
+    def test_content_item_auto_creator_relationship(self):
+        """Test ContentItemAuto relationship with User."""
+        auto_item = ContentItemAuto(
+            title="Auto Relationship",
+            content_type="image",
+            content_data="/auto/path.png",
+            creator_id=self.test_user1.id,
+        )
+
+        self.session.add(auto_item)
+        self.session.commit()
+
+        assert auto_item.creator.username == "testuser1"
+        assert auto_item in self.test_user1.auto_content_items
     
     def test_user_interaction_creation(self):
         """Test UserInteraction model creation and constraints."""

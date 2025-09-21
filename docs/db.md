@@ -120,6 +120,12 @@ Seed-data directories for the main and demo databases are configured in `config.
 - `created_at`: Timestamp when content was created
 - `updated_at`: Timestamp when content was last updated
 
+**Automated Content Items Table (`content_items_auto`):**
+- Mirrors the schema of `content_items` to support system-generated content
+- Includes the same columns (`title`, `content_type`, `content_data`, `item_metadata`, `tags`, `quality_score`, `is_public`, `is_private`, timestamps)
+- Maintains a foreign key to `users.id` for attribution
+- Adds a dedicated full-text search index (`cia_title_fts_idx`) for PostgreSQL deployments
+
 **User Interactions Table (`user_interactions`):**
 - `id` (Primary Key): Unique interaction identifier
 - `user_id` (Foreign Key): Reference to the user

@@ -10,7 +10,7 @@ from sqlalchemy import (
     ForeignKey, JSON, UniqueConstraint, Index, event, func, literal_column,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.orm import relationship, declarative_base, declared_attr
 from sqlalchemy.types import TypeDecorator
 from sqlalchemy.engine import Engine
 
@@ -78,6 +78,7 @@ class User(Base):
     
     # Relationships
     content_items = relationship("ContentItem", back_populates="creator")
+    auto_content_items = relationship("ContentItemAuto", back_populates="creator")
     interactions = relationship("UserInteraction", back_populates="user")
     recommendations = relationship("Recommendation", back_populates="user")
     
@@ -85,7 +86,24 @@ class User(Base):
     __table_args__ = ()
 
 
-class ContentItem(Base):
+class ContentItemColumns:
+    """Shared column definitions for content item style tables."""
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String(255), nullable=False)
+    content_type = Column(String(50), nullable=False, index=True)  # text, image, video, audio
+    content_data = Column(Text, nullable=False)
+    item_metadata = Column(JSONColumn, default=dict)
+    creator_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    tags = Column(JSONColumn, default=list)
+    quality_score = Column(Float, default=0.0)
+    is_public = Column(Boolean, default=True, nullable=False)
+    is_private = Column(Boolean, default=False, nullable=False)
+
+
+class ContentItem(ContentItemColumns, Base):
     """Content item model for storing generated content.
     
     Attributes:
@@ -102,36 +120,53 @@ class ContentItem(Base):
     """
     __tablename__ = 'content_items'
     
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    title = Column(String(255), nullable=False)
-    content_type = Column(String(50), nullable=False, index=True)  # text, image, video, audio
-    content_data = Column(Text, nullable=False)
-    item_metadata = Column(JSONColumn, default=dict)
-    creator_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    tags = Column(JSONColumn, default=list)
-    quality_score = Column(Float, default=0.0)
-    is_public = Column(Boolean, default=True, nullable=False)
-    is_private = Column(Boolean, default=False, nullable=False)
-    
     # Relationships
     creator = relationship("User", back_populates="content_items")
     interactions = relationship("UserInteraction", back_populates="content_item")
     recommendations = relationship("Recommendation", back_populates="content_item")
     
     # Full-text search configuration for PostgreSQL
-    __table_args__ = (
-        Index(
-            "ci_title_fts_idx",
-            func.to_tsvector(
-                _fts_language_literal(),
-                func.coalesce(title, ""),
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            Index(
+                "ci_title_fts_idx",
+                func.to_tsvector(
+                    _fts_language_literal(),
+                    func.coalesce(cls.title, ""),
+                ),
+                postgresql_using="gin",
+                info={"postgres_only": True},
             ),
-            postgresql_using="gin",
-            info={"postgres_only": True},
-        ),
-    )
+        )
+
+
+class ContentItemAuto(ContentItemColumns, Base):
+    """Content item model for automatically generated content.
+
+    Starts with the same schema as ``ContentItem`` so we can extend it with
+    automation-specific fields in future iterations.
+    """
+
+    __tablename__ = 'content_items_auto'
+
+    # Relationships
+    creator = relationship("User", back_populates="auto_content_items")
+
+    # Full-text search configuration for PostgreSQL
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            Index(
+                "cia_title_fts_idx",
+                func.to_tsvector(
+                    _fts_language_literal(),
+                    func.coalesce(cls.title, ""),
+                ),
+                postgresql_using="gin",
+                info={"postgres_only": True},
+            ),
+        )
 
 
 class UserInteraction(Base):

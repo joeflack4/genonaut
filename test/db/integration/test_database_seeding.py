@@ -17,7 +17,15 @@ sys.path.insert(0, project_root)
 sys.path.insert(0, test_dir)
 
 from genonaut.db.init import DatabaseInitializer
-from genonaut.db.schema import Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob
+from genonaut.db.schema import (
+    Base,
+    User,
+    ContentItem,
+    ContentItemAuto,
+    UserInteraction,
+    Recommendation,
+    GenerationJob,
+)
 from ..utils import seed_database_from_tsv, get_next_test_schema_name, create_test_database_url
 
 
@@ -94,7 +102,11 @@ class TestDatabaseSeeding:
         assert sci_fi_story.creator.username == "alice_creator"
         assert "sci-fi" in sci_fi_story.tags
         assert sci_fi_story.quality_score == 0.85
-        
+
+        # Verify auto-generated content table exists but remains empty
+        auto_items = self.session.query(ContentItemAuto).all()
+        assert auto_items == []
+
         # Verify user interactions were created
         interactions = self.session.query(UserInteraction).all()
         assert len(interactions) >= 3
