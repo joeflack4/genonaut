@@ -30,6 +30,10 @@ export class ContentService {
       searchParams.set('sort', params.sort)
     }
 
+    if (params.creator_id !== undefined) {
+      searchParams.set('creator_id', String(params.creator_id))
+    }
+
     const query = searchParams.toString()
 
     const response = await this.api.get<ApiPaginatedResponse<ApiContentItem>>(

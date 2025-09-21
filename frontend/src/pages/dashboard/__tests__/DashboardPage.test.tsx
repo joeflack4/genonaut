@@ -3,23 +3,24 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, vi } from 'vitest'
 import { ThemeModeProvider } from '../../../app/providers/theme'
+import { UiSettingsProvider } from '../../../app/providers/ui'
 import { DashboardPage } from '../DashboardPage'
 
 vi.mock('../../../hooks', () => {
   const useCurrentUser = vi.fn()
-  const useUserStats = vi.fn()
+  const useContentStats = vi.fn()
   const useContentList = vi.fn()
 
   return {
     useCurrentUser,
-    useUserStats,
+    useContentStats,
     useContentList,
   }
 })
 
 const hooks = await import('../../../hooks')
 const mockedUseCurrentUser = vi.mocked(hooks.useCurrentUser)
-const mockedUseUserStats = vi.mocked(hooks.useUserStats)
+const mockedUseContentStats = vi.mocked(hooks.useContentStats)
 const mockedUseContentList = vi.mocked(hooks.useContentList)
 
 const renderDashboard = () => {
@@ -29,7 +30,9 @@ const renderDashboard = () => {
 
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <ThemeModeProvider>{children}</ThemeModeProvider>
+      <UiSettingsProvider>
+        <ThemeModeProvider>{children}</ThemeModeProvider>
+      </UiSettingsProvider>
     </QueryClientProvider>
   )
 
@@ -39,7 +42,7 @@ const renderDashboard = () => {
 describe('DashboardPage', () => {
   beforeEach(() => {
     mockedUseCurrentUser.mockReset()
-    mockedUseUserStats.mockReset()
+    mockedUseContentStats.mockReset()
     mockedUseContentList.mockReset()
 
     mockedUseCurrentUser.mockReturnValue({
@@ -47,12 +50,10 @@ describe('DashboardPage', () => {
       isLoading: false,
     })
 
-    mockedUseUserStats.mockReturnValue({
+    mockedUseContentStats.mockReturnValue({
       data: {
-        totalRecommendations: 12,
-        servedRecommendations: 5,
-        generatedContent: 7,
-        lastActiveAt: '2024-01-12T10:00:00Z',
+        userContentCount: 1,
+        totalContentCount: 3,
       },
       isLoading: false,
     })
@@ -78,12 +79,15 @@ describe('DashboardPage', () => {
     })
   })
 
-  it('displays user stats and recent content', () => {
+  it('displays content stats and recent content', () => {
     renderDashboard()
 
+    expect(mockedUseContentStats).toHaveBeenCalledWith(1)
     expect(mockedUseContentList).toHaveBeenCalledWith({ limit: 5, sort: 'recent' })
-    expect(screen.getByText('12')).toBeInTheDocument()
-    expect(screen.getByText('Total Recommendations')).toBeInTheDocument()
+    expect(screen.getByText('1')).toBeInTheDocument() // User content count
+    expect(screen.getByText('3')).toBeInTheDocument() // Total content count
+    expect(screen.getByText('User Content')).toBeInTheDocument()
+    expect(screen.getByText('Community Content')).toBeInTheDocument()
     expect(screen.getByText('Surreal Landscape')).toBeInTheDocument()
   })
 })

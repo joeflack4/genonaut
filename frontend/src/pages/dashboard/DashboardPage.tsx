@@ -1,19 +1,18 @@
 import { Box, Card, CardContent, List, ListItem, ListItemText, Skeleton, Stack, Typography } from '@mui/material'
-import { useContentList, useCurrentUser, useUserStats } from '../../hooks'
+import { useContentList, useContentStats, useCurrentUser } from '../../hooks'
 
 const DEFAULT_USER_ID = 1
 
-const statItems = [
-  { key: 'totalRecommendations' as const, label: 'Total Recommendations' },
-  { key: 'servedRecommendations' as const, label: 'Served Recommendations' },
-  { key: 'generatedContent' as const, label: 'Generated Content' },
+const contentStatItems = [
+  { key: 'userContentCount' as const, label: 'User Content' },
+  { key: 'totalContentCount' as const, label: 'Community Content' },
 ]
 
 export function DashboardPage() {
   const { data: currentUser } = useCurrentUser()
   const userId = currentUser?.id ?? DEFAULT_USER_ID
 
-  const { data: stats, isLoading: statsLoading } = useUserStats(userId)
+  const { data: contentStats, isLoading: contentStatsLoading } = useContentStats(userId)
   const { data: recentContent, isLoading: recentContentLoading } = useContentList({
     limit: 5,
     sort: 'recent',
@@ -25,11 +24,6 @@ export function DashboardPage() {
         <Typography component="h1" variant="h4" fontWeight={600} gutterBottom>
           Welcome back{currentUser?.name ? `, ${currentUser.name}` : ''}
         </Typography>
-        {stats?.lastActiveAt && (
-          <Typography variant="body2" color="text.secondary">
-            Last active {new Date(stats.lastActiveAt).toLocaleString()}
-          </Typography>
-        )}
       </Stack>
 
       <Box
@@ -37,20 +31,20 @@ export function DashboardPage() {
         sx={{
           display: 'grid',
           gap: 3,
-          gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
         }}
       >
-        {statItems.map(({ key, label }) => (
+        {contentStatItems.map(({ key, label }) => (
           <Card key={key} sx={{ height: '100%', bgcolor: 'background.paper' }}>
             <CardContent>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                 {label}
               </Typography>
-              {statsLoading ? (
+              {contentStatsLoading ? (
                 <Skeleton variant="text" height={48} width={80} />
               ) : (
                 <Typography variant="h4" fontWeight={600}>
-                  {stats ? stats[key] : '—'}
+                  {contentStats ? contentStats[key] : '—'}
                 </Typography>
               )}
             </CardContent>

@@ -1,5 +1,6 @@
 export * from './useCurrentUser'
 export * from './useContentList'
+export * from './useContentStats'
 export * from './useRecommendations'
 export * from './useUserStats'
 export * from './useServeRecommendation'

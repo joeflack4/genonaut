@@ -53,4 +53,5 @@ export interface ApiContentQueryParams {
   limit?: number
   search?: string
   sort?: 'recent' | 'top-rated'
+  creator_id?: number
 }

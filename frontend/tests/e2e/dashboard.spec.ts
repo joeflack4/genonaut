@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { setupMockApi } from './utils/mockApi'
 
 test.describe('Dashboard', () => {
-  test('shows user stats and recent content', async ({ page }) => {
+  test('shows content stats and recent content', async ({ page }) => {
     await setupMockApi(page, [
       {
         pattern: '\\u002Fapi\\u002Fv1\\u002Fusers\\u002F1$',
@@ -14,16 +14,26 @@ test.describe('Dashboard', () => {
         },
       },
       {
-        pattern: '\\u002Fapi\\u002Fv1\\u002Fusers\\u002F1\\u002Fstats$',
+        pattern: '\\u002Fapi\\u002Fv1\\u002Fcontent\\?creator_id=1&limit=1',
         body: {
-          total_recommendations: 12,
-          served_recommendations: 5,
-          generated_content: 7,
-          last_active_at: '2024-01-12T10:00:00Z',
+          items: [
+            {
+              id: 1,
+              title: 'User Content Item',
+              description: 'Content created by user',
+              image_url: null,
+              quality_score: 0.9,
+              created_at: '2024-01-10T00:00:00Z',
+              updated_at: '2024-01-10T00:00:00Z',
+            },
+          ],
+          total: 1,
+          limit: 1,
+          skip: 0,
         },
       },
       {
-        pattern: '\\u002Fapi\\u002Fv1\\u002Fcontent',
+        pattern: '\\u002Fapi\\u002Fv1\\u002Fcontent\\?limit=1',
         body: {
           items: [
             {
@@ -36,7 +46,26 @@ test.describe('Dashboard', () => {
               updated_at: '2024-01-10T00:00:00Z',
             },
           ],
-          total: 1,
+          total: 3,
+          limit: 1,
+          skip: 0,
+        },
+      },
+      {
+        pattern: '\\u002Fapi\\u002Fv1\\u002Fcontent\\?limit=5&sort=recent',
+        body: {
+          items: [
+            {
+              id: 42,
+              title: 'Surreal Landscape',
+              description: 'AI art piece',
+              image_url: null,
+              quality_score: 0.9,
+              created_at: '2024-01-10T00:00:00Z',
+              updated_at: '2024-01-10T00:00:00Z',
+            },
+          ],
+          total: 3,
           limit: 5,
           skip: 0,
         },
@@ -47,8 +76,10 @@ test.describe('Dashboard', () => {
     await page.waitForSelector('nav', { timeout: 20000 })
 
     await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible()
-    await expect(page.getByRole('heading', { name: '12' })).toBeVisible()
-    await expect(page.getByText('Total Recommendations')).toBeVisible()
+    await expect(page.getByRole('heading', { name: '1' })).toBeVisible() // User content count
+    await expect(page.getByRole('heading', { name: '3' })).toBeVisible() // Total content count
+    await expect(page.getByText('User Content')).toBeVisible()
+    await expect(page.getByText('Community Content')).toBeVisible()
     await expect(page.getByText('Surreal Landscape')).toBeVisible()
   })
 })
