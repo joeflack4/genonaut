@@ -59,4 +59,21 @@ describe('AppLayout', () => {
     expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('navigation')).toBeInTheDocument()
   })
+
+  it('renders hamburger menu button', () => {
+    mockedUseCurrentUser.mockReturnValue({
+      data: { id: 1, name: 'Admin User' },
+      isLoading: false,
+    } as UseCurrentUserResult)
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/dashboard" element={<div>Dashboard Content</div>} />
+        </Route>
+      </Routes>
+    )
+
+    expect(screen.getByLabelText(/toggle sidebar/i)).toBeInTheDocument()
+  })
 })
