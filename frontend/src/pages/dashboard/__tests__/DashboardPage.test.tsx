@@ -8,20 +8,20 @@ import { DashboardPage } from '../DashboardPage'
 
 vi.mock('../../../hooks', () => {
   const useCurrentUser = vi.fn()
-  const useContentStats = vi.fn()
-  const useContentList = vi.fn()
+  const useGalleryStats = vi.fn()
+  const useGalleryList = vi.fn()
 
   return {
     useCurrentUser,
-    useContentStats,
-    useContentList,
+    useGalleryStats,
+    useGalleryList,
   }
 })
 
 const hooks = await import('../../../hooks')
 const mockedUseCurrentUser = vi.mocked(hooks.useCurrentUser)
-const mockedUseContentStats = vi.mocked(hooks.useContentStats)
-const mockedUseContentList = vi.mocked(hooks.useContentList)
+const mockedUseGalleryStats = vi.mocked(hooks.useGalleryStats)
+const mockedUseGalleryList = vi.mocked(hooks.useGalleryList)
 
 const renderDashboard = () => {
   const queryClient = new QueryClient({
@@ -42,23 +42,23 @@ const renderDashboard = () => {
 describe('DashboardPage', () => {
   beforeEach(() => {
     mockedUseCurrentUser.mockReset()
-    mockedUseContentStats.mockReset()
-    mockedUseContentList.mockReset()
+    mockedUseGalleryStats.mockReset()
+    mockedUseGalleryList.mockReset()
 
     mockedUseCurrentUser.mockReturnValue({
       data: { id: 1, name: 'Admin' },
       isLoading: false,
     })
 
-    mockedUseContentStats.mockReturnValue({
+    mockedUseGalleryStats.mockReturnValue({
       data: {
-        userContentCount: 1,
-        totalContentCount: 3,
+        userGalleryCount: 1,
+        totalGalleryCount: 3,
       },
       isLoading: false,
     })
 
-    mockedUseContentList
+    mockedUseGalleryList
       .mockReturnValueOnce({
         data: {
           items: [
@@ -137,23 +137,23 @@ describe('DashboardPage', () => {
       })
   })
 
-  it('displays content stats and recent content', () => {
+  it('displays gallery stats and recent content', () => {
     renderDashboard()
 
-    expect(mockedUseContentStats).toHaveBeenCalledWith(1)
-    expect(mockedUseContentList).toHaveBeenCalledWith({ limit: 5, sort: 'recent', creator_id: 1 })
-    expect(mockedUseContentList).toHaveBeenCalledWith({ limit: 5, sort: 'recent', creator_id: 1 })
-    expect(mockedUseContentList).toHaveBeenCalledWith({ limit: 5, sort: 'recent' })
-    expect(mockedUseContentList).toHaveBeenCalledWith({ limit: 5, sort: 'recent' })
-    expect(screen.getByText('1')).toBeInTheDocument() // User content count
-    expect(screen.getByText('3')).toBeInTheDocument() // Total content count
+    expect(mockedUseGalleryStats).toHaveBeenCalledWith(1)
+    expect(mockedUseGalleryList).toHaveBeenCalledWith({ limit: 5, sort: 'recent', creator_id: 1 })
+    expect(mockedUseGalleryList).toHaveBeenCalledWith({ limit: 5, sort: 'recent', creator_id: 1 })
+    expect(mockedUseGalleryList).toHaveBeenCalledWith({ limit: 5, sort: 'recent' })
+    expect(mockedUseGalleryList).toHaveBeenCalledWith({ limit: 5, sort: 'recent' })
+    expect(screen.getByText('1')).toBeInTheDocument() // User gallery count
+    expect(screen.getByText('3')).toBeInTheDocument() // Total gallery count
     expect(screen.getByText('Your works')).toBeInTheDocument()
     expect(screen.getByText('Community works')).toBeInTheDocument()
     expect(screen.getByText('Your recent works')).toBeInTheDocument()
     expect(screen.getByText('Your recent auto-gens')).toBeInTheDocument()
     expect(screen.getByText('Community recent works')).toBeInTheDocument()
     expect(screen.getByText('Community recent auto-gens')).toBeInTheDocument()
-    expect(screen.getByText('User Content Item')).toBeInTheDocument() // User's recent content
+    expect(screen.getByText('User Content Item')).toBeInTheDocument() // User's recent gallery item
     expect(screen.getByText('User Auto-Gen Item')).toBeInTheDocument() // User's recent auto-gen
     expect(screen.getByText('Surreal Landscape')).toBeInTheDocument() // Community recent content
     expect(screen.getByText('Community Auto-Gen Item')).toBeInTheDocument() // Community recent auto-gen

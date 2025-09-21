@@ -34,7 +34,7 @@ import { useUiSettings } from '../../app/providers/ui'
 
 const navItems = [
   { label: 'Dashboard', to: '/dashboard', icon: DashboardIcon },
-  { label: 'Content', to: '/content', icon: ArticleIcon },
+  { label: 'Gallery', to: '/gallery', icon: ArticleIcon },
   { label: 'Recommendations', to: '/recommendations', icon: RecommendIcon },
   { label: 'Settings', to: '/settings', icon: SettingsIcon },
 ]

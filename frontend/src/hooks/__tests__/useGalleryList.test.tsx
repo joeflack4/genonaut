@@ -3,24 +3,24 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, vi } from 'vitest'
 import { createTestQueryClient } from '../../test/query-client'
-import { useContentList } from '../useContentList'
+import { useGalleryList } from '../useGalleryList'
 
 vi.mock('../../services', () => {
-  const listContentMock = vi.fn()
+  const listGalleryMock = vi.fn()
 
   return {
-    contentService: {
-      listContent: listContentMock,
+    galleryService: {
+      listGallery: listGalleryMock,
     },
   }
 })
 
-const { contentService } = await import('../../services')
-const listContentMock = vi.mocked(contentService.listContent)
+const { galleryService } = await import('../../services')
+const listGalleryMock = vi.mocked(galleryService.listGallery)
 
-describe('useContentList', () => {
+describe('useGalleryList', () => {
   beforeEach(() => {
-    listContentMock.mockReset()
+    listGalleryMock.mockReset()
   })
 
   it('fetches paginated content with provided params', async () => {
@@ -36,15 +36,15 @@ describe('useContentList', () => {
       skip: 0,
     }
 
-    listContentMock.mockResolvedValue(response)
+    listGalleryMock.mockResolvedValue(response)
 
     const params = { skip: 0, limit: 20, search: 'abstract' }
 
-    const { result } = renderHook(() => useContentList(params), { wrapper })
+    const { result } = renderHook(() => useGalleryList(params), { wrapper })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(listContentMock).toHaveBeenCalledWith(params)
+    expect(listGalleryMock).toHaveBeenCalledWith(params)
     expect(result.current.data).toEqual(response)
   })
 })

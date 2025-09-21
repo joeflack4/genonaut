@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { setupMockApi } from './utils/mockApi'
 
 test.describe('Dashboard', () => {
-  test('shows content stats and recent content', async ({ page }) => {
+  test('shows gallery stats and recent content', async ({ page }) => {
     await setupMockApi(page, [
       {
         pattern: '\\u002Fapi\\u002Fv1\\u002Fusers\\u002F1$',
@@ -123,8 +123,8 @@ test.describe('Dashboard', () => {
     await page.waitForSelector('nav', { timeout: 20000 })
 
     await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible()
-    await expect(page.getByRole('heading', { name: '1' })).toBeVisible() // User content count
-    await expect(page.getByRole('heading', { name: '3' })).toBeVisible() // Total content count
+    await expect(page.getByRole('heading', { name: '1' })).toBeVisible() // User gallery count
+    await expect(page.getByRole('heading', { name: '3' })).toBeVisible() // Total gallery count
     await expect(page.getByText('Your works').first()).toBeVisible()
     await expect(page.getByText('Community works').first()).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Your recent works' })).toBeVisible()
@@ -138,7 +138,7 @@ test.describe('Dashboard', () => {
       'Community recent works',
       'Community recent auto-gens',
     ])
-    await expect(page.getByText('User Content Item').first()).toBeVisible() // User's recent content
-    await expect(page.getByText('Surreal Landscape').first()).toBeVisible() // Community recent content
+    await expect(page.getByText('User Content Item').first()).toBeVisible() // User's recent gallery item
+    await expect(page.getByText('Surreal Landscape').first()).toBeVisible() // Community recent gallery item
   })
 })

@@ -100,7 +100,7 @@ describe('AppLayout', () => {
 
     // Check that navigation items have icons
     expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /content/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /gallery/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /recommendations/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /settings/i })).toBeInTheDocument()
   })

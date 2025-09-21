@@ -1,35 +1,35 @@
 import { Box, Card, CardContent, List, ListItem, ListItemText, Skeleton, Stack, Typography } from '@mui/material'
-import { useContentList, useContentStats, useCurrentUser } from '../../hooks'
+import { useGalleryList, useGalleryStats, useCurrentUser } from '../../hooks'
 
 const DEFAULT_USER_ID = 1
 
-const contentStatItems = [
-  { key: 'userContentCount' as const, label: 'Your works' },
-  { key: 'totalContentCount' as const, label: 'Community works' },
+const galleryStatItems = [
+  { key: 'userGalleryCount' as const, label: 'Your works' },
+  { key: 'totalGalleryCount' as const, label: 'Community works' },
 ]
 
 export function DashboardPage() {
   const { data: currentUser } = useCurrentUser()
   const userId = currentUser?.id ?? DEFAULT_USER_ID
 
-  const { data: contentStats, isLoading: contentStatsLoading } = useContentStats(userId)
-  const { data: userRecentContent, isLoading: userRecentContentLoading } = useContentList({
+  const { data: galleryStats, isLoading: galleryStatsLoading } = useGalleryStats(userId)
+  const { data: userRecentGallery, isLoading: userRecentGalleryLoading } = useGalleryList({
     limit: 5,
     sort: 'recent',
     creator_id: userId,
   })
   // TODO: Replace with actual auto-gen filtering when API supports it
-  const { data: userRecentAutoGens, isLoading: userRecentAutoGensLoading } = useContentList({
+  const { data: userRecentAutoGens, isLoading: userRecentAutoGensLoading } = useGalleryList({
     limit: 5,
     sort: 'recent',
     creator_id: userId,
   })
-  const { data: recentContent, isLoading: recentContentLoading } = useContentList({
+  const { data: recentGallery, isLoading: recentGalleryLoading } = useGalleryList({
     limit: 5,
     sort: 'recent',
   })
   // TODO: Replace with actual auto-gen filtering when API supports it
-  const { data: communityRecentAutoGens, isLoading: communityRecentAutoGensLoading } = useContentList({
+  const { data: communityRecentAutoGens, isLoading: communityRecentAutoGensLoading } = useGalleryList({
     limit: 5,
     sort: 'recent',
   })
@@ -50,17 +50,17 @@ export function DashboardPage() {
           gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
         }}
       >
-        {contentStatItems.map(({ key, label }) => (
+        {galleryStatItems.map(({ key, label }) => (
           <Card key={key} sx={{ height: '100%', bgcolor: 'background.paper' }}>
             <CardContent>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                 {label}
               </Typography>
-              {contentStatsLoading ? (
+              {galleryStatsLoading ? (
                 <Skeleton variant="text" height={48} width={80} />
               ) : (
                 <Typography variant="h4" fontWeight={600}>
-                  {contentStats ? contentStats[key] : '—'}
+                  {galleryStats ? galleryStats[key] : '—'}
                 </Typography>
               )}
             </CardContent>
@@ -73,15 +73,15 @@ export function DashboardPage() {
           <Typography variant="h6" component="h2" gutterBottom>
             Your recent works
           </Typography>
-          {userRecentContentLoading ? (
+          {userRecentGalleryLoading ? (
             <Stack spacing={2}>
               {Array.from({ length: 3 }).map((_, index) => (
                 <Skeleton key={index} variant="rectangular" height={56} />
               ))}
             </Stack>
-          ) : userRecentContent && userRecentContent.items.length > 0 ? (
+          ) : userRecentGallery && userRecentGallery.items.length > 0 ? (
             <List>
-              {userRecentContent.items.map((item) => (
+              {userRecentGallery.items.map((item) => (
                 <ListItem key={item.id} disableGutters divider>
                   <ListItemText
                     primary={item.title}
@@ -133,15 +133,15 @@ export function DashboardPage() {
           <Typography variant="h6" component="h2" gutterBottom>
             Community recent works
           </Typography>
-          {recentContentLoading ? (
+          {recentGalleryLoading ? (
             <Stack spacing={2}>
               {Array.from({ length: 3 }).map((_, index) => (
                 <Skeleton key={index} variant="rectangular" height={56} />
               ))}
             </Stack>
-          ) : recentContent && recentContent.items.length > 0 ? (
+          ) : recentGallery && recentGallery.items.length > 0 ? (
             <List>
-              {recentContent.items.map((item) => (
+              {recentGallery.items.map((item) => (
                 <ListItem key={item.id} disableGutters divider>
                   <ListItemText
                     primary={item.title}

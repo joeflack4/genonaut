@@ -15,7 +15,7 @@ export interface UserStats {
   lastActiveAt?: string
 }
 
-export interface ContentItem {
+export interface GalleryItem {
   id: number
   title: string
   description: string | null

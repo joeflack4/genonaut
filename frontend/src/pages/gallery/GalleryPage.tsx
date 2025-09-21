@@ -18,7 +18,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { useContentList } from '../../hooks'
+import { useGalleryList } from '../../hooks'
 
 const PAGE_SIZE = 10
 
@@ -35,7 +35,7 @@ const sortOptions: Array<{ value: SortOption; label: string }> = [
   { value: 'top-rated', label: 'Top Rated' },
 ]
 
-export function ContentPage() {
+export function GalleryPage() {
   const [searchInput, setSearchInput] = useState('')
   const [filters, setFilters] = useState<FiltersState>({ search: '', sort: 'recent', page: 0 })
 
@@ -49,7 +49,7 @@ export function ContentPage() {
     [filters]
   )
 
-  const { data, isLoading } = useContentList(queryParams)
+  const { data, isLoading } = useGalleryList(queryParams)
 
   const totalPages = useMemo(() => {
     if (!data?.total) {
@@ -76,10 +76,10 @@ export function ContentPage() {
     <Stack spacing={4} component="section">
       <Stack spacing={1}>
         <Typography component="h1" variant="h4" fontWeight={600} gutterBottom>
-          Content Library
+          Gallery
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Browse generated content, refine with filters, and explore the latest additions.
+          Browse the community gallery, refine with filters, and explore the latest additions.
         </Typography>
       </Stack>
 
@@ -91,19 +91,19 @@ export function ContentPage() {
             spacing={2}
             alignItems={{ md: 'center' }}
             onSubmit={handleSearchSubmit}
-            aria-label="content filters"
+            aria-label="gallery filters"
           >
             <TextField
-              label="Search content"
+              label="Search gallery"
               variant="outlined"
               fullWidth
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
             />
             <FormControl sx={{ minWidth: 180 }}>
-              <InputLabel id="content-sort-label">Sort by</InputLabel>
+              <InputLabel id="gallery-sort-label">Sort by</InputLabel>
               <Select
-                labelId="content-sort-label"
+                labelId="gallery-sort-label"
                 label="Sort by"
                 value={filters.sort}
                 onChange={handleSortChange}
@@ -165,7 +165,7 @@ export function ContentPage() {
             </List>
           ) : (
             <Typography variant="body2" color="text.secondary">
-              No content found. Try adjusting your filters.
+              No gallery items found. Try adjusting your filters.
             </Typography>
           )}
         </CardContent>
