@@ -1,6 +1,6 @@
 import { forwardRef, useState, useEffect } from 'react'
 import type { NavLinkProps } from 'react-router-dom'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   AppBar,
   Box,
@@ -51,6 +51,7 @@ export function AppLayout() {
   const { mode, toggleMode } = useThemeMode()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const navigate = useNavigate()
 
   // State for sidebar open/closed
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -62,6 +63,10 @@ export function AppLayout() {
 
   const handleSidebarToggle = () => {
     setSidebarOpen(!sidebarOpen)
+  }
+
+  const handleUserClick = () => {
+    navigate('/settings')
   }
 
   return (
@@ -101,8 +106,22 @@ export function AppLayout() {
             {isUserLoading ? (
               <Skeleton variant="text" width={120} />
             ) : (
-              <Tooltip title="Current user" enterDelay={1500} arrow>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Tooltip title="Go to account settings" enterDelay={1500} arrow>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    cursor: 'pointer',
+                    borderRadius: 1,
+                    px: 1,
+                    py: 0.5,
+                    '&:hover': {
+                      bgcolor: 'action.hover'
+                    }
+                  }}
+                  onClick={handleUserClick}
+                >
                   <PersonIcon fontSize="small" />
                   <Typography variant="subtitle1" component="div">
                     {currentUser?.name ?? 'Admin'}

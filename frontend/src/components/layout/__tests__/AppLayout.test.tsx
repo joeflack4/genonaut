@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { vi } from 'vitest'
 import { ThemeModeProvider } from '../../../app/providers/theme'
@@ -96,5 +97,28 @@ describe('AppLayout', () => {
     expect(screen.getByRole('link', { name: /content/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /recommendations/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /settings/i })).toBeInTheDocument()
+  })
+
+  it('navigates to settings when username is clicked', async () => {
+    const user = userEvent.setup()
+    mockedUseCurrentUser.mockReturnValue({
+      data: { id: 1, name: 'Admin User' },
+      isLoading: false,
+    } as UseCurrentUserResult)
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/dashboard" element={<div>Dashboard Content</div>} />
+          <Route path="/settings" element={<div>Settings Content</div>} />
+        </Route>
+      </Routes>
+    )
+
+    // Click on the username
+    await user.click(screen.getByText('Admin User'))
+
+    // Should navigate to settings page
+    expect(screen.getByText('Settings Content')).toBeInTheDocument()
   })
 })
