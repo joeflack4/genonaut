@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { vi } from 'vitest'
 import { ThemeModeProvider } from '../../../app/providers/theme'
+import { UiSettingsProvider } from '../../../app/providers/ui'
 import { AppLayout } from '../AppLayout'
 
 vi.mock('../../../hooks', () => {
@@ -28,11 +29,13 @@ const renderWithProviders = (ui: ReactNode, initialEntry: string = '/dashboard')
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <ThemeModeProvider>
-        <MemoryRouter initialEntries={[initialEntry]}>
-          {ui}
-        </MemoryRouter>
-      </ThemeModeProvider>
+      <UiSettingsProvider>
+        <ThemeModeProvider>
+          <MemoryRouter initialEntries={[initialEntry]}>
+            {ui}
+          </MemoryRouter>
+        </ThemeModeProvider>
+      </UiSettingsProvider>
     </QueryClientProvider>
   )
 }
@@ -42,7 +45,7 @@ describe('AppLayout', () => {
     mockedUseCurrentUser.mockReset()
   })
 
-  it('renders navigation and user name when data is available', () => {
+  it('renders navigation and user icon when data is available', () => {
     mockedUseCurrentUser.mockReturnValue({
       data: { id: 1, name: 'Admin User' },
       isLoading: false,
@@ -56,7 +59,10 @@ describe('AppLayout', () => {
       </Routes>
     )
 
-    expect(screen.getByText(/Admin User/)).toBeInTheDocument()
+    // Username text is hidden by default (showButtonLabels defaults to false)
+    expect(screen.queryByText(/Admin User/)).not.toBeInTheDocument()
+    // But the person icon should be visible
+    expect(screen.getByTestId('PersonIcon')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('navigation')).toBeInTheDocument()
   })
@@ -99,7 +105,7 @@ describe('AppLayout', () => {
     expect(screen.getByRole('link', { name: /settings/i })).toBeInTheDocument()
   })
 
-  it('navigates to settings when username is clicked', async () => {
+  it('navigates to settings when user icon is clicked', async () => {
     const user = userEvent.setup()
     mockedUseCurrentUser.mockReturnValue({
       data: { id: 1, name: 'Admin User' },
@@ -115,8 +121,8 @@ describe('AppLayout', () => {
       </Routes>
     )
 
-    // Click on the username
-    await user.click(screen.getByText('Admin User'))
+    // Click on the user icon (since text is hidden by default)
+    await user.click(screen.getByTestId('PersonIcon'))
 
     // Should navigate to settings page
     expect(screen.getByText('Settings Content')).toBeInTheDocument()

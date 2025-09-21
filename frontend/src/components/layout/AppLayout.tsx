@@ -30,6 +30,7 @@ import RecommendIcon from '@mui/icons-material/Recommend'
 import SettingsIcon from '@mui/icons-material/Settings'
 import { useCurrentUser } from '../../hooks'
 import { useThemeMode } from '../../app/providers/theme'
+import { useUiSettings } from '../../app/providers/ui'
 
 const navItems = [
   { label: 'Dashboard', to: '/dashboard', icon: DashboardIcon },
@@ -44,14 +45,16 @@ const NavLinkButton = forwardRef<HTMLAnchorElement, NavLinkProps>((props, ref) =
 
 NavLinkButton.displayName = 'NavLinkButton'
 
-const drawerWidth = 220
-
 export function AppLayout() {
   const { data: currentUser, isLoading: isUserLoading } = useCurrentUser()
   const { mode, toggleMode } = useThemeMode()
+  const { showButtonLabels } = useUiSettings()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const navigate = useNavigate()
+
+  // Dynamic drawer width based on whether labels are shown
+  const drawerWidth = showButtonLabels ? 220 : 72
 
   // State for sidebar open/closed
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -100,7 +103,7 @@ export function AppLayout() {
                 }
                 sx={{ textTransform: 'none' }}
               >
-                {mode === 'dark' ? 'Light mode' : 'Dark mode'}
+                {showButtonLabels && (mode === 'dark' ? 'Light mode' : 'Dark mode')}
               </Button>
             </Tooltip>
             {isUserLoading ? (
@@ -123,9 +126,11 @@ export function AppLayout() {
                   onClick={handleUserClick}
                 >
                   <PersonIcon fontSize="small" />
-                  <Typography variant="subtitle1" component="div">
-                    {currentUser?.name ?? 'Admin'}
-                  </Typography>
+                  {showButtonLabels && (
+                    <Typography variant="subtitle1" component="div">
+                      {currentUser?.name ?? 'Admin'}
+                    </Typography>
+                  )}
                 </Box>
               </Tooltip>
             )}
@@ -172,7 +177,7 @@ export function AppLayout() {
                         <ListItemIcon>
                           <IconComponent />
                         </ListItemIcon>
-                        <ListItemText primary={item.label} />
+                        {showButtonLabels && <ListItemText primary={item.label} />}
                       </ListItemButton>
                     </Tooltip>
                   </ListItem>
