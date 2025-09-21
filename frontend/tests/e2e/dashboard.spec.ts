@@ -14,7 +14,7 @@ test.describe('Dashboard', () => {
         },
       },
       {
-        pattern: '\\u002Fapi\\u002Fv1\\u002Fcontent\\?creator_id=1&limit=1',
+        pattern: '\\/api\\/v1\\/content\\?limit=1&creator_id=1',
         body: {
           items: [
             {
@@ -25,6 +25,13 @@ test.describe('Dashboard', () => {
               quality_score: 0.9,
               created_at: '2024-01-10T00:00:00Z',
               updated_at: '2024-01-10T00:00:00Z',
+              content_type: 'text',
+              content_data: 'Sample content',
+              item_metadata: {},
+              creator_id: 1,
+              tags: [],
+              is_public: true,
+              is_private: false,
             },
           ],
           total: 1,
@@ -33,7 +40,7 @@ test.describe('Dashboard', () => {
         },
       },
       {
-        pattern: '\\u002Fapi\\u002Fv1\\u002Fcontent\\?limit=1',
+        pattern: '\\/api\\/v1\\/content\\?limit=1$',
         body: {
           items: [
             {
@@ -44,6 +51,13 @@ test.describe('Dashboard', () => {
               quality_score: 0.9,
               created_at: '2024-01-10T00:00:00Z',
               updated_at: '2024-01-10T00:00:00Z',
+              content_type: 'image',
+              content_data: 'image_data',
+              item_metadata: {},
+              creator_id: 2,
+              tags: [],
+              is_public: true,
+              is_private: false,
             },
           ],
           total: 3,
@@ -52,7 +66,7 @@ test.describe('Dashboard', () => {
         },
       },
       {
-        pattern: '\\u002Fapi\\u002Fv1\\u002Fcontent\\?limit=5&sort=recent',
+        pattern: '/api/v1/content.*limit=5.*sort=recent',
         body: {
           items: [
             {
@@ -63,6 +77,13 @@ test.describe('Dashboard', () => {
               quality_score: 0.9,
               created_at: '2024-01-10T00:00:00Z',
               updated_at: '2024-01-10T00:00:00Z',
+              content_type: 'image',
+              content_data: 'image_data',
+              item_metadata: {},
+              creator_id: 2,
+              tags: [],
+              is_public: true,
+              is_private: false,
             },
           ],
           total: 3,

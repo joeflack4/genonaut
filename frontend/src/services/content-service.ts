@@ -52,11 +52,11 @@ export class ContentService {
     return {
       id: item.id,
       title: item.title,
-      description: item.description,
-      imageUrl: item.image_url,
+      description: item.description ?? null,
+      imageUrl: item.image_url ?? null,
       qualityScore: item.quality_score,
       createdAt: item.created_at,
-      updatedAt: item.updated_at,
+      updatedAt: item.updated_at ?? item.created_at,
     }
   }
 }
