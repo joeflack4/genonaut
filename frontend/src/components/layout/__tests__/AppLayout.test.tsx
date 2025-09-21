@@ -76,4 +76,25 @@ describe('AppLayout', () => {
 
     expect(screen.getByLabelText(/toggle sidebar/i)).toBeInTheDocument()
   })
+
+  it('renders icons in navigation items', () => {
+    mockedUseCurrentUser.mockReturnValue({
+      data: { id: 1, name: 'Admin User' },
+      isLoading: false,
+    } as UseCurrentUserResult)
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/dashboard" element={<div>Dashboard Content</div>} />
+        </Route>
+      </Routes>
+    )
+
+    // Check that navigation items have icons
+    expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /content/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /recommendations/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /settings/i })).toBeInTheDocument()
+  })
 })

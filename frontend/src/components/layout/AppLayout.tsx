@@ -11,9 +11,11 @@ import {
   List,
   ListItem,
   ListItemButton,
+  ListItemIcon,
   ListItemText,
   Skeleton,
   Toolbar,
+  Tooltip,
   Typography,
   useMediaQuery,
   useTheme,
@@ -21,14 +23,19 @@ import {
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import MenuIcon from '@mui/icons-material/Menu'
+import PersonIcon from '@mui/icons-material/Person'
+import DashboardIcon from '@mui/icons-material/Dashboard'
+import ArticleIcon from '@mui/icons-material/Article'
+import RecommendIcon from '@mui/icons-material/Recommend'
+import SettingsIcon from '@mui/icons-material/Settings'
 import { useCurrentUser } from '../../hooks'
 import { useThemeMode } from '../../app/providers/theme'
 
 const navItems = [
-  { label: 'Dashboard', to: '/dashboard' },
-  { label: 'Content', to: '/content' },
-  { label: 'Recommendations', to: '/recommendations' },
-  { label: 'Settings', to: '/settings' },
+  { label: 'Dashboard', to: '/dashboard', icon: DashboardIcon },
+  { label: 'Content', to: '/content', icon: ArticleIcon },
+  { label: 'Recommendations', to: '/recommendations', icon: RecommendIcon },
+  { label: 'Settings', to: '/settings', icon: SettingsIcon },
 ]
 
 const NavLinkButton = forwardRef<HTMLAnchorElement, NavLinkProps>((props, ref) => (
@@ -62,37 +69,46 @@ export function AppLayout() {
       <AppBar position="static" component="header" elevation={0} color="primary">
         <Toolbar sx={{ justifyContent: 'space-between', gap: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton
-              color="inherit"
-              aria-label="toggle sidebar"
-              edge="start"
-              onClick={handleSidebarToggle}
-              sx={{ mr: 1 }}
-            >
-              <MenuIcon />
-            </IconButton>
+            <Tooltip title="Toggle sidebar" enterDelay={1500} arrow>
+              <IconButton
+                color="inherit"
+                aria-label="toggle sidebar"
+                edge="start"
+                onClick={handleSidebarToggle}
+                sx={{ mr: 1 }}
+              >
+                <MenuIcon />
+              </IconButton>
+            </Tooltip>
             <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
               Genonaut
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Button
-              variant="outlined"
-              color="inherit"
-              onClick={toggleMode}
-              startIcon={
-                mode === 'dark' ? <LightModeOutlinedIcon fontSize="small" /> : <DarkModeOutlinedIcon fontSize="small" />
-              }
-              sx={{ textTransform: 'none' }}
-            >
-              {mode === 'dark' ? 'Light mode' : 'Dark mode'}
-            </Button>
+            <Tooltip title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} enterDelay={1500} arrow>
+              <Button
+                variant="outlined"
+                color="inherit"
+                onClick={toggleMode}
+                startIcon={
+                  mode === 'dark' ? <LightModeOutlinedIcon fontSize="small" /> : <DarkModeOutlinedIcon fontSize="small" />
+                }
+                sx={{ textTransform: 'none' }}
+              >
+                {mode === 'dark' ? 'Light mode' : 'Dark mode'}
+              </Button>
+            </Tooltip>
             {isUserLoading ? (
               <Skeleton variant="text" width={120} />
             ) : (
-              <Typography variant="subtitle1" component="div">
-                {currentUser?.name ?? 'Admin'}
-              </Typography>
+              <Tooltip title="Current user" enterDelay={1500} arrow>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <PersonIcon fontSize="small" />
+                  <Typography variant="subtitle1" component="div">
+                    {currentUser?.name ?? 'Admin'}
+                  </Typography>
+                </Box>
+              </Tooltip>
             )}
           </Box>
         </Toolbar>
@@ -119,22 +135,30 @@ export function AppLayout() {
             }}
           >
             <List>
-              {navItems.map((item) => (
-                <ListItem key={item.to} disablePadding>
-                  <ListItemButton
-                    component={NavLinkButton}
-                    to={item.to}
-                    onClick={isMobile ? handleSidebarToggle : undefined}
-                    sx={{
-                      '&.active': {
-                        bgcolor: 'action.selected',
-                      },
-                    }}
-                  >
-                    <ListItemText primary={item.label} />
-                  </ListItemButton>
-                </ListItem>
-              ))}
+              {navItems.map((item) => {
+                const IconComponent = item.icon
+                return (
+                  <ListItem key={item.to} disablePadding>
+                    <Tooltip title={item.label} enterDelay={1500} arrow placement="right">
+                      <ListItemButton
+                        component={NavLinkButton}
+                        to={item.to}
+                        onClick={isMobile ? handleSidebarToggle : undefined}
+                        sx={{
+                          '&.active': {
+                            bgcolor: 'action.selected',
+                          },
+                        }}
+                      >
+                        <ListItemIcon>
+                          <IconComponent />
+                        </ListItemIcon>
+                        <ListItemText primary={item.label} />
+                      </ListItemButton>
+                    </Tooltip>
+                  </ListItem>
+                )
+              })}
             </List>
           </Drawer>
         </Box>
