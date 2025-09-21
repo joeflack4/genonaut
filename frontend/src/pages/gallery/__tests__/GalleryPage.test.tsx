@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, vi } from 'vitest'
 import { ThemeModeProvider } from '../../../app/providers/theme'
 import { GalleryPage } from '../GalleryPage'
@@ -66,5 +67,18 @@ describe('GalleryPage', () => {
     const calls = mockedUseGalleryList.mock.calls
     const lastCallArgs = calls[calls.length - 1][0]
     expect(lastCallArgs).toMatchObject({ search: 'portrait' })
+  })
+
+  it('toggles the options panel', async () => {
+    const user = userEvent.setup()
+    renderGalleryPage()
+
+    await user.click(screen.getByLabelText(/close options/i))
+    expect(screen.getByTestId('SettingsOutlinedIcon')).toBeInTheDocument()
+
+    const optionButtons = screen.getAllByRole('button', { name: /options/i })
+    await user.click(optionButtons[0])
+
+    expect(screen.queryByTestId('SettingsOutlinedIcon')).not.toBeInTheDocument()
   })
 })

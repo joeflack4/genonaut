@@ -5,7 +5,9 @@ import {
   Card,
   CardContent,
   Chip,
+  Drawer,
   FormControl,
+  IconButton,
   InputLabel,
   List,
   ListItem,
@@ -16,11 +18,15 @@ import {
   Skeleton,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material'
+import CloseIcon from '@mui/icons-material/Close'
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import { useGalleryList } from '../../hooks'
 
 const PAGE_SIZE = 10
+const PANEL_WIDTH = 360
 
 type SortOption = 'recent' | 'top-rated'
 
@@ -38,6 +44,7 @@ const sortOptions: Array<{ value: SortOption; label: string }> = [
 export function GalleryPage() {
   const [searchInput, setSearchInput] = useState('')
   const [filters, setFilters] = useState<FiltersState>({ search: '', sort: 'recent', page: 0 })
+  const [optionsOpen, setOptionsOpen] = useState(true)
 
   const queryParams = useMemo(
     () => ({
@@ -73,23 +80,136 @@ export function GalleryPage() {
   }
 
   return (
-    <Stack spacing={4} component="section">
-      <Stack spacing={1}>
-        <Typography component="h1" variant="h4" fontWeight={600} gutterBottom>
-          Gallery
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Browse the community gallery, refine with filters, and explore the latest additions.
-        </Typography>
-      </Stack>
+    <Box component="section" sx={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
+      {!optionsOpen && (
+        <Tooltip title="Options" enterDelay={300} arrow>
+          <IconButton
+            aria-label="Options"
+            onClick={() => setOptionsOpen(true)}
+            sx={{
+              position: 'fixed',
+              top: (theme) => theme.spacing(2),
+              right: (theme) => theme.spacing(2),
+              zIndex: (theme) => theme.zIndex.drawer + 1,
+              bgcolor: 'background.paper',
+              boxShadow: 1,
+            }}
+          >
+            <SettingsOutlinedIcon />
+          </IconButton>
+        </Tooltip>
+      )}
 
-      <Card>
-        <CardContent>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          transition: (theme) =>
+            theme.transitions.create('margin-right', {
+              duration: theme.transitions.duration.enteringScreen,
+            }),
+          mr: { md: optionsOpen ? `${PANEL_WIDTH}px` : 0 },
+        }}
+      >
+        <Stack spacing={4}>
+          <Card>
+            <CardContent>
+              {isLoading ? (
+                <Stack spacing={2}>
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <Skeleton key={index} variant="rectangular" height={72} />
+                  ))}
+                </Stack>
+              ) : data && data.items.length > 0 ? (
+                <List>
+                  {data.items.map((item) => (
+                    <ListItem key={item.id} alignItems="flex-start" divider>
+                      <ListItemText
+                        primary={
+                          <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+                            <Typography variant="h6" component="span">
+                              {item.title}
+                            </Typography>
+                            {item.qualityScore !== null && item.qualityScore !== undefined && (
+                              <Chip
+                                label={`Quality ${(item.qualityScore * 100).toFixed(0)}%`}
+                                color={item.qualityScore > 0.75 ? 'success' : 'default'}
+                              />
+                            )}
+                          </Stack>
+                        }
+                        secondary={
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 1 }}>
+                            {item.description && (
+                              <Typography variant="body2" color="text.secondary" component="span">
+                                {item.description}
+                              </Typography>
+                            )}
+                            <Typography variant="caption" color="text.secondary" component="span">
+                              Created {new Date(item.createdAt).toLocaleString()}
+                            </Typography>
+                          </Box>
+                        }
+                        primaryTypographyProps={{ component: 'span' }}
+                        secondaryTypographyProps={{ component: 'span' }}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  No gallery items found. Try adjusting your filters.
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+
+          <Box display="flex" justifyContent="flex-end">
+            <Pagination
+              count={totalPages}
+              page={filters.page + 1}
+              onChange={handlePageChange}
+              color="primary"
+              shape="rounded"
+            />
+          </Box>
+        </Stack>
+      </Box>
+
+      <Drawer
+        anchor="right"
+        variant="persistent"
+        open={optionsOpen}
+        ModalProps={{ keepMounted: true }}
+        onClose={() => setOptionsOpen(false)}
+        sx={{
+          width: PANEL_WIDTH,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': {
+            width: { xs: '100%', md: PANEL_WIDTH },
+            boxSizing: 'border-box',
+            p: 3,
+            gap: 3,
+          },
+        }}
+      >
+        <Stack spacing={3} sx={{ height: '100%' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography component="h1" variant="h5" fontWeight={600}>
+              Gallery
+            </Typography>
+            <Tooltip title="Hide options" enterDelay={300} arrow>
+              <IconButton aria-label="Close options" onClick={() => setOptionsOpen(false)}>
+                <CloseIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          <Typography variant="body2" color="text.secondary">
+            Browse the community gallery, refine with filters, and explore the latest additions.
+          </Typography>
           <Stack
             component="form"
-            direction={{ xs: 'column', md: 'row' }}
             spacing={2}
-            alignItems={{ md: 'center' }}
             onSubmit={handleSearchSubmit}
             aria-label="gallery filters"
           >
@@ -100,7 +220,7 @@ export function GalleryPage() {
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
             />
-            <FormControl sx={{ minWidth: 180 }}>
+            <FormControl fullWidth>
               <InputLabel id="gallery-sort-label">Sort by</InputLabel>
               <Select
                 labelId="gallery-sort-label"
@@ -116,70 +236,8 @@ export function GalleryPage() {
               </Select>
             </FormControl>
           </Stack>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent>
-          {isLoading ? (
-            <Stack spacing={2}>
-              {Array.from({ length: 5 }).map((_, index) => (
-                <Skeleton key={index} variant="rectangular" height={72} />
-              ))}
-            </Stack>
-          ) : data && data.items.length > 0 ? (
-            <List>
-              {data.items.map((item) => (
-                <ListItem key={item.id} alignItems="flex-start" divider>
-                  <ListItemText
-                    primary={
-                      <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-                        <Typography variant="h6" component="span">
-                          {item.title}
-                        </Typography>
-                        {item.qualityScore !== null && item.qualityScore !== undefined && (
-                          <Chip
-                            label={`Quality ${(item.qualityScore * 100).toFixed(0)}%`}
-                            color={item.qualityScore > 0.75 ? 'success' : 'default'}
-                          />
-                        )}
-                      </Stack>
-                    }
-                    secondary={
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 1 }}>
-                        {item.description && (
-                          <Typography variant="body2" color="text.secondary" component="span">
-                            {item.description}
-                          </Typography>
-                        )}
-                        <Typography variant="caption" color="text.secondary" component="span">
-                          Created {new Date(item.createdAt).toLocaleString()}
-                        </Typography>
-                      </Box>
-                    }
-                    primaryTypographyProps={{ component: 'span' }}
-                    secondaryTypographyProps={{ component: 'span' }}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              No gallery items found. Try adjusting your filters.
-            </Typography>
-          )}
-        </CardContent>
-      </Card>
-
-      <Box display="flex" justifyContent="flex-end">
-        <Pagination
-          count={totalPages}
-          page={filters.page + 1}
-          onChange={handlePageChange}
-          color="primary"
-          shape="rounded"
-        />
-      </Box>
-    </Stack>
+        </Stack>
+      </Drawer>
+    </Box>
   )
 }
