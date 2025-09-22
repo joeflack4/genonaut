@@ -195,7 +195,7 @@ export function GalleryPage() {
             onClick={() => setOptionsOpen(true)}
             sx={{
               position: 'fixed',
-              top: (theme) => theme.spacing(2),
+              top: (theme) => theme.spacing(10), // Increased from 2 to 10 to be below navbar
               right: (theme) => theme.spacing(2),
               zIndex: (theme) => theme.zIndex.drawer + 1,
               bgcolor: 'background.paper',
@@ -311,9 +311,6 @@ export function GalleryPage() {
               </IconButton>
             </Tooltip>
           </Box>
-          <Typography variant="body2" color="text.secondary">
-            Browse the community gallery, refine with filters, and explore the latest additions.
-          </Typography>
           <Stack
             component="form"
             spacing={2}
@@ -321,7 +318,7 @@ export function GalleryPage() {
             aria-label="gallery filters"
           >
             <TextField
-              label="Search gallery"
+              label="Search"
               variant="outlined"
               fullWidth
               value={searchInput}
