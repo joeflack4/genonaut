@@ -88,7 +88,7 @@ init-test:
 
 reset-db-demo:
 	@echo "Resetting demo database..."
-	@python -m genonaut.db.utils reset-db --environment demo
+	@python -m genonaut.db.utils reset-db --environment demo $(ARGS)
 
 reset-db-test:
 	@echo "Resetting test database..."

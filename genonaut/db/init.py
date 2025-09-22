@@ -709,6 +709,53 @@ class DatabaseInitializer:
                     print(f"Database seeded successfully from {tsv_directory}{schema_info} (processed {len(available_files)} files)")
                 else:
                     logging.warning("No expected TSV files found for seeding")
+
+                # Fallback mechanism for tables not covered by the model-based seeding
+                all_table_names = Base.metadata.tables.keys()
+                table_to_model_map = {table.name: mapper.class_ for mapper in Base.registry.mappers for table in mapper.tables}
+
+                unrecognized_and_matching_tsvs = []
+                for tsv_file in unrecognized_files:
+                    table_name = tsv_file.replace('.tsv', '')
+                    if table_name in all_table_names:
+                        unrecognized_and_matching_tsvs.append(tsv_file)
+
+                if unrecognized_and_matching_tsvs:
+                    print(f"Found additional TSV files matching table names: {unrecognized_and_matching_tsvs}")
+
+                    # Fetch users for creator_id lookup
+                    users = session.query(User).all()
+                    username_to_id = {user.username: user.id for user in users}
+
+                    for tsv_file in unrecognized_and_matching_tsvs:
+                        table_name = tsv_file.replace('.tsv', '')
+                        file_path = tsv_directory / tsv_file
+                        # Dynamically load data into the table
+                        try:
+                            data = utils.load_tsv_data(str(file_path))
+                            if data:
+                                # Handle creator_id lookup
+                                if 'creator_username' in data[0]:
+                                    for row in data:
+                                        username = row.pop('creator_username', None)
+                                        if username in username_to_id:
+                                            row['creator_id'] = username_to_id[username]
+                                        else:
+                                            logging.warning(f"User '{username}' not found for data in '{tsv_file}'. Skipping row.")
+                                            data.remove(row)
+
+                                model_class = table_to_model_map.get(table_name)
+                                if model_class:
+                                    session.bulk_insert_mappings(model_class, data)
+                                    session.commit()
+                                    print(f"Successfully seeded table '{table_name}' from '{tsv_file}'")
+                                else:
+                                    logging.error(f"Could not find model for table '{table_name}'. Skipping...")
+
+                        except Exception as e:
+                            logging.error(f"Failed to seed table '{table_name}' from '{tsv_file}': {e}")
+                            session.rollback()
+
             finally:
                 session.close()
                 
