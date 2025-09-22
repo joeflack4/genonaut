@@ -1,6 +1,51 @@
 # Genonaut
 Recommender systems &amp; perpetual generation for gen AI.
 
+Core features
+- **Generations**: Generate art using ComfyUI integration.
+- **Models**: Easily find and download AI models for image generation.
+- **Browse & Catalogue**: Browse, search, filter, rate, and tag.
+- **Recommenders**: Automatically generate works based on your preferences and use cases. Explore novel combinations / directions.
+- **Community**: Browse and auto-generate based on popular community trends, and other users like you.
+
+Platforms
+- **Cloud**
+- **Windows, MacOS, & Linux**: Local and browser-based
+
+---
+
+<p align="center">
+  Early alpha development UI.
+</p>
+
+<!-- Row 1: one image centered -->
+<p align="center">
+  <a href="docs/screenshots/dash.png">
+    <img src="docs/screenshots/dash.png" alt="Dashboard" width="45%">
+  </a>
+</p>
+
+<!-- Row 2: two images side by side -->
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <a href="docs/screenshots/gens.png">
+        <img src="docs/screenshots/gens.png" alt="Gens" width="95%">
+      </a>
+    </td>
+    <td align="center" width="50%">
+      <a href="docs/screenshots/settings.png">
+        <img src="docs/screenshots/settings.png" alt="Settings" width="87%">
+      </a>
+    </td>
+  </tr>
+</table>
+
+<p align="center">
+  Join the <a href="https://forms.gle/2e2uC3owXLNNS4tTA">waiting list</a> to be notified for early access.
+</p>
+ 
+
 ## Set up
 ### Installation
 Prerequisites
@@ -100,3 +145,9 @@ Running tests:
 `make test` or `pytest test/ -v` (`-v` optional, for verbosity) 
 
 See more: [full dev docs](docs/developer.md)
+
+---
+
+<p align="center">
+  Join our <a href="https://forms.gle/2e2uC3owXLNNS4tTA">waiting list</a> to be notified about early access!
+</p>
