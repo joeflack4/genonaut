@@ -7,14 +7,14 @@ import json
 from typing import Dict, Any, Optional
 
 # Configuration for API testing
-API_BASE_URL = os.getenv("API_BASE_URL", "http://0.0.0.0:8000")
+TEST_API_BASE_URL = os.getenv("API_BASE_URL", "http://0.0.0.0:8099")
 TEST_TIMEOUT = 30  # seconds
 
 
 class APITestClient:
     """Helper class for making API requests during testing."""
     
-    def __init__(self, base_url: str = API_BASE_URL):
+    def __init__(self, base_url: str = TEST_API_BASE_URL):
         self.base_url = base_url.rstrip("/")
         self.session = requests.Session()
     
@@ -297,7 +297,8 @@ class TestContentEndpoints:
         assert isinstance(data["items"], list)
         assert isinstance(data["total"], int)
     
-    @pytest.mark.skip(reason="Content search functionality not yet implemented - TODO: Implement search service and endpoint")
+    @pytest.mark.skip(
+        reason="Content search functionality not yet implemented - TODO: Implement search service and endpoint")
     def test_search_content(self, api_client):
         """Test content search functionality."""
         search_data = {
@@ -659,7 +660,7 @@ class TestErrorHandling:
         """Test API response to invalid JSON."""
         # Send invalid JSON to user creation endpoint
         response = requests.post(
-            f"{API_BASE_URL}/api/v1/users",
+            f"{TEST_API_BASE_URL}/api/v1/users",
             data="invalid json",
             headers={"Content-Type": "application/json"},
             timeout=TEST_TIMEOUT

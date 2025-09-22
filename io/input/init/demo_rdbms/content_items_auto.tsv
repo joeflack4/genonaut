@@ -1,4 +1,4 @@
 title	content_type	content_data	item_metadata	creator_username	tags	quality_score	is_public	is_private
-AI-Generated cool Story	text	cool story bro	"{""word_count"": 2, ""genre"": ""sci-fi""}"	alice_creator	"[""comedy""]"	0.85	true	false
+AI-Generated cool Story	text	cool story bro	"{""word_count"": 2, ""genre"": ""sci-fi""}"	Admin	"[""comedy""]"	0.85	true	false
 Cool Landscape	image	/images/cool_landscape_001.png	{"resolution": "1024x768", "style": "digital_art"}	bob_artist	"[""landscape"", ""digital_art""]"	0.63	true	false
 Cool Audio Drama	audio	/audio/cool_drama_001.mp3	{"duration": 1800, "format": "mp3"}	bob_artist	"[""cool"", ""audio_drama""]"	0.78	true	false

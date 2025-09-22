@@ -80,7 +80,7 @@ def load_tsv_data(file_path: str) -> List[Dict[str, Any]]:
                 # Process JSON fields
                 processed_row = {}
                 for key, value in row.items():
-                    if value.strip() == '':
+                    if value is None or value.strip() == '':
                         processed_row[key] = None
                     elif value.startswith('{') or value.startswith('['):
                         try:
@@ -96,7 +96,7 @@ def load_tsv_data(file_path: str) -> List[Dict[str, Any]]:
                                 processed_row[key] = float(value)
                             else:
                                 processed_row[key] = int(value)
-                        except ValueError:
+                        except (ValueError, TypeError):
                             processed_row[key] = value
                 
                 rows.append(processed_row)
@@ -120,7 +120,7 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
     if test_input_dir is None:
         # Get the directory containing this utils.py file, then go to input/rdbms_init/
         test_input_dir = os.path.join(os.path.dirname(__file__), 'input', 'rdbms_init')
-    
+
     # If we have a schema name, we'll set the search path in the session (PostgreSQL only)
     need_to_reset_search_path = False
     if schema_name:
@@ -132,10 +132,17 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
         except Exception:
             # SQLite or other DB that doesn't support search_path
             print(f"Warning: Database doesn't support schemas, seeding in default schema")
-    
+
     try:
+        # Define file paths
+        users_path = os.path.join(test_input_dir, 'users.tsv')
+        content_items_path = os.path.join(test_input_dir, 'content_items.tsv')
+        interactions_path = os.path.join(test_input_dir, 'user_interactions.tsv')
+        recommendations_path = os.path.join(test_input_dir, 'recommendations.tsv')
+        jobs_path = os.path.join(test_input_dir, 'generation_jobs.tsv')
+
         # Load and create users first
-        users_data = load_tsv_data(os.path.join(test_input_dir, 'users.tsv'))
+        users_data = load_tsv_data(users_path)
         users = []
         username_to_user = {}
         
@@ -157,12 +164,19 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
             username_to_user[user.username] = user
         
         # Load and create content items
-        content_data = load_tsv_data(os.path.join(test_input_dir, 'content_items.tsv'))
+        content_data = load_tsv_data(content_items_path)
         content_items = []
         title_to_content = {}
         
-        for content_row in content_data:
-            creator = username_to_user[content_row['creator_username']]
+        for i, content_row in enumerate(content_data):
+            try:
+                creator = username_to_user[content_row['creator_username']]
+            except KeyError:
+                raise ValueError(
+                    f"Error in '{os.path.basename(content_items_path)}' (row {i + 2}): "
+                    f"creator_username '{content_row.get('creator_username')}' not found in {os.path.basename(users_path)}. "
+                    f"Row data: {content_row}"
+                )
             content = ContentItem(
                 title=content_row['title'],
                 content_type=content_row['content_type'],
@@ -184,12 +198,26 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
             title_to_content[content.title] = content
         
         # Load and create user interactions
-        interactions_data = load_tsv_data(os.path.join(test_input_dir, 'user_interactions.tsv'))
+        interactions_data = load_tsv_data(interactions_path)
         interactions = []
         
-        for interaction_row in interactions_data:
-            user = username_to_user[interaction_row['user_username']]
-            content = title_to_content[interaction_row['content_title']]
+        for i, interaction_row in enumerate(interactions_data):
+            try:
+                user = username_to_user[interaction_row['user_username']]
+            except KeyError:
+                raise ValueError(
+                    f"Error in '{os.path.basename(interactions_path)}' (row {i + 2}): "
+                    f"user_username '{interaction_row.get('user_username')}' not found in {os.path.basename(users_path)}. "
+                    f"Row data: {interaction_row}"
+                )
+            try:
+                content = title_to_content[interaction_row['content_title']]
+            except KeyError:
+                raise ValueError(
+                    f"Error in '{os.path.basename(interactions_path)}' (row {i + 2}): "
+                    f"content_title '{interaction_row.get('content_title')}' not found in {os.path.basename(content_items_path)}. "
+                    f"Row data: {interaction_row}"
+                )
             
             interaction = UserInteraction(
                 user_id=user.id,
@@ -204,12 +232,26 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
         session.add_all(interactions)
         
         # Load and create recommendations
-        recommendations_data = load_tsv_data(os.path.join(test_input_dir, 'recommendations.tsv'))
+        recommendations_data = load_tsv_data(recommendations_path)
         recommendations = []
         
-        for rec_row in recommendations_data:
-            user = username_to_user[rec_row['user_username']]
-            content = title_to_content[rec_row['content_title']]
+        for i, rec_row in enumerate(recommendations_data):
+            try:
+                user = username_to_user[rec_row['user_username']]
+            except KeyError:
+                raise ValueError(
+                    f"Error in '{os.path.basename(recommendations_path)}' (row {i + 2}): "
+                    f"user_username '{rec_row.get('user_username')}' not found in {os.path.basename(users_path)}. "
+                    f"Row data: {rec_row}"
+                )
+            try:
+                content = title_to_content[rec_row['content_title']]
+            except KeyError:
+                raise ValueError(
+                    f"Error in '{os.path.basename(recommendations_path)}' (row {i + 2}): "
+                    f"content_title '{rec_row.get('content_title')}' not found in {os.path.basename(content_items_path)}. "
+                    f"Row data: {rec_row}"
+                )
             
             recommendation = Recommendation(
                 user_id=user.id,
@@ -224,12 +266,19 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
         session.add_all(recommendations)
         
         # Load and create generation jobs
-        jobs_data = load_tsv_data(os.path.join(test_input_dir, 'generation_jobs.tsv'))
+        jobs_data = load_tsv_data(jobs_path)
         generation_jobs = []
         
-        for job_row in jobs_data:
-            user = username_to_user[job_row['user_username']]
-            
+        for i, job_row in enumerate(jobs_data):
+            try:
+                user = username_to_user[job_row['user_username']]
+            except KeyError:
+                raise ValueError(
+                    f"Error in '{os.path.basename(jobs_path)}' (row {i + 2}): "
+                    f"user_username '{job_row.get('user_username')}' not found in {os.path.basename(users_path)}. "
+                    f"Row data: {job_row}"
+                )
+
             # Handle result content if specified
             result_content_id = None
             if job_row.get('result_content_title'):
@@ -260,7 +309,7 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
         session.add_all(generation_jobs)
         session.commit()
         
-    except Exception as e:
+    except (ValueError, KeyError, FileNotFoundError) as e:
         session.rollback()
         raise SQLAlchemyError(f"Failed to seed database from TSV files: {e}")
     finally:
