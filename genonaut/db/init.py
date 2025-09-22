@@ -21,7 +21,9 @@ from sqlalchemy.orm import sessionmaker, Session
 from alembic import command
 from alembic.config import Config
 
-from genonaut.db.schema import Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob
+from genonaut.db.schema import Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob, ContentItemAuto
+
+
 from genonaut.db.utils import get_database_url, resolve_database_environment
 
 
@@ -655,7 +657,7 @@ class DatabaseInitializer:
             raise ValueError(f"Path is not a directory: {tsv_directory}")
         
         # Define the model classes and their expected filenames
-        model_classes = [User, ContentItem, UserInteraction, Recommendation, GenerationJob]
+        model_classes = [User, ContentItem, ContentItemAuto, UserInteraction, Recommendation, GenerationJob]
         expected_files = {}
         missing_files = []
         
@@ -694,18 +696,7 @@ class DatabaseInitializer:
             if test_utils_path.exists():
                 if str(test_utils_path) not in sys.path:
                     sys.path.insert(0, str(test_utils_path))
-                
-                from utils import seed_database_from_tsv
-            else:
-                # Fallback: try to import from the current working directory
-                import os
-                cwd_test_path = Path(os.getcwd()) / 'test'
-                if cwd_test_path.exists():
-                    if str(cwd_test_path) not in sys.path:
-                        sys.path.insert(0, str(cwd_test_path))
-                    from utils import seed_database_from_tsv
-                else:
-                    raise ImportError(f"Cannot find test utilities. Tried: {test_utils_path}, {cwd_test_path}")
+                from db import utils
             
             # Seed the database only with available files
             session = self.session_factory()
@@ -713,7 +704,7 @@ class DatabaseInitializer:
                 # Only seed if we have at least one expected file
                 available_files = [f for f in expected_files.keys() if (tsv_directory / f).exists()]
                 if available_files:
-                    seed_database_from_tsv(session, str(tsv_directory), schema_name)
+                    utils.seed_database_from_tsv(session, str(tsv_directory), schema_name)
                     schema_info = f" in schema '{schema_name}'" if schema_name else ""
                     print(f"Database seeded successfully from {tsv_directory}{schema_info} (processed {len(available_files)} files)")
                 else:

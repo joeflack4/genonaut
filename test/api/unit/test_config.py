@@ -24,7 +24,7 @@ class TestSettings:
         """Test settings loaded from environment variables."""
         env_vars = {
             "API_SECRET_KEY": "test-secret-key",
-            "API_ENVIRONMENT": "demo",
+            "API_ENVIRONMENT": "test-env",
             "API_HOST": "127.0.0.1",
             "API_PORT": "9000",
             "API_DEBUG": "true"
@@ -32,7 +32,7 @@ class TestSettings:
         with patch.dict(os.environ, env_vars, clear=True):
             settings = Settings()
             assert settings.api_secret_key == "test-secret-key"
-            assert settings.api_environment == "demo"
+            assert settings.api_environment == "test-env"
             assert settings.api_host == "127.0.0.1"
             assert settings.api_port == 9000
             assert settings.api_debug is True
@@ -41,20 +41,20 @@ class TestSettings:
         """Test demo database URL generation."""
         # Set explicit demo URL
         env_vars = {
-            "DATABASE_URL": "postgresql://user:pass@localhost:5432/genonaut",
-            "DATABASE_URL_DEMO": "postgresql://user:pass@localhost:5432/genonaut_demo",
-            "API_ENVIRONMENT": "demo"
+            "DATABASE_URL": "postgresql://user:pass@localhost:5432/genonaut_main",
+            "DATABASE_URL_DEMO": "postgresql://user:pass@localhost:5432/genonaut_test_env",
+            "API_ENVIRONMENT": "test_env"
         }
         with patch.dict(os.environ, env_vars, clear=True):
             settings = Settings()
             # Should use the explicit demo URL
-            expected_demo_url = "postgresql://user:pass@localhost:5432/genonaut_demo"
+            expected_demo_url = "postgresql://user:pass@localhost:5432/genonaut_test_env"
             assert settings.database_url_demo == expected_demo_url
     
     def test_settings_custom_demo_url(self):
         """Test custom demo database URL."""
         env_vars = {
-            "DATABASE_URL": "postgresql://user:pass@localhost:5432/genonaut",
+            "DATABASE_URL": "postgresql://user:pass@localhost:5432/genonaut_main",
             "DATABASE_URL_DEMO": "postgresql://demo:pass@localhost:5432/custom_demo"
         }
         with patch.dict(os.environ, env_vars, clear=True):

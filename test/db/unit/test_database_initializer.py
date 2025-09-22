@@ -100,7 +100,8 @@ class TestDatabaseInitializer:
         assert initializer.environment == "test"
 
     @patch.dict(os.environ, {
-        'DATABASE_URL': 'postgresql://genonaut_admin:admin@localhost:5432/genonaut'
+        'DATABASE_URL': 'postgresql://genonaut_admin:admin@localhost:5432/genonaut_main',
+        'DB_PASSWORD_ADMIN': 'admin'
     }, clear=True)
     def test_get_database_url_test_environment_falls_back(self):
         """Test URLs fall back to the main connection with a test database name."""

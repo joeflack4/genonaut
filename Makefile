@@ -79,7 +79,7 @@ init-dev:
 
 init-demo:
 	@echo "Initializing demo database..."
-	GENONAUT_DB_ENVIRONMENT=demo python -m genonaut.db.init
+	GENONAUT_DB_ENVIRONMENT=demo python -c "from genonaut.db.init import initialize_database; initialize_database(drop_existing=True)"
 
 init-test:
 	@echo "Initializing test database..."

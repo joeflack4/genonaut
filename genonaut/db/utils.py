@@ -62,7 +62,6 @@ def _normalize_environment(environment: Optional[str]) -> str:
     if _coerce_bool(os.getenv("TEST", "0")):
         return "test"
     return "dev"
-    return "dev"
 
 
 def resolve_database_environment(
@@ -99,6 +98,7 @@ def get_database_url(environment: Optional[str] = None) -> str:
     """
 
     resolved_environment = _normalize_environment(environment)
+    # print(f"get_database_url resolved_environment: {resolved_environment}")
     database_name = _database_name_for_environment(resolved_environment)
 
     # Prefer an explicit DATABASE_URL variable when provided
@@ -112,14 +112,6 @@ def get_database_url(environment: Optional[str] = None) -> str:
 
     if raw_url and raw_url.strip():
         return raw_url.strip()
-
-    # If we're looking for the demo DB but only DATABASE_URL is present, reuse it.
-    fallback_url = os.getenv("DATABASE_URL")
-    if resolved_environment in {"demo", "test"} and fallback_url and fallback_url.strip():
-        url_obj = make_url(fallback_url.strip())
-        if url_obj.database != database_name:
-            url_obj = url_obj.set(database=database_name)
-        return str(url_obj)
 
     # Otherwise, construct from individual components using admin credentials by default
     host = os.getenv("DB_HOST", "localhost")
