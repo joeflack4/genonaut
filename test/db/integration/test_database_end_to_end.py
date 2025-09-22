@@ -186,7 +186,7 @@ class TestDatabaseEndToEnd:
             )
 
             # Verify DatabaseInitializer was called with None (will use env vars)
-            mock_init_class.assert_called_once_with(None, demo=False)
+            mock_init_class.assert_called_once_with(None)
 
             # Verify all methods were called
             mock_initializer.create_database_and_users.assert_called_once()

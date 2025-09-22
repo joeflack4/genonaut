@@ -140,18 +140,15 @@ class DatabaseInitializer:
     def __init__(
         self,
         database_url: Optional[str] = None,
-        demo: Optional[bool] = None,
         environment: Optional[str] = None,
     ):
         """Initialize the database initializer.
         
         Args:
             database_url: PostgreSQL connection URL. If None, will use environment variable.
-            demo: Optional flag indicating the demo database should be targeted.
             environment: Explicit environment identifier (``dev``, ``demo``, ``test``).
         """
-        self.environment = resolve_database_environment(demo=demo, environment=environment)
-        self.demo = self.environment == "demo"
+        self.environment = resolve_database_environment(environment=environment)
         self.is_test = self.environment == "test"
         self.database_url = database_url or get_database_url(environment=self.environment)
         try:
@@ -749,7 +746,7 @@ def reseed_demo(force: bool = False) -> None:
     print("Re-seeding demo database...")
     
     # Get demo database configuration
-    initializer = DatabaseInitializer(demo=True)
+    initializer = DatabaseInitializer(environment="demo")
     initializer.create_engine_and_session()
     
     # Get seed data path
@@ -790,7 +787,6 @@ def initialize_database(
     create_db: bool = True,
     drop_existing: bool = False,
     schema_name: Optional[str] = None,
-    demo: bool = False,
     seed_data_path: Optional[Path] = None,
     environment: Optional[str] = None,
 ) -> None:
@@ -802,7 +798,6 @@ def initialize_database(
         create_db: Whether to create the database if it doesn't exist.
         drop_existing: Whether to drop existing tables before creating new ones.
         schema_name: Optional schema name for table creation (primarily for tests).
-        demo: When True, targets the demo database (legacy flag).
         seed_data_path: Optional directory containing TSV files for seeding data.
         environment: Explicit environment identifier (``dev``, ``demo``, ``test``).
 
@@ -811,9 +806,7 @@ def initialize_database(
     """
 
     # Only pass environment if it's explicitly set (not None)
-    init_kwargs = {
-        'demo': demo
-    }
+    init_kwargs = {}
     if environment is not None:
         init_kwargs['environment'] = environment
     
@@ -903,7 +896,6 @@ if __name__ == "__main__":
     initialize_database(
         create_db=True,
         drop_existing=False,
-        demo=(environment == "demo"),
         seed_data_path=seed_path,
         environment=environment,
     )

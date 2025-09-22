@@ -75,11 +75,11 @@ init-all: init-dev init-demo init-test
 
 init-dev:
 	@echo "Initializing database..."
-	DEMO=0 python -m genonaut.db.init
+	python -m genonaut.db.init
 
 init-demo:
 	@echo "Initializing demo database..."
-	DEMO=1 python -m genonaut.db.init
+	GENONAUT_DB_ENVIRONMENT=demo python -m genonaut.db.init
 
 init-test:
 	@echo "Initializing test database..."
@@ -207,7 +207,7 @@ migrate-dev:
 	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL} DATABASE_URL=${DATABASE_URL} alembic revision --autogenerate -m "$(m)"
 
 migrate-demo:
-	@DEMO=1 ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic revision --autogenerate -m "$(m)"
+	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic revision --autogenerate -m "$(m)"
 
 migrate-test:
 	@TEST_URL=$${DATABASE_URL_TEST:-$${DATABASE_URL}}; \
@@ -219,7 +219,7 @@ migrate-step2-dev:
 	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL} DATABASE_URL=${DATABASE_URL} alembic upgrade head
 
 migrate-step2-demo:
-	@DEMO=1 ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic upgrade head
+	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic upgrade head
 
 migrate-step2-test:
 	@TEST_URL=$${DATABASE_URL_TEST:-$${DATABASE_URL}}; \
@@ -232,10 +232,10 @@ migrate-heads-dev:
 	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL} DATABASE_URL=${DATABASE_URL} alembic heads
 
 migrate-down-demo:
-	@DEMO=1 ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic downgrade -1
+	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic downgrade -1
 
 migrate-heads-demo:
-	@DEMO=1 ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic heads
+	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic heads
 
 # Coverage
 test-coverage:

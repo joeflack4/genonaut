@@ -38,11 +38,10 @@ def _coerce_bool(value: Optional[str]) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _normalize_environment(demo: Optional[bool], environment: Optional[str]) -> str:
+def _normalize_environment(environment: Optional[str]) -> str:
     """Normalize database environment selection.
 
     Args:
-        demo: Legacy flag indicating demo database usage.
         environment: Optional explicit environment name.
 
     Returns:
@@ -54,9 +53,6 @@ def _normalize_environment(demo: Optional[bool], environment: Optional[str]) -> 
         if candidate in {"dev", "demo", "test"}:
             return candidate
 
-    if demo is not None:
-        return "demo" if demo else "dev"
-
     explicit = os.getenv("GENONAUT_DB_ENVIRONMENT") or os.getenv("API_ENVIRONMENT")
     if explicit:
         lowered = explicit.strip().lower()
@@ -65,18 +61,16 @@ def _normalize_environment(demo: Optional[bool], environment: Optional[str]) -> 
 
     if _coerce_bool(os.getenv("TEST", "0")):
         return "test"
-    if _coerce_bool(os.getenv("DEMO")):
-        return "demo"
+    return "dev"
     return "dev"
 
 
 def resolve_database_environment(
-    demo: Optional[bool] = None,
     environment: Optional[str] = None,
 ) -> str:
     """Public helper to resolve the active database environment."""
 
-    return _normalize_environment(demo, environment)
+    return _normalize_environment(environment)
 
 
 def _database_name_for_environment(environment: str) -> str:
@@ -89,11 +83,10 @@ def _database_name_for_environment(environment: str) -> str:
     return os.getenv("DB_NAME", "genonaut")
 
 
-def get_database_url(demo: Optional[bool] = None, environment: Optional[str] = None) -> str:
+def get_database_url(environment: Optional[str] = None) -> str:
     """Get database URL from environment variables.
 
     Args:
-        demo: Legacy flag indicating that the demo database should be used.
         environment: Explicit environment name (``dev``, ``demo``, ``test``).
 
     For initialization tasks, uses admin credentials by default.
@@ -105,7 +98,7 @@ def get_database_url(demo: Optional[bool] = None, environment: Optional[str] = N
         ValueError: If required environment variables are not set.
     """
 
-    resolved_environment = _normalize_environment(demo, environment)
+    resolved_environment = _normalize_environment(environment)
     database_name = _database_name_for_environment(resolved_environment)
 
     # Prefer an explicit DATABASE_URL variable when provided
@@ -241,7 +234,6 @@ def reset_db(
         create_db=False,
         drop_existing=False,
         environment=resolved_environment,
-        demo=(resolved_environment == "demo"),
         seed_data_path=seed_path,
     )
 

@@ -197,13 +197,13 @@ class TestPostgresDatabaseIntegration:
         initialize_database(
             create_db=True,
             drop_existing=True,
-            demo=False
+            environment="dev"
         )
 
         initialize_database(
             create_db=True,
             drop_existing=True,
-            demo=True
+            environment="demo"
         )
 
         expected_tables = {
@@ -247,7 +247,7 @@ class TestPostgresDatabaseIntegration:
             database_url=self.admin_demo_db_url,
             create_db=True,
             drop_existing=True,
-            demo=True
+            environment="demo"
         )
 
         main_engine = create_engine(self.test_db_url)
