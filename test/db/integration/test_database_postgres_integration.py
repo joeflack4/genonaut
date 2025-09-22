@@ -54,7 +54,7 @@ class TestPostgresDatabaseIntegration:
 
             base_test_name = os.getenv('DB_NAME_TEST', 'genonaut_test')
             cls._primary_db_name = f"{base_test_name}_pg"
-            cls._demo_db_name = f"{cls._primary_db_name}_demo"
+            cls._demo_db_name = f"{base_test_name}_pg_demo"
 
             base_admin_url = f"postgresql://genonaut_admin:{admin_password}@{host}:{port}"
             cls.postgres_admin_url = f"{base_admin_url}/postgres"

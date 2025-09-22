@@ -49,7 +49,8 @@ class TestDatabaseEndToEnd:
         initialize_database(
             database_url=self.test_db_url,
             create_db=True,
-            drop_existing=False
+            drop_existing=False,
+            environment="test",
         )
         
         # Verify the initialization was successful by connecting and querying
@@ -95,7 +96,8 @@ class TestDatabaseEndToEnd:
         initialize_database(
             database_url=self.test_db_url,
             create_db=True,
-            drop_existing=False
+            drop_existing=False,
+            environment="test",
         )
         
         # Verify tables exist but are empty
@@ -130,7 +132,8 @@ class TestDatabaseEndToEnd:
         initialize_database(
             database_url=self.test_db_url,
             create_db=True,
-            drop_existing=False
+            drop_existing=False,
+            environment="test",
         )
         
         # Verify initial data exists
@@ -197,7 +200,8 @@ class TestDatabaseEndToEnd:
         initialize_database(
             database_url=self.test_db_url,
             create_db=True,
-            drop_existing=False
+            drop_existing=False,
+            environment="test",
         )
         
         engine = create_engine(self.test_db_url)
@@ -265,7 +269,8 @@ class TestDatabaseEndToEnd:
         initialize_database(
             database_url=self.test_db_url,
             create_db=True,
-            drop_existing=False
+            drop_existing=False,
+            environment="test",
         )
         
         engine = create_engine(self.test_db_url)
