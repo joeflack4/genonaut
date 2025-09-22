@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import type { SelectChangeEvent } from '@mui/material/Select'
 import {
   Box,
@@ -30,6 +30,7 @@ import { useGalleryList, useGalleryAutoList, useCurrentUser } from '../../hooks'
 const PAGE_SIZE = 10
 const PANEL_WIDTH = 360
 const DEFAULT_USER_ID = 1
+const GALLERY_OPTIONS_OPEN_KEY = 'gallery-options-open'
 
 type SortOption = 'recent' | 'top-rated'
 
@@ -54,7 +55,16 @@ const sortOptions: Array<{ value: SortOption; label: string }> = [
 export function GalleryPage() {
   const [searchInput, setSearchInput] = useState('')
   const [filters, setFilters] = useState<FiltersState>({ search: '', sort: 'recent', page: 0 })
-  const [optionsOpen, setOptionsOpen] = useState(true)
+
+  // Initialize optionsOpen state from localStorage
+  const [optionsOpen, setOptionsOpen] = useState(() => {
+    try {
+      const stored = localStorage.getItem(GALLERY_OPTIONS_OPEN_KEY)
+      return stored !== null ? JSON.parse(stored) : true
+    } catch {
+      return true
+    }
+  })
   const [contentToggles, setContentToggles] = useState<ContentToggles>({
     yourWorks: true,
     yourAutoGens: true,
@@ -64,6 +74,15 @@ export function GalleryPage() {
 
   const { data: currentUser } = useCurrentUser()
   const userId = currentUser?.id ?? DEFAULT_USER_ID
+
+  // Save optionsOpen state to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(GALLERY_OPTIONS_OPEN_KEY, JSON.stringify(optionsOpen))
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, [optionsOpen])
 
   const queryParams = useMemo(
     () => ({
@@ -280,16 +299,16 @@ export function GalleryPage() {
 
       <Drawer
         anchor="right"
-        variant="temporary"
+        variant="persistent"
         open={optionsOpen}
-        ModalProps={{ keepMounted: true }}
-        onClose={() => setOptionsOpen(false)}
         sx={{
           '& .MuiDrawer-paper': {
             width: { xs: '100%', md: PANEL_WIDTH },
             boxSizing: 'border-box',
             p: 3,
             gap: 3,
+            position: 'fixed',
+            zIndex: (theme) => theme.zIndex.drawer,
           },
         }}
       >

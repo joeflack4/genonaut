@@ -8,6 +8,7 @@ import {
   Container,
   Drawer,
   IconButton,
+  InputBase,
   List,
   ListItem,
   ListItemButton,
@@ -24,6 +25,7 @@ import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import MenuIcon from '@mui/icons-material/Menu'
 import PersonIcon from '@mui/icons-material/Person'
+import SearchIcon from '@mui/icons-material/Search'
 import DashboardIcon from '@mui/icons-material/Dashboard'
 import ArticleIcon from '@mui/icons-material/Article'
 import RecommendIcon from '@mui/icons-material/Recommend'
@@ -59,6 +61,10 @@ export function AppLayout() {
   // State for sidebar open/closed
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  // State for search functionality
+  const [searchExpanded, setSearchExpanded] = useState(false)
+  const [searchValue, setSearchValue] = useState('')
+
   // Set default sidebar state based on screen size
   useEffect(() => {
     setSidebarOpen(!isMobile)
@@ -70,6 +76,23 @@ export function AppLayout() {
 
   const handleUserClick = () => {
     navigate('/settings')
+  }
+
+  const handleSearchClick = () => {
+    setSearchExpanded(true)
+  }
+
+  const handleSearchSubmit = (event: React.FormEvent) => {
+    event.preventDefault()
+    navigate('/gallery')
+    setSearchExpanded(false)
+    setSearchValue('')
+  }
+
+  const handleSearchBlur = () => {
+    if (!searchValue.trim()) {
+      setSearchExpanded(false)
+    }
   }
 
   return (
@@ -92,7 +115,56 @@ export function AppLayout() {
               Genonaut
             </Typography>
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexGrow: 1, justifyContent: 'flex-end' }}>
+            <Box
+              component="form"
+              onSubmit={handleSearchSubmit}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                bgcolor: searchExpanded ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
+                borderRadius: 1,
+                transition: (theme) => theme.transitions.create(['background-color', 'width'], {
+                  duration: theme.transitions.duration.short,
+                }),
+                width: searchExpanded ? 250 : 'auto',
+                mr: 1,
+              }}
+            >
+              {!searchExpanded ? (
+                <Tooltip title="Search" enterDelay={1500} arrow>
+                  <IconButton
+                    color="inherit"
+                    onClick={handleSearchClick}
+                    sx={{ p: 1 }}
+                  >
+                    <SearchIcon />
+                  </IconButton>
+                </Tooltip>
+              ) : (
+                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', px: 1 }}>
+                  <SearchIcon sx={{ color: 'inherit', mr: 1 }} />
+                  <InputBase
+                    placeholder="Search..."
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    onBlur={handleSearchBlur}
+                    autoFocus
+                    sx={{
+                      color: 'inherit',
+                      flex: 1,
+                      '& .MuiInputBase-input': {
+                        padding: '8px 0',
+                        '&::placeholder': {
+                          color: 'inherit',
+                          opacity: 0.7,
+                        },
+                      },
+                    }}
+                  />
+                </Box>
+              )}
+            </Box>
             <Tooltip title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} enterDelay={1500} arrow>
               <Button
                 variant={showButtonLabels ? "outlined" : "text"}
