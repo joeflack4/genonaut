@@ -24,11 +24,18 @@ export interface ApiUserStats {
 export interface ApiContentItem {
   id: number
   title: string
-  description: string | null
-  image_url: string | null
+  description?: string | null
+  image_url?: string | null
   quality_score: number | null
   created_at: string
-  updated_at: string
+  updated_at?: string
+  content_type: string
+  content_data: string
+  item_metadata: Record<string, any>
+  creator_id: number
+  tags: string[]
+  is_public: boolean
+  is_private: boolean
 }
 
 export interface ApiRecommendationItem {
@@ -53,4 +60,5 @@ export interface ApiContentQueryParams {
   limit?: number
   search?: string
   sort?: 'recent' | 'top-rated'
+  creator_id?: number
 }

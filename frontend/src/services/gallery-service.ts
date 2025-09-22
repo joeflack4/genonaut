@@ -1,17 +1,17 @@
 import { ApiClient } from './api-client'
 import type { ApiContentItem, ApiContentQueryParams, ApiPaginatedResponse } from '../types/api'
-import type { ContentItem, PaginatedResult } from '../types/domain'
+import type { GalleryItem, PaginatedResult } from '../types/domain'
 
-export type ContentListParams = ApiContentQueryParams
+export type GalleryListParams = ApiContentQueryParams
 
-export class ContentService {
+export class GalleryService {
   private readonly api: ApiClient
 
   constructor(api: ApiClient) {
     this.api = api
   }
 
-  async listContent(params: ContentListParams = {}): Promise<PaginatedResult<ContentItem>> {
+  async listGallery(params: GalleryListParams = {}): Promise<PaginatedResult<GalleryItem>> {
     const searchParams = new URLSearchParams()
 
     if (params.skip !== undefined) {
@@ -30,6 +30,10 @@ export class ContentService {
       searchParams.set('sort', params.sort)
     }
 
+    if (params.creator_id !== undefined) {
+      searchParams.set('creator_id', String(params.creator_id))
+    }
+
     const query = searchParams.toString()
 
     const response = await this.api.get<ApiPaginatedResponse<ApiContentItem>>(
@@ -37,22 +41,23 @@ export class ContentService {
     )
 
     return {
-      items: response.items.map(this.transformContentItem),
+      items: response.items.map(this.transformGalleryItem),
       total: response.total,
       limit: response.limit,
       skip: response.skip,
     }
   }
 
-  private transformContentItem(item: ApiContentItem): ContentItem {
+  private transformGalleryItem(item: ApiContentItem): GalleryItem {
     return {
       id: item.id,
       title: item.title,
-      description: item.description,
-      imageUrl: item.image_url,
+      description: item.description ?? null,
+      imageUrl: item.image_url ?? null,
       qualityScore: item.quality_score,
       createdAt: item.created_at,
-      updatedAt: item.updated_at,
+      updatedAt: item.updated_at ?? item.created_at,
+      creatorId: item.creator_id,
     }
   }
 }

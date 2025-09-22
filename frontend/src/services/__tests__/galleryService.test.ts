@@ -1,14 +1,14 @@
 import { http, HttpResponse } from 'msw'
 import { server } from '../../test/server'
 import { ApiClient } from '../api-client'
-import { ContentService } from '../content-service'
+import { GalleryService } from '../gallery-service'
 
 vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.test')
 
-describe('ContentService', () => {
+describe('GalleryService', () => {
   it('fetches paginated content with filters', async () => {
     const apiClient = new ApiClient()
-    const service = new ContentService(apiClient)
+    const service = new GalleryService(apiClient)
 
     server.use(
       http.get('https://api.example.test/api/v1/content', ({ request }) => {
@@ -36,7 +36,7 @@ describe('ContentService', () => {
       })
     )
 
-    const result = await service.listContent({ skip: 10, limit: 5, search: 'abstract' })
+    const result = await service.listGallery({ skip: 10, limit: 5, search: 'abstract' })
 
     expect(result).toEqual({
       items: [

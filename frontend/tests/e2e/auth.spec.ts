@@ -14,16 +14,85 @@ test.describe('Auth pages', () => {
         },
       },
       {
-        pattern: '\\u002Fapi\\u002Fv1\\u002Fusers\\u002F1\\u002Fstats$',
+        pattern: '\\/api\\/v1\\/content\\?limit=1&creator_id=1',
         body: {
-          total_recommendations: 6,
-          served_recommendations: 3,
-          generated_content: 9,
-          last_active_at: '2024-01-10T00:00:00Z',
+          items: [
+            {
+              id: 1,
+              title: 'User Content Item',
+              description: 'Content created by user',
+              image_url: null,
+              quality_score: 0.9,
+              created_at: '2024-01-10T00:00:00Z',
+              updated_at: '2024-01-10T00:00:00Z',
+              content_type: 'text',
+              content_data: 'Sample content',
+              item_metadata: {},
+              creator_id: 1,
+              tags: [],
+              is_public: true,
+              is_private: false,
+            },
+          ],
+          total: 1,
+          limit: 1,
+          skip: 0,
         },
       },
       {
-        pattern: '\\u002Fapi\\u002Fv1\\u002Fcontent.*limit=5.*sort=recent',
+        pattern: '\\/api\\/v1\\/content\\?limit=1$',
+        body: {
+          items: [
+            {
+              id: 42,
+              title: 'Aurora Dreams',
+              description: 'Generated skyline',
+              image_url: null,
+              quality_score: 0.88,
+              created_at: '2024-01-09T12:00:00Z',
+              updated_at: '2024-01-09T12:00:00Z',
+              content_type: 'image',
+              content_data: 'image_data',
+              item_metadata: {},
+              creator_id: 2,
+              tags: [],
+              is_public: true,
+              is_private: false,
+            },
+          ],
+          total: 3,
+          limit: 1,
+          skip: 0,
+        },
+      },
+      {
+        pattern: '/api/v1/content.*limit=5.*sort=recent.*creator_id=1',
+        body: {
+          items: [
+            {
+              id: 1,
+              title: 'User Content Item',
+              description: 'Content created by user',
+              image_url: null,
+              quality_score: 0.9,
+              created_at: '2024-01-10T00:00:00Z',
+              updated_at: '2024-01-10T00:00:00Z',
+              content_type: 'text',
+              content_data: 'Sample content',
+              item_metadata: {},
+              creator_id: 1,
+              tags: [],
+              is_public: true,
+              is_private: false,
+            },
+          ],
+          total: 1,
+          limit: 5,
+          skip: 0,
+        },
+      },
+      {
+        pattern: '/api/v1/content.*limit=5.*sort=recent(?!.*creator_id)',
         body: {
           items: [
             {
@@ -34,6 +103,13 @@ test.describe('Auth pages', () => {
               quality_score: 0.88,
               created_at: '2024-01-09T12:00:00Z',
               updated_at: '2024-01-09T12:00:00Z',
+              content_type: 'image',
+              content_data: 'image_data',
+              item_metadata: {},
+              creator_id: 2,
+              tags: [],
+              is_public: true,
+              is_private: false,
             },
           ],
           total: 1,
@@ -48,7 +124,8 @@ test.describe('Auth pages', () => {
 
     await expect(page).toHaveURL(/\/dashboard$/)
     await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible()
-    await expect(page.getByText('Aurora Dreams')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Community recent works' })).toBeVisible()
+    await expect(page.getByText('Aurora Dreams').first()).toBeVisible()
   })
 
   test('keeps unauthenticated visitor on signup placeholder', async ({ page }) => {

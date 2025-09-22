@@ -15,7 +15,7 @@ export interface UserStats {
   lastActiveAt?: string
 }
 
-export interface ContentItem {
+export interface GalleryItem {
   id: number
   title: string
   description: string | null
@@ -23,6 +23,7 @@ export interface ContentItem {
   qualityScore: number | null
   createdAt: string
   updatedAt: string
+  creatorId: number
 }
 
 export interface RecommendationItem {

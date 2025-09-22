@@ -22,7 +22,7 @@ export class ApiClient {
   constructor(options: ApiClientOptions = {}) {
     const envBaseUrl = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_API_BASE_URL : undefined
     this.baseUrl = options.baseUrl ?? envBaseUrl ?? 'http://localhost:8000'
-    this.fetchFn = options.fetchFn ?? fetch
+    this.fetchFn = options.fetchFn ?? fetch.bind(globalThis)
   }
 
   async get<T>(endpoint: string, init?: RequestInit): Promise<T> {

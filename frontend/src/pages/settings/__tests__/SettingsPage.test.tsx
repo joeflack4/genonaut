@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, vi } from 'vitest'
 import { ThemeModeProvider } from '../../../app/providers/theme'
+import { UiSettingsProvider } from '../../../app/providers/ui'
 import { SettingsPage } from '../SettingsPage'
 
 const mockCurrentUser = { id: 1, name: 'Admin', email: 'admin@example.com' }
@@ -37,7 +38,9 @@ const renderSettingsPage = () => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <ThemeModeProvider>{children}</ThemeModeProvider>
+      <UiSettingsProvider>
+        <ThemeModeProvider>{children}</ThemeModeProvider>
+      </UiSettingsProvider>
     </QueryClientProvider>
   )
 
@@ -77,5 +80,14 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /toggle theme/i }))
 
     expect(toggleModeMock).toHaveBeenCalled()
+  })
+
+  it('renders UI settings section with button labels toggle', () => {
+    renderSettingsPage()
+
+    // Check UI section is present
+    expect(screen.getByText('UI')).toBeInTheDocument()
+    expect(screen.getByLabelText(/show sidebar and navbar button labels/i)).toBeInTheDocument()
+    expect(screen.getByText(/when disabled, only icons will be shown/i)).toBeInTheDocument()
   })
 })

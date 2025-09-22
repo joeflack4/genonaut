@@ -4,7 +4,9 @@ import {
   Button,
   Card,
   CardContent,
+  FormControlLabel,
   Stack,
+  Switch,
   TextField,
   Typography,
 } from '@mui/material'
@@ -12,11 +14,13 @@ import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
 import { useCurrentUser, useUpdateUser } from '../../hooks'
 import { useThemeMode } from '../../app/providers/theme'
+import { useUiSettings } from '../../app/providers/ui'
 
 export function SettingsPage() {
   const { data: currentUser } = useCurrentUser()
   const { mutateAsync: updateUser, isPending, isSuccess } = useUpdateUser()
   const { mode, toggleMode } = useThemeMode()
+  const { showButtonLabels, toggleButtonLabels } = useUiSettings()
 
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
@@ -57,6 +61,10 @@ export function SettingsPage() {
       <Card component="form" onSubmit={handleSubmit}>
         <CardContent>
           <Stack spacing={3}>
+            <Typography variant="h6" component="h2" fontWeight={600}>
+              Profile
+            </Typography>
+
             <Stack spacing={2} direction={{ xs: 'column', md: 'row' }}>
               <TextField
                 label="Display name"
@@ -73,6 +81,24 @@ export function SettingsPage() {
               />
             </Stack>
 
+            <Stack direction="row" justifyContent="flex-end">
+              <Button type="submit" variant="contained" disabled={isPending}>
+                Save changes
+              </Button>
+            </Stack>
+
+            {isSuccess && <Alert severity="success">Profile updated!</Alert>}
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent>
+          <Stack spacing={3}>
+            <Typography variant="h6" component="h2" fontWeight={600}>
+              Appearance
+            </Typography>
+
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
               <Button
                 type="button"
@@ -86,14 +112,30 @@ export function SettingsPage() {
                 Current mode: {mode}
               </Typography>
             </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
 
-            <Stack direction="row" justifyContent="flex-end">
-              <Button type="submit" variant="contained" disabled={isPending}>
-                Save changes
-              </Button>
-            </Stack>
+      <Card>
+        <CardContent>
+          <Stack spacing={3}>
+            <Typography variant="h6" component="h2" fontWeight={600}>
+              UI
+            </Typography>
 
-            {isSuccess && <Alert severity="success">Profile updated!</Alert>}
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showButtonLabels}
+                  onChange={toggleButtonLabels}
+                  name="showButtonLabels"
+                />
+              }
+              label="Show sidebar and navbar button labels"
+            />
+            <Typography variant="body2" color="text.secondary">
+              When disabled, only icons will be shown for navigation buttons. Hover tooltips will still be available.
+            </Typography>
           </Stack>
         </CardContent>
       </Card>

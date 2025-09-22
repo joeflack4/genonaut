@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test'
 import { setupMockApi } from './utils/mockApi'
 
-test.describe('Content page', () => {
-  test('filters content by search term', async ({ page }) => {
+test.describe('Gallery page', () => {
+  test('filters gallery items by search term', async ({ page }) => {
     await setupMockApi(page, [
       {
         pattern: '\\u002Fapi\\u002Fv1\\u002Fusers\\u002F1$',
@@ -53,14 +53,14 @@ test.describe('Content page', () => {
       },
     ])
 
-    await page.goto('/content')
+    await page.goto('/gallery')
     await page.waitForSelector('nav', { timeout: 20000 })
 
     await expect(page.getByText('Neon Cityscape')).toBeVisible()
 
-    const searchInput = page.getByLabel('Search content')
+    const searchInput = page.getByLabel('Search gallery')
     await searchInput.fill('Portrait')
-    await page.locator('form[aria-label="content filters"]').evaluate((form) =>
+    await page.locator('form[aria-label="gallery filters"]').evaluate((form) =>
       (form as HTMLFormElement).requestSubmit()
     )
 
