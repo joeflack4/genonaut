@@ -59,7 +59,6 @@ class ContentRepository(BaseRepository[ContentItem, Dict[str, Any], Dict[str, An
         try:
             return (
                 self.db.query(self.model)
-                .filter(self.model.is_public.is_(True))
                 .filter(self.model.is_private.is_(False))
                 .order_by(desc(self.model.created_at))
                 .offset(skip)

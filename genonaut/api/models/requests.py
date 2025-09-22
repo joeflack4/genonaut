@@ -45,9 +45,8 @@ class ContentCreateRequest(BaseModel):
     creator_id: int = Field(..., gt=0, description="ID of the user creating the content")
     item_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Content metadata")
     tags: Optional[List[str]] = Field(default_factory=list, description="Content tags")
-    is_public: bool = Field(True, description="Whether content is publicly visible")
     is_private: bool = Field(False, description="Whether content is private")
-    
+
     @validator('tags')
     def validate_tags(cls, v):
         if v:
@@ -57,12 +56,6 @@ class ContentCreateRequest(BaseModel):
             if len(v) > 20:
                 raise ValueError('Cannot have more than 20 tags')
         return v
-    
-    @validator('is_private')
-    def validate_privacy(cls, v, values):
-        if v and values.get('is_public', True):
-            raise ValueError('Content cannot be both public and private')
-        return v
 
 
 class ContentUpdateRequest(BaseModel):
@@ -71,7 +64,6 @@ class ContentUpdateRequest(BaseModel):
     content_data: Optional[str] = Field(None, min_length=1, description="New content data")
     item_metadata: Optional[Dict[str, Any]] = Field(None, description="New content metadata")
     tags: Optional[List[str]] = Field(None, description="New content tags")
-    is_public: Optional[bool] = Field(None, description="New public status")
     is_private: Optional[bool] = Field(None, description="New private status")
     
     @validator('tags')

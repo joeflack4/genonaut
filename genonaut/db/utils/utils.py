@@ -168,104 +168,34 @@ def _ensure_seed_utilities_importable() -> None:
                 sys.path.insert(0, path_str)
 
 
-def reset_db(
-    environment: Optional[str] = None,
-    database_url: Optional[str] = None,
-) -> None:
-    """Truncate all rows in the selected database and re-run initialization.
-
-    The target database must end with ``_test`` or ``_demo``. The user is prompted for
-    confirmation before any destructive action occurs.
-
-    Args:
-        environment: Optional explicit environment name (``demo`` or ``test``).
-        database_url: Optional explicit database URL. Defaults to resolved configuration.
-
-    Raises:
-        ValueError: If the database cannot be safely reset based on its name.
-        SQLAlchemyError: Propagated when initialization utilities encounter errors.
-    """
-
-    resolved_environment = resolve_database_environment(environment=environment)
-    target_url = database_url or get_database_url(environment=resolved_environment)
-    url_obj = make_url(target_url)
-    database_name = url_obj.database or ""
-
-    _ensure_allowed_database(database_name, ("_demo", "_test"))
-
-    confirmation = input(
-        "Are you sure? This will clear all rows in the database and re-initialize. (yes/no): "
-    ).strip().lower()
-    if confirmation != "yes":
-        print("Aborted.")
-        return
-
-    # Import lazily to avoid circular dependencies at module import time
-    from genonaut.db.init import (
-        DatabaseInitializer,
-        initialize_database,
-        load_project_config,
-        resolve_seed_path,
-    )
-
-    print(f"Truncating tables in database '{database_name}' ({resolved_environment}).")
-    initializer = DatabaseInitializer(database_url=target_url, environment=resolved_environment)
-    initializer.create_engine_and_session()
-    initializer.truncate_tables()
-
-    # Dispose connections before re-running initialization to ensure a clean slate
-    if initializer.engine is not None:
-        initializer.engine.dispose()
-
-    _ensure_seed_utilities_importable()
-    seed_path = resolve_seed_path(load_project_config(), resolved_environment)
-
-    print("Re-initializing database with migrations and seed data (if configured)...")
-    initialize_database(
-        database_url=target_url,
-        create_db=False,
-        drop_existing=False,
-        environment=resolved_environment,
-        seed_data_path=seed_path,
-    )
-
-    print("Database reset completed successfully.")
-
-
-def _build_cli_parser() -> argparse.ArgumentParser:
-    """Construct the CLI parser for database utilities."""
-
-    parser = argparse.ArgumentParser(
-        description="Utilities for managing Genonaut database environments",
-    )
-    subparsers = parser.add_subparsers(dest="command")
-
-    reset_parser = subparsers.add_parser(
-        "reset-db",
-        help="Truncate and re-initialize the demo or test database",
-    )
-    reset_parser.add_argument(
-        "--environment",
-        "-e",
-        choices=("demo", "test"),
-        help="Target database environment. Defaults to configuration resolution.",
-    )
-    reset_parser.add_argument(
-        "--database-url",
-        help="Optional explicit database URL override.",
-    )
-
-    return parser
-
-
 def main(argv: Optional[Sequence[str]] = None) -> None:
     """Entry point for the module's CLI interface."""
+    parser = argparse.ArgumentParser(
+        description="Database utility functions for Genonaut",
+    )
 
-    parser = _build_cli_parser()
+    parser.add_argument(
+        "--get-database-url",
+        action="store_true",
+        help="Print the database URL for the current environment"
+    )
+
+    parser.add_argument(
+        "--environment",
+        "-e",
+        choices=("dev", "demo", "test"),
+        help="Target database environment",
+    )
+
     args = parser.parse_args(argv)
 
-    if args.command == "reset-db":
-        reset_db(environment=getattr(args, "environment", None), database_url=getattr(args, "database_url", None))
+    if args.get_database_url:
+        try:
+            url = get_database_url(environment=args.environment)
+            print(url)
+        except Exception as e:
+            print(f"Error: {e}")
+            sys.exit(1)
     else:
         parser.print_help()
 

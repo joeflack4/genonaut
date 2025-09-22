@@ -185,7 +185,7 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
                 creator_id=creator.id,
                 tags=content_row.get('tags', []),
                 quality_score=content_row.get('quality_score', 0.0),
-                is_public=content_row.get('is_public', True)
+                is_private=content_row.get('is_private', False)
             )
             content_items.append(content)
             title_to_content[content.title] = content

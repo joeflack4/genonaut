@@ -46,7 +46,6 @@ async def create_auto_content(
             creator_id=content_data.creator_id,
             item_metadata=content_data.item_metadata,
             tags=content_data.tags,
-            is_public=content_data.is_public,
             is_private=content_data.is_private,
         )
         return ContentAutoResponse.model_validate(content)
@@ -87,7 +86,6 @@ async def update_auto_content(
             content_data=content_data.content_data,
             item_metadata=content_data.item_metadata,
             tags=content_data.tags,
-            is_public=content_data.is_public,
             is_private=content_data.is_private,
         )
         return ContentAutoResponse.model_validate(content)
@@ -158,7 +156,7 @@ async def list_auto_content(
             if search_params.creator_id:
                 filters["creator_id"] = search_params.creator_id
             if search_params.public_only:
-                filters.update({"is_public": True, "is_private": False})
+                filters.update({"is_private": False})
             total = service.repository.count(filters)
     except DatabaseError as exc:
         if "UndefinedTable" in str(exc):
@@ -204,7 +202,7 @@ async def search_auto_content(
             content_list = [
                 content
                 for content in content_list
-                if getattr(content, "is_public", False) and not getattr(content, "is_private", False)
+                if not getattr(content, "is_private", False)
             ]
 
         total = len(content_list)
@@ -271,7 +269,7 @@ async def get_public_auto_content(
 
     service = _service(db)
     content_list = service.get_content_list(public_only=True, skip=skip, limit=limit)
-    total = service.repository.count({"is_public": True, "is_private": False})
+    total = service.repository.count({"is_private": False})
 
     return ContentAutoListResponse(
         items=[ContentAutoResponse.model_validate(content) for content in content_list],

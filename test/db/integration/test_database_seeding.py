@@ -248,11 +248,11 @@ class TestDatabaseSeeding:
             assert isinstance(user.is_active, bool)
             assert user.is_active  # All test users should be active
         
-        # Test content is_public field
+        # Test content is_private field
         content_items = self.session.query(ContentItem).all()
         for content in content_items:
-            assert isinstance(content.is_public, bool)
-            assert content.is_public  # All test content should be public
+            assert isinstance(content.is_private, bool)
+            # is_private can be either True or False, so no assertion on specific value
         
         # Test recommendation is_served field
         recommendations = self.session.query(Recommendation).all()

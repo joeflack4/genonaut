@@ -1,8 +1,8 @@
 # Makefile for Genonaut project
 # Provides common development tasks and utilities
 
-.PHONY: help init-all init-dev init-demo init-test reset-db-demo reset-db-test re-seed-demo re-seed-demo-force test test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-all clear-excess-test-schemas install install-dev \
-lint format clean migrate-all migrate-dev migrate-demo migrate-test migrate-step2-all migrate-step2-dev migrate-step2-demo migrate-step2-test api-dev api-demo api-test \
+.PHONY: help init-all init-dev init-demo init-test reset-db-demo reset-db-test reset-db-and-history-demo reset-db-and-history-test re-seed-demo re-seed-demo-force test test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-all clear-excess-test-schemas install install-dev \
+lint format clean migrate-all migrate-dev migrate-demo migrate-test migrate-step2-all migrate-step2-dev migrate-step2-demo migrate-step2-test backup backup-dev backup-demo backup-test api-dev api-demo api-test \
 frontend-install frontend-dev frontend-build frontend-preview frontend-test frontend-test-unit frontend-test-watch frontend-test-coverage frontend-test-e2e frontend-test-e2e-headed frontend-test-e2e-ui frontend-lint frontend-type-check frontend-format frontend-format-write \
 test-frontend test-frontend-unit test-frontend-watch test-frontend-coverage test-frontend-e2e test-frontend-e2e-headed test-frontend-e2e-ui
 
@@ -20,6 +20,8 @@ help:
 	@echo "  init-test                Initialize test database with schema"
 	@echo "  reset-db-demo            Truncate and re-initialize the demo database"
 	@echo "  reset-db-test            Truncate and re-initialize the test database"
+	@echo "  reset-db-and-history-demo Reset demo database with migration history cleanup"
+	@echo "  reset-db-and-history-test Reset test database with migration history cleanup"
 	@echo "  re-seed-demo             Re-seed demo database (prompts for confirmation)"
 	@echo "  re-seed-demo-force       Re-seed demo database (no confirmation prompt)"
 	@echo "  test                     Run backend tests (legacy command)"
@@ -40,6 +42,10 @@ help:
 	@echo "  migrate-dev              Upgrade main database schema"
 	@echo "  migrate-demo             Upgrade demo database schema"
 	@echo "  migrate-test             Generate migration revision for test database"
+	@echo "  backup                   Backup all databases (dev, demo, test)"
+	@echo "  backup-dev               Backup development database"
+	@echo "  backup-demo              Backup demo database"
+	@echo "  backup-test              Backup test database"
 	@echo "  api-dev                  Start FastAPI server for development database"
 	@echo "  api-demo                 Start FastAPI server for demo database"
 	@echo "  api-test                 Start FastAPI server for test database"
@@ -88,11 +94,19 @@ init-test:
 
 reset-db-demo:
 	@echo "Resetting demo database..."
-	@python -m genonaut.db.utils reset-db --environment demo $(ARGS)
+	@python -m genonaut.db.utils.reset --environment demo $(ARGS)
 
 reset-db-test:
 	@echo "Resetting test database..."
-	@python -m genonaut.db.utils reset-db --environment test
+	@python -m genonaut.db.utils.reset --environment test
+
+reset-db-and-history-demo:
+	@echo "Resetting demo database with migration history cleanup..."
+	@python -m genonaut.db.utils.reset --environment demo --with-history $(ARGS)
+
+reset-db-and-history-test:
+	@echo "Resetting test database with migration history cleanup..."
+	@python -m genonaut.db.utils.reset --environment test --with-history
 
 re-seed-demo:
 	@echo "Re-seeding demo database..."
@@ -253,9 +267,22 @@ check-env:
 	@python -c "import sys; print(f'Python version: {sys.version}')"
 	@python -c "import pkg_resources; print('Installed packages:'); [print(f'  {d.project_name}: {d.version}') for d in pkg_resources.working_set]"
 
-show-db-url:
-	@echo "Current database configuration:"
-	@python -c "import os; from genonaut.db.utils import get_database_url; print(f'Database URL: {get_database_url()}')" 2>/dev/null || echo "Database configuration not available (missing environment variables)"
+# Backup targets
+backup-dev:
+	@echo "Backing up development database..."
+	@python -m genonaut.db.utils.backup ${DATABASE_URL}
+
+backup-demo:
+	@echo "Backing up demo database..."
+	@python -m genonaut.db.utils.backup ${DATABASE_URL_DEMO}
+
+backup-test:
+	@echo "Backing up test database..."
+	@TEST_URL=$${DATABASE_URL_TEST:-$${DATABASE_URL}}; \
+	python -m genonaut.db.utils.backup $$TEST_URL
+
+backup: backup-dev backup-demo backup-test
+	@echo "✅ All database backups completed!"
 
 # FastAPI server
 api-dev:

@@ -122,19 +122,17 @@ class TestContentModels:
         with pytest.raises(ValidationError):
             ContentCreateRequest(**data)
     
-    def test_content_create_request_privacy_conflict(self):
-        """Test content creation with conflicting privacy settings."""
+    def test_content_create_request_valid_private(self):
+        """Test content creation with private setting."""
         data = {
             "title": "Test Content",
             "content_type": ContentType.TEXT,
             "content_data": "This is test content",
             "creator_id": 1,
-            "is_public": True,
-            "is_private": True  # Conflict with is_public=True
+            "is_private": True
         }
-        with pytest.raises(ValidationError) as exc_info:
-            ContentCreateRequest(**data)
-        assert "Content cannot be both public and private" in str(exc_info.value)
+        content = ContentCreateRequest(**data)
+        assert content.is_private is True
     
     def test_content_create_request_too_many_tags(self):
         """Test content creation with too many tags."""

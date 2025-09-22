@@ -57,7 +57,6 @@ class ContentResponse(BaseModel):
     created_at: datetime = Field(..., description="Content creation timestamp")
     tags: List[str] = Field(..., description="Content tags")
     quality_score: float = Field(..., description="Content quality score")
-    is_public: bool = Field(..., description="Public visibility status")
     is_private: bool = Field(..., description="Private status")
     
     model_config = {"from_attributes": True}
@@ -92,7 +91,6 @@ class ContentAutoListResponse(BaseModel):
 class ContentStatsResponse(BaseModel):
     """Response model for content statistics."""
     total_content: int = Field(..., description="Total number of content items")
-    public_content: int = Field(..., description="Number of public content items")
     private_content: int = Field(..., description="Number of private content items")
     type_breakdown: Dict[str, int] = Field(..., description="Content count by type")
 
@@ -289,7 +287,6 @@ class GlobalStatsResponse(BaseModel):
     inactive_users: int = Field(..., description="Number of inactive users")
 
     total_content: int = Field(..., description="Total number of content items")
-    public_content: int = Field(..., description="Number of public content items")
     private_content: int = Field(..., description="Number of private content items")
 
     total_interactions: int = Field(..., description="Total number of recorded interactions")

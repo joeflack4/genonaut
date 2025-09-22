@@ -1,19 +1,19 @@
-"""baseline
+"""baseline schema after history reset
 
-Revision ID: 5cb2271fa220
+Revision ID: 480675ec2910
 Revises: 
-Create Date: 2025-09-18 20:10:43.173052
+Create Date: 2025-09-22 21:28:31.074959
 
 """
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-import genonaut.db.schema
+from genonaut.db.schema import JSONColumn
 
 
 # revision identifiers, used by Alembic.
-revision: str = '5cb2271fa220'
+revision: str = '480675ec2910'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -28,7 +28,7 @@ def upgrade() -> None:
     sa.Column('email', sa.String(length=255), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('preferences', genonaut.db.schema.JSONColumn(), nullable=True),
+    sa.Column('preferences', JSONColumn(), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
@@ -39,26 +39,47 @@ def upgrade() -> None:
     sa.Column('title', sa.String(length=255), nullable=False),
     sa.Column('content_type', sa.String(length=50), nullable=False),
     sa.Column('content_data', sa.Text(), nullable=False),
-    sa.Column('item_metadata', genonaut.db.schema.JSONColumn(), nullable=True),
+    sa.Column('item_metadata', JSONColumn(), nullable=True),
     sa.Column('creator_id', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('tags', genonaut.db.schema.JSONColumn(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('tags', JSONColumn(), nullable=True),
     sa.Column('quality_score', sa.Float(), nullable=True),
-    sa.Column('is_public', sa.Boolean(), nullable=False),
+    sa.Column('is_private', sa.Boolean(), nullable=False),
     sa.ForeignKeyConstraint(['creator_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index('ci_title_fts_idx', 'content_items', [sa.literal_column("to_tsvector('english', coalesce(title, ''))")], unique=False, postgresql_using='gin')
     op.create_index(op.f('ix_content_items_content_type'), 'content_items', ['content_type'], unique=False)
     op.create_index(op.f('ix_content_items_creator_id'), 'content_items', ['creator_id'], unique=False)
+    op.create_table('content_items_auto',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('title', sa.String(length=255), nullable=False),
+    sa.Column('content_type', sa.String(length=50), nullable=False),
+    sa.Column('content_data', sa.Text(), nullable=False),
+    sa.Column('item_metadata', JSONColumn(), nullable=True),
+    sa.Column('creator_id', sa.Integer(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('tags', JSONColumn(), nullable=True),
+    sa.Column('quality_score', sa.Float(), nullable=True),
+    sa.Column('is_private', sa.Boolean(), nullable=False),
+    sa.ForeignKeyConstraint(['creator_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index('cia_title_fts_idx', 'content_items_auto', [sa.literal_column("to_tsvector('english', coalesce(title, ''))")], unique=False, postgresql_using='gin')
+    op.create_index(op.f('ix_content_items_auto_content_type'), 'content_items_auto', ['content_type'], unique=False)
+    op.create_index(op.f('ix_content_items_auto_creator_id'), 'content_items_auto', ['creator_id'], unique=False)
     op.create_table('generation_jobs',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('job_type', sa.String(length=50), nullable=False),
     sa.Column('prompt', sa.Text(), nullable=False),
-    sa.Column('parameters', genonaut.db.schema.JSONColumn(), nullable=True),
+    sa.Column('parameters', JSONColumn(), nullable=True),
     sa.Column('status', sa.String(length=20), nullable=False),
     sa.Column('result_content_id', sa.Integer(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.Column('started_at', sa.DateTime(), nullable=True),
     sa.Column('completed_at', sa.DateTime(), nullable=True),
     sa.Column('error_message', sa.Text(), nullable=True),
@@ -66,6 +87,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index('gj_prompt_fts_idx', 'generation_jobs', [sa.literal_column("to_tsvector('english', coalesce(prompt, ''))")], unique=False, postgresql_using='gin')
     op.create_index(op.f('ix_generation_jobs_job_type'), 'generation_jobs', ['job_type'], unique=False)
     op.create_index(op.f('ix_generation_jobs_status'), 'generation_jobs', ['status'], unique=False)
     op.create_index(op.f('ix_generation_jobs_user_id'), 'generation_jobs', ['user_id'], unique=False)
@@ -77,11 +99,11 @@ def upgrade() -> None:
     sa.Column('algorithm_version', sa.String(length=50), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('is_served', sa.Boolean(), nullable=False),
-    sa.Column('rec_metadata', genonaut.db.schema.JSONColumn(), nullable=True),
+    sa.Column('served_at', sa.DateTime(), nullable=True),
+    sa.Column('rec_metadata', JSONColumn(), nullable=True),
     sa.ForeignKeyConstraint(['content_item_id'], ['content_items.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('user_id', 'content_item_id', 'algorithm_version', name='unique_user_content_recommendation')
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_recommendations_content_item_id'), 'recommendations', ['content_item_id'], unique=False)
     op.create_index(op.f('ix_recommendations_user_id'), 'recommendations', ['user_id'], unique=False)
@@ -93,7 +115,7 @@ def upgrade() -> None:
     sa.Column('rating', sa.Integer(), nullable=True),
     sa.Column('duration', sa.Integer(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('interaction_metadata', genonaut.db.schema.JSONColumn(), nullable=True),
+    sa.Column('interaction_metadata', JSONColumn(), nullable=True),
     sa.ForeignKeyConstraint(['content_item_id'], ['content_items.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id'),
@@ -118,9 +140,15 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_generation_jobs_user_id'), table_name='generation_jobs')
     op.drop_index(op.f('ix_generation_jobs_status'), table_name='generation_jobs')
     op.drop_index(op.f('ix_generation_jobs_job_type'), table_name='generation_jobs')
+    op.drop_index('gj_prompt_fts_idx', table_name='generation_jobs', postgresql_using='gin')
     op.drop_table('generation_jobs')
+    op.drop_index(op.f('ix_content_items_auto_creator_id'), table_name='content_items_auto')
+    op.drop_index(op.f('ix_content_items_auto_content_type'), table_name='content_items_auto')
+    op.drop_index('cia_title_fts_idx', table_name='content_items_auto', postgresql_using='gin')
+    op.drop_table('content_items_auto')
     op.drop_index(op.f('ix_content_items_creator_id'), table_name='content_items')
     op.drop_index(op.f('ix_content_items_content_type'), table_name='content_items')
+    op.drop_index('ci_title_fts_idx', table_name='content_items', postgresql_using='gin')
     op.drop_table('content_items')
     op.drop_index(op.f('ix_users_username'), table_name='users')
     op.drop_index(op.f('ix_users_email'), table_name='users')

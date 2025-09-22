@@ -99,7 +99,6 @@ class ContentItemColumns:
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     tags = Column(JSONColumn, default=list)
     quality_score = Column(Float, default=0.0)
-    is_public = Column(Boolean, default=True, nullable=False)
     is_private = Column(Boolean, default=False, nullable=False)
 
 
@@ -116,7 +115,6 @@ class ContentItem(ContentItemColumns, Base):
         created_at: Timestamp when content was created
         tags: JSON array of tags associated with the content
         quality_score: Quality score assigned to the content
-        is_public: Whether the content is publicly visible
     """
     __tablename__ = 'content_items'
     

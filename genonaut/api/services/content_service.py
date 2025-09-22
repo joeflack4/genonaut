@@ -57,7 +57,6 @@ class ContentService:
         creator_id: Optional[int] = None,
         item_metadata: Optional[Dict[str, Any]] = None,
         tags: Optional[List[str]] = None,
-        is_public: Optional[bool] = None,
         is_private: Optional[bool] = None,
     ) -> Any:
         """Create a new content record."""
@@ -69,7 +68,6 @@ class ContentService:
             final_creator_id = content_data_dict.get("creator_id")
             final_item_metadata = content_data_dict.get("item_metadata") or {}
             final_tags = content_data_dict.get("tags") or []
-            final_is_public = content_data_dict.get("is_public", True)
             final_is_private = content_data_dict.get("is_private", False)
         else:
             final_title = title
@@ -78,7 +76,6 @@ class ContentService:
             final_creator_id = creator_id
             final_item_metadata = item_metadata or {}
             final_tags = tags or []
-            final_is_public = True if is_public is None else is_public
             final_is_private = False if is_private is None else is_private
 
         if final_creator_id is None:
@@ -102,9 +99,6 @@ class ContentService:
         if not final_content_payload or not str(final_content_payload).strip():
             raise ValidationError("Content data cannot be empty")
 
-        if final_is_public and final_is_private:
-            raise ValidationError("Content cannot be both public and private")
-
         payload = {
             "title": final_title.strip(),
             "content_type": final_content_type,
@@ -112,7 +106,6 @@ class ContentService:
             "creator_id": final_creator_id,
             "item_metadata": final_item_metadata,
             "tags": final_tags,
-            "is_public": final_is_public,
             "is_private": final_is_private,
             "quality_score": 0.5,
         }
@@ -126,7 +119,6 @@ class ContentService:
         content_data: Optional[str] = None,
         item_metadata: Optional[Dict[str, Any]] = None,
         tags: Optional[List[str]] = None,
-        is_public: Optional[bool] = None,
         is_private: Optional[bool] = None,
     ) -> Any:
         """Update a content record in place."""
@@ -152,15 +144,8 @@ class ContentService:
         if tags is not None:
             update_data["tags"] = tags
 
-        if is_public is not None:
-            update_data["is_public"] = is_public
         if is_private is not None:
             update_data["is_private"] = is_private
-
-        final_is_public = update_data.get("is_public", content.is_public)
-        final_is_private = update_data.get("is_private", content.is_private)
-        if final_is_public and final_is_private:
-            raise ValidationError("Content cannot be both public and private")
 
         return self.repository.update(content_id, update_data)
 
@@ -190,7 +175,7 @@ class ContentService:
         if content_type:
             query = query.filter(self.model.content_type == content_type)
         if public_only:
-            query = query.filter(self.model.is_public.is_(True), self.model.is_private.is_(False))
+            query = query.filter(self.model.is_private.is_(False))
 
         results = query.order_by(desc(self.model.created_at)).all()
 
@@ -282,7 +267,6 @@ class ContentService:
         """Return basic statistics for the configured content model."""
 
         total_content = self.repository.count()
-        public_content = self.repository.count({"is_public": True, "is_private": False})
         private_content = self.repository.count({"is_private": True})
 
         type_breakdown = {
@@ -292,7 +276,6 @@ class ContentService:
 
         return {
             "total_content": total_content,
-            "public_content": public_content,
             "private_content": private_content,
             "type_breakdown": type_breakdown,
         }
