@@ -75,12 +75,12 @@ class TestDatabaseSeeding:
         assert len(users) >= 3
         
         usernames = [user.username for user in users]
-        assert "alice_creator" in usernames
+        assert "Admin" in usernames
         assert "bob_artist" in usernames
         assert "carol_reader" in usernames
         
         # Verify user preferences were loaded correctly
-        alice = self.session.query(User).filter_by(username="alice_creator").first()
+        alice = self.session.query(User).filter_by(username="Admin").first()
         assert alice is not None
         assert "sci-fi" in alice.preferences.get("favorite_genres", [])
         assert "text" in alice.preferences.get("content_types", [])
@@ -99,7 +99,7 @@ class TestDatabaseSeeding:
             title="AI-Generated Sci-Fi Story"
         ).first()
         assert sci_fi_story is not None
-        assert sci_fi_story.creator.username == "alice_creator"
+        assert sci_fi_story.creator.username == "Admin"
         assert "sci-fi" in sci_fi_story.tags
         assert sci_fi_story.quality_score == 0.85
 
@@ -116,7 +116,7 @@ class TestDatabaseSeeding:
             interaction_type="view"
         ).first()
         assert view_interaction is not None
-        assert view_interaction.user.username == "alice_creator"
+        assert view_interaction.user.username == "Admin"
         assert view_interaction.content_item.title == "Fantasy Landscape"
         assert view_interaction.rating == 5
         assert view_interaction.duration == 120
@@ -127,7 +127,7 @@ class TestDatabaseSeeding:
         
         # Verify specific recommendation
         alice_rec = self.session.query(Recommendation).join(User).filter(
-            User.username == "alice_creator"
+            User.username == "Admin"
         ).first()
         assert alice_rec is not None
         assert alice_rec.content_item.title == "Mystery Audio Drama"
@@ -144,7 +144,7 @@ class TestDatabaseSeeding:
             status="completed"
         ).first()
         assert completed_job is not None
-        assert completed_job.user.username == "alice_creator"
+        assert completed_job.user.username == "Admin"
         assert completed_job.job_type == "text"
         assert completed_job.result_content.title == "AI-Generated Sci-Fi Story"
         assert completed_job.started_at is not None
@@ -180,17 +180,17 @@ class TestDatabaseSeeding:
         seed_database_from_tsv(self.session)
         
         # Test User -> ContentItem relationship
-        alice = self.session.query(User).filter_by(username="alice_creator").first()
+        alice = self.session.query(User).filter_by(username="Admin").first()
         assert len(alice.content_items) > 0
         
         # Test ContentItem -> User relationship
         content = alice.content_items[0]
-        assert content.creator.username == "alice_creator"
+        assert content.creator.username == "Admin"
         
         # Test User -> UserInteraction relationship
         if len(alice.interactions) > 0:
             interaction = alice.interactions[0]
-            assert interaction.user.username == "alice_creator"
+            assert interaction.user.username == "Admin"
         
         # Test ContentItem -> UserInteraction relationship
         content_with_interactions = self.session.query(ContentItem).join(UserInteraction).first()
@@ -210,7 +210,7 @@ class TestDatabaseSeeding:
         seed_database_from_tsv(self.session)
         
         # Test user preferences (JSON field)
-        alice = self.session.query(User).filter_by(username="alice_creator").first()
+        alice = self.session.query(User).filter_by(username="Admin").first()
         preferences = alice.preferences
         assert isinstance(preferences, dict)
         assert "favorite_genres" in preferences

@@ -147,11 +147,11 @@ describe('DashboardPage', () => {
     expect(mockedUseGalleryList).toHaveBeenCalledWith({ limit: 5, sort: 'recent' })
     expect(screen.getByText('1')).toBeInTheDocument() // User gallery count
     expect(screen.getByText('3')).toBeInTheDocument() // Total gallery count
-    expect(screen.getByText('Your works')).toBeInTheDocument()
-    expect(screen.getByText('Community works')).toBeInTheDocument()
-    expect(screen.getByText('Your recent works')).toBeInTheDocument()
+    expect(screen.getByText('Your gens')).toBeInTheDocument()
+    expect(screen.getByText(''Community gens')).toBeInTheDocument()
+    expect(screen.getByText('Your recent gens')).toBeInTheDocument()
     expect(screen.getByText('Your recent auto-gens')).toBeInTheDocument()
-    expect(screen.getByText('Community recent works')).toBeInTheDocument()
+    expect(screen.getByText(''Community recent gens')).toBeInTheDocument()
     expect(screen.getByText('Community recent auto-gens')).toBeInTheDocument()
     expect(screen.getByText('User Content Item')).toBeInTheDocument() // User's recent gallery item
     expect(screen.getByText('User Auto-Gen Item')).toBeInTheDocument() // User's recent auto-gen

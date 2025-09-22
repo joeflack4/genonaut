@@ -125,17 +125,17 @@ test.describe('Dashboard', () => {
     await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible()
     await expect(page.getByRole('heading', { name: '1' })).toBeVisible() // User gallery count
     await expect(page.getByRole('heading', { name: '3' })).toBeVisible() // Total gallery count
-    await expect(page.getByText('Your works').first()).toBeVisible()
-    await expect(page.getByText('Community works').first()).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Your recent works' })).toBeVisible()
+    await expect(page.getByText('Your gens').first()).toBeVisible()
+    await expect(page.getByText('Community gens').first()).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Your recent gens' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Your recent auto-gens' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Community recent works' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Community recent gens' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Community recent auto-gens' })).toBeVisible()
 
     await expect(page.getByRole('heading', { level: 2 })).toHaveText([
-      'Your recent works',
+      'Your recent gens',
       'Your recent auto-gens',
-      'Community recent works',
+      'Community recent gens',
       'Community recent auto-gens',
     ])
     await expect(page.getByText('User Content Item').first()).toBeVisible() // User's recent gallery item

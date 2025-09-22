@@ -124,7 +124,7 @@ test.describe('Auth pages', () => {
 
     await expect(page).toHaveURL(/\/dashboard$/)
     await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Community recent works' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: ''Community recent gens' })).toBeVisible()
     await expect(page.getByText('Aurora Dreams').first()).toBeVisible()
   })
 

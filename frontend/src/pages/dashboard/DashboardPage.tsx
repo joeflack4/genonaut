@@ -4,8 +4,8 @@ import { useGalleryList, useGalleryAutoList, useGalleryStats, useCurrentUser } f
 const DEFAULT_USER_ID = 1
 
 const galleryStatItems = [
-  { key: 'userGalleryCount' as const, label: 'Your works' },
-  { key: 'totalGalleryCount' as const, label: 'Community works' },
+  { key: 'userGalleryCount' as const, label: 'Your gens' },
+  { key: 'totalGalleryCount' as const, label: ''Community gens' },
 ]
 
 export function DashboardPage() {
@@ -14,7 +14,7 @@ export function DashboardPage() {
 
   const { data: galleryStats, isLoading: galleryStatsLoading } = useGalleryStats(userId)
 
-  // Your recent works (regular content from content_items table)
+  // Your recent gens (regular content from content_items table)
   const { data: userRecentGallery, isLoading: userRecentGalleryLoading } = useGalleryList({
     limit: 5,
     sort: 'recent',
@@ -28,7 +28,7 @@ export function DashboardPage() {
     creator_id: userId,
   })
 
-  // Community recent works (regular content from content_items table, excluding user's content)
+  // Community recent gens (regular content from content_items table, excluding user's content)
   const { data: allRecentGallery, isLoading: recentGalleryLoading } = useGalleryList({
     limit: 20, // Get more to filter out user's content
     sort: 'recent',
@@ -88,7 +88,7 @@ export function DashboardPage() {
       <Card component="section">
         <CardContent>
           <Typography variant="h6" component="h2" gutterBottom>
-            Your recent works
+            Your recent gens
           </Typography>
           {userRecentGalleryLoading ? (
             <Stack spacing={2}>
@@ -148,7 +148,7 @@ export function DashboardPage() {
       <Card component="section">
         <CardContent>
           <Typography variant="h6" component="h2" gutterBottom>
-            Community recent works
+            Community recent gens
           </Typography>
           {recentGalleryLoading ? (
             <Stack spacing={2}>
@@ -169,7 +169,7 @@ export function DashboardPage() {
             </List>
           ) : (
             <Typography variant="body2" color="text.secondary">
-              No community recent works available.
+              No Community recent gens available.
             </Typography>
           )}
         </CardContent>

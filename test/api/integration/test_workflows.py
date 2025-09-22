@@ -6,14 +6,12 @@ import requests
 from datetime import datetime
 from typing import Dict, Any
 
-
-API_BASE_URL = os.getenv("API_BASE_URL", "http://0.0.0.0:8000")
-TEST_TIMEOUT = 30
+from .config import TEST_API_BASE_URL, TEST_TIMEOUT
 
 
 def make_request(method: str, endpoint: str, **kwargs) -> requests.Response:
     """Helper function to make API requests."""
-    url = f"{API_BASE_URL}{endpoint}"
+    url = f"{TEST_API_BASE_URL}{endpoint}"
     return requests.request(method, url, timeout=TEST_TIMEOUT, **kwargs)
 
 
@@ -391,5 +389,5 @@ def run_smoke_test():
 
 if __name__ == "__main__":
     """Run basic smoke test when executed directly."""
-    print(f"Testing API at: {API_BASE_URL}")
+    print(f"Testing API at: {TEST_API_BASE_URL}")
     run_smoke_test()
