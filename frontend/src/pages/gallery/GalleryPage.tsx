@@ -7,6 +7,7 @@ import {
   Chip,
   Drawer,
   FormControl,
+  FormControlLabel,
   IconButton,
   InputLabel,
   List,
@@ -17,16 +18,18 @@ import {
   Select,
   Skeleton,
   Stack,
+  Switch,
   TextField,
   Tooltip,
   Typography,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
-import { useGalleryList } from '../../hooks'
+import { useGalleryList, useGalleryAutoList, useCurrentUser } from '../../hooks'
 
 const PAGE_SIZE = 10
 const PANEL_WIDTH = 360
+const DEFAULT_USER_ID = 1
 
 type SortOption = 'recent' | 'top-rated'
 
@@ -34,6 +37,13 @@ interface FiltersState {
   search: string
   sort: SortOption
   page: number
+}
+
+interface ContentToggles {
+  yourWorks: boolean
+  yourAutoGens: boolean
+  communityWorks: boolean
+  communityAutoGens: boolean
 }
 
 const sortOptions: Array<{ value: SortOption; label: string }> = [
@@ -45,18 +55,106 @@ export function GalleryPage() {
   const [searchInput, setSearchInput] = useState('')
   const [filters, setFilters] = useState<FiltersState>({ search: '', sort: 'recent', page: 0 })
   const [optionsOpen, setOptionsOpen] = useState(true)
+  const [contentToggles, setContentToggles] = useState<ContentToggles>({
+    yourWorks: true,
+    yourAutoGens: true,
+    communityWorks: true,
+    communityAutoGens: true,
+  })
+
+  const { data: currentUser } = useCurrentUser()
+  const userId = currentUser?.id ?? DEFAULT_USER_ID
 
   const queryParams = useMemo(
     () => ({
-      limit: PAGE_SIZE,
-      skip: filters.page * PAGE_SIZE,
+      limit: PAGE_SIZE * 2, // Get more items to account for filtering
+      skip: 0, // We'll handle pagination after combining results
       search: filters.search,
       sort: filters.sort,
     }),
-    [filters]
+    [filters.search, filters.sort]
   )
 
-  const { data, isLoading } = useGalleryList(queryParams)
+  // Fetch data from different sources based on toggles
+  const { data: yourWorksData, isLoading: yourWorksLoading } = useGalleryList({
+    ...queryParams,
+    creator_id: userId,
+  })
+
+  const { data: yourAutoGensData, isLoading: yourAutoGensLoading } = useGalleryAutoList({
+    ...queryParams,
+    creator_id: userId,
+  })
+
+  const { data: allWorksData, isLoading: allWorksLoading } = useGalleryList(queryParams)
+
+  const { data: allAutoGensData, isLoading: allAutoGensLoading } = useGalleryAutoList(queryParams)
+
+  // Combine and filter data based on toggles
+  const combinedData = useMemo(() => {
+    const items = []
+
+    // Add your works if toggle is on
+    if (contentToggles.yourWorks && yourWorksData?.items) {
+      items.push(...yourWorksData.items)
+    }
+
+    // Add your auto-gens if toggle is on
+    if (contentToggles.yourAutoGens && yourAutoGensData?.items) {
+      items.push(...yourAutoGensData.items)
+    }
+
+    // Add community works if toggle is on (exclude user's own content)
+    if (contentToggles.communityWorks && allWorksData?.items) {
+      const communityWorks = allWorksData.items.filter(item => item.creatorId !== userId)
+      items.push(...communityWorks)
+    }
+
+    // Add community auto-gens if toggle is on (exclude user's own content)
+    if (contentToggles.communityAutoGens && allAutoGensData?.items) {
+      const communityAutoGens = allAutoGensData.items.filter(item => item.creatorId !== userId)
+      items.push(...communityAutoGens)
+    }
+
+    // Remove duplicates and sort
+    const uniqueItems = items.filter((item, index, self) =>
+      index === self.findIndex(i => i.id === item.id)
+    )
+
+    // Sort based on selected sort option
+    uniqueItems.sort((a, b) => {
+      if (filters.sort === 'recent') {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      } else {
+        // Top-rated sorting
+        return (b.qualityScore ?? 0) - (a.qualityScore ?? 0)
+      }
+    })
+
+    // Handle pagination
+    const startIndex = filters.page * PAGE_SIZE
+    const endIndex = startIndex + PAGE_SIZE
+    const paginatedItems = uniqueItems.slice(startIndex, endIndex)
+
+    return {
+      items: paginatedItems,
+      total: uniqueItems.length,
+      limit: PAGE_SIZE,
+      skip: startIndex,
+    }
+  }, [
+    contentToggles,
+    yourWorksData,
+    yourAutoGensData,
+    allWorksData,
+    allAutoGensData,
+    userId,
+    filters.sort,
+    filters.page,
+  ])
+
+  const isLoading = yourWorksLoading || yourAutoGensLoading || allWorksLoading || allAutoGensLoading
+  const data = combinedData
 
   const totalPages = useMemo(() => {
     if (!data?.total) {
@@ -77,6 +175,15 @@ export function GalleryPage() {
 
   const handlePageChange = (_event: React.ChangeEvent<unknown>, page: number) => {
     setFilters((prev) => ({ ...prev, page: page - 1 }))
+  }
+
+  const handleToggleChange = (toggleKey: keyof ContentToggles) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    setContentToggles((prev) => ({
+      ...prev,
+      [toggleKey]: event.target.checked,
+    }))
+    // Reset page when toggling content types
+    setFilters((prev) => ({ ...prev, page: 0 }))
   }
 
   return (
@@ -235,6 +342,53 @@ export function GalleryPage() {
                 ))}
               </Select>
             </FormControl>
+          </Stack>
+
+          <Stack spacing={2}>
+            <Typography variant="h6" component="h2">
+              Content Types
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Choose which types of content to include in your gallery view.
+            </Typography>
+            <Stack spacing={1}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={contentToggles.yourWorks}
+                    onChange={handleToggleChange('yourWorks')}
+                  />
+                }
+                label="Your works"
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={contentToggles.yourAutoGens}
+                    onChange={handleToggleChange('yourAutoGens')}
+                  />
+                }
+                label="Your auto-gens"
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={contentToggles.communityWorks}
+                    onChange={handleToggleChange('communityWorks')}
+                  />
+                }
+                label="Community works"
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={contentToggles.communityAutoGens}
+                    onChange={handleToggleChange('communityAutoGens')}
+                  />
+                }
+                label="Community auto-gens"
+              />
+            </Stack>
           </Stack>
         </Stack>
       </Drawer>
