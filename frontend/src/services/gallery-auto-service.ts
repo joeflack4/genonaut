@@ -2,16 +2,16 @@ import { ApiClient } from './api-client'
 import type { ApiContentItem, ApiContentQueryParams, ApiPaginatedResponse } from '../types/api'
 import type { GalleryItem, PaginatedResult } from '../types/domain'
 
-export type GalleryListParams = ApiContentQueryParams
+export type GalleryAutoListParams = ApiContentQueryParams
 
-export class GalleryService {
+export class GalleryAutoService {
   private readonly api: ApiClient
 
   constructor(api: ApiClient) {
     this.api = api
   }
 
-  async listGallery(params: GalleryListParams = {}): Promise<PaginatedResult<GalleryItem>> {
+  async listGalleryAuto(params: GalleryAutoListParams = {}): Promise<PaginatedResult<GalleryItem>> {
     const searchParams = new URLSearchParams()
 
     if (params.skip !== undefined) {
@@ -37,7 +37,7 @@ export class GalleryService {
     const query = searchParams.toString()
 
     const response = await this.api.get<ApiPaginatedResponse<ApiContentItem>>(
-      `/api/v1/content${query ? `?${query}` : ''}`
+      `/api/v1/content-auto${query ? `?${query}` : ''}`
     )
 
     return {

@@ -23,6 +23,7 @@ export interface GalleryItem {
   qualityScore: number | null
   createdAt: string
   updatedAt: string
+  creatorId: number
 }
 
 export interface RecommendationItem {

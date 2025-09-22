@@ -1,5 +1,6 @@
 export * from './useCurrentUser'
 export * from './useGalleryList'
+export * from './useGalleryAutoList'
 export * from './useGalleryStats'
 export * from './useRecommendations'
 export * from './useUserStats'

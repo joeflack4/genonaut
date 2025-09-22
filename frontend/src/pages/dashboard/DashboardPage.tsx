@@ -1,5 +1,5 @@
 import { Box, Card, CardContent, List, ListItem, ListItemText, Skeleton, Stack, Typography } from '@mui/material'
-import { useGalleryList, useGalleryStats, useCurrentUser } from '../../hooks'
+import { useGalleryList, useGalleryAutoList, useGalleryStats, useCurrentUser } from '../../hooks'
 
 const DEFAULT_USER_ID = 1
 
@@ -13,26 +13,43 @@ export function DashboardPage() {
   const userId = currentUser?.id ?? DEFAULT_USER_ID
 
   const { data: galleryStats, isLoading: galleryStatsLoading } = useGalleryStats(userId)
+
+  // Your recent works (regular content from content_items table)
   const { data: userRecentGallery, isLoading: userRecentGalleryLoading } = useGalleryList({
     limit: 5,
     sort: 'recent',
     creator_id: userId,
   })
-  // TODO: Replace with actual auto-gen filtering when API supports it
-  const { data: userRecentAutoGens, isLoading: userRecentAutoGensLoading } = useGalleryList({
+
+  // Your recent auto-gens (from content_items_auto table)
+  const { data: userRecentAutoGens, isLoading: userRecentAutoGensLoading } = useGalleryAutoList({
     limit: 5,
     sort: 'recent',
     creator_id: userId,
   })
-  const { data: recentGallery, isLoading: recentGalleryLoading } = useGalleryList({
-    limit: 5,
+
+  // Community recent works (regular content from content_items table, excluding user's content)
+  const { data: allRecentGallery, isLoading: recentGalleryLoading } = useGalleryList({
+    limit: 20, // Get more to filter out user's content
     sort: 'recent',
   })
-  // TODO: Replace with actual auto-gen filtering when API supports it
-  const { data: communityRecentAutoGens, isLoading: communityRecentAutoGensLoading } = useGalleryList({
-    limit: 5,
+
+  // Community recent auto-gens (from content_items_auto table, excluding user's content)
+  const { data: allRecentAutoGens, isLoading: communityRecentAutoGensLoading } = useGalleryAutoList({
+    limit: 20, // Get more to filter out user's content
     sort: 'recent',
   })
+
+  // Filter community content to exclude user's own content
+  const recentGallery = allRecentGallery ? {
+    ...allRecentGallery,
+    items: allRecentGallery.items.filter(item => item.creatorId !== userId).slice(0, 5)
+  } : undefined
+
+  const communityRecentAutoGens = allRecentAutoGens ? {
+    ...allRecentAutoGens,
+    items: allRecentAutoGens.items.filter(item => item.creatorId !== userId).slice(0, 5)
+  } : undefined
 
   return (
     <Stack spacing={4} component="section">
