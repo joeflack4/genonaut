@@ -190,7 +190,7 @@ export function AppLayout() {
           component="main"
           sx={{
             flexGrow: 1,
-            py: 4,
+            py: 2,
             ml: { md: sidebarOpen ? 0 : `-${drawerWidth}px` },
             transition: theme.transitions.create(['margin'], {
               easing: theme.transitions.easing.sharp,

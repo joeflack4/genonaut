@@ -211,11 +211,6 @@ export function GalleryPage() {
         sx={{
           display: 'flex',
           flexDirection: 'column',
-          transition: (theme) =>
-            theme.transitions.create('margin-right', {
-              duration: theme.transitions.duration.enteringScreen,
-            }),
-          mr: { md: optionsOpen ? `${PANEL_WIDTH}px` : 0 },
         }}
       >
         <Stack spacing={4}>
@@ -285,13 +280,11 @@ export function GalleryPage() {
 
       <Drawer
         anchor="right"
-        variant="persistent"
+        variant="temporary"
         open={optionsOpen}
         ModalProps={{ keepMounted: true }}
         onClose={() => setOptionsOpen(false)}
         sx={{
-          width: PANEL_WIDTH,
-          flexShrink: 0,
           '& .MuiDrawer-paper': {
             width: { xs: '100%', md: PANEL_WIDTH },
             boxSizing: 'border-box',
