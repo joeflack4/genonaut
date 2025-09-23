@@ -1,6 +1,7 @@
 """User interaction repository for database operations."""
 
 from typing import List, Optional, Dict, Any
+from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func, desc, asc
@@ -17,7 +18,7 @@ class InteractionRepository(BaseRepository[UserInteraction, Dict[str, Any], Dict
     def __init__(self, db: Session):
         super().__init__(db, UserInteraction)
     
-    def get_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> List[UserInteraction]:
+    def get_by_user(self, user_id: UUID, skip: int = 0, limit: int = 100) -> List[UserInteraction]:
         """Get interactions by user.
         
         Args:
@@ -44,7 +45,7 @@ class InteractionRepository(BaseRepository[UserInteraction, Dict[str, Any], Dict
             raise DatabaseError(f"Failed to get interactions by user {user_id}: {str(e)}")
 
     # Aliases expected by legacy tests
-    def get_by_user_id(self, user_id: int, skip: int = 0, limit: int = 100) -> List[UserInteraction]:
+    def get_by_user_id(self, user_id: UUID, skip: int = 0, limit: int = 100) -> List[UserInteraction]:
         return self.get_by_user(user_id, skip=skip, limit=limit)
     
     def get_by_content(self, content_item_id: int, skip: int = 0, limit: int = 100) -> List[UserInteraction]:
@@ -109,7 +110,7 @@ class InteractionRepository(BaseRepository[UserInteraction, Dict[str, Any], Dict
     
     def get_user_content_interaction(
         self, 
-        user_id: int, 
+        user_id: UUID, 
         content_item_id: int, 
         interaction_type: str
     ) -> Optional[UserInteraction]:
@@ -141,7 +142,7 @@ class InteractionRepository(BaseRepository[UserInteraction, Dict[str, Any], Dict
     
     def get_recent_interactions(
         self, 
-        user_id: int, 
+        user_id: UUID, 
         days: int = 30, 
         limit: int = 100
     ) -> List[UserInteraction]:
@@ -211,7 +212,7 @@ class InteractionRepository(BaseRepository[UserInteraction, Dict[str, Any], Dict
         except SQLAlchemyError as e:
             raise DatabaseError(f"Failed to get interaction stats for content {content_item_id}: {str(e)}")
     
-    def get_user_interaction_summary(self, user_id: int) -> Dict[str, Any]:
+    def get_user_interaction_summary(self, user_id: UUID) -> Dict[str, Any]:
         """Get interaction summary for a user.
         
         Args:
@@ -256,7 +257,7 @@ class InteractionRepository(BaseRepository[UserInteraction, Dict[str, Any], Dict
     
     def record_interaction(
         self,
-        user_id: int,
+        user_id: UUID,
         content_item_id: int,
         interaction_type: str,
         rating: Optional[int] = None,

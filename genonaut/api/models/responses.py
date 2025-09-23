@@ -2,6 +2,7 @@
 
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+from uuid import UUID
 from pydantic import BaseModel, Field
 
 from genonaut.api.models.enums import ContentType, InteractionType, JobStatus, JobType
@@ -9,7 +10,7 @@ from genonaut.api.models.enums import ContentType, InteractionType, JobStatus, J
 
 class UserResponse(BaseModel):
     """Response model for user data."""
-    id: int = Field(..., description="User ID")
+    id: UUID = Field(..., description="User ID")
     username: str = Field(..., description="Username")
     email: str = Field(..., description="Email address")
     created_at: datetime = Field(..., description="User creation timestamp")
@@ -53,7 +54,7 @@ class ContentResponse(BaseModel):
     content_type: ContentType = Field(..., description="Content type")
     content_data: str = Field(..., description="Content data")
     item_metadata: Dict[str, Any] = Field(..., description="Content metadata")
-    creator_id: int = Field(..., description="Creator user ID")
+    creator_id: UUID = Field(..., description="Creator user ID")
     created_at: datetime = Field(..., description="Content creation timestamp")
     tags: List[str] = Field(..., description="Content tags")
     quality_score: float = Field(..., description="Content quality score")
@@ -98,7 +99,7 @@ class ContentStatsResponse(BaseModel):
 class InteractionResponse(BaseModel):
     """Response model for interaction data."""
     id: int = Field(..., description="Interaction ID")
-    user_id: int = Field(..., description="User ID")
+    user_id: UUID = Field(..., description="User ID")
     content_item_id: int = Field(..., description="Content item ID")
     interaction_type: InteractionType = Field(..., description="Interaction type")
     rating: Optional[int] = Field(..., description="Rating (1-5 scale)")
@@ -128,14 +129,14 @@ class InteractionStatsResponse(BaseModel):
 
 class InteractionSummaryResponse(BaseModel):
     """Response model for user interaction summary."""
-    user_id: int = Field(..., description="User ID")
+    user_id: UUID = Field(..., description="User ID")
     summary: Dict[str, Any] = Field(..., description="Interaction summary by type")
 
 
 class RecommendationResponse(BaseModel):
     """Response model for recommendation data."""
     id: int = Field(..., description="Recommendation ID")
-    user_id: int = Field(..., description="User ID")
+    user_id: UUID = Field(..., description="User ID")
     content_item_id: int = Field(..., description="Content item ID")
     recommendation_score: float = Field(..., description="Recommendation score")
     algorithm_version: str = Field(..., description="Algorithm version")
@@ -159,7 +160,7 @@ class RecommendationListResponse(BaseModel):
 
 class RecommendationStatsResponse(BaseModel):
     """Response model for recommendation statistics."""
-    user_id: Optional[int] = Field(..., description="User ID (if filtered)")
+    user_id: Optional[UUID] = Field(..., description="User ID (if filtered)")
     total_recommendations: int = Field(..., description="Total number of recommendations")
     served_recommendations: int = Field(..., description="Number of served recommendations")
     unserved_recommendations: int = Field(..., description="Number of unserved recommendations")
@@ -182,7 +183,7 @@ class RecommendationServedResponse(BaseModel):
 class GenerationJobResponse(BaseModel):
     """Response model for generation job data."""
     id: int = Field(..., description="Job ID")
-    user_id: int = Field(..., description="User ID")
+    user_id: UUID = Field(..., description="User ID")
     job_type: JobType = Field(..., description="Job type")
     prompt: str = Field(..., description="Generation prompt")
     parameters: Dict[str, Any] = Field(..., description="Generation parameters")
@@ -210,7 +211,7 @@ class GenerationJobListResponse(BaseModel):
 
 class GenerationJobStatsResponse(BaseModel):
     """Response model for generation job statistics."""
-    user_id: Optional[int] = Field(..., description="User ID (if filtered)")
+    user_id: Optional[UUID] = Field(..., description="User ID (if filtered)")
     total_jobs: int = Field(..., description="Total number of jobs")
     status_breakdown: Dict[str, int] = Field(..., description="Job count by status")
     type_breakdown: Dict[str, int] = Field(..., description="Job count by type")

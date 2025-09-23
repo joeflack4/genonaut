@@ -1,6 +1,7 @@
 """Generation service for business logic operations."""
 
 from typing import List, Optional, Dict, Any, Union
+from uuid import UUID
 from sqlalchemy.orm import Session
 
 from genonaut.db.schema import GenerationJob
@@ -35,7 +36,7 @@ class GenerationService:
     
     def get_user_jobs(
         self, 
-        user_id: int, 
+        user_id: UUID, 
         skip: int = 0, 
         limit: int = 100,
         status: Optional[str] = None
@@ -100,12 +101,12 @@ class GenerationService:
         prompt: str = None,
         parameters: Optional[Dict[str, Any]] = None,
         *,
-        user_id: int = None
+        user_id: UUID = None
     ) -> GenerationJob:
         """Create a new generation job.
         
         Args:
-            user_id_or_data: Either user_id int OR complete job data dict
+            user_id_or_data: Either user_id UUID OR complete job data dict
             job_type: Type of generation job (if user_id_or_data is user_id)
             prompt: Generation prompt (if user_id_or_data is user_id)
             parameters: Optional generation parameters (if user_id_or_data is user_id)
@@ -242,7 +243,7 @@ class GenerationService:
     
     def get_completed_jobs(
         self, 
-        user_id: Optional[int] = None, 
+        user_id: Optional[UUID] = None, 
         days: int = 30, 
         limit: int = 100
     ) -> List[GenerationJob]:
@@ -264,7 +265,7 @@ class GenerationService:
     
     def get_failed_jobs(
         self, 
-        user_id: Optional[int] = None, 
+        user_id: Optional[UUID] = None, 
         days: int = 7, 
         limit: int = 100
     ) -> List[GenerationJob]:
@@ -284,7 +285,7 @@ class GenerationService:
         
         return self.repository.get_failed_jobs(user_id=user_id, days=days, limit=limit)
     
-    def get_job_statistics(self, user_id: Optional[int] = None) -> Dict[str, Any]:
+    def get_job_statistics(self, user_id: Optional[UUID] = None) -> Dict[str, Any]:
         """Get generation job statistics.
         
         Args:

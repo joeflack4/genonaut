@@ -1,6 +1,7 @@
 """Recommendation repository for database operations."""
 
 from typing import List, Optional, Dict, Any
+from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func, desc, asc
@@ -17,7 +18,7 @@ class RecommendationRepository(BaseRepository[Recommendation, Dict[str, Any], Di
     def __init__(self, db: Session):
         super().__init__(db, Recommendation)
     
-    def get_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> List[Recommendation]:
+    def get_by_user(self, user_id: UUID, skip: int = 0, limit: int = 100) -> List[Recommendation]:
         """Get recommendations for a user.
         
         Args:
@@ -43,7 +44,7 @@ class RecommendationRepository(BaseRepository[Recommendation, Dict[str, Any], Di
         except SQLAlchemyError as e:
             raise DatabaseError(f"Failed to get recommendations for user {user_id}: {str(e)}")
 
-    def get_by_user_id(self, user_id: int, skip: int = 0, limit: int = 100) -> List[Recommendation]:
+    def get_by_user_id(self, user_id: UUID, skip: int = 0, limit: int = 100) -> List[Recommendation]:
         return self.get_by_user(user_id, skip=skip, limit=limit)
     
     def get_by_content(self, content_item_id: int, skip: int = 0, limit: int = 100) -> List[Recommendation]:
@@ -77,7 +78,7 @@ class RecommendationRepository(BaseRepository[Recommendation, Dict[str, Any], Di
     
     def get_top_recommendations(
         self, 
-        user_id: int, 
+        user_id: UUID, 
         min_score: float = 0.5, 
         limit: int = 10
     ) -> List[Recommendation]:
@@ -110,7 +111,7 @@ class RecommendationRepository(BaseRepository[Recommendation, Dict[str, Any], Di
     
     def get_unserved_recommendations(
         self, 
-        user_id: int, 
+        user_id: UUID, 
         limit: int = 20
     ) -> List[Recommendation]:
         """Get unserved recommendations for a user.
@@ -173,7 +174,7 @@ class RecommendationRepository(BaseRepository[Recommendation, Dict[str, Any], Di
     
     def get_recent_recommendations(
         self, 
-        user_id: int, 
+        user_id: UUID, 
         days: int = 7, 
         limit: int = 50
     ) -> List[Recommendation]:
@@ -239,7 +240,7 @@ class RecommendationRepository(BaseRepository[Recommendation, Dict[str, Any], Di
             self.db.rollback()
             raise DatabaseError(f"Failed to mark recommendations as served: {str(e)}")
     
-    def get_recommendation_stats(self, user_id: int) -> Dict[str, Any]:
+    def get_recommendation_stats(self, user_id: UUID) -> Dict[str, Any]:
         """Get recommendation statistics for a user.
         
         Args:
@@ -307,7 +308,7 @@ class RecommendationRepository(BaseRepository[Recommendation, Dict[str, Any], Di
     
     def create_recommendation(
         self,
-        user_id: int,
+        user_id: UUID,
         content_item_id: int,
         recommendation_score: float,
         algorithm_version: str,

@@ -189,7 +189,6 @@ def test_content_data():
         "title": "Test Content for API",
         "content_type": "text",
         "content_data": "This is test content created via API",
-        "creator_id": 1,  # Will be updated with actual user ID
         "item_metadata": {"category": "test", "source": "api_test"},
         "tags": ["test", "api", "integration"],
         "is_public": True,
@@ -278,7 +277,8 @@ class TestUserEndpoints:
     
     def test_get_user_not_found(self, api_client):
         """Test getting non-existent user returns 404."""
-        response = api_client.get("/api/v1/users/99999")
+        import uuid
+        response = api_client.get(f"/api/v1/users/{uuid.uuid4()}")
         assert response.status_code == 404
         
         data = response.json()
@@ -289,6 +289,7 @@ class TestUserEndpoints:
         """Test updating user information."""
         # Create user first
         create_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert create_response.status_code == 201
         user_id = create_response.json()["id"]
         
         # Update user
@@ -308,6 +309,7 @@ class TestUserEndpoints:
         """Test updating user preferences."""
         # Create user first
         create_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert create_response.status_code == 201
         user_id = create_response.json()["id"]
         
         # Update preferences
@@ -331,7 +333,8 @@ class TestUserEndpoints:
     def test_search_users(self, api_client, test_user_data):
         """Test searching users."""
         # Create a user first
-        api_client.post("/api/v1/users", json_data=test_user_data)
+        create_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert create_response.status_code == 201
         
         # Search for users
         search_params = {
@@ -351,6 +354,7 @@ class TestUserEndpoints:
         """Test getting user statistics."""
         # Create user first
         create_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert create_response.status_code == 201
         user_id = create_response.json()["id"]
         
         response = api_client.get(f"/api/v1/users/{user_id}/stats")
@@ -371,6 +375,7 @@ class TestContentEndpoints:
         """Test creating new content."""
         # Create user first
         user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert user_response.status_code == 201
         user_id = user_response.json()["id"]
         
         # Update content data with real user ID
@@ -392,10 +397,12 @@ class TestContentEndpoints:
         """Test getting content by ID."""
         # Create user and content first
         user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert user_response.status_code == 201
         user_id = user_response.json()["id"]
         test_content_data["creator_id"] = user_id
         
         create_response = api_client.post("/api/v1/content", json_data=test_content_data)
+        assert create_response.status_code == 201
         content_id = create_response.json()["id"]
         
         # Get content
@@ -443,10 +450,12 @@ class TestContentEndpoints:
         """Test updating content quality score."""
         # Create user and content first
         user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert user_response.status_code == 201
         user_id = user_response.json()["id"]
         test_content_data["creator_id"] = user_id
         
         create_response = api_client.post("/api/v1/content", json_data=test_content_data)
+        assert create_response.status_code == 201
         content_id = create_response.json()["id"]
         
         # Update quality score
@@ -465,10 +474,12 @@ class TestInteractionEndpoints:
         """Test recording a user interaction."""
         # Create user and content first
         user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert user_response.status_code == 201
         user_id = user_response.json()["id"]
         test_content_data["creator_id"] = user_id
         
         content_response = api_client.post("/api/v1/content", json_data=test_content_data)
+        assert content_response.status_code == 201
         content_id = content_response.json()["id"]
         
         # Record interaction
@@ -496,6 +507,7 @@ class TestInteractionEndpoints:
         """Test getting interactions for a user."""
         # Create user first
         user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert user_response.status_code == 201
         user_id = user_response.json()["id"]
         
         # Get user interactions
@@ -511,6 +523,7 @@ class TestInteractionEndpoints:
         """Test getting interaction analytics."""
         # Create user first
         user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert user_response.status_code == 201
         user_id = user_response.json()["id"]
         
         response = api_client.get(f"/api/v1/interactions/analytics/user-behavior/{user_id}")
@@ -529,10 +542,12 @@ class TestRecommendationEndpoints:
         """Test creating a recommendation."""
         # Create user and content first
         user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert user_response.status_code == 201
         user_id = user_response.json()["id"]
         test_content_data["creator_id"] = user_id
         
         content_response = api_client.post("/api/v1/content", json_data=test_content_data)
+        assert content_response.status_code == 201
         content_id = content_response.json()["id"]
         
         # Create recommendation
@@ -557,6 +572,7 @@ class TestRecommendationEndpoints:
         """Test getting recommendations for a user."""
         # Create user first
         user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert user_response.status_code == 201
         user_id = user_response.json()["id"]
         
         response = api_client.get(f"/api/v1/recommendations/user/{user_id}/recommendations")
@@ -571,6 +587,7 @@ class TestRecommendationEndpoints:
         """Test generating recommendations for a user."""
         # Create user first
         user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert user_response.status_code == 201
         user_id = user_response.json()["id"]
         
         gen_data = {
@@ -595,6 +612,7 @@ class TestGenerationJobEndpoints:
         """Test creating a generation job."""
         # Create user first
         user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert user_response.status_code == 201
         user_id = user_response.json()["id"]
         
         job_data = {
@@ -623,6 +641,7 @@ class TestGenerationJobEndpoints:
         """Test getting generation job by ID."""
         # Create user and job first
         user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert user_response.status_code == 201
         user_id = user_response.json()["id"]
         
         job_data = {
@@ -632,6 +651,7 @@ class TestGenerationJobEndpoints:
         }
         
         create_response = api_client.post("/api/v1/generation-jobs", json_data=job_data)
+        assert create_response.status_code == 201
         job_id = create_response.json()["id"]
         
         # Get job
@@ -662,6 +682,7 @@ class TestGenerationJobEndpoints:
         """Test updating generation job status."""
         # Create user and job first
         user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert user_response.status_code == 201
         user_id = user_response.json()["id"]
         
         job_data = {
@@ -671,6 +692,7 @@ class TestGenerationJobEndpoints:
         }
         
         create_response = api_client.post("/api/v1/generation-jobs", json_data=job_data)
+        assert create_response.status_code == 201
         job_id = create_response.json()["id"]
         
         # Update status
@@ -688,6 +710,7 @@ class TestGenerationJobEndpoints:
         """Test cancelling a generation job."""
         # Create user first
         user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert user_response.status_code == 201
         user_id = user_response.json()["id"]
 
         # First create a generation job
@@ -721,6 +744,7 @@ class TestGenerationJobEndpoints:
         """Test cancelling a generation job without providing a reason."""
         # Create user first
         user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert user_response.status_code == 201
         user_id = user_response.json()["id"]
 
         # First create a generation job
@@ -753,6 +777,7 @@ class TestGenerationJobEndpoints:
         """Test that cancelling a completed job fails."""
         # Create user first
         user_response = api_client.post("/api/v1/users", json_data=test_user_data)
+        assert user_response.status_code == 201
         user_id = user_response.json()["id"]
 
         # First create a generation job

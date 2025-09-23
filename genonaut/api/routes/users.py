@@ -1,6 +1,7 @@
 """User management API routes."""
 
 from typing import List
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
@@ -113,7 +114,7 @@ async def search_users_post(
 
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(
-    user_id: int,
+    user_id: UUID,
     db: Session = Depends(get_database_session)
 ):
     """Get user by ID."""
@@ -127,7 +128,7 @@ async def get_user(
 
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_user(
-    user_id: int,
+    user_id: UUID,
     user_data: UserUpdateRequest,
     db: Session = Depends(get_database_session)
 ):
@@ -149,7 +150,7 @@ async def update_user(
 
 @router.delete("/{user_id}", response_model=SuccessResponse)
 async def delete_user(
-    user_id: int,
+    user_id: UUID,
     db: Session = Depends(get_database_session)
 ):
     """Delete a user."""
@@ -163,7 +164,7 @@ async def delete_user(
 
 @router.put("/{user_id}/preferences", response_model=UserResponse)
 async def update_user_preferences(
-    user_id: int,
+    user_id: UUID,
     preferences_data: UserPreferencesUpdateRequest,
     db: Session = Depends(get_database_session)
 ):
@@ -178,7 +179,7 @@ async def update_user_preferences(
 
 @router.get("/{user_id}/interactions", response_model=InteractionListResponse)
 async def get_user_interactions(
-    user_id: int,
+    user_id: UUID,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_database_session)
@@ -199,7 +200,7 @@ async def get_user_interactions(
 
 @router.post("/{user_id}/deactivate", response_model=UserResponse)
 async def deactivate_user(
-    user_id: int,
+    user_id: UUID,
     db: Session = Depends(get_database_session)
 ):
     """Deactivate a user account."""
@@ -213,7 +214,7 @@ async def deactivate_user(
 
 @router.post("/{user_id}/activate", response_model=UserResponse)
 async def activate_user(
-    user_id: int,
+    user_id: UUID,
     db: Session = Depends(get_database_session)
 ):
     """Activate a user account."""
@@ -227,7 +228,7 @@ async def activate_user(
 
 @router.get("/{user_id}/stats", response_model=UserActivityStatsResponse)
 async def get_user_statistics(
-    user_id: int,
+    user_id: UUID,
     db: Session = Depends(get_database_session)
 ):
     """Get activity statistics for a specific user."""

@@ -1,6 +1,7 @@
 """User interaction API routes."""
 
 from typing import List, Dict, Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
@@ -155,7 +156,7 @@ async def get_interactions(
 
 @router.get("/user/{user_id}/interactions", response_model=InteractionListResponse)
 async def get_user_interactions(
-    user_id: int,
+    user_id: UUID,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_database_session)
@@ -178,7 +179,7 @@ async def get_user_interactions(
 
 @router.get("/user/{user_id}/recent", response_model=InteractionListResponse)
 async def get_user_recent_interactions(
-    user_id: int,
+    user_id: UUID,
     days: int = 30,
     limit: int = 100,
     db: Session = Depends(get_database_session)
@@ -200,7 +201,7 @@ async def get_user_recent_interactions(
 
 @router.get("/user/{user_id}/summary", response_model=InteractionSummaryResponse)
 async def get_user_interaction_summary(
-    user_id: int,
+    user_id: UUID,
     db: Session = Depends(get_database_session)
 ):
     """Get interaction summary for a user."""
@@ -271,7 +272,7 @@ async def get_interactions_by_type(
 
 @router.get("/user/{user_id}/content/{content_item_id}/{interaction_type}", response_model=InteractionResponse)
 async def get_user_content_interaction(
-    user_id: int,
+    user_id: UUID,
     content_item_id: int,
     interaction_type: str,
     db: Session = Depends(get_database_session)
@@ -292,7 +293,7 @@ async def get_user_content_interaction(
 
 @router.get("/analytics/user-behavior/{user_id}")
 async def get_user_behavior_analytics(
-    user_id: int,
+    user_id: UUID,
     db: Session = Depends(get_database_session)
 ):
     """Provide high-level analytics for a user's interaction history."""

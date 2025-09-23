@@ -1,6 +1,5 @@
-"""Interaction service for business logic operations."""
-
 from typing import List, Optional, Dict, Any
+from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -35,7 +34,7 @@ class InteractionService:
     
     def get_user_interactions(
         self, 
-        user_id: int, 
+        user_id: UUID, 
         skip: int = 0, 
         limit: int = 100
     ) -> List[UserInteraction]:
@@ -88,12 +87,12 @@ class InteractionService:
         duration: Optional[int] = None,
         metadata: Optional[Dict[str, Any]] = None,
         *,
-        user_id: int = None
+        user_id: UUID = None
     ) -> UserInteraction:
         """Record a new user interaction.
         
         Args:
-            user_id_or_data: Either user_id int OR complete interaction data dict
+            user_id_or_data: Either user_id UUID OR complete interaction data dict
             content_item_id: Content item ID (if user_id_or_data is user_id)
             interaction_type: Type of interaction (if user_id_or_data is user_id)
             rating: Optional rating (if user_id_or_data is user_id)
@@ -180,7 +179,7 @@ class InteractionService:
     
     def get_recent_user_interactions(
         self, 
-        user_id: int, 
+        user_id: UUID, 
         days: int = 30, 
         limit: int = 100
     ) -> List[UserInteraction]:
@@ -221,7 +220,7 @@ class InteractionService:
     
     def get_user_content_interaction(
         self, 
-        user_id: int, 
+        user_id: UUID, 
         content_item_id: int, 
         interaction_type: str
     ) -> Optional[UserInteraction]:
@@ -260,7 +259,7 @@ class InteractionService:
         self.content_repository.get_or_404(content_item_id)
         return self.repository.get_interaction_stats_by_content(content_item_id)
     
-    def get_user_interaction_summary(self, user_id: int) -> Dict[str, Any]:
+    def get_user_interaction_summary(self, user_id: UUID) -> Dict[str, Any]:
         """Get interaction summary for a user.
         
         Args:
@@ -332,7 +331,7 @@ class InteractionService:
         """
         return self.repository.delete(interaction_id)
     
-    def get_user_behavior_analytics(self, user_id: int) -> Dict[str, Any]:
+    def get_user_behavior_analytics(self, user_id: UUID) -> Dict[str, Any]:
         """Get behavior analytics for a specific user.
         
         Args:

@@ -1,6 +1,7 @@
 """User repository for database operations."""
 
 from typing import List, Optional, Dict, Any
+from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.attributes import flag_modified
@@ -123,7 +124,7 @@ class UserRepository(BaseRepository[User, Dict[str, Any], Dict[str, Any]]):
 
         return [user for user in users if matches(user)]
 
-    def update_preferences(self, user_id: int, preferences: Dict[str, Any]) -> User:
+    def update_preferences(self, user_id: UUID, preferences: Dict[str, Any]) -> User:
         """Update user preferences.
         
         Args:
@@ -154,7 +155,7 @@ class UserRepository(BaseRepository[User, Dict[str, Any], Dict[str, Any]]):
             self.db.rollback()
             raise DatabaseError(f"Failed to update preferences for user {user_id}: {str(e)}")
 
-    def delete(self, user_id: int) -> User:
+    def delete(self, user_id: UUID) -> User:
         """Soft delete a user by marking them inactive.
 
         Args:

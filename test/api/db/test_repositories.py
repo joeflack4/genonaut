@@ -240,21 +240,6 @@ class TestContentRepository:
 
         assert sample_content.id in [c.id for c in content_list]
 
-    def test_get_public_content(self, test_db_session, sample_user):
-        repo = ContentRepository(test_db_session)
-        private_content = ContentItem(
-            title="Private Content",
-            content_type="text",
-            content_data="Private data",
-            creator_id=sample_user.id,
-            is_public=False,
-        )
-        test_db_session.add(private_content)
-        test_db_session.commit()
-
-        public_content = repo.get_public_content()
-        assert all(item.is_public for item in public_content)
-
     def test_update_quality_score(self, test_db_session, sample_content):
         repo = ContentRepository(test_db_session)
         updated_content = repo.update_quality_score(sample_content.id, 0.85)
@@ -280,12 +265,6 @@ class TestContentAutoRepository:
         )
 
         assert isinstance(content, ContentItemAuto)
-
-    def test_public_auto_content_listing(self, test_db_session, sample_auto_content):
-        repo = ContentRepository(test_db_session, model=ContentItemAuto)
-        results = repo.get_public_content()
-
-        assert any(record.id == sample_auto_content.id for record in results)
 
 
 class TestInteractionRepository:

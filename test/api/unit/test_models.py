@@ -1,6 +1,7 @@
 """Unit tests for Pydantic API models."""
 
 import pytest
+from uuid import uuid4, UUID
 from pydantic import ValidationError
 
 from genonaut.api.models.requests import (
@@ -17,6 +18,11 @@ from genonaut.api.models.responses import (
     ErrorResponse, PaginatedResponse
 )
 from genonaut.api.models.enums import ContentType, InteractionType, JobType
+
+# Test UUIDs for consistent use across tests
+TEST_USER_ID = UUID("550e8400-e29b-41d4-a716-446655440000")
+TEST_CREATOR_ID = UUID("550e8400-e29b-41d4-a716-446655440001")
+TEST_CONTENT_ID = UUID("550e8400-e29b-41d4-a716-446655440002")
 
 
 class TestUserModels:
@@ -99,7 +105,7 @@ class TestContentModels:
             "title": "Test Content",
             "content_type": ContentType.TEXT,
             "content_data": "This is test content",
-            "creator_id": 1,
+            "creator_id": TEST_CREATOR_ID,
             "item_metadata": {"category": "test"},
             "tags": ["tag1", "tag2"],
             "is_public": True,
@@ -108,7 +114,7 @@ class TestContentModels:
         content = ContentCreateRequest(**data)
         assert content.title == "Test Content"
         assert content.content_type == ContentType.TEXT
-        assert content.creator_id == 1
+        assert content.creator_id == TEST_CREATOR_ID
         assert set(content.tags) == {"tag1", "tag2"}
     
     def test_content_create_request_invalid_creator_id(self):
@@ -117,7 +123,7 @@ class TestContentModels:
             "title": "Test Content",
             "content_type": ContentType.TEXT,
             "content_data": "This is test content",
-            "creator_id": 0  # Invalid - must be > 0
+            "creator_id": "invalid-uuid"  # Invalid UUID format
         }
         with pytest.raises(ValidationError):
             ContentCreateRequest(**data)
@@ -128,7 +134,7 @@ class TestContentModels:
             "title": "Test Content",
             "content_type": ContentType.TEXT,
             "content_data": "This is test content",
-            "creator_id": 1,
+            "creator_id": TEST_CREATOR_ID,
             "is_private": True
         }
         content = ContentCreateRequest(**data)
@@ -140,7 +146,7 @@ class TestContentModels:
             "title": "Test Content",
             "content_type": ContentType.TEXT,
             "content_data": "This is test content",
-            "creator_id": 1,
+            "creator_id": TEST_CREATOR_ID,
             "tags": [f"tag{i}" for i in range(25)]  # Too many tags
         }
         with pytest.raises(ValidationError) as exc_info:
@@ -153,7 +159,7 @@ class TestContentModels:
             "title": "Test Content",
             "content_type": ContentType.TEXT,
             "content_data": "This is test content",
-            "creator_id": 1,
+            "creator_id": TEST_CREATOR_ID,
             "tags": ["tag1", "tag2", "tag1", "tag3", "tag2"]  # Duplicates
         }
         content = ContentCreateRequest(**data)
@@ -181,7 +187,7 @@ class TestInteractionModels:
     def test_interaction_create_request_valid(self):
         """Test valid interaction creation request."""
         data = {
-            "user_id": 1,
+            "user_id": TEST_USER_ID,
             "content_item_id": 2,
             "interaction_type": InteractionType.LIKE,
             "rating": 5,
@@ -189,7 +195,7 @@ class TestInteractionModels:
             "metadata": {"source": "web"}
         }
         interaction = InteractionCreateRequest(**data)
-        assert interaction.user_id == 1
+        assert interaction.user_id == TEST_USER_ID
         assert interaction.content_item_id == 2
         assert interaction.interaction_type == InteractionType.LIKE
         assert interaction.rating == 5
@@ -198,7 +204,7 @@ class TestInteractionModels:
     def test_interaction_create_request_invalid_rating(self):
         """Test interaction creation with invalid rating."""
         data = {
-            "user_id": 1,
+            "user_id": TEST_USER_ID,
             "content_item_id": 2,
             "interaction_type": InteractionType.LIKE,
             "rating": 6  # Invalid - must be 1-5
@@ -209,7 +215,7 @@ class TestInteractionModels:
     def test_interaction_create_request_invalid_user_id(self):
         """Test interaction creation with invalid user ID."""
         data = {
-            "user_id": 0,  # Invalid - must be > 0
+            "user_id": "invalid-uuid",  # Invalid UUID format
             "content_item_id": 2,
             "interaction_type": InteractionType.LIKE
         }
@@ -223,14 +229,14 @@ class TestRecommendationModels:
     def test_recommendation_create_request_valid(self):
         """Test valid recommendation creation request."""
         data = {
-            "user_id": 1,
+            "user_id": TEST_USER_ID,
             "content_item_id": 2,
             "recommendation_score": 0.85,
             "algorithm_version": "v1.2",
             "metadata": {"reason": "content_similarity"}
         }
         rec = RecommendationCreateRequest(**data)
-        assert rec.user_id == 1
+        assert rec.user_id == TEST_USER_ID
         assert rec.content_item_id == 2
         assert rec.recommendation_score == 0.85
         assert rec.algorithm_version == "v1.2"
@@ -238,7 +244,7 @@ class TestRecommendationModels:
     def test_recommendation_create_request_invalid_score(self):
         """Test recommendation creation with invalid score."""
         data = {
-            "user_id": 1,
+            "user_id": TEST_USER_ID,
             "content_item_id": 2,
             "recommendation_score": 1.5,  # Invalid - must be 0-1
             "algorithm_version": "v1.2"
@@ -249,7 +255,7 @@ class TestRecommendationModels:
     def test_recommendation_bulk_create_request_valid(self):
         """Test valid bulk recommendation creation request."""
         rec_data = {
-            "user_id": 1,
+            "user_id": TEST_USER_ID,
             "content_item_id": 2,
             "recommendation_score": 0.85,
             "algorithm_version": "v1.2"
@@ -269,7 +275,7 @@ class TestRecommendationModels:
     def test_recommendation_bulk_create_request_too_many(self):
         """Test bulk recommendation creation with too many recommendations."""
         rec_data = {
-            "user_id": 1,
+            "user_id": TEST_USER_ID,
             "content_item_id": 2,
             "recommendation_score": 0.85,
             "algorithm_version": "v1.2"
@@ -287,13 +293,13 @@ class TestGenerationJobModels:
     def test_generation_job_create_request_valid(self):
         """Test valid generation job creation request."""
         data = {
-            "user_id": 1,
+            "user_id": TEST_USER_ID,
             "job_type": JobType.TEXT,
             "prompt": "Generate a story about space exploration",
             "parameters": {"max_length": 1000, "temperature": 0.7}
         }
         job = GenerationJobCreateRequest(**data)
-        assert job.user_id == 1
+        assert job.user_id == TEST_USER_ID
         assert job.job_type == JobType.TEXT
         assert job.prompt == "Generate a story about space exploration"
         assert job.parameters == {"max_length": 1000, "temperature": 0.7}
@@ -301,7 +307,7 @@ class TestGenerationJobModels:
     def test_generation_job_create_request_long_prompt(self):
         """Test generation job creation with too long prompt."""
         data = {
-            "user_id": 1,
+            "user_id": TEST_USER_ID,
             "job_type": JobType.TEXT,
             "prompt": "x" * 10001  # Too long
         }
@@ -333,7 +339,7 @@ class TestSearchModels:
         data = {
             "search_term": "test",
             "content_type": ContentType.TEXT,
-            "creator_id": 1,
+            "creator_id": TEST_CREATOR_ID,
             "metadata_filter": {"category": "tech"},
             "tags": ["python", "api"],
             "public_only": True,
@@ -343,7 +349,7 @@ class TestSearchModels:
         search = ContentSearchRequest(**data)
         assert search.search_term == "test"
         assert search.content_type == ContentType.TEXT
-        assert search.creator_id == 1
+        assert search.creator_id == TEST_CREATOR_ID
         assert search.skip == 10
         assert search.limit == 50
     

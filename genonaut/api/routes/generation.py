@@ -1,6 +1,7 @@
 """Generation job API routes."""
 
 from typing import List
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -207,7 +208,7 @@ async def get_generation_jobs(
 
 @router.get("/user/{user_id}/jobs", response_model=GenerationJobListResponse)
 async def get_user_generation_jobs(
-    user_id: int,
+    user_id: UUID,
     skip: int = 0,
     limit: int = 100,
     status: str = None,
@@ -309,7 +310,7 @@ async def get_running_jobs(
 
 @router.get("/completed/all", response_model=GenerationJobListResponse)
 async def get_completed_jobs(
-    user_id: int = None,
+    user_id: UUID = None,
     days: int = 30,
     limit: int = 100,
     db: Session = Depends(get_database_session)
@@ -328,7 +329,7 @@ async def get_completed_jobs(
 
 @router.get("/failed/all", response_model=GenerationJobListResponse)
 async def get_failed_jobs(
-    user_id: int = None,
+    user_id: UUID = None,
     days: int = 7,
     limit: int = 100,
     db: Session = Depends(get_database_session)
@@ -365,7 +366,7 @@ async def get_cancelled_jobs(
 
 @router.get("/stats/overview", response_model=GenerationJobStatsResponse)
 async def get_generation_job_stats(
-    user_id: int = None,
+    user_id: UUID = None,
     db: Session = Depends(get_database_session)
 ):
     """Get generation job statistics."""
@@ -379,7 +380,7 @@ async def get_generation_job_stats(
 
 @router.get("/user/{user_id}/stats", response_model=GenerationJobStatsResponse)
 async def get_user_generation_stats(
-    user_id: int,
+    user_id: UUID,
     db: Session = Depends(get_database_session)
 ):
     """Get generation job statistics for a specific user."""

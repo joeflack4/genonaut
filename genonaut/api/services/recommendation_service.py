@@ -1,6 +1,7 @@
 """Recommendation service for business logic operations."""
 
 from typing import List, Optional, Dict, Any
+from uuid import UUID
 from sqlalchemy.orm import Session
 
 from genonaut.db.schema import Recommendation, UserInteraction
@@ -34,7 +35,7 @@ class RecommendationService:
     
     def get_user_recommendations(
         self, 
-        user_id: int, 
+        user_id: UUID, 
         skip: int = 0, 
         limit: int = 100,
         min_score: Optional[float] = None,
@@ -92,7 +93,7 @@ class RecommendationService:
 
     def generate_recommendations(
         self,
-        user_id: int,
+        user_id: UUID,
         algorithm_version: str,
         limit: int = 10,
     ) -> List[Recommendation]:
@@ -125,12 +126,12 @@ class RecommendationService:
         algorithm_version: str = None,
         metadata: Optional[Dict[str, Any]] = None,
         *,
-        user_id: int = None
+        user_id: UUID = None
     ) -> Recommendation:
         """Create a new recommendation.
         
         Args:
-            user_id_or_data: Either user_id int OR complete recommendation data dict
+            user_id_or_data: Either user_id UUID OR complete recommendation data dict
             content_item_id: Content item ID (if user_id_or_data is user_id)
             recommendation_score: Recommendation score (if user_id_or_data is user_id)
             algorithm_version: Algorithm version used (if user_id_or_data is user_id)
@@ -283,7 +284,7 @@ class RecommendationService:
     
     def get_recent_recommendations(
         self, 
-        user_id: int, 
+        user_id: UUID, 
         days: int = 7, 
         limit: int = 50
     ) -> List[Recommendation]:
@@ -322,7 +323,7 @@ class RecommendationService:
         """
         return self.repository.get_by_algorithm(algorithm_version, skip=skip, limit=limit)
     
-    def get_user_recommendation_stats(self, user_id: int) -> Dict[str, Any]:
+    def get_user_recommendation_stats(self, user_id: UUID) -> Dict[str, Any]:
         """Get recommendation statistics for a user.
         
         Args:
@@ -388,7 +389,7 @@ class RecommendationService:
     
     def generate_recommendations_for_user(
         self,
-        user_id: int,
+        user_id: UUID,
         algorithm_version: str,
         limit: int = 10
     ) -> List[Recommendation]:
@@ -471,7 +472,7 @@ class RecommendationService:
 
     def get_served_recommendations(
         self, 
-        user_id: int, 
+        user_id: UUID, 
         skip: int = 0, 
         limit: int = 100
     ) -> List[Recommendation]:

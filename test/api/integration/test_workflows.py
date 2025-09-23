@@ -42,7 +42,7 @@ class TestCompleteUserWorkflow:
             "creator_id": user_id,
             "item_metadata": {"workflow": "test", "creator": user["username"]},
             "tags": ["workflow", "test", "user_content"],
-            "is_public": True
+            "is_private": False
         }
         
         content_response = make_request("POST", "/api/v1/content", json=content_data)

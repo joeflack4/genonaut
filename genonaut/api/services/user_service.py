@@ -1,6 +1,7 @@
 """User service for business logic operations."""
 
 from typing import List, Optional, Dict, Any
+from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -15,7 +16,7 @@ class UserService:
     def __init__(self, db: Session):
         self.repository = UserRepository(db)
     
-    def get_user(self, user_id: int) -> User:
+    def get_user(self, user_id: UUID) -> User:
         """Get user by ID.
         
         Args:
@@ -142,7 +143,7 @@ class UserService:
     
     def update_user(
         self, 
-        user_id: int, 
+        user_id: UUID, 
         username: Optional[str] = None,
         email: Optional[str] = None,
         is_active: Optional[bool] = None
@@ -191,7 +192,7 @@ class UserService:
     
     def update_user_preferences(
         self, 
-        user_id: int, 
+        user_id: UUID, 
         preferences: Dict[str, Any]
     ) -> User:
         """Update user preferences.
@@ -208,7 +209,7 @@ class UserService:
         """
         return self.repository.update_preferences(user_id, preferences)
 
-    def get_user_statistics(self, user_id: int) -> Dict[str, Any]:
+    def get_user_statistics(self, user_id: UUID) -> Dict[str, Any]:
         """Calculate aggregate statistics for a user's activity."""
 
         self.repository.get_or_404(user_id)
@@ -243,7 +244,7 @@ class UserService:
             "avg_rating_given": float(avg_rating) if avg_rating is not None else 0.0,
         }
     
-    def deactivate_user(self, user_id: int) -> User:
+    def deactivate_user(self, user_id: UUID) -> User:
         """Deactivate a user account.
         
         Args:
@@ -257,7 +258,7 @@ class UserService:
         """
         return self.repository.update(user_id, {'is_active': False})
     
-    def activate_user(self, user_id: int) -> User:
+    def activate_user(self, user_id: UUID) -> User:
         """Activate a user account.
         
         Args:
@@ -271,7 +272,7 @@ class UserService:
         """
         return self.repository.update(user_id, {'is_active': True})
     
-    def delete_user(self, user_id: int) -> bool:
+    def delete_user(self, user_id: UUID) -> bool:
         """Delete a user account.
         
         Args:

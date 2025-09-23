@@ -246,7 +246,6 @@ class TestDatabaseEndToEnd:
             'updated_at',
             'tags',
             'quality_score',
-            'is_public',
             'is_private',
         ]
 

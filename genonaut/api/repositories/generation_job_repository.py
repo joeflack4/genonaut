@@ -1,6 +1,7 @@
 """Generation job repository for database operations."""
 
 from typing import List, Optional, Dict, Any
+from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func, desc, asc
@@ -17,7 +18,7 @@ class GenerationJobRepository(BaseRepository[GenerationJob, Dict[str, Any], Dict
     def __init__(self, db: Session):
         super().__init__(db, GenerationJob)
     
-    def get_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> List[GenerationJob]:
+    def get_by_user(self, user_id: UUID, skip: int = 0, limit: int = 100) -> List[GenerationJob]:
         """Get generation jobs for a user.
         
         Args:
@@ -43,7 +44,7 @@ class GenerationJobRepository(BaseRepository[GenerationJob, Dict[str, Any], Dict
         except SQLAlchemyError as e:
             raise DatabaseError(f"Failed to get generation jobs for user {user_id}: {str(e)}")
 
-    def get_by_user_id(self, user_id: int, skip: int = 0, limit: int = 100) -> List[GenerationJob]:
+    def get_by_user_id(self, user_id: UUID, skip: int = 0, limit: int = 100) -> List[GenerationJob]:
         return self.get_by_user(user_id, skip=skip, limit=limit)
     
     def get_by_status(self, status: str, skip: int = 0, limit: int = 100) -> List[GenerationJob]:
@@ -142,7 +143,7 @@ class GenerationJobRepository(BaseRepository[GenerationJob, Dict[str, Any], Dict
     
     def get_completed_jobs(
         self, 
-        user_id: Optional[int] = None, 
+        user_id: Optional[UUID] = None, 
         days: int = 30, 
         limit: int = 100
     ) -> List[GenerationJob]:
@@ -179,7 +180,7 @@ class GenerationJobRepository(BaseRepository[GenerationJob, Dict[str, Any], Dict
     
     def get_failed_jobs(
         self, 
-        user_id: Optional[int] = None, 
+        user_id: Optional[UUID] = None, 
         days: int = 7, 
         limit: int = 100
     ) -> List[GenerationJob]:
@@ -279,7 +280,7 @@ class GenerationJobRepository(BaseRepository[GenerationJob, Dict[str, Any], Dict
             self.db.rollback()
             raise DatabaseError(f"Failed to set result content for job {job_id}: {str(e)}")
     
-    def get_job_statistics(self, user_id: Optional[int] = None) -> Dict[str, Any]:
+    def get_job_statistics(self, user_id: Optional[UUID] = None) -> Dict[str, Any]:
         """Get generation job statistics.
         
         Args:
@@ -353,7 +354,7 @@ class GenerationJobRepository(BaseRepository[GenerationJob, Dict[str, Any], Dict
     
     def create_generation_job(
         self,
-        user_id: int,
+        user_id: UUID,
         job_type: str,
         prompt: str,
         parameters: Optional[Dict[str, Any]] = None

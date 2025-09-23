@@ -1,6 +1,7 @@
 """Pydantic request models for the Genonaut API."""
 
 from typing import Optional, List, Dict, Any
+from uuid import UUID
 from pydantic import BaseModel, Field, validator, EmailStr
 
 from genonaut.api.models.enums import ContentType, InteractionType, JobType
@@ -42,7 +43,7 @@ class ContentCreateRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=255, description="Content title")
     content_type: ContentType = Field(..., description="Type of content")
     content_data: str = Field(..., min_length=1, description="The actual content or reference to it")
-    creator_id: int = Field(..., gt=0, description="ID of the user creating the content")
+    creator_id: UUID = Field(..., description="ID of the user creating the content")
     item_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Content metadata")
     tags: Optional[List[str]] = Field(default_factory=list, description="Content tags")
     is_private: bool = Field(False, description="Whether content is private")
@@ -84,7 +85,7 @@ class ContentQualityUpdateRequest(BaseModel):
 
 class InteractionCreateRequest(BaseModel):
     """Request model for creating an interaction."""
-    user_id: int = Field(..., gt=0, description="User ID")
+    user_id: UUID = Field(..., description="User ID")
     content_item_id: int = Field(..., gt=0, description="Content item ID")
     interaction_type: InteractionType = Field(..., description="Type of interaction")
     rating: Optional[int] = Field(None, ge=1, le=5, description="Rating (1-5 scale)")
@@ -101,7 +102,7 @@ class InteractionUpdateRequest(BaseModel):
 
 class RecommendationCreateRequest(BaseModel):
     """Request model for creating a recommendation."""
-    user_id: int = Field(..., gt=0, description="User ID")
+    user_id: UUID = Field(..., description="User ID")
     content_item_id: int = Field(..., gt=0, description="Content item ID")
     recommendation_score: float = Field(..., ge=0.0, le=1.0, description="Recommendation score (0-1)")
     algorithm_version: str = Field(..., min_length=1, max_length=50, description="Algorithm version")
@@ -126,7 +127,7 @@ class RecommendationServedRequest(BaseModel):
 
 class GenerationJobCreateRequest(BaseModel):
     """Request model for creating a generation job."""
-    user_id: int = Field(..., gt=0, description="User ID")
+    user_id: UUID = Field(..., description="User ID")
     job_type: JobType = Field(..., description="Type of generation job")
     prompt: str = Field(..., min_length=1, max_length=10000, description="Generation prompt")
     parameters: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Generation parameters")
@@ -182,7 +183,7 @@ class ContentSearchRequest(BaseModel):
     """Request model for searching content."""
     search_term: Optional[str] = Field(None, description="Search term for title")
     content_type: Optional[ContentType] = Field(None, description="Filter by content type")
-    creator_id: Optional[int] = Field(None, gt=0, description="Filter by creator ID")
+    creator_id: Optional[UUID] = Field(None, description="Filter by creator ID")
     metadata_filter: Optional[Dict[str, Any]] = Field(None, description="Metadata filters")
     tags: Optional[List[str]] = Field(None, description="Tags to search for")
     public_only: bool = Field(False, description="Return only public content")
@@ -200,7 +201,7 @@ class UserSearchRequest(BaseModel):
 
 class RecommendationSearchRequest(BaseModel):
     """Request model for searching recommendations."""
-    user_id: Optional[int] = Field(None, gt=0, description="Filter by user ID")
+    user_id: Optional[UUID] = Field(None, description="Filter by user ID")
     content_item_id: Optional[int] = Field(None, gt=0, description="Filter by content item ID")
     algorithm_version: Optional[str] = Field(None, description="Filter by algorithm version")
     min_score: Optional[float] = Field(None, ge=0.0, le=1.0, description="Minimum recommendation score")
@@ -212,14 +213,14 @@ class RecommendationSearchRequest(BaseModel):
 class RecommendationGenerateRequest(BaseModel):
     """Request model for generating recommendations."""
 
-    user_id: int = Field(..., gt=0, description="Target user ID")
+    user_id: UUID = Field(..., description="Target user ID")
     algorithm_version: str = Field(..., min_length=1, description="Requested algorithm version")
     limit: int = Field(10, ge=1, le=100, description="Maximum recommendations to generate")
 
 
 class InteractionSearchRequest(BaseModel):
     """Request model for searching interactions."""
-    user_id: Optional[int] = Field(None, gt=0, description="Filter by user ID")
+    user_id: Optional[UUID] = Field(None, description="Filter by user ID")
     content_item_id: Optional[int] = Field(None, gt=0, description="Filter by content item ID")
     interaction_type: Optional[InteractionType] = Field(None, description="Filter by interaction type")
     days: Optional[int] = Field(None, ge=1, le=365, description="Days to look back for recent interactions")
@@ -229,7 +230,7 @@ class InteractionSearchRequest(BaseModel):
 
 class GenerationJobSearchRequest(BaseModel):
     """Request model for searching generation jobs."""
-    user_id: Optional[int] = Field(None, gt=0, description="Filter by user ID")
+    user_id: Optional[UUID] = Field(None, description="Filter by user ID")
     job_type: Optional[JobType] = Field(None, description="Filter by job type")
     status: Optional[str] = Field(None, pattern="^(pending|running|completed|failed|cancelled)$", description="Filter by status")
     days: Optional[int] = Field(None, ge=1, le=365, description="Days to look back")

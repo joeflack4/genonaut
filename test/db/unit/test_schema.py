@@ -125,7 +125,6 @@ class TestSchemaModels:
         assert content.creator_id == self.test_user1.id
         assert content.item_metadata["word_count"] == 4
         assert "test" in content.tags
-        assert content.is_public
         assert content.quality_score == 0.0
 
     def test_content_item_auto_creation(self):
@@ -147,7 +146,6 @@ class TestSchemaModels:
         assert auto_item.creator_id == self.test_user1.id
         assert auto_item.item_metadata["generator"] == "system"
         assert "auto" in auto_item.tags
-        assert auto_item.is_public
         assert auto_item.quality_score == 0.0
         assert not auto_item.is_private
         assert hasattr(auto_item, "updated_at")

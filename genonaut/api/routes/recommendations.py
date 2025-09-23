@@ -1,6 +1,7 @@
 """Recommendation API routes."""
 
 from typing import List
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -181,7 +182,7 @@ async def get_recommendations(
 
 @router.get("/user/{user_id}/recommendations", response_model=RecommendationListResponse)
 async def get_user_recommendations(
-    user_id: int,
+    user_id: UUID,
     skip: int = 0,
     limit: int = 100,
     min_score: float = None,
@@ -214,7 +215,7 @@ async def get_user_recommendations(
 
 @router.get("/user/{user_id}/top", response_model=RecommendationListResponse)
 async def get_top_user_recommendations(
-    user_id: int,
+    user_id: UUID,
     min_score: float = 0.5,
     limit: int = 10,
     db: Session = Depends(get_database_session)
@@ -240,7 +241,7 @@ async def get_top_user_recommendations(
 
 @router.get("/user/{user_id}/unserved", response_model=RecommendationListResponse)
 async def get_unserved_user_recommendations(
-    user_id: int,
+    user_id: UUID,
     limit: int = 20,
     db: Session = Depends(get_database_session)
 ):
@@ -264,7 +265,7 @@ async def get_unserved_user_recommendations(
 
 @router.get("/user/{user_id}/recent", response_model=RecommendationListResponse)
 async def get_recent_user_recommendations(
-    user_id: int,
+    user_id: UUID,
     days: int = 7,
     limit: int = 50,
     db: Session = Depends(get_database_session)
@@ -286,7 +287,7 @@ async def get_recent_user_recommendations(
 
 @router.get("/user/{user_id}/stats", response_model=RecommendationStatsResponse)
 async def get_user_recommendation_stats(
-    user_id: int,
+    user_id: UUID,
     db: Session = Depends(get_database_session)
 ):
     """Get recommendation statistics for a user."""
