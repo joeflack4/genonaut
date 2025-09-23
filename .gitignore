@@ -15,6 +15,8 @@ tags
 MANIFEST
 
 # Custom
+output/
+bak/
 /*.json
 !config.json
 */cache/*
@@ -35,8 +37,7 @@ backup/
 .vscode/
 *.code-workspace
 *.dmp
-output/
-bak/
+.log
 #scratchpads/  # actually; commit these; when done, can put the files in _archive/.
 
 # Frontend

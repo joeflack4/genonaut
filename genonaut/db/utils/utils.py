@@ -13,7 +13,9 @@ from pathlib import Path
 from typing import Optional, Sequence
 
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
 from sqlalchemy.engine.url import make_url
+from sqlalchemy.orm import sessionmaker, Session
 
 
 # Load environment variables from .env file in the env/ directory
@@ -166,6 +168,21 @@ def _ensure_seed_utilities_importable() -> None:
             path_str = str(path)
             if path_str not in sys.path:
                 sys.path.insert(0, path_str)
+
+
+def get_database_session(environment: Optional[str] = None) -> Session:
+    """Create a database session for CLI/standalone usage.
+
+    Args:
+        environment: Database environment (dev, demo, test). Defaults to current environment.
+
+    Returns:
+        SQLAlchemy Session instance.
+    """
+    database_url = get_database_url(environment)
+    engine = create_engine(database_url, echo=False)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    return session_factory()
 
 
 def main(argv: Optional[Sequence[str]] = None) -> None:

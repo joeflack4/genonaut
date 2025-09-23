@@ -1,0 +1,249 @@
+2025-09-23 18:00:52,832 - __main__ - INFO - Starting synthetic data generation CLI
+2025-09-23 18:00:52,835 - __main__ - ERROR - Synthetic data generation failed: 3 validation errors for SeedDataConfig
+target_rows_users
+  Input should be greater than or equal to 100 [type=greater_than_equal, input_value=5, input_type=int]
+    For further information visit https://errors.pydantic.dev/2.11/v/greater_than_equal
+target_rows_content_items
+  Input should be greater than or equal to 100 [type=greater_than_equal, input_value=10, input_type=int]
+    For further information visit https://errors.pydantic.dev/2.11/v/greater_than_equal
+target_rows_content_items_auto
+  Input should be greater than or equal to 100 [type=greater_than_equal, input_value=10, input_type=int]
+    For further information visit https://errors.pydantic.dev/2.11/v/greater_than_equal
+Traceback (most recent call last):
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/demo/seed_data_gen/__main__.py", line 124, in main
+    config = config_manager.get_config(cli_overrides)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/demo/seed_data_gen/config.py", line 99, in get_config
+    return SeedDataConfig(**merged_config)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/pydantic/main.py", line 253, in __init__
+    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pydantic_core._pydantic_core.ValidationError: 3 validation errors for SeedDataConfig
+target_rows_users
+  Input should be greater than or equal to 100 [type=greater_than_equal, input_value=5, input_type=int]
+    For further information visit https://errors.pydantic.dev/2.11/v/greater_than_equal
+target_rows_content_items
+  Input should be greater than or equal to 100 [type=greater_than_equal, input_value=10, input_type=int]
+    For further information visit https://errors.pydantic.dev/2.11/v/greater_than_equal
+target_rows_content_items_auto
+  Input should be greater than or equal to 100 [type=greater_than_equal, input_value=10, input_type=int]
+    For further information visit https://errors.pydantic.dev/2.11/v/greater_than_equal
+2025-09-23 18:01:08,777 - __main__ - INFO - Starting synthetic data generation CLI
+2025-09-23 18:01:08,778 - __main__ - INFO - Configuration loaded: batch_size_users=1000 batch_size_content_items=2000 batch_size_content_items_auto=2000 batch_size_generation_jobs=5000 target_rows_users=5 target_rows_content_items=10 target_rows_content_items_auto=10 max_workers=4 prompt_min_general_phrases=0 prompt_max_general_phrases=10 prompt_min_domain_phrases=4 prompt_max_domain_phrases=30 images_dir='io/storage/images/' admin_user_uuid='550e8400-e29b-41d4-a716-446655440000'
+2025-09-23 18:01:08,779 - __main__ - INFO - Using admin UUID: 550e8400-e29b-41d4-a716-446655440000
+2025-09-23 18:01:08,779 - __main__ - ERROR - Synthetic data generation failed: Database password must be provided via DB_PASSWORD_ADMIN (preferred) or DB_PASSWORD/DATABASE_URL environment variable
+Traceback (most recent call last):
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/demo/seed_data_gen/__main__.py", line 132, in main
+    session = get_database_session()
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/utils/utils.py", line 182, in get_database_session
+    database_url = get_database_url(environment)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/utils/utils.py", line 134, in get_database_url
+    raise ValueError(
+ValueError: Database password must be provided via DB_PASSWORD_ADMIN (preferred) or DB_PASSWORD/DATABASE_URL environment variable
+2025-09-23 18:01:19,642 - __main__ - INFO - Starting synthetic data generation CLI
+2025-09-23 18:01:19,643 - __main__ - INFO - Configuration loaded: batch_size_users=1000 batch_size_content_items=2000 batch_size_content_items_auto=2000 batch_size_generation_jobs=5000 target_rows_users=5 target_rows_content_items=10 target_rows_content_items_auto=10 max_workers=4 prompt_min_general_phrases=0 prompt_max_general_phrases=10 prompt_min_domain_phrases=4 prompt_max_domain_phrases=30 images_dir='io/storage/images/' admin_user_uuid=None
+2025-09-23 18:01:19,643 - __main__ - ERROR - Synthetic data generation failed: DB_USER_ADMIN_UUID environment variable is required.
+Please add this to your env/.env file:
+DB_USER_ADMIN_UUID=70bae3c8-2799-4d4c-9952-87f9693c7072
+You can copy the UUID above or generate your own.
+Traceback (most recent call last):
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/demo/seed_data_gen/__main__.py", line 128, in main
+    admin_uuid = config_manager.validate_admin_uuid(config)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/demo/seed_data_gen/config.py", line 113, in validate_admin_uuid
+    raise RuntimeError(error_msg)
+RuntimeError: DB_USER_ADMIN_UUID environment variable is required.
+Please add this to your env/.env file:
+DB_USER_ADMIN_UUID=70bae3c8-2799-4d4c-9952-87f9693c7072
+You can copy the UUID above or generate your own.
+2025-09-23 18:03:17,235 - __main__ - INFO - Starting synthetic data generation CLI
+2025-09-23 18:03:17,236 - __main__ - INFO - Configuration loaded: batch_size_users=1000 batch_size_content_items=2000 batch_size_content_items_auto=2000 batch_size_generation_jobs=5000 target_rows_users=5 target_rows_content_items=10 target_rows_content_items_auto=10 max_workers=4 prompt_min_general_phrases=0 prompt_max_general_phrases=10 prompt_min_domain_phrases=4 prompt_max_domain_phrases=30 images_dir='io/storage/images/' admin_user_uuid='121e194b-4caa-4b81-ad4f-86ca3919d5b9'
+2025-09-23 18:03:17,236 - __main__ - INFO - Using admin UUID: 121e194b-4caa-4b81-ad4f-86ca3919d5b9
+2025-09-23 18:03:17,236 - __main__ - ERROR - Synthetic data generation failed: Database password must be provided via DB_PASSWORD_ADMIN (preferred) or DB_PASSWORD/DATABASE_URL environment variable
+Traceback (most recent call last):
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/demo/seed_data_gen/__main__.py", line 132, in main
+    session = get_database_session()
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/utils/utils.py", line 182, in get_database_session
+    database_url = get_database_url(environment)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/utils/utils.py", line 134, in get_database_url
+    raise ValueError(
+ValueError: Database password must be provided via DB_PASSWORD_ADMIN (preferred) or DB_PASSWORD/DATABASE_URL environment variable
+2025-09-23 18:03:21,869 - __main__ - INFO - Starting synthetic data generation CLI
+2025-09-23 18:03:21,870 - __main__ - INFO - Configuration loaded: batch_size_users=1000 batch_size_content_items=2000 batch_size_content_items_auto=2000 batch_size_generation_jobs=5000 target_rows_users=5 target_rows_content_items=10 target_rows_content_items_auto=10 max_workers=4 prompt_min_general_phrases=0 prompt_max_general_phrases=10 prompt_min_domain_phrases=4 prompt_max_domain_phrases=30 images_dir='io/storage/images/' admin_user_uuid=None
+2025-09-23 18:03:21,870 - __main__ - ERROR - Synthetic data generation failed: DB_USER_ADMIN_UUID environment variable is required.
+Please add this to your env/.env file:
+DB_USER_ADMIN_UUID=fa95506c-3f8a-48c7-a553-d7e13657809c
+You can copy the UUID above or generate your own.
+Traceback (most recent call last):
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/demo/seed_data_gen/__main__.py", line 128, in main
+    admin_uuid = config_manager.validate_admin_uuid(config)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/demo/seed_data_gen/config.py", line 113, in validate_admin_uuid
+    raise RuntimeError(error_msg)
+RuntimeError: DB_USER_ADMIN_UUID environment variable is required.
+Please add this to your env/.env file:
+DB_USER_ADMIN_UUID=fa95506c-3f8a-48c7-a553-d7e13657809c
+You can copy the UUID above or generate your own.
+2025-09-23 18:03:41,311 - __main__ - INFO - Starting synthetic data generation CLI
+2025-09-23 18:03:41,314 - __main__ - INFO - Configuration loaded: batch_size_users=1000 batch_size_content_items=2000 batch_size_content_items_auto=2000 batch_size_generation_jobs=5000 target_rows_users=5 target_rows_content_items=10 target_rows_content_items_auto=10 max_workers=4 prompt_min_general_phrases=0 prompt_max_general_phrases=10 prompt_min_domain_phrases=4 prompt_max_domain_phrases=30 images_dir='io/storage/images/' admin_user_uuid='121e194b-4caa-4b81-ad4f-86ca3919d5b9'
+2025-09-23 18:03:41,314 - __main__ - INFO - Using admin UUID: 121e194b-4caa-4b81-ad4f-86ca3919d5b9
+2025-09-23 18:03:41,349 - __main__ - INFO - Database session established
+2025-09-23 18:03:41,350 - genonaut.db.demo.seed_data_gen.generator - INFO - Starting synthetic data generation
+2025-09-23 18:03:41,417 - genonaut.db.demo.seed_data_gen.bulk_inserter - WARNING - Could not apply bulk insert optimizations: (psycopg2.errors.CantChangeRuntimeParam) parameter "wal_buffers" cannot be changed without restarting the server
+
+[SQL: SET wal_buffers = '64MB']
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-23 18:03:41,461 - genonaut.db.demo.seed_data_gen.generator - ERROR - Data generation failed after 0.11 seconds: (psycopg2.errors.DatatypeMismatch) column "id" is of type integer but expression is of type uuid
+LINE 1: ...d_at, updated_at, preferences, is_active) VALUES ('121e194b-...
+                                                             ^
+HINT:  You will need to rewrite or cast the expression.
+
+[SQL: INSERT INTO users (id, username, email, created_at, updated_at, preferences, is_active) VALUES (%(id__0)s::UUID, %(username__0)s, %(email__0)s, %(created_at__0)s, %(updated_at__0)s, %(preferences__0)s::JSONB, %(is_active__0)s), (%(id__1)s::UUID, %(us ... 408 characters truncated ... )s, %(email__4)s, %(created_at__4)s, %(updated_at__4)s, %(preferences__4)s::JSONB, %(is_active__4)s)]
+[parameters: {'preferences__0': '{"favorite_tags": ["worm\'s-eye"]}', 'username__0': 'santosstephen', 'id__0': '121e194b-4caa-4b81-ad4f-86ca3919d5b9', 'is_active__0': True, 'created_at__0': datetime.datetime(2025, 7, 5, 11, 1, 24, 2845), 'updated_at__0': datetime.datetime(2025, 7, 5, 11, 1, 24, 2845), 'email__0': 'tina17@example.com', 'preferences__1': '{"favorite_tags": ["3D", "cinematic-framing", "hard-light", "elegant", "asymmetrical"]}', 'username__1': 'brian08', 'id__1': '4c4614ea-bbf0-4b16-9622-2b7275158202', 'is_active__1': True, 'created_at__1': datetime.datetime(2025, 7, 26, 4, 59, 51, 471768), 'updated_at__1': datetime.datetime(2025, 7, 26, 4, 59, 51, 471768), 'email__1': 'oramirez@example.com', 'preferences__2': '{"favorite_tags": ["overhead", "experimental", "minimalism"]}', 'username__2': 'osborneann', 'id__2': '2ca08cd0-1a2f-4433-ad35-29434cece695', 'is_active__2': True, 'created_at__2': datetime.datetime(2025, 5, 11, 2, 36, 54, 879329), 'updated_at__2': datetime.datetime(2025, 5, 11, 2, 36, 54, 879329), 'email__2': 'austin73@example.org', 'preferences__3': '{"favorite_tags": ["oil-painting", "installation", "vintage", "asymmetrical", "fantasy"]}', 'username__3': 'allisonamy', 'id__3': 'fbc0041a-022a-400e-9f82-9005b107a02f', 'is_active__3': True, 'created_at__3': datetime.datetime(2025, 7, 7, 13, 22, 0, 525486), 'updated_at__3': datetime.datetime(2025, 7, 7, 13, 22, 0, 525486), 'email__3': 'spencerdavid@example.com', 'preferences__4': '{"favorite_tags": ["editorial-style", "monochrome", "experimental", "wide-angle"]}', 'username__4': 'elizabeth04', 'id__4': '7ec1c669-8de6-4ac0-979a-2ca30239d05a', 'is_active__4': True, 'created_at__4': datetime.datetime(2025, 8, 7, 10, 56, 7, 532962), 'updated_at__4': datetime.datetime(2025, 8, 7, 10, 56, 7, 532962), 'email__4': 'munozjohn@example.com'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-09-23 18:03:41,461 - genonaut.db.demo.seed_data_gen.generator - ERROR - Failed to collect partial statistics: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (psycopg2.errors.DatatypeMismatch) column "id" is of type integer but expression is of type uuid
+LINE 1: ...d_at, updated_at, preferences, is_active) VALUES ('121e194b-...
+                                                             ^
+HINT:  You will need to rewrite or cast the expression.
+
+[SQL: INSERT INTO users (id, username, email, created_at, updated_at, preferences, is_active) VALUES (%(id__0)s::UUID, %(username__0)s, %(email__0)s, %(created_at__0)s, %(updated_at__0)s, %(preferences__0)s::JSONB, %(is_active__0)s), (%(id__1)s::UUID, %(us ... 408 characters truncated ... )s, %(email__4)s, %(created_at__4)s, %(updated_at__4)s, %(preferences__4)s::JSONB, %(is_active__4)s)]
+[parameters: {'preferences__0': '{"favorite_tags": ["worm\'s-eye"]}', 'username__0': 'santosstephen', 'id__0': '121e194b-4caa-4b81-ad4f-86ca3919d5b9', 'is_active__0': True, 'created_at__0': datetime.datetime(2025, 7, 5, 11, 1, 24, 2845), 'updated_at__0': datetime.datetime(2025, 7, 5, 11, 1, 24, 2845), 'email__0': 'tina17@example.com', 'preferences__1': '{"favorite_tags": ["3D", "cinematic-framing", "hard-light", "elegant", "asymmetrical"]}', 'username__1': 'brian08', 'id__1': '4c4614ea-bbf0-4b16-9622-2b7275158202', 'is_active__1': True, 'created_at__1': datetime.datetime(2025, 7, 26, 4, 59, 51, 471768), 'updated_at__1': datetime.datetime(2025, 7, 26, 4, 59, 51, 471768), 'email__1': 'oramirez@example.com', 'preferences__2': '{"favorite_tags": ["overhead", "experimental", "minimalism"]}', 'username__2': 'osborneann', 'id__2': '2ca08cd0-1a2f-4433-ad35-29434cece695', 'is_active__2': True, 'created_at__2': datetime.datetime(2025, 5, 11, 2, 36, 54, 879329), 'updated_at__2': datetime.datetime(2025, 5, 11, 2, 36, 54, 879329), 'email__2': 'austin73@example.org', 'preferences__3': '{"favorite_tags": ["oil-painting", "installation", "vintage", "asymmetrical", "fantasy"]}', 'username__3': 'allisonamy', 'id__3': 'fbc0041a-022a-400e-9f82-9005b107a02f', 'is_active__3': True, 'created_at__3': datetime.datetime(2025, 7, 7, 13, 22, 0, 525486), 'updated_at__3': datetime.datetime(2025, 7, 7, 13, 22, 0, 525486), 'email__3': 'spencerdavid@example.com', 'preferences__4': '{"favorite_tags": ["editorial-style", "monochrome", "experimental", "wide-angle"]}', 'username__4': 'elizabeth04', 'id__4': '7ec1c669-8de6-4ac0-979a-2ca30239d05a', 'is_active__4': True, 'created_at__4': datetime.datetime(2025, 8, 7, 10, 56, 7, 532962), 'updated_at__4': datetime.datetime(2025, 8, 7, 10, 56, 7, 532962), 'email__4': 'munozjohn@example.com'}]
+(Background on this error at: https://sqlalche.me/e/20/f405) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+2025-09-23 18:03:41,461 - __main__ - ERROR - Synthetic data generation failed: (psycopg2.errors.DatatypeMismatch) column "id" is of type integer but expression is of type uuid
+LINE 1: ...d_at, updated_at, preferences, is_active) VALUES ('121e194b-...
+                                                             ^
+HINT:  You will need to rewrite or cast the expression.
+
+[SQL: INSERT INTO users (id, username, email, created_at, updated_at, preferences, is_active) VALUES (%(id__0)s::UUID, %(username__0)s, %(email__0)s, %(created_at__0)s, %(updated_at__0)s, %(preferences__0)s::JSONB, %(is_active__0)s), (%(id__1)s::UUID, %(us ... 408 characters truncated ... )s, %(email__4)s, %(created_at__4)s, %(updated_at__4)s, %(preferences__4)s::JSONB, %(is_active__4)s)]
+[parameters: {'preferences__0': '{"favorite_tags": ["worm\'s-eye"]}', 'username__0': 'santosstephen', 'id__0': '121e194b-4caa-4b81-ad4f-86ca3919d5b9', 'is_active__0': True, 'created_at__0': datetime.datetime(2025, 7, 5, 11, 1, 24, 2845), 'updated_at__0': datetime.datetime(2025, 7, 5, 11, 1, 24, 2845), 'email__0': 'tina17@example.com', 'preferences__1': '{"favorite_tags": ["3D", "cinematic-framing", "hard-light", "elegant", "asymmetrical"]}', 'username__1': 'brian08', 'id__1': '4c4614ea-bbf0-4b16-9622-2b7275158202', 'is_active__1': True, 'created_at__1': datetime.datetime(2025, 7, 26, 4, 59, 51, 471768), 'updated_at__1': datetime.datetime(2025, 7, 26, 4, 59, 51, 471768), 'email__1': 'oramirez@example.com', 'preferences__2': '{"favorite_tags": ["overhead", "experimental", "minimalism"]}', 'username__2': 'osborneann', 'id__2': '2ca08cd0-1a2f-4433-ad35-29434cece695', 'is_active__2': True, 'created_at__2': datetime.datetime(2025, 5, 11, 2, 36, 54, 879329), 'updated_at__2': datetime.datetime(2025, 5, 11, 2, 36, 54, 879329), 'email__2': 'austin73@example.org', 'preferences__3': '{"favorite_tags": ["oil-painting", "installation", "vintage", "asymmetrical", "fantasy"]}', 'username__3': 'allisonamy', 'id__3': 'fbc0041a-022a-400e-9f82-9005b107a02f', 'is_active__3': True, 'created_at__3': datetime.datetime(2025, 7, 7, 13, 22, 0, 525486), 'updated_at__3': datetime.datetime(2025, 7, 7, 13, 22, 0, 525486), 'email__3': 'spencerdavid@example.com', 'preferences__4': '{"favorite_tags": ["editorial-style", "monochrome", "experimental", "wide-angle"]}', 'username__4': 'elizabeth04', 'id__4': '7ec1c669-8de6-4ac0-979a-2ca30239d05a', 'is_active__4': True, 'created_at__4': datetime.datetime(2025, 8, 7, 10, 56, 7, 532962), 'updated_at__4': datetime.datetime(2025, 8, 7, 10, 56, 7, 532962), 'email__4': 'munozjohn@example.com'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2118, in _exec_insertmany_context
+    dialect.do_execute(
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.DatatypeMismatch: column "id" is of type integer but expression is of type uuid
+LINE 1: ...d_at, updated_at, preferences, is_active) VALUES ('121e194b-...
+                                                             ^
+HINT:  You will need to rewrite or cast the expression.
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/demo/seed_data_gen/__main__.py", line 137, in main
+    generator.generate_all_data()
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/demo/seed_data_gen/generator.py", line 39, in generate_all_data
+    user_ids = self._generate_users()
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/demo/seed_data_gen/generator.py", line 81, in _generate_users
+    inserted_count, conflicts = self.bulk_inserter.insert_users_batch(users_batch)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/demo/seed_data_gen/bulk_inserter.py", line 28, in insert_users_batch
+    self.session.bulk_insert_mappings(User, users)
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4661, in bulk_insert_mappings
+    self._bulk_save_mappings(
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4755, in _bulk_save_mappings
+    with util.safe_reraise():
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4744, in _bulk_save_mappings
+    bulk_persistence._bulk_insert(
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/bulk_persistence.py", line 222, in _bulk_insert
+    result = persistence._emit_insert_statements(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py", line 1048, in _emit_insert_statements
+    result = connection.execute(
+             ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1844, in _execute_context
+    return self._exec_insertmany_context(dialect, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2126, in _exec_insertmany_context
+    self._handle_dbapi_exception(
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2118, in _exec_insertmany_context
+    dialect.do_execute(
+  File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.DatatypeMismatch) column "id" is of type integer but expression is of type uuid
+LINE 1: ...d_at, updated_at, preferences, is_active) VALUES ('121e194b-...
+                                                             ^
+HINT:  You will need to rewrite or cast the expression.
+
+[SQL: INSERT INTO users (id, username, email, created_at, updated_at, preferences, is_active) VALUES (%(id__0)s::UUID, %(username__0)s, %(email__0)s, %(created_at__0)s, %(updated_at__0)s, %(preferences__0)s::JSONB, %(is_active__0)s), (%(id__1)s::UUID, %(us ... 408 characters truncated ... )s, %(email__4)s, %(created_at__4)s, %(updated_at__4)s, %(preferences__4)s::JSONB, %(is_active__4)s)]
+[parameters: {'preferences__0': '{"favorite_tags": ["worm\'s-eye"]}', 'username__0': 'santosstephen', 'id__0': '121e194b-4caa-4b81-ad4f-86ca3919d5b9', 'is_active__0': True, 'created_at__0': datetime.datetime(2025, 7, 5, 11, 1, 24, 2845), 'updated_at__0': datetime.datetime(2025, 7, 5, 11, 1, 24, 2845), 'email__0': 'tina17@example.com', 'preferences__1': '{"favorite_tags": ["3D", "cinematic-framing", "hard-light", "elegant", "asymmetrical"]}', 'username__1': 'brian08', 'id__1': '4c4614ea-bbf0-4b16-9622-2b7275158202', 'is_active__1': True, 'created_at__1': datetime.datetime(2025, 7, 26, 4, 59, 51, 471768), 'updated_at__1': datetime.datetime(2025, 7, 26, 4, 59, 51, 471768), 'email__1': 'oramirez@example.com', 'preferences__2': '{"favorite_tags": ["overhead", "experimental", "minimalism"]}', 'username__2': 'osborneann', 'id__2': '2ca08cd0-1a2f-4433-ad35-29434cece695', 'is_active__2': True, 'created_at__2': datetime.datetime(2025, 5, 11, 2, 36, 54, 879329), 'updated_at__2': datetime.datetime(2025, 5, 11, 2, 36, 54, 879329), 'email__2': 'austin73@example.org', 'preferences__3': '{"favorite_tags": ["oil-painting", "installation", "vintage", "asymmetrical", "fantasy"]}', 'username__3': 'allisonamy', 'id__3': 'fbc0041a-022a-400e-9f82-9005b107a02f', 'is_active__3': True, 'created_at__3': datetime.datetime(2025, 7, 7, 13, 22, 0, 525486), 'updated_at__3': datetime.datetime(2025, 7, 7, 13, 22, 0, 525486), 'email__3': 'spencerdavid@example.com', 'preferences__4': '{"favorite_tags": ["editorial-style", "monochrome", "experimental", "wide-angle"]}', 'username__4': 'elizabeth04', 'id__4': '7ec1c669-8de6-4ac0-979a-2ca30239d05a', 'is_active__4': True, 'created_at__4': datetime.datetime(2025, 8, 7, 10, 56, 7, 532962), 'updated_at__4': datetime.datetime(2025, 8, 7, 10, 56, 7, 532962), 'email__4': 'munozjohn@example.com'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-09-23 18:03:41,471 - __main__ - INFO - Database session closed
+2025-09-23 18:30:01,352 - __main__ - INFO - Starting synthetic data generation CLI
+2025-09-23 18:30:01,353 - __main__ - INFO - Using validated database URL: postgresql://genonaut_admin:chocolateRainbows858@localhost:5432/genonaut_demo
+2025-09-23 18:30:01,355 - __main__ - INFO - Configuration loaded: batch_size_users=1000 batch_size_content_items=2000 batch_size_content_items_auto=2000 batch_size_generation_jobs=5000 target_rows_users=5 target_rows_content_items=10 target_rows_content_items_auto=10 max_workers=4 prompt_min_general_phrases=0 prompt_max_general_phrases=10 prompt_min_domain_phrases=4 prompt_max_domain_phrases=30 images_dir='io/storage/images/' admin_user_uuid='121e194b-4caa-4b81-ad4f-86ca3919d5b9'
+2025-09-23 18:30:01,355 - __main__ - INFO - Using admin UUID: 121e194b-4caa-4b81-ad4f-86ca3919d5b9
+2025-09-23 18:30:01,422 - __main__ - INFO - Database session established
+2025-09-23 18:30:01,422 - genonaut.db.demo.seed_data_gen.generator - INFO - Starting synthetic data generation
+2025-09-23 18:30:01,483 - genonaut.db.demo.seed_data_gen.bulk_inserter - WARNING - Could not apply bulk insert optimizations: (psycopg2.errors.CantChangeRuntimeParam) parameter "wal_buffers" cannot be changed without restarting the server
+
+[SQL: SET wal_buffers = '64MB']
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-23 18:30:01,524 - genonaut.db.demo.seed_data_gen.bulk_inserter - WARNING - Username conflict: dennisrebecca
+2025-09-23 18:30:01,529 - genonaut.db.demo.seed_data_gen.bulk_inserter - WARNING - Removed 1 users due to username conflicts: dennisrebecca
+2025-09-23 18:30:01,531 - genonaut.db.demo.seed_data_gen.generator - INFO - Generated 5 users with 1 conflicts resolved
+2025-09-23 18:30:01,557 - genonaut.db.demo.seed_data_gen.generator - INFO - Generated 10 content_items
+2025-09-23 18:30:01,563 - genonaut.db.demo.seed_data_gen.generator - INFO - Generated 10 content_items_auto
+2025-09-23 18:30:01,569 - genonaut.db.demo.seed_data_gen.generator - INFO - Generated 20 total generation jobs (20 completed, 0 additional)
+2025-09-23 18:30:01,572 - genonaut.db.demo.seed_data_gen.generator - INFO - Updated 20 jobs with content_items references
+2025-09-23 18:30:01,573 - genonaut.db.demo.seed_data_gen.generator - INFO - Updated 0 jobs with content_items_auto references
+2025-09-23 18:30:01,574 - genonaut.db.demo.seed_data_gen.generator - INFO - Data generation completed in 0.15 seconds
+2025-09-23 18:30:01,574 - __main__ - INFO - Synthetic data generation completed successfully
+2025-09-23 18:30:01,574 - __main__ - INFO - Database session closed
+2025-09-23 18:30:43,971 - __main__ - INFO - Starting synthetic data generation CLI
+2025-09-23 18:30:43,972 - __main__ - INFO - Using validated database URL: postgresql://genonaut_admin:chocolateRainbows858@localhost:5432/genonaut_test
+2025-09-23 18:30:43,974 - __main__ - INFO - Configuration loaded: batch_size_users=1000 batch_size_content_items=2000 batch_size_content_items_auto=2000 batch_size_generation_jobs=5000 target_rows_users=100 target_rows_content_items=500 target_rows_content_items_auto=1000 max_workers=4 prompt_min_general_phrases=0 prompt_max_general_phrases=10 prompt_min_domain_phrases=4 prompt_max_domain_phrases=30 images_dir='io/storage/images/' admin_user_uuid='121e194b-4caa-4b81-ad4f-86ca3919d5b9'
+2025-09-23 18:30:43,974 - __main__ - INFO - Using admin UUID: 121e194b-4caa-4b81-ad4f-86ca3919d5b9
+2025-09-23 18:30:44,006 - __main__ - INFO - Database session established
+2025-09-23 18:30:44,006 - genonaut.db.demo.seed_data_gen.generator - INFO - Starting synthetic data generation
+2025-09-23 18:30:44,063 - genonaut.db.demo.seed_data_gen.bulk_inserter - WARNING - Could not apply bulk insert optimizations: (psycopg2.errors.CantChangeRuntimeParam) parameter "wal_buffers" cannot be changed without restarting the server
+
+[SQL: SET wal_buffers = '64MB']
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-23 18:30:44,130 - genonaut.db.demo.seed_data_gen.bulk_inserter - WARNING - Username conflict: brownethan
+2025-09-23 18:30:44,190 - genonaut.db.demo.seed_data_gen.bulk_inserter - WARNING - Removed 1 users due to username conflicts: brownethan
+2025-09-23 18:30:44,193 - genonaut.db.demo.seed_data_gen.generator - INFO - Generated 100 users with 1 conflicts resolved
+2025-09-23 18:30:44,288 - genonaut.db.demo.seed_data_gen.generator - INFO - Generated 500 content_items
+2025-09-23 18:30:44,477 - genonaut.db.demo.seed_data_gen.generator - INFO - Generated 1000 content_items_auto
+2025-09-23 18:30:44,638 - genonaut.db.demo.seed_data_gen.generator - INFO - Generated 1530 total generation jobs (1500 completed, 30 additional)
+2025-09-23 18:30:44,707 - genonaut.db.demo.seed_data_gen.generator - INFO - Updated 1532 jobs with content_items references
+2025-09-23 18:30:44,710 - genonaut.db.demo.seed_data_gen.generator - INFO - Updated 52 jobs with content_items_auto references
+2025-09-23 18:30:44,712 - genonaut.db.demo.seed_data_gen.generator - INFO - Data generation completed in 0.71 seconds
+2025-09-23 18:30:44,712 - __main__ - INFO - Synthetic data generation completed successfully
+2025-09-23 18:30:44,712 - __main__ - INFO - Database session closed
+2025-09-23 18:31:40,081 - __main__ - INFO - Starting synthetic data generation CLI
+2025-09-23 18:31:40,082 - __main__ - ERROR - Synthetic data generation failed: Invalid database URL: Database name 'genonaut' must end with '_demo' or '_test' for safety. This prevents accidental data generation in production databases.
+Traceback (most recent call last):
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/demo/seed_data_gen/__main__.py", line 104, in validate_database_url
+    raise ValueError(
+ValueError: Database name 'genonaut' must end with '_demo' or '_test' for safety. This prevents accidental data generation in production databases.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/demo/seed_data_gen/__main__.py", line 135, in main
+    validated_database_url = validate_database_url(args.database_url)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/joeflack4/projects/genonaut/genonaut/db/demo/seed_data_gen/__main__.py", line 112, in validate_database_url
+    raise ValueError(f"Invalid database URL: {e}")
+ValueError: Invalid database URL: Database name 'genonaut' must end with '_demo' or '_test' for safety. This prevents accidental data generation in production databases.

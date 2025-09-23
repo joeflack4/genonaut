@@ -1,0 +1,1 @@
+"""Synthetic data generator for Genonaut database seeding."""

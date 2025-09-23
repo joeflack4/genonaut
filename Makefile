@@ -1,7 +1,7 @@
 # Makefile for Genonaut project
 # Provides common development tasks and utilities
 
-.PHONY: help init-all init-dev init-demo init-test reset-db-1-data--demo reset-db-1-data--test reset-db-2-schema--demo reset-db-2-schema--test reset-db-3-schema-and-history--demo reset-db-3-schema-and-history--test re-seed-demo re-seed-demo-force test test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-all clear-excess-test-schemas install install-dev \
+.PHONY: help init-all init-dev init-demo init-test reset-db-1-data--demo reset-db-1-data--test reset-db-2-schema--demo reset-db-2-schema--test reset-db-3-schema-and-history--demo reset-db-3-schema-and-history--test re-seed-demo re-seed-demo-force seed-from-gen-demo seed-from-gen-test test test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-all clear-excess-test-schemas install install-dev \
 lint format clean migrate-all migrate-dev migrate-demo migrate-test migrate-step2-all migrate-step2-dev migrate-step2-demo migrate-step2-test backup backup-dev backup-demo backup-test api-dev api-demo api-test \
 frontend-install frontend-dev frontend-build frontend-preview frontend-test frontend-test-unit frontend-test-watch frontend-test-coverage frontend-test-e2e frontend-test-e2e-headed frontend-test-e2e-ui frontend-lint frontend-type-check frontend-format frontend-format-write \
 test-frontend test-frontend-unit test-frontend-watch test-frontend-coverage test-frontend-e2e test-frontend-e2e-headed test-frontend-e2e-ui
@@ -26,6 +26,8 @@ help:
 	@echo "  reset-db-3-schema-and-history--test Reset test database with migration history cleanup"
 	@echo "  re-seed-demo             Re-seed demo database (prompts for confirmation)"
 	@echo "  re-seed-demo-force       Re-seed demo database (no confirmation prompt)"
+	@echo "  seed-from-gen-demo       Generate synthetic data for demo database"
+	@echo "  seed-from-gen-test       Generate synthetic data for test database"
 	@echo "  test                     Run backend tests (legacy command)"
 	@echo "  test-verbose             Run all tests with verbose output"
 	@echo "  test-specific TEST=name  Run specific test module or test case"
@@ -125,6 +127,15 @@ re-seed-demo:
 re-seed-demo-force:
 	@echo "Re-seeding demo database (forced)..."
 	@python -c "import sys; sys.path.append('.'); from genonaut.db.init import reseed_demo; reseed_demo(force=True)"
+
+# Synthetic data generation
+seed-from-gen-demo:
+	@echo "Generating synthetic data for demo database..."
+	@python -m genonaut.db.demo.seed_data_gen generate --database-url "${DATABASE_URL_DEMO}" --target-rows-users 1000 --target-rows-content-items 5000 --target-rows-content-items-auto 10000
+
+seed-from-gen-test:
+	@echo "Generating synthetic data for test database..."
+	@python -m genonaut.db.demo.seed_data_gen generate --database-url "${DATABASE_URL_TEST}" --target-rows-users 100 --target-rows-content-items 500 --target-rows-content-items-auto 1000
 
 # Tests
 test:
