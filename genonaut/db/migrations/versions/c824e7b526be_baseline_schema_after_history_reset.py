@@ -1,8 +1,8 @@
 """baseline schema after history reset
 
-Revision ID: 48e116df29a8
+Revision ID: c824e7b526be
 Revises: 
-Create Date: 2025-09-22 23:50:30.066761
+Create Date: 2025-09-23 00:09:22.541875
 
 """
 from typing import Sequence, Union
@@ -13,7 +13,7 @@ from genonaut.db.schema import JSONColumn
 
 
 # revision identifiers, used by Alembic.
-revision: str = '48e116df29a8'
+revision: str = 'c824e7b526be'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

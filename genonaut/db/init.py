@@ -704,7 +704,7 @@ class DatabaseInitializer:
                 # Only seed if we have at least one expected file
                 available_files = [f for f in expected_files.keys() if (tsv_directory / f).exists()]
                 if available_files:
-                    utils.seed_database_from_tsv(session, str(tsv_directory), schema_name)
+                    utils.seed_database_from_tsv(session, str(tsv_directory), schema_name, self.database_name)
                     schema_info = f" in schema '{schema_name}'" if schema_name else ""
                     print(f"Database seeded successfully from {tsv_directory}{schema_info} (processed {len(available_files)} files)")
                 else:

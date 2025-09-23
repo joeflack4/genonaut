@@ -8,9 +8,11 @@ import csv
 import json
 import os
 import re
+import uuid
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
+import pandas as pd
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import SQLAlchemyError
@@ -106,16 +108,83 @@ def load_tsv_data(file_path: str) -> List[Dict[str, Any]]:
     return rows
 
 
-def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Optional[str] = None) -> None:
+def _handle_admin_user_for_demo_test_db(users_df: pd.DataFrame, database_name: str) -> pd.DataFrame:
+    """Handle special Admin user logic for demo and test databases.
+
+    Args:
+        users_df: DataFrame containing user data from users.tsv
+        database_name: Name of the target database
+
+    Returns:
+        Modified DataFrame with Admin user UUID properly set
+
+    Raises:
+        RuntimeError: If multiple Admin users found or DB_USER_ADMIN_UUID not set
+    """
+    # Check if this is a demo or test database
+    if not (database_name.endswith('_demo') or database_name.endswith('_test')):
+        return users_df
+
+    # Find Admin user(s) - case insensitive
+    admin_mask = users_df['username'].str.lower() == 'admin'
+    admin_rows = users_df[admin_mask]
+
+    if len(admin_rows) == 0:
+        # No Admin user found, return as-is
+        return users_df
+
+    if len(admin_rows) > 1:
+        raise RuntimeError(
+            f"Multiple Admin users found in users.tsv. Expected exactly 1 row with username 'Admin' or 'admin', "
+            f"but found {len(admin_rows)} rows."
+        )
+
+    # Get the static UUID from environment variable
+    admin_uuid_str = os.getenv('DB_USER_ADMIN_UUID')
+
+    if not admin_uuid_str:
+        # Generate a random UUID for the error message
+        suggested_uuid = str(uuid.uuid4())
+        raise RuntimeError(
+            f"DB_USER_ADMIN_UUID must be set in the users .env for developers "
+            f"(for those using demo and test databases). "
+            f"It has randomly generated a UUID for them to use, for their convenience: "
+            f"DB_USER_ADMIN_UUID={suggested_uuid}"
+        )
+
+    # Validate the UUID format
+    try:
+        admin_uuid = uuid.UUID(admin_uuid_str)
+    except ValueError:
+        raise RuntimeError(
+            f"DB_USER_ADMIN_UUID environment variable contains invalid UUID format: {admin_uuid_str}"
+        )
+
+    # Create a copy of the DataFrame and set the Admin user's ID
+    result_df = users_df.copy()
+    admin_index = admin_rows.index[0]
+
+    # Add the 'id' column if it doesn't exist, or update it
+    if 'id' not in result_df.columns:
+        result_df['id'] = None
+
+    result_df.loc[admin_index, 'id'] = str(admin_uuid)
+
+    return result_df
+
+
+def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Optional[str] = None, database_name: Optional[str] = None) -> None:
     """Seed database with data from TSV files.
-    
+
     Args:
         session: SQLAlchemy session
         test_input_dir: Directory containing TSV files (defaults to test/io/rdbms_init/)
         schema_name: Optional schema name for table operations
-        
+        database_name: Name of the target database (used for demo/test special handling)
+
     Raises:
         SQLAlchemyError: If seeding fails
+        RuntimeError: If Admin user handling fails for demo/test databases
     """
     if test_input_dir is None:
         # Get the directory containing this utils.py file, then go to input/rdbms_init/
@@ -142,20 +211,49 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
         jobs_path = os.path.join(test_input_dir, 'generation_jobs.tsv')
 
         # Load and create users first
-        users_data = load_tsv_data(users_path)
+        # Use DataFrame approach for special Admin user handling
+        users_df = pd.read_csv(users_path, sep='\t')
+
+        # Handle special Admin user logic for demo/test databases
+        if database_name:
+            users_df = _handle_admin_user_for_demo_test_db(users_df, database_name)
+
         users = []
         username_to_user = {}
-        
-        for user_data in users_data:
-            user = User(
-                username=user_data['username'],
-                email=user_data['email'],
-                preferences=user_data.get('preferences', {}),
-                is_active=user_data.get('is_active', True)
-            )
+
+        for _, row in users_df.iterrows():
+            # Convert row to dict and handle JSON/bool fields like load_tsv_data does
+            user_data = row.to_dict()
+
+            # Process fields similar to load_tsv_data
+            for key, value in user_data.items():
+                if pd.isna(value) or (isinstance(value, str) and value.strip() == ''):
+                    user_data[key] = None
+                elif isinstance(value, str):
+                    if value.startswith('{') or value.startswith('['):
+                        try:
+                            user_data[key] = json.loads(value)
+                        except json.JSONDecodeError:
+                            pass
+                    elif value.lower() in ('true', 'false'):
+                        user_data[key] = value.lower() == 'true'
+
+            # Create User object, handling pre-assigned ID for Admin user
+            user_kwargs = {
+                'username': user_data['username'],
+                'email': user_data['email'],
+                'preferences': user_data.get('preferences', {}),
+                'is_active': user_data.get('is_active', True)
+            }
+
+            # If this user has a pre-assigned ID (Admin user), use it
+            if 'id' in user_data and user_data['id'] is not None:
+                user_kwargs['id'] = uuid.UUID(user_data['id'])
+
+            user = User(**user_kwargs)
             users.append(user)
             username_to_user[user.username] = user
-        
+
         session.add_all(users)
         session.flush()  # Get user IDs
         
