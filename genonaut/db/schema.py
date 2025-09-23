@@ -9,10 +9,11 @@ from sqlalchemy import (
     Column, Integer, String, Text, DateTime, Float, Boolean,
     ForeignKey, JSON, UniqueConstraint, Index, event, func, literal_column,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship, declarative_base, declared_attr
 from sqlalchemy.types import TypeDecorator
 from sqlalchemy.engine import Engine
+import uuid
 
 
 class JSONColumn(TypeDecorator):
@@ -68,7 +69,7 @@ class User(Base):
     """
     __tablename__ = 'users'
     
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -94,7 +95,7 @@ class ContentItemColumns:
     content_type = Column(String(50), nullable=False, index=True)  # text, image, video, audio
     content_data = Column(Text, nullable=False)
     item_metadata = Column(JSONColumn, default=dict)
-    creator_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     tags = Column(JSONColumn, default=list)
@@ -183,7 +184,7 @@ class UserInteraction(Base):
     __tablename__ = 'user_interactions'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
     content_item_id = Column(Integer, ForeignKey('content_items.id'), nullable=False, index=True)
     interaction_type = Column(String(50), nullable=False, index=True)  # view, like, share, download, etc.
     rating = Column(Integer, nullable=True)  # 1-5 scale
@@ -218,7 +219,7 @@ class Recommendation(Base):
     __tablename__ = 'recommendations'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
     content_item_id = Column(Integer, ForeignKey('content_items.id'), nullable=False, index=True)
     recommendation_score = Column(Float, nullable=False)  # 0-1 confidence score
     algorithm_version = Column(String(50), nullable=False)
@@ -254,7 +255,7 @@ class GenerationJob(Base):
     __tablename__ = 'generation_jobs'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
     job_type = Column(String(50), nullable=False, index=True)  # text, image, video, audio
     prompt = Column(Text, nullable=False)
     parameters = Column(JSONColumn, default=dict)

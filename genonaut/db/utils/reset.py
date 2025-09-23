@@ -113,6 +113,7 @@ def reset_db(
     exclude_backup: bool = False,
     with_history: bool = False,
     exclude_backup_history: bool = False,
+    drop_tables: bool = False,
 ) -> None:
     """Reset database with optional backup and migration history management.
 
@@ -122,6 +123,7 @@ def reset_db(
         exclude_backup: Skip database backup before reset.
         with_history: Also manage migration history (backup and remove).
         exclude_backup_history: Skip migration history backup when with_history is True.
+        drop_tables: Drop all tables instead of truncating them.
 
     Raises:
         ValueError: If the database cannot be safely reset based on its name.
@@ -137,6 +139,8 @@ def reset_db(
     print(f"Database reset requested for: {database_name} ({resolved_environment})")
     if with_history:
         print("Migration history will be cleared after backup")
+    if drop_tables:
+        print("All tables will be dropped")
     if exclude_backup:
         print("Database backup will be skipped")
     if exclude_backup_history and with_history:
@@ -167,10 +171,13 @@ def reset_db(
     initializer = DatabaseInitializer(database_url=target_url, environment=resolved_environment)
     initializer.create_engine_and_session()
 
-    if with_history:
-        # When resetting history, drop all tables (including alembic_version)
+    if with_history or drop_tables:
+        # When resetting history or dropping tables, drop all tables (including alembic_version)
         print("Dropping all tables for fresh migration history...")
         try:
+            with initializer.engine.connect() as conn:
+                conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
+                conn.commit()
             initializer.drop_tables()
             print("✓ All tables dropped successfully")
         except Exception as e:
@@ -245,6 +252,11 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip migration history backup when --with-history is used",
     )
+    parser.add_argument(
+        "--drop-tables",
+        action="store_true",
+        help="Drop all tables instead of truncating them",
+    )
 
     return parser
 
@@ -261,6 +273,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             exclude_backup=getattr(args, "exclude_backup", False),
             with_history=getattr(args, "with_history", False),
             exclude_backup_history=getattr(args, "exclude_backup_history", False),
+            drop_tables=getattr(args, "drop_tables", False),
         )
     except Exception as e:
         print(f"Error: {e}")
