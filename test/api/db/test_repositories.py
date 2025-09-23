@@ -1,5 +1,7 @@
 """Database tests for API repositories."""
 
+import os
+import uuid
 import pytest
 from datetime import datetime
 from sqlalchemy import create_engine
@@ -201,6 +203,25 @@ class TestUserRepository:
         user_ids = [u.id for u in active_users]
         assert sample_user.id in user_ids
         assert inactive_user.id not in user_ids
+
+    def test_get_admin_user_by_username(self, test_db_session):
+        """Test getting the admin user by username and verifying their UUID."""
+        repo = UserRepository(test_db_session)
+        admin_uuid_str = os.environ.get("DB_USER_ADMIN_UUID")
+        admin_uuid = uuid.UUID(admin_uuid_str)
+
+        # Create admin user
+        admin_user = User(
+            id=admin_uuid,
+            username="Admin",
+            email="admin@example.com",
+        )
+        test_db_session.add(admin_user)
+        test_db_session.commit()
+
+        user = repo.get_by_username("Admin")
+        assert user is not None
+        assert user.id == admin_uuid
 
 
 class TestContentRepository:
