@@ -1,8 +1,9 @@
 import { ApiClient } from './api-client'
 import type { ApiUser, ApiUserStats, ApiUserUpdateRequest } from '../types/api'
 import type { User, UserStats } from '../types/domain'
+import { ADMIN_USER_ID } from '../constants/config'
 
-const CURRENT_USER_ID = 1
+const CURRENT_USER_ID = ADMIN_USER_ID
 
 export class UserService {
   private readonly api: ApiClient
@@ -11,7 +12,7 @@ export class UserService {
     this.api = api
   }
 
-  async getUser(id: number): Promise<User> {
+  async getUser(id: string): Promise<User> {
     const apiUser = await this.api.get<ApiUser>(`/api/v1/users/${id}`)
     return this.transformUser(apiUser)
   }
@@ -20,12 +21,12 @@ export class UserService {
     return this.getUser(CURRENT_USER_ID)
   }
 
-  async getUserStats(id: number): Promise<UserStats> {
+  async getUserStats(id: string): Promise<UserStats> {
     const stats = await this.api.get<ApiUserStats>(`/api/v1/users/${id}/stats`)
     return this.transformStats(stats)
   }
 
-  async updateUser(id: number, payload: ApiUserUpdateRequest): Promise<User> {
+  async updateUser(id: string, payload: ApiUserUpdateRequest): Promise<User> {
     const apiUser = await this.api.put<ApiUser, ApiUserUpdateRequest>(`/api/v1/users/${id}`, payload)
     return this.transformUser(apiUser)
   }

@@ -26,10 +26,11 @@ import {
 import CloseIcon from '@mui/icons-material/Close'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import { useGalleryList, useGalleryAutoList, useCurrentUser } from '../../hooks'
+import { ADMIN_USER_ID } from '../../constants/config'
 
 const PAGE_SIZE = 10
 const PANEL_WIDTH = 360
-const DEFAULT_USER_ID = 1
+const DEFAULT_USER_ID = ADMIN_USER_ID
 const GALLERY_OPTIONS_OPEN_KEY = 'gallery-options-open'
 
 type SortOption = 'recent' | 'top-rated'

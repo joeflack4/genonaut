@@ -8,14 +8,20 @@ import { GalleryPage } from '../GalleryPage'
 
 vi.mock('../../../hooks', () => {
   const useGalleryList = vi.fn()
+  const useGalleryAutoList = vi.fn()
+  const useCurrentUser = vi.fn()
 
   return {
     useGalleryList,
+    useGalleryAutoList,
+    useCurrentUser,
   }
 })
 
-const { useGalleryList } = await import('../../../hooks')
+const { useGalleryList, useGalleryAutoList, useCurrentUser } = await import('../../../hooks')
 const mockedUseGalleryList = vi.mocked(useGalleryList)
+const mockedUseGalleryAutoList = vi.mocked(useGalleryAutoList)
+const mockedUseCurrentUser = vi.mocked(useCurrentUser)
 
 const renderGalleryPage = () => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -30,7 +36,15 @@ const renderGalleryPage = () => {
 
 describe('GalleryPage', () => {
   beforeEach(() => {
+    mockedUseCurrentUser.mockReset()
     mockedUseGalleryList.mockReset()
+    mockedUseGalleryAutoList.mockReset()
+
+    mockedUseCurrentUser.mockReturnValue({
+      data: { id: '121e194b-4caa-4b81-ad4f-86ca3919d5b9', name: 'Admin' },
+      isLoading: false,
+    })
+
     mockedUseGalleryList.mockReturnValue({
       data: {
         items: [
@@ -42,10 +56,21 @@ describe('GalleryPage', () => {
             qualityScore: 0.87,
             createdAt: '2024-01-05T00:00:00Z',
             updatedAt: '2024-01-05T00:00:00Z',
+            creatorId: '121e194b-4caa-4b81-ad4f-86ca3919d5b9',
           },
         ],
         total: 1,
-        limit: 10,
+        limit: 20,
+        skip: 0,
+      },
+      isLoading: false,
+    })
+
+    mockedUseGalleryAutoList.mockReturnValue({
+      data: {
+        items: [],
+        total: 0,
+        limit: 20,
         skip: 0,
       },
       isLoading: false,
@@ -55,10 +80,23 @@ describe('GalleryPage', () => {
   it('renders gallery list and triggers search filter', () => {
     renderGalleryPage()
 
-    expect(mockedUseGalleryList).toHaveBeenCalledWith({ limit: 10, skip: 0, search: '', sort: 'recent' })
+    // Gallery page calls multiple hooks with different parameters
+    expect(mockedUseGalleryList).toHaveBeenCalledWith({
+      limit: 20,
+      skip: 0,
+      search: '',
+      sort: 'recent',
+      creator_id: '121e194b-4caa-4b81-ad4f-86ca3919d5b9'
+    })
+    expect(mockedUseGalleryList).toHaveBeenCalledWith({
+      limit: 20,
+      skip: 0,
+      search: '',
+      sort: 'recent'
+    })
     expect(screen.getByText('Neon Cityscape')).toBeInTheDocument()
 
-    const searchInput = screen.getByLabelText(/search gallery/i)
+    const searchInput = screen.getByLabelText(/search/i)
     const filterForm = screen.getByRole('form', { name: /gallery filters/i })
 
     fireEvent.change(searchInput, { target: { value: 'portrait' } })

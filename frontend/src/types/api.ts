@@ -1,5 +1,5 @@
 export interface ApiUser {
-  id: number
+  id: string  // UUID
   name: string
   email: string
   is_active: boolean
@@ -32,7 +32,7 @@ export interface ApiContentItem {
   content_type: string
   content_data: string
   item_metadata: Record<string, any>
-  creator_id: number
+  creator_id: string  // UUID
   tags: string[]
   is_public: boolean
   is_private: boolean
@@ -40,7 +40,7 @@ export interface ApiContentItem {
 
 export interface ApiRecommendationItem {
   id: number
-  user_id: number
+  user_id: string  // UUID
   content_id: number
   algorithm: string
   score: number
@@ -60,5 +60,5 @@ export interface ApiContentQueryParams {
   limit?: number
   search?: string
   sort?: 'recent' | 'top-rated'
-  creator_id?: number
+  creator_id?: string  // UUID
 }

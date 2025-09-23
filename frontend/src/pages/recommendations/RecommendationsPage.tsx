@@ -14,8 +14,9 @@ import {
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import PendingIcon from '@mui/icons-material/Pending'
 import { useCurrentUser, useRecommendations, useServeRecommendation } from '../../hooks'
+import { ADMIN_USER_ID } from '../../constants/config'
 
-const DEFAULT_USER_ID = 1
+const DEFAULT_USER_ID = ADMIN_USER_ID
 
 export function RecommendationsPage() {
   const { data: currentUser } = useCurrentUser()

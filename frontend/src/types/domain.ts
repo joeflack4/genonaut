@@ -1,5 +1,5 @@
 export interface User {
-  id: number
+  id: string  // UUID
   name: string
   email: string
   isActive: boolean
@@ -23,12 +23,12 @@ export interface GalleryItem {
   qualityScore: number | null
   createdAt: string
   updatedAt: string
-  creatorId: number
+  creatorId: string  // UUID
 }
 
 export interface RecommendationItem {
   id: number
-  userId: number
+  userId: string  // UUID
   contentId: number
   algorithm: string
   score: number

@@ -9,7 +9,7 @@ export class RecommendationService {
     this.api = api
   }
 
-  async getUserRecommendations(userId: number): Promise<RecommendationItem[]> {
+  async getUserRecommendations(userId: string): Promise<RecommendationItem[]> {
     const recommendations = await this.api.get<ApiRecommendationItem[]>(
       `/api/v1/users/${userId}/recommendations`
     )

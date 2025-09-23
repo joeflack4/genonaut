@@ -6,7 +6,7 @@ export interface GalleryStats {
   totalGalleryCount: number
 }
 
-export function useGalleryStats(userId: number) {
+export function useGalleryStats(userId: string) {
   return useQuery({
     queryKey: ['gallery-stats', userId],
     queryFn: async (): Promise<GalleryStats> => {

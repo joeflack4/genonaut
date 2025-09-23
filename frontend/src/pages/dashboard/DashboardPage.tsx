@@ -1,11 +1,12 @@
 import { Box, Card, CardContent, List, ListItem, ListItemText, Skeleton, Stack, Typography } from '@mui/material'
 import { useGalleryList, useGalleryAutoList, useGalleryStats, useCurrentUser } from '../../hooks'
+import { ADMIN_USER_ID } from '../../constants/config'
 
-const DEFAULT_USER_ID = 1
+const DEFAULT_USER_ID = ADMIN_USER_ID
 
 const galleryStatItems = [
   { key: 'userGalleryCount' as const, label: 'Your gens' },
-  { key: 'totalGalleryCount' as const, label: ''Community gens' },
+  { key: 'totalGalleryCount' as const, label: 'Community gens' },
 ]
 
 export function DashboardPage() {
