@@ -5,8 +5,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Genonaut is a project to implement recommender systems for generative AI that can perpetually produce content (text, 
 image, video, audio) based on user preferences.
 
+## Environment Setup
+**IMPORTANT**: Before starting any work, activate the virtual environment:
+```bash
+source env/bin/activate
+```
+This must be done at the beginning of every session before running any Python commands, tests, or other project operations.
+
 ## How to familiarize yourself with the project
-- Read the `README.md` file in the root of the repository. Follow any links in that file, or any other files it links 
+- Read the `README.md` file in the root of the repository. Follow any links in that file, or any other files it links
 to, e.g. [full dev docs](docs/developer.md), and read those files as well.
 
 ## Code / architecture style

@@ -7,6 +7,7 @@ build/
 dev/
 dist/
 ignored/
+logs/
 *~$*
 *.DS_Store
 *.egg-info
@@ -27,6 +28,7 @@ bak/
 !/env/env.example
 .ipynb_checkpoints/
 *.parquet*
+env/*
 /venv/
 junk
 */junk.json
