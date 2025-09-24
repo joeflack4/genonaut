@@ -9,5 +9,6 @@ pydantic-settings
 pytest
 python-dotenv
 python-multipart
+psutil
 sqlalchemy
 uvicorn

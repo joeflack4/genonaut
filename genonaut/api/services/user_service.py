@@ -7,6 +7,8 @@ from sqlalchemy import func
 
 from genonaut.db.schema import User, UserInteraction, ContentItem
 from genonaut.api.repositories.user_repository import UserRepository
+from genonaut.api.models.requests import PaginationRequest
+from genonaut.api.models.responses import PaginatedResponse
 from genonaut.api.exceptions import ValidationError, EntityNotFoundError
 
 
@@ -315,3 +317,21 @@ class UserService:
             'active_users': active_users,
             'inactive_users': inactive_users
         }
+
+    # ------------------------------------------------------------------
+    # Paginated methods with enhanced performance
+    # ------------------------------------------------------------------
+
+    def get_users_paginated(self, pagination: PaginationRequest) -> PaginatedResponse:
+        """Get paginated users with enhanced performance."""
+        return self.repository.get_paginated(pagination)
+
+    def get_active_users_paginated(self, pagination: PaginationRequest) -> PaginatedResponse:
+        """Get paginated active users with enhanced performance."""
+        return self.repository.get_active_users_paginated(pagination)
+
+    def search_users_by_preferences_paginated(self,
+                                            preferences_filter: Dict[str, Any],
+                                            pagination: PaginationRequest) -> PaginatedResponse:
+        """Search users by preferences with pagination and enhanced performance."""
+        return self.repository.search_by_preferences_paginated(preferences_filter, pagination)

@@ -1,24 +1,29 @@
-# Makefile for Genonaut project
-# Provides common development tasks and utilities
+# Common development tasks and utilities
+.PHONY: help init-all init-dev init-demo init-test reset-db-1-data--demo reset-db-1-data--test reset-db-2-schema--demo \
+reset-db-2-schema--test reset-db-3-schema-and-history--demo reset-db-3-schema-and-history--test re-seed-demo \
+re-seed-demo-force seed-from-gen-demo seed-from-gen-test test test-quick test-verbose test-specific test-unit test-db \
+test-db-unit test-db-integration test-api test-all clear-excess-test-schemas install install-dev \
+lint format clean migrate-all migrate-prep migrate-dev migrate-demo migrate-test backup backup-dev backup-demo \
+backup-test api-dev api-demo api-test frontend-install frontend-dev frontend-build frontend-preview frontend-test \
+frontend-test-unit frontend-test-watch frontend-test-coverage frontend-test-e2e frontend-test-e2e-headed \
+frontend-test-e2e-ui frontend-lint frontend-type-check frontend-format frontend-format-write \
+test-frontend test-frontend-unit test-frontend-watch test-frontend-coverage test-frontend-e2e test-frontend-e2e-headed \
+test-frontend-e2e-ui
 
-.PHONY: help init-all init-dev init-demo init-test reset-db-1-data--demo reset-db-1-data--test reset-db-2-schema--demo reset-db-2-schema--test reset-db-3-schema-and-history--demo reset-db-3-schema-and-history--test re-seed-demo re-seed-demo-force seed-from-gen-demo seed-from-gen-test test test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-all clear-excess-test-schemas install install-dev \
-lint format clean migrate-all migrate-dev migrate-demo migrate-test migrate-step2-all migrate-step2-dev migrate-step2-demo migrate-step2-test backup backup-dev backup-demo backup-test api-dev api-demo api-test \
-frontend-install frontend-dev frontend-build frontend-preview frontend-test frontend-test-unit frontend-test-watch frontend-test-coverage frontend-test-e2e frontend-test-e2e-headed frontend-test-e2e-ui frontend-lint frontend-type-check frontend-format frontend-format-write \
-test-frontend test-frontend-unit test-frontend-watch test-frontend-coverage test-frontend-e2e test-frontend-e2e-headed test-frontend-e2e-ui
-
+# Load environment variables
 ifneq (,$(wildcard ./env/.env))
 include ./env/.env
 export  # export included vars to child processes
 endif
 
-# Default target
+# help: Default target
 help:
 	@echo "Available targets:"
 	@echo "  help                     Show this help message"
 	@echo "  init                     Initialize database with schema"
 	@echo "  init-demo                Initialize demo database with schema"
 	@echo "  init-test                Initialize test database with schema"
-	@echo "  reset-db-1-data--demo            Truncate and re-initialize the demo database"
+	@echo "  reset-db-1-data--demo            Truncate and re-initialize the 	demo database"
 	@echo "  reset-db-1-data--test            Truncate and re-initialize the test database"
 	@echo "  reset-db-2-schema--demo          Drop and re-initialize the demo database schema"
 	@echo "  reset-db-2-schema--test          Drop and re-initialize the test database schema"
@@ -28,7 +33,8 @@ help:
 	@echo "  re-seed-demo-force       Re-seed demo database (no confirmation prompt)"
 	@echo "  seed-from-gen-demo       Generate synthetic data for demo database"
 	@echo "  seed-from-gen-test       Generate synthetic data for test database"
-	@echo "  test                     Run backend tests (legacy command)"
+	@echo "  test / test-quick        Run quick tests (< 2 minutes)"
+	@echo "  test-long-running        Run performance/stress tests (5-15 minutes)"
 	@echo "  test-verbose             Run all tests with verbose output"
 	@echo "  test-specific TEST=name  Run specific test module or test case"
 	@echo "  test-unit                Run unit tests (no external dependencies)"
@@ -36,7 +42,7 @@ help:
 	@echo "  test-db-unit             Run database unit tests (no external dependencies)"
 	@echo "  test-db-integration      Run database integration tests (requires database)"
 	@echo "  test-api                 Run API integration tests (requires web server)"
-	@echo "  test-all                 Run all test suites (unit + db + api)"
+	@echo "  test-all                 Run all tests (quick + long-running)"
 	@echo "  clear-excess-test-schemas Clear excess test database schemas"
 	@echo "  install                  Install project dependencies"
 	@echo "  install-dev              Install development dependencies"
@@ -139,12 +145,19 @@ seed-from-gen-test:
 
 # Tests
 test:
-	@echo "Running all tests (legacy)..."
-	pytest test/ -v
+	@echo "Running quick tests (excluding long-running tests)..."
+	pytest test/ -v -m "not longrunning"
+
+test-quick: test
+
+test-long-running:
+	@echo "Running long-running tests (performance, stress, large datasets)..."
+	@echo "⚠️  Warning: These tests may take 5-15 minutes to complete"
+	pytest test/ -v -m "longrunning"
 
 test-verbose:
-	@echo "Running all tests with verbose output..."
-	pytest test/ -v -s
+	@echo "Running quick tests with verbose output..."
+	pytest test/ -v -s -m "not longrunning"
 
 test-specific:
 	@echo "Running specific test: $(TEST)"
@@ -180,10 +193,11 @@ test-api:
 	@echo "Start with: make api-test"
 	API_BASE_URL=http://0.0.0.0:8000 pytest test/api/integration/ -v
 
-test-all: test-unit test-db test-api
+test-all: test-quick test-long-running
 	@echo "✅ All test suites completed successfully!"
 	@echo "Summary:"
-	@echo "  ✓ Unit tests (no dependencies)"
+	@echo "  ✓ Quick tests (fast feedback)"
+	@echo "  ✓ Long-running tests (performance & stress)"
 	@echo "  ✓ Database tests (DB required)"
 	@echo "  ✓ API integration tests (web server required)"
 
@@ -236,28 +250,31 @@ init-db-drop:
 	python -c "from genonaut.db.init import initialize_database; initialize_database(drop_existing=True)"
 
 # DB migration
-migrate-all: migrate-dev migrate-demo migrate-test
+# migrate-*: Create auto-generted revision based on SQLAlchemy model changes. Pass with a message, like: `make migrate-all m="my changes`
+# !warning: if migrating multiple databases and their db schema is exactly the same, autogeneration should be fine, and
+# can then be applied to all 3 databases via 'alembic upgrade head'. However, if they differ, and you create the
+# migration using 1 database url, and then try to apply it, it will only work on the database(s) with matching schema.
+migrate-all: migrate-prep migrate-demo migrate-dev migrate-test
 
-migrate-dev:
-	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL} DATABASE_URL=${DATABASE_URL} alembic revision --autogenerate -m "$(m)"
-
-migrate-demo:
+# todo: when demo is no longer the main DB, the canonical DB URL should change here to just: DATABASE_URL
+# migrate-prep: Alt versions:
+# dev:
+# @ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL} DATABASE_URL=${DATABASE_URL} alembic revision --autogenerate -m "$(m)"
+# test:
+# @TEST_URL=$${DATABASE_URL_TEST:-$${DATABASE_URL}}; \
+# GENONAUT_DB_ENVIRONMENT=test DATABASE_URL=$$TEST_URL DATABASE_URL_TEST=$$TEST_URL ALEMBIC_SQLALCHEMY_URL=$$TEST_URL alembic revision --autogenerate -m "$(m)"
+migrate-prep:
 	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic revision --autogenerate -m "$(m)"
 
-migrate-test:
-	@TEST_URL=$${DATABASE_URL_TEST:-$${DATABASE_URL}}; \
-	GENONAUT_DB_ENVIRONMENT=test DATABASE_URL=$$TEST_URL DATABASE_URL_TEST=$$TEST_URL ALEMBIC_SQLALCHEMY_URL=$$TEST_URL alembic revision --autogenerate -m "$(m)"
 
-migrate-step2-all: migrate-step2-dev migrate-step2-demo migrate-step2-test
-
-migrate-step2-dev:
+migrate-dev:
 	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL} DATABASE_URL=${DATABASE_URL} alembic upgrade head
 
-migrate-step2-demo:
+migrate-demo:
 	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic upgrade head
 
-migrate-step2-test:
-	@TEST_URL=$${DATABASE_URL_TEST:-$${DATABASE_URL}}; \
+migrate-test:
+	@TEST_URL=${DATABASE_URL_TEST:-${DATABASE_URL}}; \
 	GENONAUT_DB_ENVIRONMENT=test DATABASE_URL=$$TEST_URL DATABASE_URL_TEST=$$TEST_URL ALEMBIC_SQLALCHEMY_URL=$$TEST_URL alembic upgrade head
 
 migrate-down-dev:

@@ -389,16 +389,20 @@ class TestResponseModels:
     def test_paginated_response_valid(self):
         """Test paginated response model."""
         data = {
-            "data": [{"id": 1, "name": "item1"}, {"id": 2, "name": "item2"}],
-            "total": 100,
-            "skip": 0,
-            "limit": 10,
-            "has_more": True
+            "items": [{"id": 1, "name": "item1"}, {"id": 2, "name": "item2"}],
+            "pagination": {
+                "page": 1,
+                "page_size": 10,
+                "total_count": 100,
+                "has_next": True,
+                "has_previous": False
+            }
         }
         paginated = PaginatedResponse(**data)
-        assert len(paginated.data) == 2
-        assert paginated.total == 100
-        assert paginated.has_more is True
+        assert len(paginated.items) == 2
+        assert paginated.pagination.total_count == 100
+        assert paginated.pagination.has_next is True
+        assert paginated.pagination.has_previous is False
 
 
 class TestEnums:

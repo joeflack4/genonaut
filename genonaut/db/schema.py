@@ -83,8 +83,13 @@ class User(Base):
     interactions = relationship("UserInteraction", back_populates="user")
     recommendations = relationship("Recommendation", back_populates="user")
     
-    # Table arguments - reserved for future indexes
-    __table_args__ = ()
+    # Pagination optimization indexes
+    __table_args__ = (
+        Index("idx_users_created_at_desc", created_at.desc()),
+        Index("idx_users_active_created", is_active, created_at.desc()),
+        Index("idx_users_username_lower", func.lower(username)),  # For case-insensitive username searches
+        Index("idx_users_email_lower", func.lower(email)),      # For case-insensitive email searches
+    )
 
 
 class ContentItemColumns:
@@ -124,10 +129,11 @@ class ContentItem(ContentItemColumns, Base):
     interactions = relationship("UserInteraction", back_populates="content_item")
     recommendations = relationship("Recommendation", back_populates="content_item")
     
-    # Full-text search configuration for PostgreSQL
+    # Full-text search configuration and pagination optimization indexes for PostgreSQL
     @declared_attr
     def __table_args__(cls):
         return (
+            # Full-text search index
             Index(
                 "ci_title_fts_idx",
                 func.to_tsvector(
@@ -137,6 +143,16 @@ class ContentItem(ContentItemColumns, Base):
                 postgresql_using="gin",
                 info={"postgres_only": True},
             ),
+            # Pagination optimization indexes
+            Index("idx_content_items_created_at_desc", cls.created_at.desc()),
+            Index("idx_content_items_creator_created", cls.creator_id, cls.created_at.desc()),
+            Index("idx_content_items_quality_created", cls.quality_score.desc(), cls.created_at.desc()),
+            Index("idx_content_items_type_created", cls.content_type, cls.created_at.desc()),
+            Index("idx_content_items_public_created", cls.created_at.desc(), postgresql_where=cls.is_private == False),
+            # GIN index for tags array operations (PostgreSQL only)
+            Index("idx_content_items_tags_gin", cls.tags, postgresql_using="gin", info={"postgres_only": True}),
+            # GIN index for metadata operations (PostgreSQL only)
+            Index("idx_content_items_metadata_gin", cls.item_metadata, postgresql_using="gin", info={"postgres_only": True}),
         )
 
 
@@ -152,10 +168,11 @@ class ContentItemAuto(ContentItemColumns, Base):
     # Relationships
     creator = relationship("User", back_populates="auto_content_items")
 
-    # Full-text search configuration for PostgreSQL
+    # Full-text search configuration and pagination optimization indexes for PostgreSQL
     @declared_attr
     def __table_args__(cls):
         return (
+            # Full-text search index
             Index(
                 "cia_title_fts_idx",
                 func.to_tsvector(
@@ -165,6 +182,16 @@ class ContentItemAuto(ContentItemColumns, Base):
                 postgresql_using="gin",
                 info={"postgres_only": True},
             ),
+            # Pagination optimization indexes
+            Index("idx_content_items_auto_created_at_desc", cls.created_at.desc()),
+            Index("idx_content_items_auto_creator_created", cls.creator_id, cls.created_at.desc()),
+            Index("idx_content_items_auto_quality_created", cls.quality_score.desc(), cls.created_at.desc()),
+            Index("idx_content_items_auto_type_created", cls.content_type, cls.created_at.desc()),
+            Index("idx_content_items_auto_public_created", cls.created_at.desc(), postgresql_where=cls.is_private == False),
+            # GIN index for tags array operations (PostgreSQL only)
+            Index("idx_content_items_auto_tags_gin", cls.tags, postgresql_using="gin", info={"postgres_only": True}),
+            # GIN index for metadata operations (PostgreSQL only)
+            Index("idx_content_items_auto_metadata_gin", cls.item_metadata, postgresql_using="gin", info={"postgres_only": True}),
         )
 
 
@@ -196,10 +223,18 @@ class UserInteraction(Base):
     user = relationship("User", back_populates="interactions")
     content_item = relationship("ContentItem", back_populates="interactions")
     
-    # Constraints and indexes
+    # Constraints and pagination optimization indexes
     __table_args__ = (
-        UniqueConstraint('user_id', 'content_item_id', 'interaction_type', 'created_at', 
+        UniqueConstraint('user_id', 'content_item_id', 'interaction_type', 'created_at',
                         name='unique_user_content_interaction'),
+        # Pagination optimization indexes
+        Index("idx_user_interactions_created_at_desc", created_at.desc()),
+        Index("idx_user_interactions_user_created", user_id, created_at.desc()),
+        Index("idx_user_interactions_content_created", content_item_id, created_at.desc()),
+        Index("idx_user_interactions_type_created", interaction_type, created_at.desc()),
+        Index("idx_user_interactions_user_type_created", user_id, interaction_type, created_at.desc()),
+        # Index for rating-based queries
+        Index("idx_user_interactions_rating_created", rating.desc(), created_at.desc(), postgresql_where=rating.is_not(None)),
     )
 
 
@@ -232,8 +267,19 @@ class Recommendation(Base):
     user = relationship("User", back_populates="recommendations")
     content_item = relationship("ContentItem", back_populates="recommendations")
     
-    # Constraints and indexes
-    __table_args__ = ()
+    # Pagination optimization indexes
+    __table_args__ = (
+        Index("idx_recommendations_created_at_desc", created_at.desc()),
+        Index("idx_recommendations_user_created", user_id, created_at.desc()),
+        Index("idx_recommendations_content_created", content_item_id, created_at.desc()),
+        Index("idx_recommendations_score_created", recommendation_score.desc(), created_at.desc()),
+        Index("idx_recommendations_user_score_created", user_id, recommendation_score.desc(), created_at.desc()),
+        # Index for served recommendations
+        Index("idx_recommendations_served_created", is_served, created_at.desc()),
+        Index("idx_recommendations_user_served_created", user_id, is_served, created_at.desc()),
+        # Index for algorithm version analysis
+        Index("idx_recommendations_algorithm_created", algorithm_version, created_at.desc()),
+    )
 
 
 class GenerationJob(Base):
@@ -271,8 +317,9 @@ class GenerationJob(Base):
     user = relationship("User", foreign_keys=[user_id])
     result_content = relationship("ContentItem", foreign_keys=[result_content_id])
     
-    # Full-text search configuration for PostgreSQL
+    # Full-text search configuration and pagination optimization indexes for PostgreSQL
     __table_args__ = (
+        # Full-text search index
         Index(
             "gj_prompt_fts_idx",
             func.to_tsvector(
@@ -282,6 +329,17 @@ class GenerationJob(Base):
             postgresql_using="gin",
             info={"postgres_only": True},
         ),
+        # Pagination optimization indexes
+        Index("idx_generation_jobs_created_at_desc", created_at.desc()),
+        Index("idx_generation_jobs_user_created", user_id, created_at.desc()),
+        Index("idx_generation_jobs_status_created", status, created_at.desc()),
+        Index("idx_generation_jobs_type_created", job_type, created_at.desc()),
+        Index("idx_generation_jobs_user_status_created", user_id, status, created_at.desc()),
+        Index("idx_generation_jobs_user_type_created", user_id, job_type, created_at.desc()),
+        # Index for job queue management
+        Index("idx_generation_jobs_status_created_priority", status, created_at.asc(), postgresql_where=status.in_(['pending', 'running'])),
+        # Index for completed job analytics
+        Index("idx_generation_jobs_completed_at_desc", completed_at.desc(), postgresql_where=completed_at.is_not(None)),
     )
 
 

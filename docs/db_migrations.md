@@ -5,15 +5,14 @@
 ## SOP: Changing database schema 
 1) Create, modify, or delete SQLAlchemy models.
 - DO NOT DO: plan/create raw SQL to execute to make the changes.
-2) Create revision: Autogen (ORM): Run the makefile goals to do `alembic revision --autogenerate -m "xyz"` on respective
-DBs, which follow the pattern, `migrate-*`, e.g. `migrate-demo`. But before running this, follow the "special 
-considerations" subsection below.
+2) Create revision: Autogen (ORM): Run the makefile goals to do `alembic revision --autogenerate -m "xyz"` and 
+`alembic upgrade head` either all DBs at once, or 1 DB at a time. The makefile commands follow the pattern, `migrate-*`,
+e.g. `migrate-demo`, and there is a `migrate-all` command. There are some comments written directly above those 
+commands;  Bgive them a read as well.
 - DO NOT DO: Manual (SQL): `alembic revision -m "xyz"`
 3) Optional (Probably for humans only; agents can skip this): Review and edit the new script under 
-`alembic/versions/*.py` (write `downgrade()` only for safe, local use).  
-4) Apply: Run the makefile goals to do `alembic upgrade head` on respective DBs, which follow the pattern, 
-`migrate-step2-*`, e.g. `migrate-step2-demo`.    
-5) CI/CD: run migrations during deploy (if applicable); use one DB per env.
+`alembic/versions/*.py` (write `downgrade()` only for safe, local use).
+4CI/CD: run migrations during deploy (if applicable); use one DB per env.
 
 ### Special considerations
 Always start by syncing with main, then run `PYTHONPATH=. alembic heads` (or `alembic history --verbose | tail`) to 

@@ -3,7 +3,7 @@
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -11,10 +11,11 @@ from genonaut.api.dependencies import get_database_session
 from genonaut.api.services.user_service import UserService
 from genonaut.api.services.interaction_service import InteractionService
 from genonaut.api.models.requests import (
-    UserCreateRequest, 
-    UserUpdateRequest, 
+    UserCreateRequest,
+    UserUpdateRequest,
     UserPreferencesUpdateRequest,
-    UserSearchRequest
+    UserSearchRequest,
+    PaginationRequest
 )
 from genonaut.api.models.responses import (
     UserResponse,
@@ -24,6 +25,7 @@ from genonaut.api.models.responses import (
     InteractionListResponse,
     InteractionResponse,
     SuccessResponse,
+    PaginatedResponse
 )
 from genonaut.api.exceptions import EntityNotFoundError, ValidationError, DatabaseError
 from genonaut.db.schema import UserInteraction, ContentItem
@@ -51,16 +53,22 @@ async def create_user(
 
 @router.get("/search", response_model=UserListResponse)
 async def search_users(
-    active_only: bool = False,
-    skip: int = 0,
-    limit: int = 100,
+    active_only: bool = Query(False, description="Filter for active users only"),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
     db: Session = Depends(get_database_session)
 ):
-    """Search users with simple query parameters."""
+    """Search users (backward compatible endpoint)."""
     service = UserService(db)
+
     try:
-        users = service.get_users(skip=skip, limit=limit, active_only=active_only)
-        total = service.repository.count({'is_active': True} if active_only else None)
+        if active_only:
+            users = service.get_users(skip=skip, limit=limit, active_only=True)
+            total = service.repository.count({'is_active': True})
+        else:
+            users = service.get_users(skip=skip, limit=limit)
+            total = service.repository.count()
+
     except DatabaseError as exc:
         if "UndefinedTable" in str(exc):
             users = []
@@ -72,7 +80,7 @@ async def search_users(
         items=[UserResponse.model_validate(user) for user in users],
         total=total,
         skip=skip,
-        limit=limit,
+        limit=limit
     )
 
 
@@ -246,40 +254,62 @@ async def get_user_statistics(
     )
 
 
-@router.get("/", response_model=UserListResponse)
+@router.get("/", response_model=PaginatedResponse)
 async def get_users(
-    search_params: UserSearchRequest = Depends(),
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(50, ge=1, le=1000, description="Items per page"),
+    cursor: str = Query(None, description="Cursor for cursor-based pagination"),
+    sort_field: str = Query(None, description="Field to sort by"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order"),
+    active_only: bool = Query(False, description="Filter for active users only"),
+    preferences_filter: str = Query(None, description="JSON string of preferences to filter by"),
     db: Session = Depends(get_database_session)
 ):
-    """Get list of users with optional filtering."""
+    """Get list of users with enhanced pagination support."""
     service = UserService(db)
-    
+
     try:
-        if search_params.preferences_filter:
-            users = service.search_users_by_preferences(search_params.preferences_filter)
-            total = len(users)
+        # Create pagination request
+        pagination = PaginationRequest(
+            page=page,
+            page_size=page_size,
+            cursor=cursor,
+            sort_field=sort_field,
+            sort_order=sort_order
+        )
+
+        if preferences_filter:
+            # Parse preferences filter from JSON string
+            import json
+            try:
+                prefs_dict = json.loads(preferences_filter)
+                result = service.search_users_by_preferences_paginated(prefs_dict, pagination)
+            except json.JSONDecodeError:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Invalid JSON in preferences_filter"
+                )
+        elif active_only:
+            result = service.get_active_users_paginated(pagination)
         else:
-            users = service.get_users(
-                skip=search_params.skip,
-                limit=search_params.limit,
-                active_only=search_params.active_only,
-            )
-            total = service.repository.count(
-                {'is_active': True} if search_params.active_only else None
-            )
+            result = service.get_users_paginated(pagination)
+
     except DatabaseError as exc:
         if "UndefinedTable" in str(exc):
-            users = []
-            total = 0
+            # Return empty paginated response for missing tables
+            from genonaut.api.models.responses import PaginationMeta
+            pagination_meta = PaginationMeta(
+                page=page,
+                page_size=page_size,
+                total_count=0,
+                has_next=False,
+                has_previous=False
+            )
+            result = PaginatedResponse(items=[], pagination=pagination_meta)
         else:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
-    
-    return UserListResponse(
-        items=[UserResponse.model_validate(user) for user in users],
-        total=total,
-        skip=search_params.skip,
-        limit=search_params.limit
-    )
+
+    return result
 
 
 @router.get("/username/{username}", response_model=UserResponse)

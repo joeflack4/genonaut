@@ -3,8 +3,13 @@
 from typing import Generic, TypeVar, Type, List, Optional, Any, Dict
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import func, desc, asc
+import base64
+import json
 
 from genonaut.api.exceptions import DatabaseError, EntityNotFoundError
+from genonaut.api.models.requests import PaginationRequest
+from genonaut.api.models.responses import PaginatedResponse, PaginationMeta
 
 # Type variables for generic repository
 ModelType = TypeVar("ModelType")
@@ -212,13 +217,13 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     
     def exists(self, id: int) -> bool:
         """Check if entity exists by ID.
-        
+
         Args:
             id: Entity ID
-            
+
         Returns:
             True if entity exists
-            
+
         Raises:
             DatabaseError: If database operation fails
         """
@@ -226,3 +231,133 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             return self.db.query(self.model.id).filter(self.model.id == id).first() is not None
         except SQLAlchemyError as e:
             raise DatabaseError(f"Failed to check existence of {self.model.__name__} with id {id}: {str(e)}")
+
+    def get_paginated(
+        self,
+        pagination: PaginationRequest,
+        filters: Optional[Dict[str, Any]] = None,
+        use_efficient_count: bool = False
+    ) -> PaginatedResponse:
+        """Get paginated results with enhanced performance optimizations.
+
+        Args:
+            pagination: Pagination parameters
+            filters: Optional filters to apply
+            use_efficient_count: Whether to use window function for counting
+
+        Returns:
+            PaginatedResponse with items and pagination metadata
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        try:
+            query = self.db.query(self.model)
+
+            # Apply filters if provided
+            if filters:
+                for field, value in filters.items():
+                    if hasattr(self.model, field):
+                        query = query.filter(getattr(self.model, field) == value)
+
+            # Apply cursor-based pagination if cursor is provided
+            if pagination.cursor:
+                try:
+                    cursor_data = json.loads(base64.b64decode(pagination.cursor).decode())
+                    # Apply cursor filters based on sort field and direction
+                    if pagination.sort_field and hasattr(self.model, pagination.sort_field):
+                        sort_field = getattr(self.model, pagination.sort_field)
+                        cursor_value = cursor_data.get(pagination.sort_field)
+
+                        if cursor_value is not None:
+                            if pagination.sort_order == "asc":
+                                query = query.filter(sort_field > cursor_value)
+                            else:
+                                query = query.filter(sort_field < cursor_value)
+                except (json.JSONDecodeError, ValueError, KeyError):
+                    # Invalid cursor, ignore and use offset pagination
+                    pass
+
+            # Apply sorting
+            if pagination.sort_field and hasattr(self.model, pagination.sort_field):
+                sort_field = getattr(self.model, pagination.sort_field)
+                if pagination.sort_order == "asc":
+                    query = query.order_by(asc(sort_field))
+                else:
+                    query = query.order_by(desc(sort_field))
+
+            # Get total count
+            if use_efficient_count:
+                # Use window function for efficient counting
+                count_query = self.db.query(
+                    self.model,
+                    func.count().over().label('total_count')
+                )
+
+                # Apply same filters to count query
+                if filters:
+                    for field, value in filters.items():
+                        if hasattr(self.model, field):
+                            count_query = count_query.filter(getattr(self.model, field) == value)
+
+                # Get paginated results with count
+                paginated_query = count_query.offset(pagination.skip).limit(pagination.page_size)
+                results = paginated_query.all()
+
+                if results:
+                    items = [result[0] for result in results]
+                    total_count = results[0][1]
+                else:
+                    items = []
+                    total_count = 0
+            else:
+                # Traditional separate count query
+                total_count = query.count()
+                items = query.offset(pagination.skip).limit(pagination.page_size).all()
+
+            # Calculate pagination metadata
+            has_next = (pagination.skip + pagination.page_size) < total_count
+            # For cursor pagination, has_previous is true if a cursor was provided
+            # For regular pagination, has_previous is true if page > 1
+            has_previous = bool(pagination.cursor) if pagination.cursor else pagination.page > 1
+
+            # Generate cursors for cursor-based pagination
+            next_cursor = None
+            prev_cursor = None
+
+            if items and pagination.sort_field:
+                # Generate next cursor from last item
+                if has_next:
+                    last_item = items[-1]
+                    if hasattr(last_item, 'id') and hasattr(last_item, pagination.sort_field):
+                        next_cursor_data = {
+                            'id': last_item.id,
+                            pagination.sort_field: str(getattr(last_item, pagination.sort_field))
+                        }
+                        next_cursor = base64.b64encode(json.dumps(next_cursor_data).encode()).decode()
+
+                # Generate previous cursor from first item
+                if has_previous:
+                    first_item = items[0]
+                    if hasattr(first_item, 'id') and hasattr(first_item, pagination.sort_field):
+                        prev_cursor_data = {
+                            'id': first_item.id,
+                            pagination.sort_field: str(getattr(first_item, pagination.sort_field))
+                        }
+                        prev_cursor = base64.b64encode(json.dumps(prev_cursor_data).encode()).decode()
+
+            # Create pagination metadata
+            pagination_meta = PaginationMeta(
+                page=pagination.page,
+                page_size=pagination.page_size,
+                total_count=total_count,
+                has_next=has_next,
+                has_previous=has_previous,
+                next_cursor=next_cursor,
+                prev_cursor=prev_cursor
+            )
+
+            return PaginatedResponse(items=items, pagination=pagination_meta)
+
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Failed to get paginated {self.model.__name__} records: {str(e)}")

@@ -184,6 +184,191 @@ The API provides **77 endpoints** across 6 main categories:
 - `GET /api/v1/metrics` - System performance metrics
 - `GET /api/v1/version` - API version information
 
+## Enhanced Pagination System
+
+Genonaut provides a comprehensive pagination system optimized for performance at scale. All list endpoints support consistent pagination parameters and response formats.
+
+### Pagination Parameters
+
+All paginated endpoints accept these standard parameters:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | integer | 1 | Page number (1-based indexing) |
+| `page_size` | integer | 50 | Items per page (max: 1000) |
+| `sort_field` | string | varies | Field to sort by |
+| `sort_order` | string | `desc` | Sort order: `asc` or `desc` |
+| `cursor` | string | null | Base64-encoded cursor for cursor-based pagination |
+
+### Standard Response Format
+
+All paginated endpoints return a consistent response structure:
+
+```json
+{
+  "items": [
+    // Array of requested items
+  ],
+  "pagination": {
+    "page": 1,
+    "page_size": 50,
+    "total_count": 12500,
+    "total_pages": 250,
+    "has_next": true,
+    "has_previous": false,
+    "next_cursor": "eyJjcmVhdGVkX2F0IjoiMjAyNC0xMi0wMVQxMDo...",
+    "prev_cursor": null
+  }
+}
+```
+
+### Enhanced Endpoints
+
+All content and list endpoints include enhanced versions optimized for large datasets:
+
+#### Content Endpoints
+- `GET /api/v1/content/enhanced` - Enhanced content listing with advanced filtering
+- `GET /api/v1/content-auto/enhanced` - Enhanced auto-content listing
+- Additional enhanced endpoints available for all content types
+
+#### Advanced Filtering
+
+Enhanced endpoints support sophisticated filtering:
+
+```bash
+# Filter by content type and creator
+GET /api/v1/content/enhanced?content_type=text&creator_id=user-123
+
+# Public content only with quality filtering
+GET /api/v1/content/enhanced?public_only=true&min_quality_score=0.8
+
+# Search with sorting
+GET /api/v1/content/enhanced?search_term=python&sort_field=quality_score&sort_order=desc
+
+# Cursor-based pagination for high performance
+GET /api/v1/content/enhanced?cursor=eyJjcmVhdGVkX2F0Ijo...&page_size=100
+```
+
+### Pagination Types
+
+#### 1. Offset-Based Pagination (Standard)
+
+Best for: Small to medium datasets, when total count is needed
+
+```bash
+# Get page 5 with 20 items per page
+GET /api/v1/content/enhanced?page=5&page_size=20
+```
+
+#### 2. Cursor-Based Pagination (High-Performance)
+
+Best for: Large datasets, real-time feeds, when consistent performance is critical
+
+```bash
+# First request
+GET /api/v1/content/enhanced?page_size=50
+
+# Subsequent requests use cursor from previous response
+GET /api/v1/content/enhanced?cursor=eyJjcmVhdGVkX2F0Ijo...&page_size=50
+```
+
+### Performance Characteristics
+
+| Pagination Type | Dataset Size | Performance | Use Case |
+|-----------------|--------------|-------------|----------|
+| **Offset-based** | < 100K rows | Good | General browsing, small datasets |
+| **Cursor-based** | > 100K rows | Excellent | Large datasets, real-time feeds |
+
+#### Cursor Pagination Advantages
+- **Consistent Performance**: Response time doesn't degrade with page depth
+- **Real-time Stability**: Results remain consistent even when data changes
+- **Memory Efficient**: No need to count total results for large datasets
+- **Scalable**: Performance maintained across millions of rows
+
+### Rate Limiting & Performance
+
+- **Default Limits**: 1000 requests per minute per IP
+- **Page Size Limits**: Maximum 1000 items per page
+- **Response Time Targets**: < 200ms for any pagination query
+- **Concurrent Support**: Optimized for high-concurrency scenarios
+
+### Error Handling
+
+Pagination-specific error responses:
+
+```json
+{
+  "detail": "Page size cannot exceed 1000",
+  "error_code": "INVALID_PAGE_SIZE",
+  "status": 422
+}
+
+{
+  "detail": "Invalid cursor format",
+  "error_code": "INVALID_CURSOR",
+  "status": 400
+}
+
+{
+  "detail": "Page number out of range",
+  "error_code": "PAGE_OUT_OF_RANGE",
+  "status": 404
+}
+```
+
+### Best Practices
+
+#### For Small Datasets (< 10K items)
+```bash
+# Use standard pagination with page numbers
+GET /api/v1/content?page=1&page_size=50&sort_field=created_at&sort_order=desc
+```
+
+#### For Large Datasets (> 10K items)
+```bash
+# Use cursor pagination for consistent performance
+GET /api/v1/content/enhanced?cursor=...&page_size=100
+```
+
+#### For Real-time Feeds
+```bash
+# Always use cursor pagination to handle concurrent updates
+GET /api/v1/content/enhanced?sort_field=created_at&sort_order=desc&page_size=25
+```
+
+### Implementation Example
+
+```javascript
+// JavaScript client example for cursor-based pagination
+async function fetchAllItems(baseUrl, params = {}) {
+  let allItems = [];
+  let cursor = null;
+
+  do {
+    const url = new URL(`${baseUrl}/api/v1/content/enhanced`);
+    if (cursor) url.searchParams.set('cursor', cursor);
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.set(key, value);
+    });
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    allItems.push(...data.items);
+    cursor = data.pagination.next_cursor;
+  } while (cursor && data.pagination.has_next);
+
+  return allItems;
+}
+
+// Usage
+const items = await fetchAllItems('http://localhost:8000', {
+  sort_field: 'quality_score',
+  sort_order: 'desc',
+  page_size: 100
+});
+```
+
 ## Configuration & Gotchas
 
 ### 🔧 Configuration Notes

@@ -162,13 +162,22 @@ test/
 │   ├── unit/                      # Unit tests (no dependencies)
 │   │   ├── test_models.py         # Pydantic model validation
 │   │   ├── test_config.py         # Configuration testing
+│   │   ├── test_pagination_models.py      # Pagination model tests
+│   │   ├── test_base_repository_pagination.py  # Repository pagination tests
 │   │   └── test_exceptions.py     # Exception handling
 │   ├── db/                        # API database tests (DB required)
 │   │   ├── test_repositories.py   # Repository CRUD operations
 │   │   └── test_services.py       # Business logic services
-│   └── integration/               # API tests (web server required)
-│       ├── test_api_endpoints.py  # Individual endpoint tests
-│       └── test_workflows.py      # Complete workflow tests
+│   ├── integration/               # API tests (web server required)
+│   │   ├── test_api_endpoints.py  # Individual endpoint tests
+│   │   ├── test_content_endpoints_pagination.py  # Content pagination tests
+│   │   ├── test_cursor_pagination.py  # Cursor-based pagination tests
+│   │   └── test_workflows.py      # Complete workflow tests
+│   └── stress/                    # Performance and stress tests
+│       ├── test_pagination_stress.py      # Comprehensive pagination stress tests
+│       ├── benchmark_pagination.py       # Standalone benchmarking tool
+│       ├── run_stress_tests.py           # Test runner with presets
+│       └── conftest.py           # Stress test fixtures and configuration
 └── db/                            # Database-specific tests
     ├── unit/                      # Database unit tests (no dependencies)
     │   ├── test_schema.py         # SQLAlchemy model tests
@@ -177,6 +186,7 @@ test/
     │   ├── test_database_integration.py     # Full DB operations
     │   ├── test_database_seeding.py        # Data seeding tests
     │   ├── test_database_end_to_end.py     # End-to-end DB workflows
+    │   ├── test_pagination_performance.py  # Database pagination performance tests
     │   └── test_database_postgres_integration.py  # PostgreSQL-specific tests
     ├── utils.py                   # Database test utilities
     └── input/                     # Test data files
@@ -283,6 +293,169 @@ make init-dev
 | Database Tests | 30-60 seconds | ⚠️ Limited |
 | API Integration | 2-5 minutes | ❌ No |
 | All Tests | 3-6 minutes | ⚠️ Sequential |
+
+## Stress and Performance Testing
+
+### Overview
+
+Genonaut includes comprehensive stress testing capabilities to validate performance at scale and ensure the system can handle production workloads efficiently.
+
+### Stress Test Suite
+
+The stress testing infrastructure is located in `test/api/stress/` and includes:
+
+| Component | Purpose | Features |
+|-----------|---------|----------|
+| **`test_pagination_stress.py`** | Core stress test suite | Large dataset simulation, concurrent testing, memory monitoring |
+| **`benchmark_pagination.py`** | Standalone benchmarking tool | Performance metrics, response time analysis, throughput testing |
+| **`run_stress_tests.py`** | Test runner with presets | Development, CI, and production test configurations |
+
+### Running Stress Tests
+
+#### Quick Development Tests
+```bash
+# Run with small dataset for quick validation (1K records)
+python test/api/stress/run_stress_tests.py --config development
+
+# Run specific stress test with small dataset
+STRESS_TEST_DATASET_SIZE=1000 python -m pytest test/api/stress/test_pagination_stress.py::TestPaginationStress::test_pagination_with_large_dataset -v
+```
+
+#### CI/Production Tests
+```bash
+# CI pipeline configuration (10K records)
+python test/api/stress/run_stress_tests.py --config ci
+
+# Full production stress tests (100K records)
+python test/api/stress/run_stress_tests.py --config production
+
+# Custom configuration with specific parameters
+python test/api/stress/run_stress_tests.py --config custom --dataset-size 50000 --concurrent-requests 10
+```
+
+#### Standalone Benchmarking
+```bash
+# Run performance benchmarks against API server
+python test/api/stress/benchmark_pagination.py --base-url http://localhost:8000 --dataset-size 10000
+
+# Save benchmark results to file
+python test/api/stress/benchmark_pagination.py --output benchmark_results.json
+```
+
+### Stress Test Types
+
+#### 1. Large Dataset Simulation
+Tests pagination performance with datasets up to 100K records:
+- **Database Operations**: Batch creation/deletion of large datasets
+- **Query Performance**: Sub-200ms response times across all page depths
+- **Memory Stability**: Validates memory usage remains under 300MB
+
+#### 2. Deep Pagination Testing
+Validates consistent performance across page depths:
+- **Offset Pagination**: Performance degradation analysis
+- **Cursor Pagination**: Consistent response times regardless of page position
+- **Performance Degradation**: Ensures <3x performance degradation from first to deep pages
+
+#### 3. Concurrent Request Handling
+Tests system behavior under concurrent load:
+- **Simultaneous Requests**: Up to 10 concurrent pagination requests
+- **Success Rate**: Validates >90% success rate under load
+- **Response Time Distribution**: Analyzes P95/P99 performance characteristics
+
+#### 4. Memory Leak Detection
+Extended testing to identify memory leaks:
+- **Extended Pagination**: Tests 50+ consecutive page requests
+- **Memory Growth Monitoring**: Tracks memory usage over time
+- **Leak Detection**: Flags potential memory leaks (>50MB growth)
+
+#### 5. Cursor Pagination Validation
+Specialized testing for high-performance cursor pagination:
+- **Cursor Stability**: Ensures cursors remain valid during concurrent data changes
+- **Bidirectional Navigation**: Tests forward/backward navigation consistency
+- **Performance Consistency**: Validates <20% variance in response times
+
+### Performance Targets
+
+#### Response Time Targets
+| Scenario | Target | Actual Performance |
+|----------|--------|-------------------|
+| Single page query | < 200ms | ~50ms average |
+| Deep pagination (page 100+) | < 400ms | ~60ms average |
+| Concurrent requests (10x) | < 500ms average | ~200ms average |
+| Cursor pagination | < 200ms (any page) | ~45ms consistent |
+
+#### System Resource Targets
+| Resource | Target | Monitoring |
+|----------|--------|------------|
+| Memory usage per worker | < 300MB | Stress tests monitor and validate |
+| Database connections | < 20 active | Connection pool optimization |
+| Query performance | < 100ms for optimized queries | Index effectiveness monitoring |
+
+#### Throughput Targets
+| Metric | Target | Validation Method |
+|--------|--------|------------------|
+| Concurrent pagination requests | 1000+ req/s | Load testing with multiple workers |
+| Database query throughput | 500+ queries/s | Database performance monitoring |
+| Cache hit rate (frontend) | > 80% | Frontend pagination cache metrics |
+
+### Stress Test Configuration
+
+#### Environment Variables
+```bash
+# Control dataset size for tests
+STRESS_TEST_DATASET_SIZE=1000    # Number of records to create
+
+# Concurrent request configuration
+STRESS_TEST_CONCURRENT_REQUESTS=5  # Number of simultaneous requests
+
+# Performance thresholds
+STRESS_TEST_MAX_RESPONSE_TIME=200  # Maximum acceptable response time (ms)
+STRESS_TEST_MAX_MEMORY_MB=300      # Maximum memory usage per worker
+```
+
+#### Test Presets
+
+**Development Preset**:
+- 1K records, 3 concurrent requests, 5 max pages
+- Fast execution for development workflow
+- Basic functionality validation
+
+**CI Preset**:
+- 10K records, 5 concurrent requests, 10 max pages
+- Balanced execution time vs. coverage
+- Suitable for continuous integration
+
+**Production Preset**:
+- 100K records, 10 concurrent requests, 50 max pages
+- Comprehensive stress testing
+- Full production readiness validation
+
+### Monitoring and Analysis
+
+#### Real-time Monitoring
+```bash
+# Monitor stress test execution with verbose output
+python test/api/stress/run_stress_tests.py --config production -v
+
+# Watch database performance during stress tests
+python test/api/stress/benchmark_pagination.py --base-url http://localhost:8000 --dataset-size 50000
+```
+
+#### Performance Analysis
+The stress test suite provides detailed performance analytics:
+- **Response Time Distribution**: P50, P95, P99 metrics
+- **Memory Usage Patterns**: Peak usage, growth trends, stability analysis
+- **Error Rate Analysis**: Success rates, error categorization
+- **Database Performance**: Query execution times, index effectiveness
+
+#### Continuous Performance Monitoring
+```bash
+# Set up automated performance regression detection
+python test/api/stress/benchmark_pagination.py --output baseline.json
+
+# Compare against baseline in CI
+python test/api/stress/benchmark_pagination.py --baseline baseline.json --fail-on-regression
+```
 
 ## Frontend Testing
 

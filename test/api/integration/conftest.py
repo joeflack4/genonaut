@@ -6,6 +6,9 @@ import subprocess
 import time
 import signal
 import atexit
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from genonaut.db.schema import Base
 from .config import (
     TEST_API_BASE_URL,
     TEST_TIMEOUT,
@@ -99,3 +102,16 @@ def _wait_for_server_ready():
         time.sleep(HEALTH_CHECK_INTERVAL)
 
     raise TimeoutError(f"API server did not start within {SERVER_STARTUP_TIMEOUT} seconds")
+
+
+@pytest.fixture(scope="function")
+def db_session():
+    """Create a test database session with in-memory SQLite."""
+    engine = create_engine("sqlite:///:memory:", echo=False)
+    Base.metadata.create_all(engine)
+    SessionLocal = sessionmaker(bind=engine)
+    session = SessionLocal()
+
+    yield session
+
+    session.close()

@@ -1,6 +1,7 @@
 """Content service for business logic operations."""
 
 from typing import Any, Dict, List, Optional, Type
+from uuid import UUID
 
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
@@ -8,6 +9,8 @@ from sqlalchemy.orm import Session
 from genonaut.api.exceptions import EntityNotFoundError, ValidationError
 from genonaut.api.repositories.content_repository import ContentRepository
 from genonaut.api.repositories.user_repository import UserRepository
+from genonaut.api.models.requests import PaginationRequest
+from genonaut.api.models.responses import PaginatedResponse
 from genonaut.db.schema import ContentItem, ContentItemAuto, UserInteraction
 
 _VALID_CONTENT_TYPES = {"text", "image", "video", "audio"}
@@ -279,6 +282,58 @@ class ContentService:
             "private_content": private_content,
             "type_breakdown": type_breakdown,
         }
+
+    # ------------------------------------------------------------------
+    # Paginated methods with enhanced performance
+    # ------------------------------------------------------------------
+
+    def get_content_list_paginated(self, pagination: PaginationRequest) -> PaginatedResponse:
+        """Get paginated content list with enhanced performance."""
+        return self.repository.get_paginated(pagination)
+
+    def get_content_by_creator_paginated(self, creator_id: UUID, pagination: PaginationRequest) -> PaginatedResponse:
+        """Get paginated content by creator with enhanced performance."""
+        return self.repository.get_by_creator_paginated(creator_id, pagination)
+
+    def get_content_by_type_paginated(self, content_type: str, pagination: PaginationRequest) -> PaginatedResponse:
+        """Get paginated content by type with enhanced performance."""
+        return self.repository.get_by_content_type_paginated(content_type, pagination)
+
+    def get_public_content_paginated(self, pagination: PaginationRequest) -> PaginatedResponse:
+        """Get paginated public content with enhanced performance."""
+        return self.repository.get_public_content_paginated(pagination)
+
+    def get_top_rated_content_paginated(self, pagination: PaginationRequest) -> PaginatedResponse:
+        """Get paginated top-rated content with enhanced performance."""
+        return self.repository.get_top_rated_paginated(pagination)
+
+    def get_recent_content_paginated(self, pagination: PaginationRequest, days: int = 7) -> PaginatedResponse:
+        """Get paginated recent content with enhanced performance."""
+        return self.repository.get_recent_paginated(pagination, days=days)
+
+    def search_content_paginated(self, search_params: Dict[str, Any], pagination: PaginationRequest) -> PaginatedResponse:
+        """Search content with pagination and enhanced performance."""
+        search_term = search_params.get("search_term")
+        metadata_filter = search_params.get("metadata_filter") or {}
+        tags = search_params.get("tags") or []
+
+        if search_term:
+            return self.repository.search_by_title_paginated(search_term, pagination)
+        elif metadata_filter:
+            return self.repository.search_by_metadata_paginated(metadata_filter, pagination)
+        elif tags:
+            return self.repository.search_by_tags_paginated(tags, pagination)
+        else:
+            # Default to general paginated list
+            filters = {}
+            if search_params.get("content_type"):
+                filters["content_type"] = search_params["content_type"]
+            if search_params.get("creator_id"):
+                filters["creator_id"] = search_params["creator_id"]
+            if search_params.get("public_only"):
+                filters["is_private"] = False
+
+            return self.repository.get_paginated(pagination, filters=filters)
 
 
 class ContentAutoService(ContentService):

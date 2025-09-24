@@ -262,3 +262,25 @@ class GenerationJobSearchRequest(BaseModel):
             except ValueError:
                 raise ValueError(f"Unsupported job type: {value}")
         return value
+
+
+
+class PaginationRequest(BaseModel):
+    """Request model for pagination parameters."""
+    page: int = Field(1, ge=1, description="Page number (1-based)")
+    page_size: int = Field(50, ge=1, le=1000, description="Items per page")
+    cursor: Optional[str] = Field(None, description="Cursor for cursor-based pagination")
+    sort_field: Optional[str] = Field(None, description="Field to sort by")
+    sort_order: str = Field("desc", pattern="^(asc|desc)$", description="Sort order")
+
+    @validator('cursor')
+    def clean_cursor(cls, v):
+        """Clean up cursor value - empty strings become None."""
+        if v is not None and v.strip() == "":
+            return None
+        return v
+
+    @property
+    def skip(self) -> int:
+        """Calculate skip value for offset-based pagination."""
+        return (self.page - 1) * self.page_size

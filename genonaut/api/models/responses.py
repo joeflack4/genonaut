@@ -246,8 +246,8 @@ class DatabaseInfoResponse(BaseModel):
     current_database: str = Field(..., description="Currently selected database")
 
 
-# Pagination response wrapper
-class PaginatedResponse(BaseModel):
+# Pagination response wrapper (DEPRECATED - use new PaginatedResponse below)
+class PaginatedResponseOld(BaseModel):
     """Generic paginated response."""
     data: List[Any] = Field(..., description="Response data")
     total: int = Field(..., description="Total number of items")
@@ -300,3 +300,30 @@ class GlobalStatsResponse(BaseModel):
     running_generation_jobs: int = Field(..., description="Generation jobs currently running")
     completed_generation_jobs: int = Field(..., description="Completed generation jobs")
     failed_generation_jobs: int = Field(..., description="Failed generation jobs")
+
+
+
+class PaginationMeta(BaseModel):
+    """Pagination metadata for responses."""
+    page: int = Field(..., ge=1, description="Current page number")
+    page_size: int = Field(..., ge=1, le=1000, description="Items per page")
+    total_count: int = Field(..., ge=0, description="Total number of items")
+    has_next: bool = Field(..., description="Whether there is a next page")
+    has_previous: bool = Field(..., description="Whether there is a previous page")
+    next_cursor: Optional[str] = Field(None, description="Cursor for next page")
+    prev_cursor: Optional[str] = Field(None, description="Cursor for previous page")
+
+    @property
+    def total_pages(self) -> int:
+        """Calculate total number of pages."""
+        if self.total_count == 0:
+            return 0
+        return (self.total_count + self.page_size - 1) // self.page_size
+
+
+class PaginatedResponse(BaseModel):
+    """Generic paginated response model."""
+    items: List[Any] = Field(..., description="List of items for current page")
+    pagination: PaginationMeta = Field(..., description="Pagination metadata")
+
+    model_config = {"from_attributes": True}

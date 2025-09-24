@@ -42,3 +42,36 @@ export interface PaginatedResult<T> {
   limit: number
   skip: number
 }
+
+// Enhanced pagination types for the new system
+export interface PaginationMeta {
+  page: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+  hasNext: boolean
+  hasPrevious: boolean
+  nextCursor?: string | null
+  prevCursor?: string | null
+}
+
+export interface EnhancedPaginatedResult<T> {
+  items: T[]
+  pagination: PaginationMeta
+}
+
+export interface PaginationParams {
+  page?: number
+  pageSize?: number
+  cursor?: string
+  sortField?: string
+  sortOrder?: 'asc' | 'desc'
+}
+
+// Content-specific pagination parameters
+export interface ContentQueryParams extends PaginationParams {
+  contentType?: string
+  creatorId?: string
+  publicOnly?: boolean
+  searchTerm?: string
+}

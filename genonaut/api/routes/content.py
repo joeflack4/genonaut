@@ -1,22 +1,25 @@
 """Content management API routes."""
 
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from uuid import UUID
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from genonaut.api.dependencies import get_database_session
 from genonaut.api.services.content_service import ContentService
 from genonaut.api.models.requests import (
-    ContentCreateRequest, 
-    ContentUpdateRequest, 
+    ContentCreateRequest,
+    ContentUpdateRequest,
     ContentQualityUpdateRequest,
-    ContentSearchRequest
+    ContentSearchRequest,
+    PaginationRequest
 )
 from genonaut.api.models.responses import (
-    ContentResponse, 
-    ContentListResponse, 
+    ContentResponse,
+    ContentListResponse,
     ContentStatsResponse,
-    SuccessResponse
+    SuccessResponse,
+    PaginatedResponse
 )
 from genonaut.api.exceptions import EntityNotFoundError, ValidationError, DatabaseError
 
@@ -118,50 +121,119 @@ async def update_content_quality(
 
 @router.get("/", response_model=ContentListResponse)
 async def get_content_list(
-    search_params: ContentSearchRequest = Depends(),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
+    content_type: str = Query(None, description="Filter by content type"),
+    creator_id: UUID = Query(None, description="Filter by creator ID"),
+    public_only: bool = Query(False, description="Return only public content"),
+    search_term: str = Query(None, description="Search term for title"),
     db: Session = Depends(get_database_session)
 ):
-    """Get list of content with optional filtering and search."""
+    """Get list of content (backward compatible endpoint)."""
     service = ContentService(db)
-    
+
     try:
-        if search_params.search_term or search_params.metadata_filter or search_params.tags:
-            content_list = service.search_content(search_params.model_dump())
-        else:
-            # Handle filtering
-            content_list = service.get_content_list(
-                skip=search_params.skip,
-                limit=search_params.limit,
-                content_type=search_params.content_type,
-                creator_id=search_params.creator_id,
-                public_only=search_params.public_only,
-            )
+        # Build filters
+        filters = {}
+        if content_type:
+            filters['content_type'] = content_type
+        if creator_id:
+            filters['creator_id'] = creator_id
+        if public_only:
+            filters['is_private'] = False
 
-        # Get total count for pagination
-        total = len(content_list)
-        if not (search_params.search_term or search_params.metadata_filter or search_params.tags):
-            filters = {}
-            if search_params.content_type:
-                filters['content_type'] = search_params.content_type
-            if search_params.creator_id:
-                filters['creator_id'] = search_params.creator_id
-            if search_params.public_only:
-                filters.update({'is_private': False})
+        # Get content using the service method
+        content_items = service.get_content_list(
+            skip=skip,
+            limit=limit,
+            content_type=content_type,
+            creator_id=creator_id,
+            public_only=public_only
+        )
 
-            total = service.repository.count(filters)
+        # Calculate total count based on filters
+        count_filters = {}
+        if public_only:
+            count_filters['is_private'] = False
+        if creator_id:
+            count_filters['creator_id'] = creator_id
+        if content_type:
+            count_filters['content_type'] = content_type
+
+        total = service.repository.count(count_filters if count_filters else None)
+
     except DatabaseError as exc:
         if "UndefinedTable" in str(exc):
-            content_list = []
+            content_items = []
             total = 0
         else:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
-    
+
     return ContentListResponse(
-        items=[ContentResponse.model_validate(content) for content in content_list],
+        items=[ContentResponse.model_validate(item) for item in content_items],
         total=total,
-        skip=search_params.skip,
-        limit=search_params.limit
+        skip=skip,
+        limit=limit
     )
+
+
+@router.get("/enhanced", response_model=PaginatedResponse)
+async def get_content_list_enhanced(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(50, ge=1, le=1000, description="Items per page"),
+    cursor: str = Query(None, description="Cursor for cursor-based pagination"),
+    sort_field: str = Query(None, description="Field to sort by"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$", description="Sort order"),
+    content_type: str = Query(None, description="Filter by content type"),
+    creator_id: UUID = Query(None, description="Filter by creator ID"),
+    public_only: bool = Query(False, description="Return only public content"),
+    search_term: str = Query(None, description="Search term for title"),
+    db: Session = Depends(get_database_session)
+):
+    """Get list of content with enhanced pagination support."""
+    service = ContentService(db)
+
+    try:
+        # Create pagination request
+        pagination = PaginationRequest(
+            page=page,
+            page_size=page_size,
+            cursor=cursor,
+            sort_field=sort_field,
+            sort_order=sort_order
+        )
+
+        # Build filters
+        filters = {}
+        if content_type:
+            filters["content_type"] = content_type
+        if creator_id:
+            filters["creator_id"] = creator_id
+        if public_only:
+            filters["is_private"] = False
+
+        # Get paginated result
+        if filters:
+            result = service.repository.get_paginated(pagination, filters=filters)
+        else:
+            result = service.get_content_list_paginated(pagination)
+
+    except DatabaseError as exc:
+        if "UndefinedTable" in str(exc):
+            # Return empty paginated response for missing tables
+            from genonaut.api.models.responses import PaginationMeta
+            pagination_meta = PaginationMeta(
+                page=page,
+                page_size=page_size,
+                total_count=0,
+                has_next=False,
+                has_previous=False
+            )
+            result = PaginatedResponse(items=[], pagination=pagination_meta)
+        else:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+    return result
 
 
 @router.post("/search", response_model=ContentListResponse)
@@ -211,78 +283,87 @@ async def search_content_endpoint(
     )
 
 
-@router.get("/creator/{creator_id}", response_model=ContentListResponse)
+@router.get("/creator/{creator_id}", response_model=PaginatedResponse)
 async def get_content_by_creator(
-    creator_id: int,
-    skip: int = 0,
-    limit: int = 100,
+    creator_id: UUID,
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(50, ge=1, le=1000, description="Items per page"),
+    cursor: str = Query(None, description="Cursor for cursor-based pagination"),
+    sort_field: str = Query(None, description="Field to sort by"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order"),
     db: Session = Depends(get_database_session)
 ):
-    """Get content by creator."""
+    """Get content by creator with enhanced pagination."""
     service = ContentService(db)
-    content_list = service.get_content_list(
-        creator_id=creator_id,
-        skip=skip,
-        limit=limit
-    )
-    
-    total = service.repository.count({'creator_id': creator_id})
-    
-    return ContentListResponse(
-        items=[ContentResponse.model_validate(content) for content in content_list],
-        total=total,
-        skip=skip,
-        limit=limit
+
+    pagination = PaginationRequest(
+        page=page,
+        page_size=page_size,
+        cursor=cursor,
+        sort_field=sort_field,
+        sort_order=sort_order
     )
 
+    try:
+        result = service.get_content_by_creator_paginated(creator_id, pagination)
+        return result
+    except DatabaseError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
 
-@router.get("/type/{content_type}", response_model=ContentListResponse)
+
+@router.get("/type/{content_type}", response_model=PaginatedResponse)
 async def get_content_by_type(
     content_type: str,
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(50, ge=1, le=1000, description="Items per page"),
+    cursor: str = Query(None, description="Cursor for cursor-based pagination"),
+    sort_field: str = Query(None, description="Field to sort by"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order"),
     db: Session = Depends(get_database_session)
 ):
-    """Get content by type."""
+    """Get content by type with enhanced pagination."""
     service = ContentService(db)
-    content_list = service.get_content_list(
-        content_type=content_type,
-        skip=skip,
-        limit=limit
-    )
-    
-    total = service.repository.count({'content_type': content_type})
-    
-    return ContentListResponse(
-        items=[ContentResponse.model_validate(content) for content in content_list],
-        total=total,
-        skip=skip,
-        limit=limit
+
+    pagination = PaginationRequest(
+        page=page,
+        page_size=page_size,
+        cursor=cursor,
+        sort_field=sort_field,
+        sort_order=sort_order
     )
 
+    try:
+        result = service.get_content_by_type_paginated(content_type, pagination)
+        return result
+    except DatabaseError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
 
-@router.get("/public/all", response_model=ContentListResponse)
+
+@router.get("/public/all", response_model=PaginatedResponse)
 async def get_public_content(
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(50, ge=1, le=1000, description="Items per page"),
+    cursor: str = Query(None, description="Cursor for cursor-based pagination"),
+    sort_field: str = Query(None, description="Field to sort by"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order"),
     db: Session = Depends(get_database_session)
 ):
-    """Get all public content."""
+    """Get all public content with enhanced pagination."""
     service = ContentService(db)
-    content_list = service.get_content_list(
-        public_only=True,
-        skip=skip,
-        limit=limit
+
+    pagination = PaginationRequest(
+        page=page,
+        page_size=page_size,
+        cursor=cursor,
+        sort_field=sort_field,
+        sort_order=sort_order
     )
-    
-    total = service.repository.count({'is_private': False})
-    
-    return ContentListResponse(
-        items=[ContentResponse.model_validate(content) for content in content_list],
-        total=total,
-        skip=skip,
-        limit=limit
-    )
+
+    try:
+        result = service.get_public_content_paginated(pagination)
+        return result
+    except DatabaseError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
 
 
 @router.get("/top-rated/all", response_model=ContentListResponse)

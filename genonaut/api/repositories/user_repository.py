@@ -8,6 +8,8 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from genonaut.db.schema import User
 from genonaut.api.repositories.base import BaseRepository
+from genonaut.api.models.requests import PaginationRequest
+from genonaut.api.models.responses import PaginatedResponse
 from genonaut.api.exceptions import DatabaseError
 
 
@@ -217,3 +219,96 @@ class UserRepository(BaseRepository[User, Dict[str, Any], Dict[str, Any]]):
             return self.db.query(User.id).filter(User.email == email).first() is not None
         except SQLAlchemyError as e:
             raise DatabaseError(f"Failed to check email existence: {str(e)}")
+
+    # ------------------------------------------------------------------
+    # Paginated methods with enhanced performance
+    # ------------------------------------------------------------------
+
+    def get_active_users_paginated(self, pagination: PaginationRequest) -> PaginatedResponse:
+        """Get paginated active users with enhanced performance."""
+        try:
+            filters = {"is_active": True}
+            # Use default created_at DESC sorting for better performance
+            if not pagination.sort_field:
+                pagination.sort_field = "created_at"
+                pagination.sort_order = "desc"
+
+            return self.get_paginated(pagination, filters=filters)
+        except SQLAlchemyError as exc:
+            raise DatabaseError(f"Failed to get paginated active users: {exc}")
+
+    def search_by_preferences_paginated(self, preferences_filter: Dict[str, Any],
+                                       pagination: PaginationRequest) -> PaginatedResponse:
+        """Search users by preferences with pagination."""
+        try:
+            from genonaut.api.models.responses import PaginationMeta
+            from sqlalchemy import desc, asc
+
+            query = self.db.query(User)
+
+            # Apply JSONB filters for PostgreSQL
+            dialect = getattr(self.db.bind, "dialect", None)
+            if dialect and dialect.name == "postgresql":
+                for key, value in preferences_filter.items():
+                    filter_condition = User.preferences.op('@>')(f'{{"{key}": "{value}"}}')
+                    query = query.filter(filter_condition)
+            else:
+                # For non-PostgreSQL, we'll need to get all and filter in memory
+                # This is less efficient but works for smaller datasets
+                all_users = query.all()
+                filtered_users = []
+                for user in all_users:
+                    prefs = user.preferences or {}
+                    if all(prefs.get(key) == value for key, value in preferences_filter.items()):
+                        filtered_users.append(user)
+
+                # Manual pagination for in-memory filtering
+                total_count = len(filtered_users)
+                start_idx = pagination.skip
+                end_idx = start_idx + pagination.page_size
+                items = filtered_users[start_idx:end_idx]
+
+                has_next = end_idx < total_count
+                has_previous = pagination.page > 1
+
+                pagination_meta = PaginationMeta(
+                    page=pagination.page,
+                    page_size=pagination.page_size,
+                    total_count=total_count,
+                    has_next=has_next,
+                    has_previous=has_previous
+                )
+
+                return PaginatedResponse(items=items, pagination=pagination_meta)
+
+            # PostgreSQL path - use database-level pagination
+            # Apply sorting
+            if pagination.sort_field and hasattr(User, pagination.sort_field):
+                sort_field = getattr(User, pagination.sort_field)
+                if pagination.sort_order == "asc":
+                    query = query.order_by(asc(sort_field))
+                else:
+                    query = query.order_by(desc(sort_field))
+            else:
+                query = query.order_by(desc(User.created_at))
+
+            # Get total count and paginated results
+            total_count = query.count()
+            items = query.offset(pagination.skip).limit(pagination.page_size).all()
+
+            # Calculate pagination metadata
+            has_next = (pagination.skip + pagination.page_size) < total_count
+            has_previous = pagination.page > 1
+
+            pagination_meta = PaginationMeta(
+                page=pagination.page,
+                page_size=pagination.page_size,
+                total_count=total_count,
+                has_next=has_next,
+                has_previous=has_previous
+            )
+
+            return PaginatedResponse(items=items, pagination=pagination_meta)
+
+        except SQLAlchemyError as exc:
+            raise DatabaseError(f"Failed to search users by preferences: {exc}")

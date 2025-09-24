@@ -55,10 +55,42 @@ export interface ApiPaginatedResponse<T> {
   skip: number
 }
 
+// Enhanced pagination types for the new API
+export interface ApiPaginationMeta {
+  page: number
+  page_size: number
+  total_count: number
+  total_pages: number
+  has_next: boolean
+  has_previous: boolean
+  next_cursor?: string | null
+  prev_cursor?: string | null
+}
+
+export interface ApiEnhancedPaginatedResponse<T> {
+  items: T[]
+  pagination: ApiPaginationMeta
+}
+
+export interface ApiEnhancedPaginationParams {
+  page?: number
+  page_size?: number
+  cursor?: string
+  sort_field?: string
+  sort_order?: 'asc' | 'desc'
+}
+
 export interface ApiContentQueryParams {
   skip?: number
   limit?: number
   search?: string
   sort?: 'recent' | 'top-rated'
   creator_id?: string  // UUID
+}
+
+export interface ApiEnhancedContentQueryParams extends ApiEnhancedPaginationParams {
+  content_type?: string
+  creator_id?: string
+  public_only?: boolean
+  search_term?: string
 }
