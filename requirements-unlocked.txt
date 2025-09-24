@@ -1,4 +1,3 @@
-alembic
 email-validator
 fastapi
 jinja2
@@ -6,9 +5,13 @@ pandas
 psycopg2-binary
 pydantic
 pydantic-settings
-pytest
 python-dotenv
 python-multipart
-psutil
 sqlalchemy
 uvicorn
+
+# dev dependencies
+alembic  # data migrations
+faker  # seed data
+pytest  # test
+psutil  # performance assessments
