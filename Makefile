@@ -318,6 +318,27 @@ api-test:
 	@echo "Starting FastAPI server for test database..."
 	API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --reload
 
+# FastAPI server variants for performance testing
+api-dev-profile:
+	@echo "Starting FastAPI server for development with profiling (single worker, no reload)..."
+	API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --workers 1
+
+api-dev-load-test:
+	@echo "Starting FastAPI server for load testing (4 workers)..."
+	API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --workers 4
+
+api-production-sim:
+	@echo "Starting FastAPI server simulating production (8 workers)..."
+	API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --workers 8
+
+api-demo-load-test:
+	@echo "Starting FastAPI server for demo load testing (4 workers)..."
+	API_ENVIRONMENT=demo uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --workers 4
+
+api-test-load-test:
+	@echo "Starting FastAPI server for test load testing (4 workers)..."
+	API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --workers 4
+
 # Frontend helpers
 frontend-install:
 	@echo "Installing frontend dependencies..."

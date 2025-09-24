@@ -15,10 +15,11 @@ to, e.g. [full dev docs](docs/developer.md), and read those files as well.
 
 ## Standard Operating Procedures
 ### Common steps to do whenever creating/updating any task / feature
-1. If there is a major task that you are working on (involves many steps / tests), there should be a `.md` file in 
-`scratchpads/` where the design is documented and there are checklists. If this doesn't exist, but you think the feature
-is substantial enough to merit such a document, then before you start, suggest this to the user.
-2. Consult `scratchpads/general.md`. This is a list of uncategorized todo's / plans. See if any of these apply to your 
+1. Scratchpads: Specs and todo lists. If there is a major task that you are working on (involves many steps / tests), 
+there should be a `.md` file in `scratchpads/` where the design is documented and there are checklists. When creating 
+todo lists, ensure that tasks are not simply represeneted by bullets (`-`), but checkboxes (`- [ ]`). Ensure that when 
+they are complete, they are checked off (`- [x]`).
+2. Consult `scratchpads/general-todos.md`. This is a list of uncategorized todo's / plans. See if any of these apply to your 
 current task at hand. If any todos seem like they should belong in the scratchpad document you are working on, move them
 there. If they are already done, check them off. Example: It may be that a test is currently being skipped, but when you
 implement some functionality you are planning, you will want to enable these tests. Claude specifically: You have 
@@ -27,20 +28,20 @@ TodoWrite and TodoRead functionality. You can utilize those tools here.
    - Unit tests (`make test-unit`) for individual functions/methods
    - Database tests (`make test-db`) for repository and service layer functionality
    - API integration tests (`make test-api`) for complete workflows and endpoints
-5. Add documentation: Module level docstrings, class level docstrings, function level docstrings, and method / function
+4. Add documentation: Module level docstrings, class level docstrings, function level docstrings, and method / function
 level docstrings. Function / method docstrings should include information about parameters and returns, and a 
 description. 
-6. Periodic code commenting. For example, for a function that has several distinct steps, where each step involves a 
+5. Periodic code commenting. For example, for a function that has several distinct steps, where each step involves a 
 block of code (e.g. a `for` loop with several operations), put at least 1 comment above each block, explaining what it 
 does.
-7. If any new Python requirements / packages are added to the project, include them (unversioned) in the 
+6. If any new Python requirements / packages are added to the project, include them (unversioned) in the 
 `requirements-unlocked.txt` file.
-8. If the new feature has a CLI, document it in a "Features" section in the `README.md`. Include a table showing the 
+7.  If the new feature has a CLI, document it in a "Features" section in the `README.md`. Include a table showing the 
 args, their description, defaults, data types, etc.
-9. Consider otherwise any other documentation that might need to be added or updated in `README.md` after adding a 
+8. Consider otherwise any other documentation that might need to be added or updated in `README.md` after adding a 
 feature, and either do those updates or ask for input.
-10. Ensure that the whole test suite passes before completion of a feature or major task.
-11. If there is a command involved that needs to work, but for which it does not make sense to have a test (like if you 
+9. Ensure that the whole test suite passes before completion of a feature or major task.
+10. If there is a command involved that needs to work, but for which it does not make sense to have a test (like if you 
 are asked to fix a one-off script or command), then make sure to run the command to ensure that it works, unless asked 
 not to or otherwise if you think it is inadvisable to do so.
 

@@ -1,4 +1,4 @@
-# General scratchpad
+# General todos
 The purpose of this is to document any future todos that involve features which are not on the current "docket", so to 
 speak.  
 
