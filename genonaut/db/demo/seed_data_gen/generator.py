@@ -23,6 +23,8 @@ class SyntheticDataGenerator:
         self.admin_uuid = admin_uuid
         self.bulk_inserter = BulkInserter(session)
         self.stats = StatisticsCollector()
+        # Store engine for session recreation after PostgreSQL restart
+        self.engine = session.bind
 
     def generate_all_data(self):
         """Generate all synthetic data following FK dependencies."""
@@ -32,8 +34,13 @@ class SyntheticDataGenerator:
             logger.info("Starting synthetic data generation")
             print("Starting synthetic data generation...")
 
-            # Optimize database for bulk operations
-            self.bulk_inserter.optimize_for_bulk_insert()
+            # Check if we should pause for PostgreSQL restart on large datasets
+            total_content_items = self.config.target_rows_content_items + self.config.target_rows_content_items_auto
+            should_pause = total_content_items > 400000 and not self.config.use_unmodified_wal_buffers
+
+            # Optimize database for bulk operations (skip if using unmodified wal_buffers)
+            if not self.config.use_unmodified_wal_buffers:
+                self.bulk_inserter.optimize_for_bulk_insert(should_pause_for_restart=should_pause)
 
             # Step 1: Generate Users (no dependencies)
             user_ids = self._generate_users()
@@ -44,17 +51,29 @@ class SyntheticDataGenerator:
             # Step 3: Generate Generation Jobs (depend on content items)
             self._generate_generation_jobs(user_ids, content_items_data, content_items_auto_data)
 
-            # Restore normal database settings
-            self.bulk_inserter.restore_normal_settings()
+            # Restore normal database settings (skip if using unmodified wal_buffers)
+            if not self.config.use_unmodified_wal_buffers:
+                self.bulk_inserter.restore_normal_settings()
 
             # Record final statistics
             elapsed_time = time.time() - start_time
             self._collect_final_statistics(elapsed_time)
             self.stats.print_final_report()
 
+            # Print final warning about PostgreSQL restart (skip if using unmodified wal_buffers)
+            if not self.config.use_unmodified_wal_buffers:
+                self._print_final_postgresql_warning()
+
             logger.info(f"Data generation completed in {elapsed_time:.2f} seconds")
 
         except Exception as e:
+            # Always try to restore normal database settings on failure (skip if using unmodified wal_buffers)
+            if not self.config.use_unmodified_wal_buffers:
+                try:
+                    self.bulk_inserter.restore_normal_settings()
+                except Exception as restore_error:
+                    logger.error(f"Failed to restore database settings after error: {restore_error}")
+
             elapsed_time = time.time() - start_time
             logger.error(f"Data generation failed after {elapsed_time:.2f} seconds: {e}")
             self._collect_partial_statistics(elapsed_time)
@@ -63,20 +82,45 @@ class SyntheticDataGenerator:
 
     def _generate_users(self) -> List[str]:
         """Generate users table."""
-        print("\n1. Generating Users...")
+        print("\nGenerating record sets 1 of 3: Users...")
 
         target_count = self.config.target_rows_users
-        batch_size = self.config.batch_size_users
+        # OLD: batch_size = self.config.batch_size_users
+        # NEW: Use unified batch size, but don't exceed target count
+        batch_size = min(self.config.batch_size, target_count)
         progress = ProgressReporter("users", target_count)
 
-        user_generator = UserGenerator(self.config.dict(), self.admin_uuid)
+        user_generator = UserGenerator(self.config.model_dump(), self.admin_uuid)
         generated_count = 0
         total_conflicts = 0
         all_conflicts = []
 
+        # Track all usernames generated across all batches to prevent cross-batch conflicts
+        all_generated_usernames = set()
+
         while generated_count < target_count:
             current_batch_size = min(batch_size, target_count - generated_count)
             users_batch = user_generator.generate_batch(current_batch_size)
+
+            # Deduplicate batch to remove usernames already generated in previous batches
+            # original_batch_size = len(users_batch)
+            users_batch = [
+                user for user in users_batch
+                if user['username'] not in all_generated_usernames
+            ]
+
+            # Log deduplication if any occurred
+            # deduped_count = original_batch_size - len(users_batch)
+            # if deduped_count > 0:
+            #     logger.info(f"Removed {deduped_count} users from batch due to cross-batch username conflicts")
+
+            # Add usernames from current batch to global tracking set
+            for user in users_batch:
+                all_generated_usernames.add(user['username'])
+
+            # Skip insertion if batch is empty after deduplication
+            if not users_batch:
+                continue
 
             inserted_count, conflicts = self.bulk_inserter.insert_users_batch(users_batch)
             generated_count += inserted_count
@@ -96,20 +140,24 @@ class SyntheticDataGenerator:
 
     def _generate_content_items(self, user_ids: List[str]) -> tuple:
         """Generate content items and content items auto."""
-        print("\n2. Generating Content Items...")
+        print("\nGenerating record sets 2 of 3: Content Items...")
 
         # Generate content_items
         content_items_data = self._generate_content_table(
             user_ids, "content_items", ContentItem,
             self.config.target_rows_content_items,
-            self.config.batch_size_content_items
+            # OLD: self.config.batch_size_content_items
+            # NEW: Use unified batch size, but don't exceed target count
+            min(self.config.batch_size, self.config.target_rows_content_items)
         )
 
         # Generate content_items_auto
         content_items_auto_data = self._generate_content_table(
             user_ids, "content_items_auto", ContentItemAuto,
             self.config.target_rows_content_items_auto,
-            self.config.batch_size_content_items_auto
+            # OLD: self.config.batch_size_content_items_auto
+            # NEW: Use unified batch size, but don't exceed target count
+            min(self.config.batch_size, self.config.target_rows_content_items_auto)
         )
 
         return content_items_data, content_items_auto_data
@@ -127,7 +175,7 @@ class SyntheticDataGenerator:
 
         progress = ProgressReporter(table_name, target_count)
         content_generator = ContentGenerator(
-            self.config.dict(), user_ids, self.admin_uuid, table_name
+            self.config.model_dump(), user_ids, self.admin_uuid, table_name
         )
 
         generated_count = 0
@@ -157,7 +205,7 @@ class SyntheticDataGenerator:
         content_items_auto_data: List[Dict[str, Any]]
     ):
         """Generate generation jobs."""
-        print("\n3. Generating Generation Jobs...")
+        print("\nGenerating record sets 3 of 3: Generation Jobs...")
 
         # Combine all content data
         all_content_data = content_items_data + content_items_auto_data
@@ -169,7 +217,8 @@ class SyntheticDataGenerator:
         additional_jobs_count = self._generate_additional_jobs(user_ids, completed_jobs_count)
 
         total_jobs = completed_jobs_count + additional_jobs_count
-        logger.info(f"Generated {total_jobs} total generation jobs ({completed_jobs_count} completed, {additional_jobs_count} additional)")
+        logger.info(f"Generated {total_jobs} total generation jobs ({completed_jobs_count} completed, "
+                    f"{additional_jobs_count} additional)")
 
         # Update content references in completed jobs
         self._update_job_content_references()
@@ -178,11 +227,13 @@ class SyntheticDataGenerator:
         """Generate completed jobs for all content items."""
         print("   Creating completed jobs for all content items...")
 
-        batch_size = self.config.batch_size_generation_jobs
+        # OLD: batch_size = self.config.batch_size_generation_jobs
+        # NEW: Use unified batch size, but don't exceed total_content
         total_content = len(content_data)
+        batch_size = min(self.config.batch_size, total_content)
         progress = ProgressReporter("completed generation_jobs", total_content)
 
-        job_generator = GenerationJobGenerator(self.config.dict(), content_data)
+        job_generator = GenerationJobGenerator(self.config.model_dump(), content_data)
         generated_count = 0
 
         while generated_count < total_content:
@@ -209,10 +260,12 @@ class SyntheticDataGenerator:
 
         print(f"   Creating {additional_needed} additional jobs for status distribution...")
 
-        batch_size = self.config.batch_size_generation_jobs
+        # OLD: batch_size = self.config.batch_size_generation_jobs
+        # NEW: Use unified batch size, but don't exceed additional_needed
+        batch_size = min(self.config.batch_size, additional_needed)
         progress = ProgressReporter("additional generation_jobs", additional_needed)
 
-        job_generator = GenerationJobGenerator(self.config.dict(), [])
+        job_generator = GenerationJobGenerator(self.config.model_dump(), [])
         generated_count = 0
 
         while generated_count < additional_needed:
@@ -229,7 +282,11 @@ class SyntheticDataGenerator:
 
     def _update_job_content_references(self):
         """Update generation jobs with content item references."""
-        print("   Linking jobs to content items...")
+        # todo: does this print before it takes a while, or after?
+        #  Observed this line showing up in the logs and then 'Linking jobs to content items' showed up ~2 minutes
+        #  later. But that was before I change it from `print` to `logger.info()`.:
+        #  logger.info(f"Generated {total_jobs} total generation jobs ... )
+        logger.info("   Linking jobs to content items (this can take a while)...")
 
         # Update for content_items
         content_updates = self.bulk_inserter.update_generation_jobs_with_content_ids("content_items")
@@ -256,3 +313,19 @@ class SyntheticDataGenerator:
         except Exception as e:
             logger.error(f"Failed to collect partial statistics: {e}")
             self.stats.record_total_time(elapsed_time)
+
+
+    def _print_final_postgresql_warning(self):
+        """Print final warning about PostgreSQL restart requirement."""
+        print("\n" + "!"*80)
+        print("WARNING!!!: Final operation needed: Please restart PostgreSQL to return")
+        print("Write-Ahead Logging (WAL) buffers back to their original state")
+        print("!"*80)
+        print("")
+        print("After restarting PostgreSQL, you may want to verify that wal_buffers")
+        print("has been reset to the correct value. If not, run:")
+        print("  make db-wal-buffers-reset")
+        print("")
+        print("You can check the current value with:")
+        print("  SHOW wal_buffers;  -- (in PostgreSQL)")
+        print("!"*80)

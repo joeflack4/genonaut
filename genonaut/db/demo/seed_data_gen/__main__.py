@@ -10,24 +10,36 @@ import logging
 import argparse
 from pathlib import Path
 from urllib.parse import urlparse
+from dotenv import load_dotenv
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
+
+# Load environment variables from env/.env
+env_file = project_root / "env" / ".env"
+if env_file.exists():
+    load_dotenv(env_file)
+else:
+    # Fallback to .env in project root
+    load_dotenv(project_root / ".env")
 
 from genonaut.db.utils import get_database_session
 from genonaut.db.demo.seed_data_gen.config import ConfigManager
 from genonaut.db.demo.seed_data_gen.generator import SyntheticDataGenerator
 
 
-def setup_logging():
+def setup_logging(log_dir: Path):
     """Set up logging configuration."""
+    # Ensure logs directory exists
+    log_dir.mkdir(exist_ok=True)
+
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.StreamHandler(),
-            logging.FileHandler('synthetic_data_generation.log')
+            logging.FileHandler(log_dir / 'synthetic_data_generation.log')
         ]
     )
 
@@ -41,7 +53,7 @@ def create_cli_parser():
 Examples:
   python -m genonaut.db.demo.seed_data_gen generate
   python -m genonaut.db.demo.seed_data_gen generate --target-rows-users 5000
-  python -m genonaut.db.demo.seed_data_gen generate --batch-size-content-items 5000 --max-workers 8
+  python -m genonaut.db.demo.seed_data_gen generate --batch-size 5000 --max-workers 8
         """
     )
 
@@ -51,14 +63,19 @@ Examples:
     gen_parser = subparsers.add_parser('generate', help='Generate synthetic data')
 
     # Configuration overrides
-    gen_parser.add_argument('--batch-size-users', type=int,
-                           help='Batch size for user insertion')
-    gen_parser.add_argument('--batch-size-content-items', type=int,
-                           help='Batch size for content items insertion')
-    gen_parser.add_argument('--batch-size-content-items-auto', type=int,
-                           help='Batch size for auto content items insertion')
-    gen_parser.add_argument('--batch-size-generation-jobs', type=int,
-                           help='Batch size for generation jobs insertion')
+    # OLD: Individual batch size flags (commented out in favor of unified --batch-size)
+    # gen_parser.add_argument('--batch-size-users', type=int,
+    #                        help='Batch size for user insertion')
+    # gen_parser.add_argument('--batch-size-content-items', type=int,
+    #                        help='Batch size for content items insertion')
+    # gen_parser.add_argument('--batch-size-content-items-auto', type=int,
+    #                        help='Batch size for auto content items insertion')
+    # gen_parser.add_argument('--batch-size-generation-jobs', type=int,
+    #                        help='Batch size for generation jobs insertion')
+
+    # NEW: Unified batch size flag
+    gen_parser.add_argument('--batch-size', type=int,
+                           help='Maximum batch size for all insertion operations')
 
     gen_parser.add_argument('--target-rows-users', type=int,
                            help='Target number of users to generate')
@@ -80,6 +97,9 @@ Examples:
 
     gen_parser.add_argument('--verbose', '-v', action='store_true',
                            help='Enable verbose logging')
+
+    gen_parser.add_argument('--use-unmodified-wal-buffers', action='store_true',
+                           help='Skip wal_buffers optimization (use current PostgreSQL settings)')
 
     return parser
 
@@ -122,7 +142,8 @@ def main():
         sys.exit(1)
 
     # Set up logging
-    setup_logging()
+    logs_dir = project_root / 'logs'
+    setup_logging(logs_dir)
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
@@ -141,15 +162,21 @@ def main():
         # Create CLI overrides dictionary
         cli_overrides = {}
         override_mapping = {
-            'batch_size_users': args.batch_size_users,
-            'batch_size_content_items': args.batch_size_content_items,
-            'batch_size_content_items_auto': args.batch_size_content_items_auto,
-            'batch_size_generation_jobs': args.batch_size_generation_jobs,
+            # OLD: Individual batch size parameters (commented out)
+            # 'batch_size_users': args.batch_size_users,
+            # 'batch_size_content_items': args.batch_size_content_items,
+            # 'batch_size_content_items_auto': args.batch_size_content_items_auto,
+            # 'batch_size_generation_jobs': args.batch_size_generation_jobs,
+
+            # NEW: Unified batch size parameter
+            'batch_size': args.batch_size,
+
             'target_rows_users': args.target_rows_users,
             'target_rows_content_items': args.target_rows_content_items,
             'target_rows_content_items_auto': args.target_rows_content_items_auto,
             'max_workers': args.max_workers,
             'images_dir': args.images_dir,
+            'use_unmodified_wal_buffers': args.use_unmodified_wal_buffers,
         }
 
         for key, value in override_mapping.items():
@@ -162,7 +189,6 @@ def main():
 
         # Validate admin UUID
         admin_uuid = config_manager.validate_admin_uuid(config)
-        logger.info(f"Using admin UUID: {admin_uuid}")
 
         # Get database session using provided URL
         from sqlalchemy import create_engine
@@ -185,6 +211,7 @@ def main():
         sys.exit(1)
     finally:
         if 'session' in locals():
+            # noinspection PyUnboundLocalVariable false_positive_see_line_above
             session.close()
             logger.info("Database session closed")
 

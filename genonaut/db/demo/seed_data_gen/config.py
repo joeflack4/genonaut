@@ -12,10 +12,14 @@ class SeedDataConfig(BaseModel):
     """Configuration schema for seed data generation."""
 
     # Batch sizes
-    batch_size_users: int = Field(default=1000, ge=1, le=10000)
-    batch_size_content_items: int = Field(default=2000, ge=1, le=10000)
-    batch_size_content_items_auto: int = Field(default=2000, ge=1, le=10000)
-    batch_size_generation_jobs: int = Field(default=5000, ge=1, le=20000)
+    # OLD: Individual batch sizes (commented out in favor of unified batch_size)
+    # batch_size_users: int = Field(default=1000, ge=1, le=10000)
+    # batch_size_content_items: int = Field(default=2000, ge=1, le=10000)
+    # batch_size_content_items_auto: int = Field(default=2000, ge=1, le=10000)
+    # batch_size_generation_jobs: int = Field(default=5000, ge=1, le=20000)
+
+    # NEW: Unified batch size (maximum batch size for all operations)
+    batch_size: int = Field(default=2000, ge=1, le=20000)
 
     # Target row counts
     target_rows_users: int = Field(default=1000, ge=1, le=100000)
@@ -34,6 +38,9 @@ class SeedDataConfig(BaseModel):
 
     # Admin user
     admin_user_uuid: Optional[str] = None
+
+    # wal_buffers optimization control
+    use_unmodified_wal_buffers: bool = Field(default=False)
 
     @validator('admin_user_uuid')
     def validate_admin_uuid(cls, v):

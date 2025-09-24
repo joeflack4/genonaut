@@ -17,6 +17,10 @@ class BulkInserter:
 
     def __init__(self, session: Session):
         self.session = session
+        self.original_wal_buffers = None
+        self.wal_buffers_changed = False
+        # Store engine for potential session recreation
+        self.engine = session.bind
 
     def insert_users_batch(self, users: List[Dict[str, Any]]) -> Tuple[int, List[str]]:
         """Insert users batch with username conflict handling."""
@@ -48,7 +52,7 @@ class BulkInserter:
             except IntegrityError:
                 self.session.rollback()
                 conflicted_usernames.append(user_data['username'])
-                logger.warning(f"Username conflict: {user_data['username']}")
+                # logger.warning(f"Username conflict: {user_data['username']}")
 
         if conflicted_usernames:
             logger.warning(
@@ -123,26 +127,213 @@ class BulkInserter:
         result = self.session.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
         return result.scalar()
 
-    def optimize_for_bulk_insert(self):
+    def optimize_for_bulk_insert(self, should_pause_for_restart=False):
         """Optimize database settings for bulk insertion."""
         try:
-            # These optimizations are PostgreSQL-specific
+            # First, capture current wal_buffers value
+            result = self.session.execute(text("SHOW wal_buffers"))
+            self.original_wal_buffers = result.scalar()
+            logger.info(f"Current wal_buffers: {self.original_wal_buffers}")
+
+            # Apply session-level optimizations (these work without restart)
             self.session.execute(text("SET synchronous_commit = OFF"))
-            self.session.execute(text("SET wal_buffers = '64MB'"))
-            self.session.execute(text("SET checkpoint_segments = 64"))
+
+            # Note: checkpoint_segments was replaced by max_wal_size in PostgreSQL 9.5+
+            # Try both for compatibility
+            try:
+                self.session.execute(text("SET max_wal_size = '2GB'"))
+            except:
+                try:
+                    self.session.execute(text("SET checkpoint_segments = 64"))
+                except:
+                    pass  # Skip if neither works
+
             self.session.commit()
+
+            # Apply system-level wal_buffers optimization using autocommit connection
+            # This must be done outside of a transaction block
+            self._alter_system_wal_buffers('64MB')
+
+            # Conditional pause for PostgreSQL restart on large datasets
+            # Session recreation happens automatically within the pause method
+            if should_pause_for_restart:
+                self._pause_for_postgresql_restart()
+
+            logger.info("Bulk insert optimizations applied successfully")
+
         except Exception as e:
             logger.warning(f"Could not apply bulk insert optimizations: {e}")
             self.session.rollback()
 
+    def _pause_for_postgresql_restart(self):
+        """Pause execution and prompt user to restart PostgreSQL for optimal performance."""
+        print("\n" + "="*80)
+        print("POSTGRESQL RESTART REQUIRED FOR OPTIMAL PERFORMANCE")
+        print("="*80)
+        print("For large datasets, PostgreSQL should be restarted to apply the new wal_buffers setting.")
+        print("This will significantly improve bulk insertion performance.")
+        print("")
+        print("Please:")
+        print("1. Restart your PostgreSQL server now")
+        print("2. Press any key to continue once PostgreSQL has restarted")
+        print("="*80)
+
+        try:
+            input("Press any key to continue...")
+            print("Continuing with data generation...")
+            print("="*80)
+
+            # Recreate session immediately after PostgreSQL restart
+            self._recreate_session_after_restart()
+
+        except KeyboardInterrupt:
+            print("\nOperation cancelled by user.")
+            raise
+
+    def _recreate_session_after_restart(self):
+        """Recreate database session after PostgreSQL restart."""
+        import time
+        max_retries = 5
+        retry_delay = 2  # seconds
+
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Recreating database session after PostgreSQL restart (attempt {attempt + 1}/{max_retries})...")
+
+                # Close the old session and dispose the old engine
+                self.session.close()
+                old_url = str(self.engine.url)
+                self.engine.dispose()
+
+                # Small delay to let PostgreSQL fully initialize
+                if attempt > 0:
+                    logger.info(f"Waiting {retry_delay} seconds before retry...")
+                    time.sleep(retry_delay)
+
+                # Create completely new engine and session (don't reuse old engine)
+                from sqlalchemy import create_engine
+                from sqlalchemy.orm import sessionmaker
+
+                logger.info("Creating fresh engine and session...")
+                self.engine = create_engine(old_url, echo=False)
+                session_factory = sessionmaker(bind=self.engine, autocommit=False, autoflush=False)
+                self.session = session_factory()
+
+                # Test connection health before proceeding
+                logger.info("Testing connection health after session recreation...")
+                self._test_connection_health()
+
+                logger.info("Database session successfully recreated with fresh engine and tested")
+                return  # Success, exit retry loop
+
+            except Exception as e:
+                logger.warning(f"Attempt {attempt + 1} failed to recreate database session: {e}")
+                if attempt == max_retries - 1:
+                    logger.error(f"All {max_retries} attempts failed to recreate database session")
+                    raise
+                else:
+                    retry_delay *= 2  # Exponential backoff
+
+    def _test_connection_health(self):
+        """Test that the database connection is working properly."""
+        try:
+            # Simple connectivity test
+            result = self.session.execute(text("SELECT 1 as test"))
+            test_value = result.scalar()
+
+            if test_value != 1:
+                raise Exception("Connection health test failed - unexpected result")
+
+            # Additional warmup queries to ensure connection is stable
+            logger.info("Running connection warmup queries...")
+
+            # Test current database
+            result = self.session.execute(text("SELECT current_database()"))
+            db_name = result.scalar()
+            logger.info(f"Connected to database: {db_name}")
+
+            # Test current user
+            result = self.session.execute(text("SELECT current_user"))
+            username = result.scalar()
+            logger.info(f"Connected as user: {username}")
+
+            # Test basic table query (if users table exists)
+            try:
+                result = self.session.execute(text("SELECT COUNT(*) FROM users"))
+                user_count = result.scalar()
+                logger.info(f"Users table accessible with {user_count} records")
+            except:
+                logger.info("Users table not accessible yet (expected for fresh database)")
+
+            logger.info("Connection health test and warmup completed successfully")
+
+        except Exception as e:
+            logger.error(f"Connection health test failed: {e}")
+            raise
+
+    def _alter_system_wal_buffers(self, value: str):
+        """Execute ALTER SYSTEM for wal_buffers using autocommit connection."""
+        try:
+            # Create a new connection with autocommit for ALTER SYSTEM
+            engine = self.session.bind
+            with engine.connect() as conn:
+                # Set autocommit mode
+                conn.execute(text("COMMIT"))  # End any existing transaction
+                conn.connection.autocommit = True
+
+                logger.info(f"Setting wal_buffers to {value} using ALTER SYSTEM...")
+                conn.execute(text(f"ALTER SYSTEM SET wal_buffers = '{value}'"))
+                self.wal_buffers_changed = True
+
+                # Restore normal transaction mode
+                conn.connection.autocommit = False
+
+            # Log important information about the restart requirement
+            logger.warning("wal_buffers has been changed via ALTER SYSTEM. The new setting will take effect after the next PostgreSQL restart.")
+            logger.warning("For optimal performance, consider restarting PostgreSQL now and re-running the seed data generation.")
+
+        except Exception as e:
+            logger.error(f"Failed to execute ALTER SYSTEM for wal_buffers: {e}")
+            raise
+
     def restore_normal_settings(self):
         """Restore normal database settings after bulk operations."""
         try:
-            self.session.execute(text("SET synchronous_commit = ON"))
-            self.session.commit()
+            # Restore session-level settings using autocommit connection
+            # This avoids issues with failed transaction states
+            self._restore_session_settings()
+
+            # Restore system-level wal_buffers if we changed it
+            if self.wal_buffers_changed and self.original_wal_buffers:
+                self._alter_system_wal_buffers(self.original_wal_buffers)
+                self.wal_buffers_changed = False
+                logger.info(f"wal_buffers restored to original value: {self.original_wal_buffers}")
+                logger.warning("wal_buffers has been restored via ALTER SYSTEM. The restored setting will take effect after the next PostgreSQL restart.")
+
+            logger.info("Normal database settings restored successfully")
+
         except Exception as e:
             logger.warning(f"Could not restore normal settings: {e}")
-            self.session.rollback()
+
+    def _restore_session_settings(self):
+        """Restore session-level settings using autocommit connection."""
+        try:
+            # Use autocommit connection to avoid transaction block issues
+            engine = self.session.bind
+            with engine.connect() as conn:
+                # Set autocommit mode
+                conn.execute(text("COMMIT"))  # End any existing transaction
+                conn.connection.autocommit = True
+
+                logger.info("Restoring synchronous_commit to ON...")
+                conn.execute(text("SET synchronous_commit = ON"))
+
+                # Restore normal transaction mode
+                conn.connection.autocommit = False
+
+        except Exception as e:
+            logger.error(f"Failed to restore session settings: {e}")
+            raise
 
 
 class ProgressReporter:

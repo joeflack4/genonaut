@@ -129,7 +129,7 @@ class ContentGenerator(DataGenerator):
 
         # Generate prompt and title
         prompt = self.prompt_engine.generate_prompt()
-        title = prompt[:20]  # First 20 characters as title
+        title = prompt[:30]  # First 30 characters as title
 
         # Generate metadata
         style = random.choice(["anime", "illustration", "photorealistic"])

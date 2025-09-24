@@ -8,7 +8,7 @@ backup-test api-dev api-demo api-test frontend-install frontend-dev frontend-bui
 frontend-test-unit frontend-test-watch frontend-test-coverage frontend-test-e2e frontend-test-e2e-headed \
 frontend-test-e2e-ui frontend-lint frontend-type-check frontend-format frontend-format-write \
 test-frontend test-frontend-unit test-frontend-watch test-frontend-coverage test-frontend-e2e test-frontend-e2e-headed \
-test-frontend-e2e-ui
+test-frontend-e2e-ui db-wal-buffers-reset db-wal-buffers-set
 
 # Load environment variables
 ifneq (,$(wildcard ./env/.env))
@@ -59,6 +59,10 @@ help:
 	@echo "  api-dev                  Start FastAPI server for development database"
 	@echo "  api-demo                 Start FastAPI server for demo database"
 	@echo "  api-test                 Start FastAPI server for test database"
+	@echo ""
+	@echo "PostgreSQL wal_buffers management:"
+	@echo "  db-wal-buffers-reset     Reset wal_buffers to 4MB (requires PostgreSQL restart)"
+	@echo "  db-wal-buffers-set VALUE Set wal_buffers to VALUE (e.g., 64MB, requires restart)"
 	@echo ""
 	@echo "Frontend commands:"
 	@echo "  frontend-install         Install frontend dependencies"
@@ -135,13 +139,39 @@ re-seed-demo-force:
 	@python -c "import sys; sys.path.append('.'); from genonaut.db.init import reseed_demo; reseed_demo(force=True)"
 
 # Synthetic data generation
+# Helper function for DRY abstraction (accepts database URL as parameter)
+define seed-from-gen-helper
+	@python -m genonaut.db.demo.seed_data_gen generate --database-url "$(1)" \
+	--use-unmodified-wal-buffers \
+	--batch-size 5000 \
+	--target-rows-users 500 \
+	--target-rows-content-items 5000 \
+	--target-rows-content-items-auto 100000
+endef
+
 seed-from-gen-demo:
 	@echo "Generating synthetic data for demo database..."
-	@python -m genonaut.db.demo.seed_data_gen generate --database-url "${DATABASE_URL_DEMO}" --target-rows-users 1000 --target-rows-content-items 5000 --target-rows-content-items-auto 10000
+	$(call seed-from-gen-helper,${DATABASE_URL_DEMO})
 
 seed-from-gen-test:
 	@echo "Generating synthetic data for test database..."
-	@python -m genonaut.db.demo.seed_data_gen generate --database-url "${DATABASE_URL_TEST}" --target-rows-users 100 --target-rows-content-items 500 --target-rows-content-items-auto 1000
+	$(call seed-from-gen-helper,${DATABASE_URL_TEST})
+
+# PostgreSQL wal_buffers management
+# todo: Add support for other databases (dev, test) via parameters like db-wal-buffers-reset-dev, db-wal-buffers-set-test, etc.
+db-wal-buffers-reset:
+	@echo "Resetting PostgreSQL wal_buffers to 4MB (demo database)..."
+	@set -a && source env/.env && python -m genonaut.db.utils.wal_buffers --database-url "$$DATABASE_URL_DEMO" reset
+	@echo "⚠️  Please restart PostgreSQL for changes to take effect!"
+
+db-wal-buffers-set:
+	@echo "Setting PostgreSQL wal_buffers to $(VALUE) (demo database)..."
+	@if [ -z "$(VALUE)" ]; then \
+		echo "Error: VALUE parameter is required. Usage: make db-wal-buffers-set VALUE=64MB"; \
+		exit 1; \
+	fi
+	@set -a && source env/.env && python -m genonaut.db.utils.wal_buffers --database-url "$$DATABASE_URL_DEMO" set --value "$(VALUE)"
+	@echo "⚠️  Please restart PostgreSQL for changes to take effect!"
 
 # Tests
 test:

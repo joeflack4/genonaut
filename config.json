@@ -5,8 +5,8 @@
     "test": "test/db/input/rdbms_init"
   },
   "seed_data_generator": {
-    "batch_size_content_items": 2000,
-    "batch_size_content_items_auto": 2000,
+    "batch_size": 2000,
+    "target_rows_users": 500,
     "target_rows_content_items": 20000,
     "target_rows_content_items_auto": 100000
   },
