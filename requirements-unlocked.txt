@@ -1,5 +1,6 @@
 email-validator
 fastapi
+httpx
 jinja2
 pandas
 psycopg2-binary

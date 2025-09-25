@@ -327,3 +327,55 @@ class PaginatedResponse(BaseModel):
     pagination: PaginationMeta = Field(..., description="Pagination metadata")
 
     model_config = {"from_attributes": True}
+
+
+class AvailableModelResponse(BaseModel):
+    """Response model for available ComfyUI models."""
+    id: int = Field(..., description="Model ID")
+    name: str = Field(..., description="Model name")
+    type: str = Field(..., description="Model type (checkpoint, lora)")
+    file_path: str = Field(..., description="Path to model file")
+    description: Optional[str] = Field(None, description="Model description")
+    is_active: bool = Field(..., description="Whether model is active")
+    created_at: datetime = Field(..., description="Model creation timestamp")
+    updated_at: datetime = Field(..., description="Model last update timestamp")
+
+    model_config = {"from_attributes": True}
+
+
+class ComfyUIGenerationResponse(BaseModel):
+    """Response model for ComfyUI generation requests."""
+    id: int = Field(..., description="Generation request ID")
+    user_id: UUID = Field(..., description="User ID")
+    prompt: str = Field(..., description="Positive prompt")
+    negative_prompt: Optional[str] = Field(None, description="Negative prompt")
+    checkpoint_model: str = Field(..., description="Checkpoint model name")
+    lora_models: List[Dict[str, Any]] = Field(..., description="LoRA models with strengths")
+    width: int = Field(..., description="Image width")
+    height: int = Field(..., description="Image height")
+    batch_size: int = Field(..., description="Number of images to generate")
+    sampler_params: Dict[str, Any] = Field(..., description="KSampler parameters")
+    status: str = Field(..., description="Generation status")
+    comfyui_prompt_id: Optional[str] = Field(None, description="ComfyUI workflow prompt ID")
+    output_paths: List[str] = Field(..., description="Generated image file paths")
+    thumbnail_paths: List[str] = Field(..., description="Thumbnail file paths")
+    created_at: datetime = Field(..., description="Request creation timestamp")
+    updated_at: datetime = Field(..., description="Request last update timestamp")
+    started_at: Optional[datetime] = Field(None, description="Generation start timestamp")
+    completed_at: Optional[datetime] = Field(None, description="Generation completion timestamp")
+    error_message: Optional[str] = Field(None, description="Error message if failed")
+
+    model_config = {"from_attributes": True}
+
+
+class ComfyUIGenerationListResponse(PaginatedResponse):
+    """Response model for ComfyUI generation list."""
+    items: List[ComfyUIGenerationResponse] = Field(..., description="List of generation requests")
+
+
+class AvailableModelListResponse(BaseModel):
+    """Response model for available model list."""
+    items: List[AvailableModelResponse] = Field(..., description="List of available models")
+    total: int = Field(..., description="Total number of models")
+
+    model_config = {"from_attributes": True}

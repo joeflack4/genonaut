@@ -1,0 +1,70 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": { "ckpt_name": "illustriousXL_v01.safetensors" }
+    },
+    "2": {
+      "class_type": "LoraLoader",
+      "inputs": {
+        "model": ["1", 0],
+        "clip": ["1", 1],
+        "lora_name": "char/maomaoIllustrious.safetensors",
+        "strength_model": 0.8,
+        "strength_clip": 0.8
+      }
+    },
+    "3": {
+      "class_type": "LoraLoader",
+      "inputs": {
+        "model": ["2", 0],
+        "clip": ["2", 1],
+        "lora_name": "misc/styles/Ghibli_MK2_style_illustV1.safetensors",
+        "strength_model": 0.6,
+        "strength_clip": 0.6
+      }
+    },
+    "4": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["3", 1],
+        "text": "masterpiece, detailed anime scene, character smiling softly, cozy room, mixing herbs with mortar and pestle, sitting at desk"
+      }
+    },
+    "5": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["3", 1],
+        "text": "low quality, blurry, extra fingers"
+      }
+    },
+    "6": {
+      "class_type": "EmptyLatentImage",
+      "inputs": { "width": 832, "height": 1216, "batch_size": 1 }
+    },
+    "7": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": 123456,
+        "steps": 28,
+        "cfg": 5.5,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "denoise": 1.0,
+        "model": ["3", 0],
+        "positive": ["4", 0],
+        "negative": ["5", 0],
+        "latent_image": ["6", 0]
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": { "samples": ["7", 0], "vae": ["1", 2] }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": { "images": ["8", 0], "filename_prefix": "sdxl_anime" }
+    }
+  },
+  "client_id": "7a232450-b089-419d-86d5-a1ee09c6995d"
+}

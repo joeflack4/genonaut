@@ -284,3 +284,39 @@ class PaginationRequest(BaseModel):
     def skip(self) -> int:
         """Calculate skip value for offset-based pagination."""
         return (self.page - 1) * self.page_size
+
+
+class ComfyUIGenerationCreateRequest(BaseModel):
+    """Request model for creating a ComfyUI generation."""
+    user_id: UUID = Field(..., description="User ID for the generation request")
+    prompt: str = Field(..., min_length=1, max_length=2000, description="Positive prompt for generation")
+    negative_prompt: Optional[str] = Field("", max_length=2000, description="Negative prompt for generation")
+    checkpoint_model: str = Field(..., min_length=1, max_length=255, description="Checkpoint model name")
+    lora_models: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="LoRA models with strengths")
+    width: int = Field(832, ge=64, le=2048, description="Image width")
+    height: int = Field(1216, ge=64, le=2048, description="Image height")
+    batch_size: int = Field(1, ge=1, le=8, description="Number of images to generate")
+    sampler_params: Optional[Dict[str, Any]] = Field(default_factory=dict, description="KSampler parameters")
+
+    @validator('lora_models')
+    def validate_lora_models(cls, v):
+        if v is not None:
+            for lora in v:
+                if not isinstance(lora, dict) or 'name' not in lora:
+                    raise ValueError("LoRA models must contain 'name' field")
+        return v
+
+
+class ComfyUIModelListRequest(BaseModel):
+    """Request model for listing available ComfyUI models."""
+    model_type: Optional[str] = Field(None, description="Filter by model type (checkpoint, lora)")
+    is_active: Optional[bool] = Field(None, description="Filter by active status")
+    search: Optional[str] = Field(None, max_length=255, description="Search in model names")
+
+
+class ComfyUIGenerationListRequest(PaginationRequest):
+    """Request model for listing ComfyUI generations."""
+    user_id: Optional[UUID] = Field(None, description="Filter by user ID")
+    status: Optional[str] = Field(None, description="Filter by generation status")
+    created_after: Optional[str] = Field(None, description="Filter generations created after this date")
+    created_before: Optional[str] = Field(None, description="Filter generations created before this date")

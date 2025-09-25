@@ -6,6 +6,7 @@ import { GalleryPage } from './pages/gallery'
 import { DashboardPage } from './pages/dashboard'
 import { RecommendationsPage } from './pages/recommendations'
 import { SettingsPage } from './pages/settings'
+import { GenerationPage } from './pages/generation'
 
 const routes: RouteObject[] = [
   {
@@ -16,6 +17,7 @@ const routes: RouteObject[] = [
       { path: 'dashboard', element: <DashboardPage /> },
       { path: 'gallery', element: <GalleryPage /> },
       { path: 'recommendations', element: <RecommendationsPage /> },
+      { path: 'generate', element: <GenerationPage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],
   },

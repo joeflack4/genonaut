@@ -366,6 +366,113 @@ def _restore_non_postgres_indexes(metadata, _connection, **_) -> None:
             table.indexes.update(pending)
 
 
+class AvailableModel(Base):
+    """Available AI models for ComfyUI generation.
+
+    Attributes:
+        id: Primary key
+        name: Display name of the model
+        type: Type of model (checkpoint, lora)
+        file_path: Path to the model file
+        description: Optional description of the model
+        is_active: Whether the model is available for use
+        created_at: Timestamp when model was added
+        updated_at: Timestamp when model was last updated
+    """
+    __tablename__ = 'available_models'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), nullable=False, index=True)
+    type = Column(String(20), nullable=False, index=True)  # checkpoint, lora
+    file_path = Column(String(512), nullable=False, unique=True)
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Optimization indexes
+    __table_args__ = (
+        Index("idx_available_models_type_active", type, is_active),
+        Index("idx_available_models_active_name", is_active, name),
+        UniqueConstraint('name', 'type', name='uq_model_name_type'),
+    )
+
+
+class ComfyUIGenerationRequest(Base):
+    """ComfyUI-specific generation requests.
+
+    Attributes:
+        id: Primary key
+        user_id: Foreign key to the user who requested the generation
+        prompt: Positive prompt for generation
+        negative_prompt: Negative prompt for generation (optional)
+        checkpoint_model: Name of the checkpoint model to use
+        lora_models: JSON array of LoRA models with their strengths
+        width: Image width
+        height: Image height
+        batch_size: Number of images to generate
+        sampler_params: JSON object with KSampler parameters
+        status: Generation status
+        comfyui_prompt_id: ComfyUI workflow prompt ID
+        output_paths: JSON array of generated image file paths
+        thumbnail_paths: JSON array of thumbnail file paths
+        created_at: Timestamp when request was created
+        updated_at: Timestamp when request was last updated
+        started_at: Timestamp when generation started
+        completed_at: Timestamp when generation completed
+        error_message: Error message if generation failed
+    """
+    __tablename__ = 'comfyui_generation_requests'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
+    prompt = Column(Text, nullable=False)
+    negative_prompt = Column(Text, nullable=True)
+    checkpoint_model = Column(String(255), nullable=False)
+    lora_models = Column(JSONColumn, default=list)  # [{"name": str, "strength_model": float, "strength_clip": float}]
+    width = Column(Integer, nullable=False, default=512)
+    height = Column(Integer, nullable=False, default=512)
+    batch_size = Column(Integer, nullable=False, default=1)
+    sampler_params = Column(JSONColumn, default=dict)  # {seed, steps, cfg, sampler_name, scheduler, denoise}
+    status = Column(String(20), default='pending', nullable=False, index=True)  # pending, processing, completed, failed, cancelled
+    comfyui_prompt_id = Column(String(255), nullable=True, unique=True, index=True)
+    output_paths = Column(JSONColumn, default=list)  # Array of generated image file paths
+    thumbnail_paths = Column(JSONColumn, default=list)  # Array of thumbnail file paths
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id])
+
+    # Full-text search and optimization indexes
+    __table_args__ = (
+        # Full-text search index for prompts
+        Index(
+            "cgr_prompt_fts_idx",
+            func.to_tsvector(
+                _fts_language_literal(),
+                func.coalesce(prompt, "") + ' ' + func.coalesce(negative_prompt, ""),
+            ),
+            postgresql_using="gin",
+            info={"postgres_only": True},
+        ),
+        # Pagination optimization indexes
+        Index("idx_comfyui_gen_created_at_desc", created_at.desc()),
+        Index("idx_comfyui_gen_user_created", user_id, created_at.desc()),
+        Index("idx_comfyui_gen_status_created", status, created_at.desc()),
+        Index("idx_comfyui_gen_user_status_created", user_id, status, created_at.desc()),
+        # Index for queue management
+        Index("idx_comfyui_gen_status_created_priority", status, created_at.asc(),
+              postgresql_where=status.in_(['pending', 'processing'])),
+        # Index for completed generation analytics
+        Index("idx_comfyui_gen_completed_at_desc", completed_at.desc(),
+              postgresql_where=completed_at.is_not(None)),
+    )
+
+
 event.listen(Base.metadata, "before_create", _strip_non_postgres_indexes)
 event.listen(Base.metadata, "after_create", _restore_non_postgres_indexes)
 event.listen(Base.metadata, "before_drop", _strip_non_postgres_indexes)

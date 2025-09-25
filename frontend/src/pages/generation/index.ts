@@ -1,0 +1,1 @@
+export { GenerationPage } from './GenerationPage'
