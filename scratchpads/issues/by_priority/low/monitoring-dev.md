@@ -204,7 +204,7 @@ global:
 scrape_configs:
   - job_name: 'genonaut-api'
     static_configs:
-      - targets: ['localhost:8000']
+      - targets: ['localhost:8001']
     metrics_path: '/metrics'
     scrape_interval: 5s
 ```

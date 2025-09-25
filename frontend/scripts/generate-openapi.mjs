@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
-const schemaUrl = process.env.OPENAPI_SCHEMA_URL ?? 'http://localhost:8000/openapi.json'
+const schemaUrl = process.env.OPENAPI_SCHEMA_URL ?? 'http://localhost:8001/openapi.json'
 const outputPath = process.env.OPENAPI_OUTPUT ?? 'src/types/openapi.ts'
 
 const currentDir = dirname(fileURLToPath(import.meta.url))

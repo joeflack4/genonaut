@@ -27,7 +27,7 @@ import psutil
 from tabulate import tabulate
 
 # Configuration
-DEFAULT_BASE_URL = "http://localhost:8001"
+DEFAULT_BASE_URL = "http://localhost:8002"
 DEFAULT_DATASET_SIZE = 10000
 DEFAULT_CONCURRENT_REQUESTS = 5
 DEFAULT_PAGE_SIZE = 50

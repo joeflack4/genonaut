@@ -113,13 +113,13 @@ make test-db-integration
 ### 3. API Integration Tests (`make test-api`)
 **Requires web server + database** 🌐
 - **What's tested:** HTTP endpoints, complete workflows, error handling, authentication
-- **Setup required:** API server running on `http://0.0.0.0:8000`
+- **Setup required:** API server running on `http://0.0.0.0:8001`
 - **Speed:** Slowest (2-5 minutes)
 - **Use case:** End-to-end validation of API functionality
 
 **Prerequisites:**
 1. Database server running and initialized
-2. API server running on port 8000
+2. API server running on port 8001
 3. All dependencies installed
 
 ```bash
@@ -135,7 +135,7 @@ make test-api
 ### Environment Variables for Testing
 | Variable | Description | Default | Required For |
 |----------|-------------|---------|--------------|
-| `API_BASE_URL` | API server URL for integration tests | `http://0.0.0.0:8000` | API tests |
+| `API_BASE_URL` | API server URL for integration tests | `http://0.0.0.0:8001` | API tests |
 | `DATABASE_URL` | Database connection for DB tests | From `.env` | DB & API tests |
 | `API_ENVIRONMENT` | Database environment (`dev`/`demo`) | `dev` | API tests |
 
@@ -250,13 +250,13 @@ make test-db
 **API Tests Failing:**
 ```bash
 # Check if API server is running
-curl http://0.0.0.0:8000/api/v1/health
+curl http://0.0.0.0:8001/api/v1/health
 
 # Start API server if not running
 make api-dev
 
 # Run tests with custom URL if needed
-API_BASE_URL=http://localhost:8000 make test-api
+API_BASE_URL=http://localhost:8001 make test-api
 ```
 
 **Test Database Cleanup:**
@@ -336,7 +336,7 @@ python test/api/stress/run_stress_tests.py --config custom --dataset-size 50000 
 #### Standalone Benchmarking
 ```bash
 # Run performance benchmarks against API server
-python test/api/stress/benchmark_pagination.py --base-url http://localhost:8000 --dataset-size 10000
+python test/api/stress/benchmark_pagination.py --base-url http://localhost:8001 --dataset-size 10000
 
 # Save benchmark results to file
 python test/api/stress/benchmark_pagination.py --output benchmark_results.json
@@ -438,7 +438,7 @@ STRESS_TEST_MAX_MEMORY_MB=300      # Maximum memory usage per worker
 python test/api/stress/run_stress_tests.py --config production -v
 
 # Watch database performance during stress tests
-python test/api/stress/benchmark_pagination.py --base-url http://localhost:8000 --dataset-size 50000
+python test/api/stress/benchmark_pagination.py --base-url http://localhost:8001 --dataset-size 50000
 ```
 
 #### Performance Analysis

@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     # New API settings
     api_secret_key: str = "your-secret-key-change-this-in-production"
     api_host: str = "0.0.0.0"
-    api_port: int = 8000
+    api_port: int = 8001
     api_debug: bool = False
     api_environment: str = "dev"  # dev, demo, or test
     

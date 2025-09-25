@@ -219,9 +219,9 @@ test-db-integration:
 test-api:
 	@echo "Running API integration tests (web server required)..."
 	@echo "Testing: HTTP endpoints, complete workflows, error handling"
-	@echo "Prerequisites: API server should be running on http://0.0.0.0:8000. (it's probably running; this is just a reminder)"
+	@echo "Prerequisites: API server should be running on http://0.0.0.0:8001. (it's probably running; this is just a reminder)"
 	@echo "Start with: make api-test"
-	API_BASE_URL=http://0.0.0.0:8000 pytest test/api/integration/ -v
+	API_BASE_URL=http://0.0.0.0:8001 pytest test/api/integration/ -v
 
 test-all: test-quick test-long-running
 	@echo "✅ All test suites completed successfully!"
@@ -355,36 +355,36 @@ backup: backup-dev backup-demo backup-test
 # FastAPI server
 api-dev:
 	@echo "Starting FastAPI server for development database..."
-	API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --reload
+	API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
 
 api-demo:
 	@echo "Starting FastAPI server for demo database..."
-	API_ENVIRONMENT=demo uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --reload
+	API_ENVIRONMENT=demo uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
 
 api-test:
 	@echo "Starting FastAPI server for test database..."
-	API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --reload
+	API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
 
 # FastAPI server variants for performance testing
 api-dev-profile:
 	@echo "Starting FastAPI server for development with profiling (single worker, no reload)..."
-	API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --workers 1
+	API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 1
 
 api-dev-load-test:
 	@echo "Starting FastAPI server for load testing (4 workers)..."
-	API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --workers 4
+	API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 4
 
 api-production-sim:
 	@echo "Starting FastAPI server simulating production (8 workers)..."
-	API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --workers 8
+	API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 8
 
 api-demo-load-test:
 	@echo "Starting FastAPI server for demo load testing (4 workers)..."
-	API_ENVIRONMENT=demo uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --workers 4
+	API_ENVIRONMENT=demo uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 4
 
 api-test-load-test:
 	@echo "Starting FastAPI server for test load testing (4 workers)..."
-	API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --workers 4
+	API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 4
 
 # Frontend helpers
 frontend-install:

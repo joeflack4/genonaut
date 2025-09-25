@@ -24,13 +24,13 @@ make api-test
 **Manual Start (Advanced):**
 ```bash
 # Development database
-API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --reload
+API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
 
 # Demo database
-API_ENVIRONMENT=demo uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --reload
+API_ENVIRONMENT=demo uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
 
 # Test database
-API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --reload
+API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
 ## API Configuration
@@ -41,7 +41,7 @@ API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --
 |---------------------|-------------|---------|---------|
 | `API_SECRET_KEY` | Secret key for JWT tokens and cryptographic operations | `your-secret-key-change-this-in-production` | `my-super-secret-key-123` |
 | `API_HOST` | Host address for the API server | `0.0.0.0` | `127.0.0.1` |
-| `API_PORT` | Port for the API server | `8000` | `9000` |
+| `API_PORT` | Port for the API server | `8001` | `9000` |
 | `API_DEBUG` | Enable debug mode (auto-reload, detailed errors) | `false` | `true` |
 | `API_ENVIRONMENT` | Which database to use by default (`dev`/`demo`/`test`) | `dev` | `test` |
 | `DATABASE_URL_DEMO` | Demo database connection URL | Uses `DATABASE_URL` with demo DB name | `postgresql://user:pass@localhost:5432/genonaut_demo` |
@@ -50,11 +50,11 @@ API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8000 --
 
 Once the server is running, you can access:
 
-- **Interactive API Docs (Swagger):** `http://localhost:8000/docs`
-- **Alternative API Docs (ReDoc):** `http://localhost:8000/redoc`
-- **Health Check:** `http://localhost:8000/api/v1/health`
-- **Database Info:** `http://localhost:8000/api/v1/databases`
-- **Global Statistics:** `http://localhost:8000/api/v1/stats/global`
+- **Interactive API Docs (Swagger):** `http://localhost:8001/docs`
+- **Alternative API Docs (ReDoc):** `http://localhost:8001/redoc`
+- **Health Check:** `http://localhost:8001/api/v1/health`
+- **Database Info:** `http://localhost:8001/api/v1/databases`
+- **Global Statistics:** `http://localhost:8001/api/v1/stats/global`
 
 ## API Endpoints Overview
 
@@ -362,7 +362,7 @@ async function fetchAllItems(baseUrl, params = {}) {
 }
 
 // Usage
-const items = await fetchAllItems('http://localhost:8000', {
+const items = await fetchAllItems('http://localhost:8001', {
   sort_field: 'quality_score',
   sort_order: 'desc',
   page_size: 100
@@ -379,7 +379,7 @@ const items = await fetchAllItems('http://localhost:8000', {
 ### ⚠️ Important Caveats
 - **Database Initialization Required:** Run `make init-dev`, `make init-demo`, and (for integration tests) `make init-test` before starting the API
 - **Environment Variables:** Ensure database credentials are set in `.env` file
-- **Port Conflicts:** Default port 8000 - change `API_PORT` if conflicted
+- **Port Conflicts:** Default port 8001 - change `API_PORT` if conflicted
 - **CORS Settings:** Currently set to allow all origins (`*`) - configure for production use
 
 ### 🚨 Production Gotchas
@@ -393,7 +393,7 @@ const items = await fetchAllItems('http://localhost:8000', {
 - **"Database error" responses:** Check database connection and credentials
 - **Import errors:** Ensure all dependencies installed: `pip install -r requirements.txt`
 - **Pydantic validation errors:** Check request body format matches API docs
-- **Port in use:** Change `API_PORT` or kill existing process on port 8000
+- **Port in use:** Change `API_PORT` or kill existing process on port 8001
 
 ## Request/Response Format
 

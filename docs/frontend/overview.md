@@ -66,7 +66,7 @@ The top-level `Makefile` includes matching helpers (`make frontend-dev`, `make f
 
 ## Environment
 
-- Configure the API base URL with `VITE_API_BASE_URL` (defaults to `http://localhost:8000`).
+- Configure the API base URL with `VITE_API_BASE_URL` (defaults to `http://localhost:8001`).
 - Theme preference persists to `localStorage` under `theme-mode`.
 - The OpenAPI generator script honours `OPENAPI_SCHEMA_URL` and `OPENAPI_OUTPUT` env vars for custom schemas.
 

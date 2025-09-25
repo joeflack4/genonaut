@@ -17,7 +17,7 @@ class TestSettings:
             assert settings.api_secret_key == "your-secret-key-change-this-in-production"
             assert settings.api_environment == "dev"
             assert settings.api_host == "0.0.0.0"
-            assert settings.api_port == 8000
+            assert settings.api_port == 8001
             assert settings.api_debug is False
     
     def test_settings_from_env(self):

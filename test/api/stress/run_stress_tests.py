@@ -112,7 +112,7 @@ def run_stress_tests(
 
 
 def run_benchmark(
-    base_url: str = "http://localhost:8001",
+    base_url: str = "http://localhost:8002",
     dataset_size: int = 10000,
     concurrent_requests: int = 5,
     output_file: str = None
@@ -164,7 +164,7 @@ Available test configurations:
 Examples:
   python run_stress_tests.py --config development
   python run_stress_tests.py --config custom --dataset-size 50000
-  python run_stress_tests.py --benchmark --base-url http://localhost:8001
+  python run_stress_tests.py --benchmark --base-url http://localhost:8002
         """
     )
 
@@ -204,7 +204,7 @@ Examples:
 
     parser.add_argument(
         "--base-url",
-        default="http://localhost:8001",
+        default="http://localhost:8002",
         help="Base URL for benchmark testing"
     )
 

@@ -103,8 +103,8 @@ make api-test               # Test database
 ```
 
 **Quick Access:**
-- Interactive docs: `http://localhost:8000/docs`
-- Health check: `http://localhost:8000/api/v1/health`
+- Interactive docs: `http://localhost:8001/docs`
+- Health check: `http://localhost:8001/api/v1/health`
 
 For complete API documentation, endpoint details, configuration options, and troubleshooting, see [API Documentation](docs/api.md).
 
