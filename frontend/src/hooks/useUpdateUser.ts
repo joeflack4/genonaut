@@ -13,7 +13,7 @@ export function useUpdateUser() {
   const queryClient = useQueryClient()
 
   return useMutation<User, unknown, UpdateUserArgs>({
-    mutationFn: ({ id, payload }) => userService.updateUser(id, payload),
+    mutationFn: ({ id, payload }) => userService.updateUser(String(id), payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: currentUserQueryKey })
     },

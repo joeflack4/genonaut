@@ -22,8 +22,8 @@ export function RecommendationsPage() {
   const { data: currentUser } = useCurrentUser()
   const userId = currentUser?.id ?? DEFAULT_USER_ID
 
-  const { data: recommendations, isLoading } = useRecommendations(userId)
-  const { mutateAsync: markServed, isPending } = useServeRecommendation(userId)
+  const { data: recommendations, isLoading } = useRecommendations(Number(userId))
+  const { mutateAsync: markServed, isPending } = useServeRecommendation(Number(userId))
 
   const handleMarkServed = (id: number) => markServed(id)
 

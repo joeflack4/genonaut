@@ -497,3 +497,15 @@ test-frontend-coverage: frontend-test-coverage
 test-frontend-e2e: frontend-test-e2e
 test-frontend-e2e-headed: frontend-test-e2e-headed
 test-frontend-e2e-ui: frontend-test-e2e-ui
+
+# todo: find a better place in file
+# Integration checks
+## ComfyUI
+COMFY_EXAMPLE_FILE=test/integrations/comfy_ui/input/1.json
+COMFY_HOST=127.0.0.1
+COMFY_PORT=8000  # Manual/portable (python main.py): defaults to 8188 unless you set --port. Desktop app (macOS build): commonly ships with 8000 as the baked-in default.
+
+check-comfyui-create-img:
+	curl -X POST http://localhost:8000/prompt \
+	     -H "Content-Type: application/json" \
+	     -d @$${COMFY_EXAMPLE_FILE}

@@ -33,7 +33,7 @@ describe('useUpdateUser', () => {
 
     await result.current.mutateAsync({ id: 1, payload: { name: 'Updated Admin' } })
 
-    expect(updateUserMock).toHaveBeenCalledWith(1, { name: 'Updated Admin' })
+    expect(updateUserMock).toHaveBeenCalledWith("1", { name: 'Updated Admin' })
     expect(queryClient.getQueryState(currentUserQueryKey)?.isInvalidated).toBe(true)
   })
 })

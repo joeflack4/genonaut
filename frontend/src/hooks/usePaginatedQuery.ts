@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient, UseQueryOptions } from '@tanstack/react-query'
+import { useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query'
 import { useEffect, useCallback, useMemo } from 'react'
 import { usePagination, type UsePaginationOptions } from './usePagination'
 import type {
@@ -227,7 +227,7 @@ export function usePaginatedQuery<TData, TError = Error>(
     pagination: query.data?.pagination,
     isLoading: query.isLoading,
     isError: query.isError,
-    error: query.error,
+    error: query.error as Error | null,
     isFetching: query.isFetching,
     isSuccess: query.isSuccess,
 

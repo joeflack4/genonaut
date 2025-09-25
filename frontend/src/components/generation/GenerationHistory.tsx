@@ -1,12 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Box,
   Grid,
-  Card,
-  CardContent,
-  CardMedia,
   Typography,
-  Chip,
   Button,
   FormControl,
   InputLabel,
@@ -16,18 +12,10 @@ import {
   Pagination,
   Alert,
   CircularProgress,
-  Stack,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
 } from '@mui/material'
 import {
   Refresh as RefreshIcon,
-  Visibility as VisibilityIcon,
-  Download as DownloadIcon,
-  Delete as DeleteIcon,
 } from '@mui/icons-material'
 import { GenerationCard } from './GenerationCard'
 import { ImageViewer } from './ImageViewer'
@@ -69,7 +57,7 @@ export function GenerationHistory() {
 
       const response = await listGenerations(params)
       setGenerations(response.items)
-      setTotalPages(response.pagination.total_pages || 1)
+      setTotalPages(Math.ceil(response.pagination.total_count / pageSize))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load generations')
     } finally {
@@ -160,6 +148,7 @@ export function GenerationHistory() {
         <>
           <Grid container spacing={2}>
             {filteredGenerations.map((generation) => (
+              // @ts-ignore
               <Grid item xs={12} sm={6} md={4} lg={3} key={generation.id}>
                 <GenerationCard
                   generation={generation}

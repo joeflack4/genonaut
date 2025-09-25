@@ -31,7 +31,7 @@ class GenerationRequest:
     """ComfyUI generation request parameters."""
     prompt: str
     negative_prompt: str = ""
-    checkpoint_model: str = "base_model.safetensors"
+    checkpoint_model: str = "illustriousXL_v01.safetensors"
     lora_models: List[LoRAModel] = None
     width: int = 832
     height: int = 1216
@@ -107,9 +107,8 @@ class WorkflowBuilder:
         # Node counter for generating unique node IDs
         node_id = 1
 
-        # Build workflow nodes
-        workflow = {"prompt": {}, "client_id": client_id}
-        nodes = workflow["prompt"]
+        # Build workflow nodes - return just the prompt nodes
+        nodes = {}
 
         # 1. CheckpointLoaderSimple - Load base model
         checkpoint_node_id = str(node_id)
@@ -216,7 +215,7 @@ class WorkflowBuilder:
             }
         }
 
-        return workflow
+        return nodes
 
     def build_workflow_from_dict(self, params: Dict[str, Any], client_id: Optional[str] = None) -> Dict[str, Any]:
         """Build workflow from dictionary parameters.

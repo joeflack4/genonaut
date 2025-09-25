@@ -3,8 +3,7 @@ import type {
   ApiContentItem,
   ApiContentQueryParams,
   ApiPaginatedResponse,
-  ApiEnhancedPaginatedResponse,
-  ApiEnhancedContentQueryParams
+  ApiEnhancedPaginatedResponse
 } from '../types/api'
 import type {
   GalleryItem,

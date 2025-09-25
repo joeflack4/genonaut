@@ -39,7 +39,7 @@ export function SettingsPage() {
     if (!currentUser) return
 
     await updateUser({
-      id: currentUser.id,
+      id: Number(currentUser.id),
       payload: {
         name: displayName,
         email,

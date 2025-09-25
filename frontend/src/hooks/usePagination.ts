@@ -45,8 +45,8 @@ export function usePagination(options: UsePaginationOptions = {}): UsePagination
   const {
     initialPage = 1,
     initialPageSize = 50,
-    enablePrefetch = true,
-    maxCacheSize = 10
+    enablePrefetch: _enablePrefetch = true,
+    maxCacheSize: _maxCacheSize = 10
   } = options
 
   // State management

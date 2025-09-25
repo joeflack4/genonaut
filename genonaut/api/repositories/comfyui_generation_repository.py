@@ -9,7 +9,7 @@ from genonaut.db.schema import ComfyUIGenerationRequest
 from genonaut.api.repositories.base import BaseRepository
 from genonaut.api.exceptions import DatabaseError
 from genonaut.api.models.requests import PaginationRequest
-from genonaut.api.models.responses import PaginatedResponse
+from genonaut.api.models.responses import PaginatedResponse, PaginationMeta
 
 
 class ComfyUIGenerationRepository(BaseRepository[ComfyUIGenerationRequest, Dict[str, Any], Dict[str, Any]]):
@@ -45,7 +45,7 @@ class ComfyUIGenerationRepository(BaseRepository[ComfyUIGenerationRequest, Dict[
         user_id: UUID,
         pagination: Optional[PaginationRequest] = None,
         status: Optional[str] = None
-    ) -> PaginatedResponse[ComfyUIGenerationRequest]:
+    ) -> PaginatedResponse:
         """Get generation requests for a specific user.
 
         Args:
@@ -83,18 +83,30 @@ class ComfyUIGenerationRepository(BaseRepository[ComfyUIGenerationRequest, Dict[
                     # Default sort by created_at desc
                     query = query.order_by(desc(ComfyUIGenerationRequest.created_at))
 
-                items = query.offset(pagination.skip).limit(pagination.limit).all()
+                items = query.offset(pagination.skip).limit(pagination.page_size).all()
 
                 return PaginatedResponse(
                     items=items,
-                    pagination_meta=pagination.to_response_meta(total_count)
+                    pagination=PaginationMeta(
+                        page=pagination.page,
+                        page_size=pagination.page_size,
+                        total_count=total_count,
+                        has_next=pagination.skip + pagination.page_size < total_count,
+                        has_previous=pagination.page > 1
+                    )
                 )
             else:
                 # No pagination, return all (with reasonable limit)
                 items = query.order_by(desc(ComfyUIGenerationRequest.created_at)).limit(1000).all()
                 return PaginatedResponse(
                     items=items,
-                    pagination_meta=None
+                    pagination=PaginationMeta(
+                        page=1,
+                        page_size=len(items),
+                        total_count=len(items),
+                        has_next=False,
+                        has_previous=False
+                    )
                 )
 
         except Exception as e:
@@ -207,7 +219,7 @@ class ComfyUIGenerationRepository(BaseRepository[ComfyUIGenerationRequest, Dict[
         query_text: str,
         user_id: Optional[UUID] = None,
         pagination: Optional[PaginationRequest] = None
-    ) -> PaginatedResponse[ComfyUIGenerationRequest]:
+    ) -> PaginatedResponse:
         """Search generation requests by prompt text using full-text search.
 
         Args:
@@ -239,17 +251,29 @@ class ComfyUIGenerationRepository(BaseRepository[ComfyUIGenerationRequest, Dict[
                 total_count = query.count()
                 items = query.order_by(
                     desc(ComfyUIGenerationRequest.created_at)
-                ).offset(pagination.skip).limit(pagination.limit).all()
+                ).offset(pagination.skip).limit(pagination.page_size).all()
 
                 return PaginatedResponse(
                     items=items,
-                    pagination_meta=pagination.to_response_meta(total_count)
+                    pagination=PaginationMeta(
+                        page=pagination.page,
+                        page_size=pagination.page_size,
+                        total_count=total_count,
+                        has_next=pagination.skip + pagination.page_size < total_count,
+                        has_previous=pagination.page > 1
+                    )
                 )
             else:
                 items = query.order_by(desc(ComfyUIGenerationRequest.created_at)).limit(100).all()
                 return PaginatedResponse(
                     items=items,
-                    pagination_meta=None
+                    pagination=PaginationMeta(
+                        page=1,
+                        page_size=len(items),
+                        total_count=len(items),
+                        has_next=False,
+                        has_previous=False
+                    )
                 )
 
         except Exception as e:

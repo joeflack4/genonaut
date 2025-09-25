@@ -1,9 +1,11 @@
 """Pydantic response models for the Genonaut API."""
 
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Generic, TypeVar
 from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, Field
+
+T = TypeVar('T')
 
 from genonaut.api.models.enums import ContentType, InteractionType, JobStatus, JobType
 
@@ -321,9 +323,9 @@ class PaginationMeta(BaseModel):
         return (self.total_count + self.page_size - 1) // self.page_size
 
 
-class PaginatedResponse(BaseModel):
+class PaginatedResponse(BaseModel, Generic[T]):
     """Generic paginated response model."""
-    items: List[Any] = Field(..., description="List of items for current page")
+    items: List[T] = Field(..., description="List of items for current page")
     pagination: PaginationMeta = Field(..., description="Pagination metadata")
 
     model_config = {"from_attributes": True}

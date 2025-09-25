@@ -39,7 +39,7 @@ describe('useRecommendations', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(getRecommendationsMock).toHaveBeenCalledWith(1)
+    expect(getRecommendationsMock).toHaveBeenCalledWith("1")
     expect(result.current.data).toEqual(recommendations)
   })
 

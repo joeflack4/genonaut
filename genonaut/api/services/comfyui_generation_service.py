@@ -15,9 +15,12 @@ from genonaut.api.services.comfyui_client import (
     ComfyUIClient, ComfyUIConnectionError, ComfyUIWorkflowError
 )
 from genonaut.api.services.workflow_builder import WorkflowBuilder, GenerationRequest
+from genonaut.api.services.thumbnail_service import ThumbnailService
+from genonaut.api.services.file_storage_service import FileStorageService
+from genonaut.api.services.model_discovery_service import ModelDiscoveryService
 from genonaut.api.exceptions import ValidationError, EntityNotFoundError, DatabaseError
-from genonaut.api.models.requests import PaginationRequest
-from genonaut.api.models.responses import PaginatedResponse
+from genonaut.api.models.requests import PaginationRequest, ComfyUIModelListRequest
+from genonaut.api.models.responses import PaginatedResponse, AvailableModelListResponse, AvailableModelResponse
 
 
 logger = logging.getLogger(__name__)
@@ -37,6 +40,9 @@ class ComfyUIGenerationService:
         self.user_repository = UserRepository(db)
         self.comfyui_client = ComfyUIClient()
         self.workflow_builder = WorkflowBuilder()
+        self.thumbnail_service = ThumbnailService()
+        self.file_storage_service = FileStorageService()
+        self.model_discovery_service = ModelDiscoveryService(db)
 
     def create_generation_request(
         self,
@@ -196,10 +202,34 @@ class ComfyUIGenerationService:
                 outputs = comfyui_status.get("outputs", {})
                 output_paths = self.comfyui_client.get_output_files(outputs)
 
+                # Organize files into user directory structure
+                organized_paths = output_paths
+                if output_paths:
+                    try:
+                        organized_paths = self.file_storage_service.organize_generation_files(
+                            generation_request.id, generation_request.user_id, output_paths
+                        )
+                        logger.info(f"Organized {len(organized_paths)} files for generation {generation_request.id}")
+                    except Exception as e:
+                        logger.error(f"Failed to organize files for generation {generation_request.id}: {e}")
+                        # Use original paths if organization fails
+
+                # Generate thumbnails for completed images
+                thumbnail_results = {}
+                if organized_paths:
+                    try:
+                        thumbnail_results = self.thumbnail_service.generate_thumbnail_for_generation(
+                            organized_paths, generation_request.id
+                        )
+                        logger.info(f"Generated thumbnails for generation {generation_request.id}: {len(thumbnail_results)} images")
+                    except Exception as e:
+                        logger.error(f"Failed to generate thumbnails for generation {generation_request.id}: {e}")
+                        # Don't fail the entire generation if thumbnails fail
+
                 self.repository.update_status(
                     generation_request.id,
                     new_status,
-                    output_paths=output_paths,
+                    output_paths=organized_paths,
                     completed_at=datetime.utcnow()
                 )
 
@@ -292,12 +322,40 @@ class ComfyUIGenerationService:
         """
         return self.repository.get_or_404(request_id)
 
+    def delete_generation(self, generation_request: ComfyUIGenerationRequest) -> bool:
+        """Delete a generation request and its associated files.
+
+        Args:
+            generation_request: Generation request to delete
+
+        Returns:
+            True if deletion was successful
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        try:
+            # Clean up files first
+            deleted_files = self.file_storage_service.cleanup_generation_files(generation_request.id)
+
+            # Delete from database
+            self.repository.delete(generation_request.id)
+            self.db.commit()
+
+            logger.info(f"Deleted generation request {generation_request.id} and {deleted_files} associated files")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to delete generation request {generation_request.id}: {str(e)}")
+            self.db.rollback()
+            raise DatabaseError(f"Failed to delete generation: {str(e)}")
+
     def get_user_generations(
         self,
         user_id: UUID,
         pagination: Optional[PaginationRequest] = None,
         status: Optional[str] = None
-    ) -> PaginatedResponse[ComfyUIGenerationRequest]:
+    ) -> PaginatedResponse:
         """Get generation requests for a user.
 
         Args:
@@ -385,3 +443,76 @@ class ComfyUIGenerationService:
             ComfyUIConnectionError: If ComfyUI connection fails
         """
         return self.comfyui_client.get_available_models()
+
+    def list_available_models(self, request: ComfyUIModelListRequest) -> AvailableModelListResponse:
+        """List available models with filtering.
+
+        Args:
+            request: Model list request with filters
+
+        Returns:
+            Response with filtered models
+        """
+        try:
+            # Get models from database
+            if request.search:
+                models = self.model_discovery_service.repository.search_models(
+                    request.search,
+                    request.model_type,
+                    request.is_active if request.is_active is not None else True
+                )
+            elif request.model_type:
+                models = self.model_discovery_service.repository.get_models_by_type(
+                    request.model_type,
+                    request.is_active if request.is_active is not None else True
+                )
+            else:
+                models = self.model_discovery_service.repository.get_all_models(
+                    request.is_active if request.is_active is not None else True
+                )
+
+            # Convert to response format
+            model_responses = []
+            for model in models:
+                model_responses.append(AvailableModelResponse(
+                    id=model.id,
+                    name=model.name,
+                    model_type=model.model_type,
+                    file_path=model.file_path,
+                    relative_path=model.relative_path,
+                    file_size=model.file_size,
+                    file_hash=model.file_hash,
+                    format=model.format,
+                    is_active=model.is_active,
+                    metadata=model.metadata or {},
+                    created_at=model.created_at,
+                    updated_at=model.updated_at
+                ))
+
+            return AvailableModelListResponse(
+                models=model_responses,
+                total=len(model_responses)
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to list available models: {str(e)}")
+            raise
+
+    def refresh_available_models(self) -> int:
+        """Refresh available models from ComfyUI model directories.
+
+        Returns:
+            Number of models updated/added
+        """
+        try:
+            logger.info("Starting model discovery and refresh")
+            stats = self.model_discovery_service.update_model_database()
+
+            total_updated = stats['added'] + stats['updated']
+            logger.info(f"Model refresh completed: {stats}")
+
+            return total_updated
+
+        except Exception as e:
+            logger.error(f"Failed to refresh available models: {str(e)}")
+            raise

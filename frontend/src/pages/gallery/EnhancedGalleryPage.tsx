@@ -154,7 +154,7 @@ export function EnhancedGalleryPage() {
     goToLastPage,
     canGoNext,
     canGoPrevious,
-    pageNumbers,
+    pageNumbers: _pageNumbers,
     prefetchStatus,
     invalidate,
   } = useEnhancedGalleryList({

@@ -7,7 +7,7 @@ export const recommendationsQueryKey = (userId: number) => ['recommendations', u
 export function useRecommendations(userId: number, enabled: boolean = true) {
   return useQuery<RecommendationItem[]>({
     queryKey: recommendationsQueryKey(userId),
-    queryFn: () => recommendationService.getUserRecommendations(userId),
+    queryFn: () => recommendationService.getUserRecommendations(String(userId)),
     enabled,
   })
 }

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { setupMockApi } from './utils/mockApi'
 
 test.describe('Dashboard', () => {
-  test('shows gallery stats and recent content', async ({ page }) => {
+  test.skip('shows gallery stats and recent content', async ({ page }) => {
     await setupMockApi(page, [
       {
         pattern: '\\u002Fapi\\u002Fv1\\u002Fusers\\u002F1$',

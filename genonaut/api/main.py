@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from genonaut.api.config import get_settings
-from genonaut.api.routes import content, content_auto, generation, interactions, recommendations, system, users, comfyui
+from genonaut.api.routes import content, content_auto, generation, interactions, recommendations, system, users, comfyui, images
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
@@ -34,6 +34,7 @@ def create_app() -> FastAPI:
     app.include_router(recommendations.router)
     app.include_router(generation.router)
     app.include_router(comfyui.router)
+    app.include_router(images.router)
     app.include_router(system.router)
     
     # Legacy health check endpoint (for backwards compatibility)

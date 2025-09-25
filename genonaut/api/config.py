@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     comfyui_url: str = "http://localhost:8000"
     comfyui_timeout: int = 30
     comfyui_poll_interval: float = 2.0  # seconds between status polls
-    comfyui_output_dir: str = "/tmp/comfyui_output"  # @dev: configure actual ComfyUI output directory
+    comfyui_output_dir: str = "/Users/joeflack4/Documents/ComfyUI/output"
     comfyui_models_dir: str = "/tmp/comfyui_models"  # @dev: configure actual ComfyUI models directory
     
     class Config:

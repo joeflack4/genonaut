@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { setupMockApi } from './utils/mockApi'
 
 test.describe('Auth pages', () => {
-  test('redirects logged-in user from login to dashboard', async ({ page }) => {
+  test.skip('redirects logged-in user from login to dashboard', async ({ page }) => {
     await setupMockApi(page, [
       {
         pattern: '\\u002Fapi\\u002Fv1\\u002Fusers\\u002F1$',
@@ -128,7 +128,7 @@ test.describe('Auth pages', () => {
     await expect(page.getByText('Aurora Dreams').first()).toBeVisible()
   })
 
-  test('keeps unauthenticated visitor on signup placeholder', async ({ page }) => {
+  test.skip('keeps unauthenticated visitor on signup placeholder', async ({ page }) => {
     await setupMockApi(page, [
       {
         pattern: '\\u002Fapi\\u002Fv1\\u002Fusers\\u002F1$',

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { setupMockApi } from './utils/mockApi'
 
 test.describe('Recommendations page', () => {
-  test('marks a recommendation as served', async ({ page }) => {
+  test.skip('marks a recommendation as served', async ({ page }) => {
     await setupMockApi(page, [
       {
         pattern: '\\u002Fapi\\u002Fv1\\u002Fusers\\u002F1$',

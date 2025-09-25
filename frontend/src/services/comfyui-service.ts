@@ -94,7 +94,11 @@ export interface ModelListParams {
 }
 
 export class ComfyUIService {
-  constructor(private apiClient: ApiClient) {}
+  private apiClient: ApiClient
+
+  constructor(apiClient: ApiClient) {
+    this.apiClient = apiClient
+  }
 
   async createGeneration(request: ComfyUIGenerationCreateRequest): Promise<ComfyUIGenerationResponse> {
     return this.apiClient.post<ComfyUIGenerationResponse>('/api/v1/comfyui/generate', request)

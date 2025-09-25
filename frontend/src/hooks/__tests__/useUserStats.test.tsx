@@ -40,7 +40,7 @@ describe('useUserStats', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(getUserStatsMock).toHaveBeenCalledWith(1)
+    expect(getUserStatsMock).toHaveBeenCalledWith("1")
     expect(result.current.data).toMatchObject({
       totalRecommendations: 12,
       servedRecommendations: 5,

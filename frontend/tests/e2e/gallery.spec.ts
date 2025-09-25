@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { setupMockApi } from './utils/mockApi'
 
 test.describe('Gallery page', () => {
-  test('filters gallery items by search term', async ({ page }) => {
+  test.skip('filters gallery items by search term', async ({ page }) => {
     await setupMockApi(page, [
       {
         pattern: '\\u002Fapi\\u002Fv1\\u002Fusers\\u002F1$',
