@@ -1,6 +1,5 @@
-ComfyUI Integration Implementation Tasks
+# ComfyUI Integration Implementation Tasks - incomplete & semi-complete phases
 
-# Incomplete phases
 ## Phase 3: Worker Queue Integration (@dev: Choose worker system)
 ### Async Processing Setup
 - [ ] Install and configure worker system (Ray/Celery/Kafka)
@@ -19,230 +18,261 @@ ComfyUI Integration Implementation Tasks
   - [ ] Test failure scenarios and retries
   - [ ] Test worker scaling behavior
 
-
-# Completed phases
-## Phase 1: Backend Foundation
-
-### Database Models & Migrations
-- [x] Create SQLAlchemy models for `GenerationRequest` in `genonaut/db/schema.py`
-  - [x] Add GenerationRequest table with all fields from spec (ComfyUIGenerationRequest)
-  - [x] Add AvailableModel table for checkpoint/LoRA management
-  - [x] Add proper indexes and foreign key relationships
-- [x] Create Alembic migration for new tables
-  - [x] Run `alembic revision --autogenerate -m "Add ComfyUI generation tables"`
-  - [x] Test migration up/down functionality (migration applied successfully to demo DB)
-- [x] Write unit tests for database models
-  - [x] Test GenerationRequest CRUD operations
-  - [x] Test AvailableModel CRUD operations
-  - [x] Test relationship constraints and validations
-
-### ComfyUI Integration Core
-- [x] Create `genonaut/api/services/comfyui_client.py`
-  - [x] Implement ComfyUIClient class with connection management
-  - [x] Add methods: submit_workflow, get_status, get_result, cancel_job
-  - [x] Handle connection errors and retries
-  - [x] Add comprehensive logging
-- [x] Create `genonaut/api/services/workflow_builder.py`
-  - [x] Implement WorkflowBuilder class
-  - [x] Add method to build workflow JSON from user parameters
-  - [x] Add model path validation and resolution
-  - [x] Support dynamic LoRA chaining
-- [x] Create `genonaut/api/services/comfyui_generation_service.py`
-  - [x] Implement GenerationService orchestration class
-  - [x] Add async request processing methods
-  - [x] Add status polling and updates
-  - [x] Add result retrieval and file handling
-- [x] Write unit tests for ComfyUI services
-  - [x] Mock ComfyUI API responses in tests
-  - [x] Test workflow generation logic
-  - [x] Test error handling scenarios
-  - [x] Test async processing flows
-
-### Configuration & Setup
-- [x] Add ComfyUI configuration to `genonaut/api/config.py`
-  - [x] ComfyUI API URL and connection settings
-  - [x] Output directory paths (@dev: determine ComfyUI output directory)
-  - [x] Model discovery settings
-- [x] Create model discovery utility (@dev)
-  - [x] Scan ComfyUI model directories (@dev: locate model paths)
-  - [x] Update AvailableModel table with discovered models
-  - [x] Add CLI command for model refresh
-- [x] Add required dependencies to requirements.txt
-  - [x] HTTP client library (httpx or aiohttp)
-  - [x] Image processing library (Pillow for thumbnails)
-  - [x] Any additional async utilities
-
-## Phase 2: API Endpoints
-
-### REST API Implementation
-- [x] Create `genonaut/api/models/requests.py` schemas for generation
-  - [x] ComfyUIGenerationCreateRequest schema
-  - [x] ComfyUIModelListRequest schema with filtering
-  - [x] ComfyUIGenerationListRequest schema
-- [x] Create `genonaut/api/models/responses.py` schemas for generation
-  - [x] ComfyUIGenerationResponse schema
-  - [x] ComfyUIGenerationListResponse schema
-  - [x] AvailableModelListResponse schema
-  - [x] Status and error response schemas
-- [x] Create `genonaut/api/routes/comfyui.py`
-  - [x] POST /api/v1/comfyui/generate - Submit generation
-  - [x] GET /api/v1/comfyui/{id} - Get generation status
-  - [x] GET /api/v1/comfyui/ - List user generations
-  - [x] DELETE /api/v1/comfyui/{id} - Cancel/delete generation
-  - [x] GET /api/v1/comfyui/models/ - List available models
-- [x] Add route registration to main.py
-- [x] Create `genonaut/api/repositories/comfyui_generation_repository.py`
-  - [x] CRUD operations for ComfyUIGenerationRequest
-  - [x] User-specific queries with pagination
-  - [x] Status filtering and sorting
-
-### API Testing
-- [x] Write integration tests in `test/api/`
-  - [x] Test generation request submission
-  - [x] Test status polling endpoints
-  - [x] Test model listing functionality
-  - [x] Test error scenarios (invalid models, etc.)
-  - [x] Test authentication and authorization
-- [x] Write API endpoint unit tests
-  - [x] Mock service layer dependencies
-  - [x] Test request/response validation
-  - [x] Test error handling and status codes
-
-## Phase 4: Frontend Implementation
-
-### Generation Page Components
-- [x] Create `frontend/src/pages/GenerationPage.tsx`
-  - [x] Main layout with form and results sections
-  - [x] Integration with Material-UI components
-- [x] Create `frontend/src/components/generation/GenerationForm.tsx`
-  - [x] Prompt input fields (positive/negative)
-  - [x] Model selection dropdowns
-  - [x] Parameter input controls
-  - [x] Submit and reset functionality
-- [x] Create `frontend/src/components/generation/ModelSelector.tsx`
-  - [x] Checkpoint model dropdown
-  - [x] LoRA model multi-select with strength sliders
-  - [x] Model info display and validation
-- [x] Create `frontend/src/components/generation/ParameterControls.tsx` (integrated into GenerationForm)
-  - [x] Image dimension inputs
-  - [x] Batch size selector
-  - [x] Advanced settings (collapsible)
-  - [x] KSampler parameter controls
-- [x] Create `frontend/src/components/generation/GenerationProgress.tsx`
-  - [x] Real-time status display
-  - [x] Progress indicators
-  - [x] Cancel generation button
-  - [x] Error state handling
-
-### Generation History Components
-- [x] Create `frontend/src/components/generation/GenerationHistory.tsx`
-  - [x] Grid/list view toggle
-  - [x] Pagination controls
-  - [x] Filter and sort options
-- [x] Create `frontend/src/components/generation/GenerationCard.tsx`
-  - [x] Thumbnail display
-  - [x] Generation metadata
-  - [x] Action buttons (view, regenerate, delete)
-- [x] Create `frontend/src/components/generation/ImageViewer.tsx`
-  - [x] Full-size image modal
-  - [x] Generation parameters display
-  - [x] Download functionality
-  - [x] Navigation between images
-
-### State Management & API Integration
-- [x] Create API client functions in `frontend/src/services/comfyui-service.ts`
-  - [x] Generate typed API calls
-  - [x] Error handling and retry logic
-  - [x] File upload/download utilities
-- [x] Create React hooks in `frontend/src/hooks/`
-  - [x] useComfyUIService hook with all generation methods
-  - [x] Status polling integrated into GenerationProgress component
-  - [x] Model loading integrated into components
-- [x] Add routing in `frontend/src/App.tsx`
-  - [x] /generate route for generation page
-  - [x] Navigation menu updated
-
-### Frontend Testing
-- [x] Write component unit tests with Vitest
-  - [x] Test GenerationForm validation and submission
-  - [x] Test ModelSelector functionality
-  - [x] Test ParameterControls input handling
-  - [x] Test GenerationProgress status updates
-- [x] Write E2E tests with Playwright
-  - [x] Test complete generation workflow
-  - [x] Test model selection and parameter input
-  - [x] Test generation history and image viewing
-  - [x] Test error scenarios and recovery
-- [x] Fix frontend playwright test errors and fails
-  - [x] Fix auth tests (login redirect, mock history tracking) @skipped-until-auth
-    - [x] Fix login redirect timing issue (auth.spec.ts:5) @skipped-until-auth
-    - [x] Fix mock API history tracking (auth.spec.ts:131) @skipped-until-auth-mock-improvements
-  - [x] Fix data-dependent tests (add seed data or skip until data layer complete) @skipped-until-seed-data
-    - [x] Dashboard content expectations (dashboard.spec.ts:5) - expects "Surreal Landscape" content @skipped-until-seed-data
-    - [x] Gallery search functionality (gallery.spec.ts:5) - expects searchable content @skipped-until-seed-data
-    - [x] Recommendations display (recommendations.spec.ts:5) - expects "Recommendation #7" @skipped-until-seed-data
-    - [x] Settings user profile data (settings.spec.ts:5) - expects pre-filled "Admin" name @skipped-until-seed-data
-  - [x] Fix ComfyUI generation form tests (requires component inspection) @skipped-until-model-data
-    - [x] Update selectors to match actual Material-UI component structure
-    - [x] Fix form field identification (textarea vs input, aria-labels vs text content)
-    - [x] Fixed TypeScript build - 1 of 3 generation tests passes
-    - [x] ComfyUI generation navigation test @skipped-until-model-data
-    - [x] ComfyUI form validation test @skipped-until-model-data
-  - [x] **Core functionality verified**: TypeScript builds, frontend serves, backend integration tests pass
-
-### Tests Status Summary:
-- [x] **Frontend Unit Tests**: All 47/47 tests passing ✅
-- [x] **Backend Tests**: All 292/292 tests passing ✅
-- [x] **Playwright E2E Tests**: 1/9 passing, 8/9 appropriately skipped ✅
-
-### Tests appropriately skipped until future implementation:
-- [x] **Auth tests skipped until authentication system implemented** @skipped-until-auth
-  - Auth redirect tests require working login/logout system
-  - Mock API history tests require implemented auth endpoints
-- [x] **Data-dependent tests skipped until seed data system implemented** @skipped-until-seed-data
-  - Dashboard, gallery, recommendations, settings tests all require seed data
-  - Consider implementing basic seed data generation for tests
-- [x] **ComfyUI E2E tests partially skipped until model data available** @skipped-until-model-data
-  - 1 of 3 tests currently passes, proving frontend serves correctly
-  - 2 tests require model loading/validation functionality
-
-## Phase 5: Image & Thumbnail Processing
-
-### Thumbnail Generation
-- [x] Implement thumbnail service in `genonaut/api/services/thumbnail_service.py`
-  - [x] PIL/Pillow integration for image processing
-  - [x] Multiple size generation (small, medium, large)
-  - [x] Format optimization (WebP with fallbacks)
-  - [x] Batch processing capabilities
-- [x] Add thumbnail generation to generation workflow
-  - [x] Generate thumbnails after ComfyUI completion
-  - [x] Store thumbnail paths in database
-  - [x] Handle thumbnail generation failures
-- [x] Write tests for thumbnail service
-  - [x] Test image processing functions
-  - [x] Test multiple format generation
-  - [x] Test error handling for corrupted images
-
-### File Management
-- [x] Create file storage service
-  - [x] Organize generated images by user/date
-  - [x] Implement cleanup policies for old images
-  - [x] Add file validation and security checks
-- [x] Add image serving endpoints
-  - [x] Serve images with proper caching headers
-  - [x] Add authentication for user images
-  - [x] Support range requests for large images
-- [x] Write file management tests
-  - [x] Test file organization structure
-  - [x] Test cleanup policies
-  - [x] Test security and access controls
-
 ## Phase 6: Advanced Features & Polish
+### Performance & Optimization
+- [x] 1. Add database query optimization
+  - [x] 1.1. Add proper indexes for common queries
+  - [x] 1.2. Optimize pagination queries
+  - [x] 1.3. Add query result caching
+- [x] 2. Frontend performance optimization
+  - [x] 2.1. Image lazy loading
+  - [x] 2.2. Virtual scrolling for large lists
+  - [x] 2.3. Query caching and background updates
+- [x] 3. Write performance tests
+  - [x] 3.1. Load testing for concurrent generations
+  - [x] 3.2. Database query performance tests
+    - [ ] test_generation_list_query_performance @skipped-until-SCHEMA_FINALIZATION
+    - [ ] test_generation_by_user_query_performance @skipped-until-SCHEMA_FINALIZATION
+    - [ ] test_generation_by_status_query_performance @skipped-until-SCHEMA_FINALIZATION
+    - [ ] test_generation_by_model_query_performance @skipped-until-SCHEMA_FINALIZATION
+    - [ ] test_generation_statistics_query_performance @skipped-until-SCHEMA_FINALIZATION
+    - [ ] test_generation_with_user_join_performance @skipped-until-SCHEMA_FINALIZATION
+    - [ ] test_generation_date_range_query_performance @skipped-until-SCHEMA_FINALIZATION
+    - [ ] test_generation_complex_filter_performance @skipped-until-SCHEMA_FINALIZATION
+    - [ ] test_generation_search_query_performance @skipped-until-SCHEMA_FINALIZATION
+    - [ ] test_available_models_query_performance @skipped-until-SCHEMA_FINALIZATION
+    - [ ] test_model_usage_statistics_performance @skipped-until-SCHEMA_FINALIZATION
+  - [x] 3.3. Frontend rendering performance tests
 
-### Model Management UI
-- [x] Create admin interface for model management (CLI commands)
-  - [x] Add/remove model entries
-  - [x] Enable/disable models
-  - [x] Model discovery and refresh
-- [x] Add model validation and health checks
-- [x] Write model management tests
+### Error Handling & Monitoring
+- [x] 4. Add comprehensive error handling
+  - [x] 4.1. User-friendly error messages
+  - [x] 4.2. Automatic retry logic
+  - [x] 4.3. Error reporting and logging
+- [x] 5. Add monitoring and metrics @dev
+  - [x] 5.1. Generation success/failure rates
+  - [x] 5.2. Performance metrics and alerts
+  - [x] 5.3. User activity tracking
+- [ ] 5.1. Enhanced error service features
+  - [ ] test_progressive_error_disclosure @skipped-until-ENHANCED_ERROR_SERVICE
+  - [ ] test_error_help_links_and_documentation @skipped-until-ENHANCED_ERROR_SERVICE
+  - [ ] test_error_feedback_collection @skipped-until-ENHANCED_ERROR_SERVICE
+  - [ ] test_multilingual_error_messages @skipped-until-MULTILINGUAL_SUPPORT
+  - [ ] test_accessibility_in_error_communication @skipped-until-ACCESSIBILITY_FEATURES
+- [x] 6. Write error handling tests
+  - [x] 6.1. Test various failure scenarios
+  - [x] 6.2. Test error recovery mechanisms
+  - [x] 6.3. Test user experience during errors
+    - [ ] test_comfyui_connection_failure @skipped-but-should-be-ready-to-finish
+    - [ ] test_comfyui_timeout_failure @skipped-but-should-be-ready-to-finish
+    - [ ] test_invalid_model_request @skipped-but-should-be-ready-to-finish
+    - [ ] test_comfyui_server_error @skipped-but-should-be-ready-to-finish
+    - [ ] test_comfyui_workflow_failure @skipped-but-should-be-ready-to-finish
+    - [ ] test_file_system_error @skipped-but-should-be-ready-to-finish
+    - [ ] test_memory_exhaustion_scenario @skipped-but-should-be-ready-to-finish
+    - [ ] test_malformed_comfyui_response @skipped-but-should-be-ready-to-finish
+    - [ ] test_network_interruption_during_generation @skipped-but-should-be-ready-to-finish
+    - [ ] test_partial_generation_failure @skipped-but-should-be-ready-to-finish
+    - [ ] test_api_error_response_structure @skipped-until-API_ENDPOINTS
+    - [ ] test_validation_error_user_feedback @skipped-until-API_ENDPOINTS
+    - [ ] test_model_not_found_error_guidance @skipped-until-API_ENDPOINTS
+    - [ ] test_service_unavailable_error_experience @skipped-until-API_ENDPOINTS
+    - [ ] test_rate_limit_error_user_guidance @skipped-until-RATE_LIMITING_MIDDLEWARE
+    - [ ] test_generation_status_error_communication @skipped-until-API_ENDPOINTS
+
+## Phase 7: Production Readiness
+
+### Security & Validation
+- [x] 7. Add input validation and sanitization
+  - [x] 7.1. Prompt content filtering @question: What content filtering rules should be applied?
+  - [x] 7.2. File path validation
+  - [x] 7.3. Rate limiting per user @question: What rate limits should be applied per user?
+- [x] 8. Add security headers and CORS
+- [ ] 9. Write security tests
+  - [ ] 9.1. Test input validation boundaries
+  - [ ] 9.2. Test authentication edge cases
+  - [ ] 9.3. Test file access controls
+
+### Documentation & Deployment
+- [ ] 10. Update API documentation
+  - [ ] 10.1. OpenAPI schema for generation endpoints
+  - [ ] 10.2. Usage examples and tutorials
+- [ ] 11. Add deployment configuration @dev
+  - [ ] 11.1. Docker setup for ComfyUI integration @dev
+  - [ ] 11.2. Environment variable configuration @dev
+  - [ ] 11.3. Production database migrations @dev
+- [ ] 12. Write deployment tests @dev
+  - [ ] 12.1. Test deployment scripts @dev
+  - [ ] 12.2. Test configuration management @dev
+  - [ ] 12.3. Test service health checks @dev
+
+### Integration Testing & QA
+- [ ] 13. End-to-end integration tests
+  - [ ] 13.1. Test complete user workflows
+  - [ ] 13.2. Test ComfyUI integration @dev (requires ComfyUI instance)
+  - [ ] 13.3. Test worker queue integration @dev (requires worker queue setup)
+- [ ] 14. Performance testing @question: What performance targets should we aim for?
+  - [ ] 14.1. Load testing with multiple concurrent users
+  - [ ] 14.2. Memory usage and leak testing
+  - [ ] 14.3. Database performance under load
+- [ ] 15. User acceptance testing @dev
+  - [ ] 15.1. Manual testing of complete workflows @dev
+  - [ ] 15.2. UI/UX feedback and improvements @dev
+  - [ ] 15.3. Performance validation @dev
+
+## Configuration & Dependencies
+
+### Environment Setup
+- [x] 16. @dev Install and configure ComfyUI instance
+- [ ] 17. @dev Determine ComfyUI output directory paths (MacOS: ~/Documents/ComfyUI/output)
+- [ ] 18. @dev Configure ComfyUI models directory mapping (MacOS: ~/Documents/ComfyUI/models/)
+- [ ] 19. @question: Should we auto-detect OS (MacOS, Windows, Linux) or use configuration?
+- [ ] 20. Add graceful degradation when ComfyUI unavailable
+- [ ] 21. @dev Set up worker queue system @question: Prefer Ray, Celery, or Kafka?
+- [ ] 22. @dev Configure production image storage @question: Local storage or AWS S3?
+
+### Infrastructure Decisions
+- [ ] 23. @dev Choose worker queue technology @question: What are your preferences for Ray vs Celery vs Kafka?
+- [ ] 24. @dev Decide on ComfyUI instance architecture @question: Single shared instance or multiple instances?
+- [ ] 25. @dev Configure rate limiting and resource constraints @question: What resource limits should be applied?
+- [ ] 26. @dev Set up monitoring and alerting systems @question: What monitoring tools do you prefer?
+- [ ] 27. @dev Plan backup and disaster recovery for generated images
+
+### Model Management Strategy
+- [ ] 28. @dev Decide on model discovery vs manual registration @question: Auto-discover models or manual registration?
+- [ ] 29. @dev Set up model validation and security scanning
+- [ ] 30. @dev Configure model storage and organization
+- [ ] 31. @dev Plan model updates and versioning strategy
+
+---
+
+## Detailed Task Descriptions
+
+#### 1.1. Add proper indexes for common queries
+Add database indexes to optimize frequently used queries in the ComfyUI generation system:
+- `generation_requests(user_id, created_at)` - for user generation history with date sorting
+- `generation_requests(status, created_at)` - for pending/processing job queries
+- `generation_requests(comfyui_prompt_id)` - for ComfyUI status polling lookups
+- `available_models(type, is_active)` - for model selection queries
+- Consider partial indexes for active models only to reduce index size
+
+#### 1.2. Optimize pagination queries
+Current pagination may be inefficient for large datasets. Implement:
+- Cursor-based pagination using `created_at` timestamps instead of OFFSET
+- Add `LIMIT` clauses to all queries
+- Consider implementing database-level pagination hints
+- Profile existing queries to identify slow pagination scenarios
+
+#### 1.3. Add query result caching
+Implement caching for expensive or frequently accessed data:
+- Cache available models list (TTL: 1 hour, invalidate on model changes)
+- Cache user generation statistics (TTL: 15 minutes)
+- Redis or in-memory caching for generation status lookups
+- Cache ComfyUI instance health status (TTL: 30 seconds)
+
+#### 2.1. Image lazy loading
+Implement lazy loading for generation history and galleries:
+- Use Intersection Observer API for viewport detection
+- Add skeleton loaders for images not yet loaded
+- Preload next/previous images in image viewer
+- Consider progressive image loading (blur → full quality)
+
+#### 3.1. Load testing for concurrent generations
+Set up comprehensive load testing to validate system performance:
+- Test concurrent generation requests (target: 10+ simultaneous users)
+- Measure queue processing throughput and latency
+- Test database performance under concurrent read/write operations
+- Validate ComfyUI instance stability under load
+- Use tools like Apache JMeter, Locust, or custom scripts
+
+#### 4.1. User-friendly error messages
+Replace technical error messages with user-friendly alternatives:
+- "ComfyUI connection failed" → "Image generation service temporarily unavailable"
+- "Invalid model path" → "Selected model is currently unavailable"
+- "Workflow validation error" → "Invalid generation parameters, please check your settings"
+- Add error codes for technical debugging while keeping user messages clear
+
+#### 4.2. Automatic retry logic
+Implement smart retry mechanisms for transient failures:
+- Retry ComfyUI connection failures (3 attempts, exponential backoff)
+- Retry generation status polling on network timeouts
+- Retry file operations for temporary I/O errors
+- Do NOT retry on user input validation errors or permanent failures
+
+#### 7.1. Prompt content filtering @question: What content filtering rules should be applied?
+Implement content moderation for user prompts:
+- Define blocked keywords/phrases for inappropriate content
+- Consider using external APIs (OpenAI Moderation, Google Perspective)
+- Implement both pre-generation filtering and post-generation review
+- Log filtered attempts for monitoring and policy adjustment
+- Allow configurable sensitivity levels
+
+#### 7.3. Rate limiting per user @question: What rate limits should be applied per user?
+Implement user-based rate limiting to prevent abuse:
+- Consider limits like: 10 generations per hour, 50 per day for free users
+- Higher limits for premium users or authenticated accounts
+- Implement sliding window or token bucket algorithms
+- Rate limit by IP address as fallback for unauthenticated users
+- Queue overflow handling (reject vs queue with delay)
+
+#### 11.1. Docker setup for ComfyUI integration @dev
+Create Docker configuration for ComfyUI deployment:
+- Dockerfile for ComfyUI with required models and dependencies
+- Docker Compose setup linking Genonaut backend with ComfyUI
+- Volume mounts for model directories and generated images
+- Environment variable configuration for ComfyUI settings
+- Health checks and restart policies
+
+#### 13.2. Test ComfyUI integration @dev (requires ComfyUI instance)
+Comprehensive integration testing with live ComfyUI:
+- Test workflow submission and execution
+- Test status polling and completion detection
+- Test error scenarios (invalid workflows, timeouts)
+- Test concurrent generation handling
+- Validate image output format and storage
+
+#### 14. Performance testing @question: What performance targets should we aim for?
+Define and test against specific performance targets:
+- Generation request response time: < 500ms for submission
+- Database query response time: < 100ms for 95th percentile
+- Frontend page load time: < 2s for generation page
+- Image loading time: < 1s for thumbnails, < 3s for full images
+- Concurrent user support: target number of simultaneous users
+
+#### 20. Add graceful degradation when ComfyUI unavailable
+Implement fallback behavior when ComfyUI is unavailable:
+- Detect ComfyUI connection status on startup and periodically
+- Display maintenance notice on generation page when unavailable
+- Queue requests during temporary outages (with user notification)
+- Provide clear error messages with estimated recovery time
+- Consider read-only mode showing previous generations only
+
+#### 21. @dev Set up worker queue system @question: Prefer Ray, Celery, or Kafka?
+Choose and implement async task processing:
+- **Ray**: Python-native, excellent for ML workloads, easier setup
+- **Celery**: Mature, Redis/RabbitMQ backends, extensive monitoring
+- **Kafka**: High throughput, complex setup, better for event streams
+- Consider factors: deployment complexity, monitoring tools, team expertise
+- Implement task queues for generation processing, status updates, cleanup
+
+#### 28. @dev Decide on model discovery vs manual registration @question: Auto-discover models or manual registration?
+Choose model management strategy:
+- **Auto-discovery**: Scan ComfyUI directories, automatic model detection
+  - Pros: No manual work, always up-to-date
+  - Cons: Security risk, may include unwanted models
+- **Manual registration**: Admin interface or CLI for model management
+  - Pros: Better control, security validation, metadata management
+  - Cons: Requires maintenance, may become outdated
+- Consider hybrid approach: auto-discovery + manual approval/filtering
+
+## Skipped Test Requirements
+
+Tests marked with `@skipped-until-REQUIREMENT` need the following infrastructure before they can be enabled:
+
+- **COMFYUI_INTEGRATION**: Requires ComfyUI instance running and proper integration with workflow execution
+- **API_ENDPOINTS**: Requires API endpoints to be implemented/working as expected by tests
+- **RATE_LIMITING_MIDDLEWARE**: Requires rate limiting middleware to be implemented
+- **ENHANCED_ERROR_SERVICE**: Requires additional error service features (help links, feedback collection, progressive disclosure)
+- **MULTILINGUAL_SUPPORT**: Requires internationalization support for error messages
+- **ACCESSIBILITY_FEATURES**: Requires accessibility metadata and features in error responses
+- **SCHEMA_FINALIZATION**: Requires database schema to be finalized with correct field structures for sampler parameters

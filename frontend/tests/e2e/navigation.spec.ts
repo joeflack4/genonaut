@@ -1,9 +1,12 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('Navigation Tests', () => {
+  test.beforeEach(async ({ page }) => {
+    page.setDefaultNavigationTimeout(5_000)
+  })
   test('should navigate between all main pages', async ({ page }) => {
     // Start at home (may redirect to dashboard)
-    await page.goto('/')
+    await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 5_000 })
     await page.waitForURL(/\/(dashboard)?$/)
 
     // Navigate to each main page
@@ -24,7 +27,7 @@ test.describe('Navigation Tests', () => {
   })
 
   test('should verify all navigation items are visible and clickable', async ({ page }) => {
-    await page.goto('/')
+    await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 5_000 })
 
     // Wait for navigation to load
     await page.waitForSelector('nav')
@@ -38,7 +41,7 @@ test.describe('Navigation Tests', () => {
   })
 
   test('should support keyboard navigation', async ({ page }) => {
-    await page.goto('/')
+    await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 5_000 })
 
     // Wait for navigation to load
     await page.waitForSelector('nav')
@@ -62,10 +65,11 @@ test.describe('Navigation Tests', () => {
   })
 
   test('should handle direct URL access to all routes', async ({ page }) => {
+    test.setTimeout(15_000)
     const routes = ['/dashboard', '/gallery', '/recommendations', '/settings', '/generate']
 
     for (const route of routes) {
-      await page.goto(route)
+      await page.goto(route, { waitUntil: 'domcontentloaded', timeout: 5_000 })
       await expect(page).toHaveURL(route)
       // Page should load without errors
       await expect(page.locator('body')).toBeVisible()

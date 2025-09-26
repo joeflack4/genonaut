@@ -1,6 +1,9 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('Accessibility Tests', () => {
+  test.beforeEach(async ({ page }) => {
+    page.setDefaultNavigationTimeout(5_000)
+  })
   test('should support comprehensive keyboard navigation', async ({ page }) => {
     await page.goto('/')
 
@@ -66,10 +69,11 @@ test.describe('Accessibility Tests', () => {
   })
 
   test('should have proper heading hierarchy', async ({ page }) => {
+    test.setTimeout(15_000)
     const pages = ['/', '/dashboard', '/gallery', '/recommendations', '/settings', '/generate']
 
     for (const pagePath of pages) {
-      await page.goto(pagePath)
+      await page.goto(pagePath, { waitUntil: 'domcontentloaded', timeout: 5_000 })
       await page.waitForSelector('main, body')
 
       // Check for heading elements

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Box,
   Button,
@@ -15,6 +15,9 @@ import {
   AccordionDetails,
   Typography,
   Slider,
+  Link,
+  Stack,
+  Paper,
 } from '@mui/material'
 import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
 import { ModelSelector } from './ModelSelector'
@@ -25,6 +28,7 @@ import type {
   LoraModel,
   SamplerParams,
 } from '../../services/comfyui-service'
+import { ApiError } from '../../services/api-client'
 
 interface GenerationFormProps {
   onGenerationStart: (generation: ComfyUIGenerationResponse) => void
@@ -39,6 +43,38 @@ const defaultSamplerParams: SamplerParams = {
   denoise: 1.0,
 }
 
+const FORM_ID = 'generation-form'
+const MIN_SUBMIT_DURATION_MS = 300
+const REQUEST_TIMEOUT_MS = 2000
+const CONTINUE_WAITING_MS = 2000
+
+type FieldErrors = Partial<Record<'prompt' | 'width' | 'steps', string>>
+
+type SuggestionEventDetail = {
+  batchSize?: number
+  width?: number
+  height?: number
+  checkpoint?: string
+}
+
+type ErrorState =
+  | { type: 'none' }
+  | {
+      type: 'service-unavailable'
+      message: string
+      retryAfter?: number
+      supportUrl?: string
+    }
+  | {
+      type: 'network'
+      message: string
+      isOffline: boolean
+    }
+  | {
+      type: 'generic'
+      message: string
+    }
+
 export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
   const [prompt, setPrompt] = useState('')
   const [negativePrompt, setNegativePrompt] = useState('')
@@ -49,32 +85,72 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
   const [batchSize, setBatchSize] = useState(1)
   const [samplerParams, setSamplerParams] = useState<SamplerParams>(defaultSamplerParams)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [errorState, setErrorState] = useState<ErrorState>({ type: 'none' })
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
+  const [timeoutActive, setTimeoutActive] = useState(false)
+
+  const formRef = useRef<HTMLFormElement | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const timeoutTimerRef = useRef<number | null>(null)
 
   const { createGeneration } = useComfyUIService()
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<SuggestionEventDetail>).detail
+      if (!detail) return
 
-    if (!prompt.trim()) {
-      setError('Prompt is required')
-      return
+      if (typeof detail.batchSize === 'number') {
+        setBatchSize(detail.batchSize)
+      }
+      if (typeof detail.width === 'number') {
+        setWidth(normalizeDimension(detail.width))
+      }
+      if (typeof detail.height === 'number') {
+        setHeight(normalizeDimension(detail.height))
+      }
+      if (typeof detail.checkpoint === 'string') {
+        setCheckpointModel(detail.checkpoint)
+      }
+
+      setErrorState({ type: 'none' })
+      setFieldErrors({})
     }
 
-    if (!checkpointModel) {
-      setError('Please select a checkpoint model')
+    window.addEventListener('generation:apply-suggestions', handler as EventListener)
+
+    return () => {
+      window.removeEventListener('generation:apply-suggestions', handler as EventListener)
+    }
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    resetErrors()
+
+    const sanitizedPrompt = prompt.trim()
+
+    if (!sanitizedPrompt) {
+      setFieldErrors(prev => ({ ...prev, prompt: 'Prompt cannot be empty' }))
+      setErrorState({ type: 'generic', message: 'Please resolve the highlighted issues.' })
       return
     }
 
     setIsSubmitting(true)
+    const submissionStartedAt = Date.now()
+
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
+    startTimeoutWatcher()
 
     try {
+      const selectedCheckpoint = checkpointModel || 'default-checkpoint'
+
       const request: ComfyUIGenerationCreateRequest = {
         user_id: 'demo-user', // TODO: Get from auth context
-        prompt: prompt.trim(),
+        prompt: sanitizedPrompt,
         negative_prompt: negativePrompt.trim() || undefined,
-        checkpoint_model: checkpointModel,
+        checkpoint_model: selectedCheckpoint,
         lora_models: loraModels.length > 0 ? loraModels : undefined,
         width,
         height,
@@ -82,7 +158,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
         sampler_params: samplerParams,
       }
 
-      const generation = await createGeneration(request)
+      const generation = await createGeneration(request, { signal: abortController.signal })
       onGenerationStart(generation)
 
       // Reset form
@@ -90,8 +166,14 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
       setNegativePrompt('')
       setSamplerParams(defaultSamplerParams)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create generation')
+      handleSubmissionError(err)
     } finally {
+      clearTimeoutWatcher()
+      abortControllerRef.current = null
+      const elapsed = Date.now() - submissionStartedAt
+      if (elapsed < MIN_SUBMIT_DURATION_MS) {
+        await new Promise(resolve => setTimeout(resolve, MIN_SUBMIT_DURATION_MS - elapsed))
+      }
       setIsSubmitting(false)
     }
   }
@@ -100,13 +182,108 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
     setSamplerParams(prev => ({ ...prev, [key]: value }))
   }
 
+  const resetErrors = () => {
+    setErrorState({ type: 'none' })
+    setFieldErrors({})
+    setTimeoutActive(false)
+  }
+
+  const handleRetry = () => {
+    if (isSubmitting) return
+    submitForm()
+  }
+
+  const submitForm = () => {
+    formRef.current?.requestSubmit()
+  }
+
+  const handleRefreshPage = () => {
+    window.location.reload()
+  }
+
+  const handleContinueWaiting = () => {
+    setTimeoutActive(false)
+    setErrorState({ type: 'none' })
+    startTimeoutWatcher(CONTINUE_WAITING_MS)
+  }
+
+  const handleCancelRequest = () => {
+    abortControllerRef.current?.abort()
+    setTimeoutActive(false)
+    setErrorState({
+      type: 'generic',
+      message: 'Generation cancelled. Adjust your settings and try again.',
+    })
+  }
+
+  const handleSubmissionError = (error: unknown) => {
+    if (error instanceof ApiError) {
+      if (error.status === 503) {
+        const details = parseServiceUnavailableError(error.body)
+        setErrorState({
+          type: 'service-unavailable',
+          message: details.message,
+          retryAfter: details.retryAfter,
+          supportUrl: details.supportUrl,
+        })
+        return
+      }
+
+      if (error.status === 422) {
+        const mapped = extractValidationErrors(error.body)
+        setFieldErrors(mapped.fieldErrors)
+        setErrorState({
+          type: 'generic',
+          message: mapped.generalMessage,
+        })
+        return
+      }
+    }
+
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      // Aborted due to timeout or user cancellation - UI already updated elsewhere
+      return
+    }
+
+    if (error instanceof TypeError || (error as Error)?.message?.toLowerCase().includes('network')) {
+      setErrorState({
+        type: 'network',
+        message: 'Network connection issue detected. Please check your connection or try again.',
+        isOffline: !navigator.onLine,
+      })
+      return
+    }
+
+    setErrorState({
+      type: 'generic',
+      message: error instanceof Error ? error.message : 'Unexpected error occurred. Please try again.',
+    })
+  }
+
+  const startTimeoutWatcher = (duration: number = REQUEST_TIMEOUT_MS) => {
+    clearTimeoutWatcher()
+    timeoutTimerRef.current = window.setTimeout(() => {
+      setTimeoutActive(true)
+    }, duration)
+  }
+
+  const clearTimeoutWatcher = () => {
+    if (timeoutTimerRef.current !== null) {
+      window.clearTimeout(timeoutTimerRef.current)
+      timeoutTimerRef.current = null
+    }
+  }
+
   return (
-    <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }} data-testid="generation-form">
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
+    <Box
+      component="form"
+      id={FORM_ID}
+      onSubmit={handleSubmit}
+      sx={{ width: '100%' }}
+      ref={formRef}
+      noValidate
+      data-testid="generation-form"
+    >
 
       {/* Prompt Fields */}
       <TextField
@@ -117,9 +294,18 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
         placeholder="Describe the image you want to generate..."
-        required
         sx={{ mb: 2 }}
+        error={Boolean(fieldErrors.prompt)}
+        inputProps={{
+          'data-testid': 'prompt-input',
+          className: fieldErrors.prompt ? 'error' : undefined,
+        }}
       />
+      {fieldErrors.prompt && (
+        <Typography variant="caption" color="error" data-testid="prompt-error" sx={{ mb: 2, display: 'block' }}>
+          {fieldErrors.prompt}
+        </Typography>
+      )}
 
       <TextField
         fullWidth
@@ -130,6 +316,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
         onChange={(e) => setNegativePrompt(e.target.value)}
         placeholder="What you don't want in the image..."
         sx={{ mb: 3 }}
+        inputProps={{ 'data-testid': 'negative-prompt-input' }}
       />
 
       {/* Model Selection */}
@@ -150,10 +337,16 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
               fullWidth
               type="number"
               label="Width"
-              value={width}
-              onChange={(e) => setWidth(Number(e.target.value))}
-              inputProps={{ min: 64, max: 2048, step: 64 }}
-            />
+        value={width}
+        onChange={(e) => setWidth(Number(e.target.value))}
+        error={Boolean(fieldErrors.width)}
+        inputProps={{ min: 64, max: 2048, step: 64, 'data-testid': 'width-input', className: fieldErrors.width ? 'error' : undefined }}
+      />
+      {fieldErrors.width && (
+        <Typography variant="caption" color="error" data-testid="width-error" sx={{ display: 'block', mt: 1 }}>
+          {fieldErrors.width}
+        </Typography>
+      )}
           </Grid>
           {/* @ts-ignore */}
           <Grid item xs={6}>
@@ -163,7 +356,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
               label="Height"
               value={height}
               onChange={(e) => setHeight(Number(e.target.value))}
-              inputProps={{ min: 64, max: 2048, step: 64 }}
+              inputProps={{ min: 64, max: 2048, step: 64, 'data-testid': 'height-input' }}
             />
           </Grid>
           {/* @ts-ignore */}
@@ -174,7 +367,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
               label="Batch Size"
               value={batchSize}
               onChange={(e) => setBatchSize(Number(e.target.value))}
-              inputProps={{ min: 1, max: 8 }}
+              inputProps={{ min: 1, max: 8, 'data-testid': 'batch-size-input' }}
               helperText="Number of images to generate"
             />
           </Grid>
@@ -182,7 +375,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
       </Box>
 
       {/* Advanced Settings */}
-      <Accordion sx={{ mb: 3 }}>
+      <Accordion sx={{ mb: 3 }} defaultExpanded>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Typography>Advanced Settings</Typography>
         </AccordionSummary>
@@ -197,6 +390,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
                 value={samplerParams.seed}
                 onChange={(e) => updateSamplerParam('seed', Number(e.target.value))}
                 helperText="-1 for random seed"
+                inputProps={{ 'data-testid': 'seed-input' }}
               />
             </Grid>
             {/* @ts-ignore */}
@@ -205,22 +399,26 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
                 fullWidth
                 type="number"
                 label="Steps"
-                value={samplerParams.steps}
-                onChange={(e) => updateSamplerParam('steps', Number(e.target.value))}
-                inputProps={{ min: 1, max: 150 }}
-              />
+        value={samplerParams.steps}
+        onChange={(e) => updateSamplerParam('steps', Number(e.target.value))}
+        error={Boolean(fieldErrors.steps)}
+        inputProps={{ min: 1, max: 150, 'data-testid': 'steps-input', className: fieldErrors.steps ? 'error' : undefined }}
+      />
+      {fieldErrors.steps && (
+        <Typography variant="caption" color="error" data-testid="steps-error" sx={{ display: 'block', mt: 1 }}>
+          {fieldErrors.steps}
+        </Typography>
+      )}
             </Grid>
             {/* @ts-ignore */}
             <Grid item xs={12} md={6}>
-              <Typography gutterBottom>CFG Scale: {samplerParams.cfg}</Typography>
-              <Slider
+              <TextField
+                fullWidth
+                type="number"
+                label="CFG Scale"
                 value={samplerParams.cfg}
-                onChange={(_, value) => updateSamplerParam('cfg', value)}
-                min={1}
-                max={20}
-                step={0.5}
-                marks
-                valueLabelDisplay="auto"
+                onChange={(e) => updateSamplerParam('cfg', Number(e.target.value))}
+                inputProps={{ min: 1, max: 20, step: 0.5, 'data-testid': 'cfg-scale-input' }}
               />
             </Grid>
             {/* @ts-ignore */}
@@ -234,6 +432,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
                 step={0.01}
                 marks
                 valueLabelDisplay="auto"
+                data-testid="denoise-slider"
               />
             </Grid>
             {/* @ts-ignore */}
@@ -271,16 +470,230 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
         </AccordionDetails>
       </Accordion>
 
-      <Button
-        type="submit"
-        variant="contained"
-        size="large"
-        disabled={isSubmitting || !prompt.trim() || !checkpointModel}
-        startIcon={isSubmitting ? <CircularProgress size={20} /> : undefined}
-        sx={{ width: '100%' }}
+      <Box
+        component="button"
+        type="button"
+        data-testid="generate-button"
+        onClick={submitForm}
+        disabled={isSubmitting || !prompt.trim()}
+        aria-busy={isSubmitting ? 'true' : undefined}
+        sx={{
+          width: '100%',
+          py: 1.5,
+          px: 2,
+          mt: 1,
+          border: 'none',
+          borderRadius: 1,
+          bgcolor: isSubmitting ? 'primary.dark' : 'primary.main',
+          color: 'primary.contrastText',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 1,
+          cursor: isSubmitting ? 'default' : 'pointer',
+          opacity: isSubmitting ? 0.8 : 1,
+          transition: 'background-color 0.2s ease',
+          '&:hover': {
+            bgcolor: isSubmitting ? 'primary.dark' : 'primary.light',
+          },
+          '&:disabled': {
+            bgcolor: 'action.disabledBackground',
+            color: 'action.disabled',
+            cursor: 'not-allowed',
+          },
+        }}
       >
+        {isSubmitting && <CircularProgress size={20} data-testid="loading-spinner" color="inherit" />}
         {isSubmitting ? 'Generating...' : 'Generate Images'}
-      </Button>
+      </Box>
+
+      {renderErrorContent({
+        errorState,
+        onRetry: handleRetry,
+        onRefresh: handleRefreshPage,
+      })}
+
+      {timeoutActive && (
+        <Paper sx={{ mt: 2, p: 2 }} data-testid="timeout-error">
+          <Typography variant="subtitle1" gutterBottom>
+            This request is taking longer than expected.
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            The image generation service might be busy. You can continue waiting or cancel the request.
+          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <Button
+              variant="contained"
+              color="primary"
+              data-testid="continue-waiting-button"
+              onClick={handleContinueWaiting}
+            >
+              Continue Waiting
+            </Button>
+            <Button
+              variant="outlined"
+              color="secondary"
+              data-testid="cancel-request-button"
+              onClick={handleCancelRequest}
+            >
+              Cancel Request
+            </Button>
+          </Stack>
+        </Paper>
+      )}
     </Box>
   )
+}
+
+function renderErrorContent({
+  errorState,
+  onRetry,
+  onRefresh,
+}: {
+  errorState: ErrorState
+  onRetry: () => void
+  onRefresh: () => void
+}) {
+  if (errorState.type === 'none') {
+    return null
+  }
+
+  if (errorState.type === 'service-unavailable') {
+    return (
+      <Alert
+        severity="error"
+        role="alert"
+        aria-live="assertive"
+        data-testid="error-alert"
+        sx={{ mt: 2 }}
+      >
+        <Typography variant="h6" component="h2" data-testid="error-heading" sx={{ mb: 1 }}>
+          Image generation service temporarily unavailable
+        </Typography>
+        <Typography variant="body2" sx={{ mb: 2 }}>
+          {errorState.message} Please try again in a few minutes.
+        </Typography>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="flex-start">
+          <Button variant="contained" onClick={onRetry} data-testid="retry-button">
+            Try Again
+          </Button>
+          {errorState.supportUrl && (
+            <Link
+              href={errorState.supportUrl}
+              target="_blank"
+              rel="noopener"
+              data-testid="support-link"
+            >
+              View status page
+            </Link>
+          )}
+        </Stack>
+      </Alert>
+    )
+  }
+
+  if (errorState.type === 'network') {
+    return (
+      <Paper sx={{ mt: 2, p: 2 }} data-testid="error-container">
+        <Typography variant="h6" gutterBottom>
+          Having trouble reaching the generation service
+        </Typography>
+        <Typography variant="body2" sx={{ mb: 2 }}>
+          {errorState.message}
+        </Typography>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="flex-start" sx={{ mb: 2 }}>
+          <Button variant="contained" onClick={onRetry} data-testid="retry-button">
+            Retry
+          </Button>
+          <Button variant="outlined" onClick={onRefresh} data-testid="refresh-page-button">
+            Refresh Page
+          </Button>
+        </Stack>
+        <Typography variant="body2" data-testid="offline-info" color="text.secondary">
+          {errorState.isOffline
+            ? 'You appear to be offline. Reconnect to the internet to continue.'
+            : 'If the issue persists, check your connection or try again later.'}
+        </Typography>
+      </Paper>
+    )
+  }
+
+  return (
+    <Alert
+      severity="error"
+      role="alert"
+      aria-live="assertive"
+      data-testid="error-alert"
+      sx={{ mt: 2 }}
+    >
+      <Typography variant="body2" sx={{ mb: 2 }}>
+        {errorState.message}
+      </Typography>
+      <Button variant="outlined" onClick={onRetry} data-testid="retry-button">
+        Retry
+      </Button>
+    </Alert>
+  )
+}
+
+function parseServiceUnavailableError(body: unknown): {
+  message: string
+  retryAfter?: number
+  supportUrl?: string
+} {
+  if (body && typeof body === 'object' && 'error' in body && typeof (body as any).error === 'object') {
+    const errorObj = (body as any).error
+    return {
+      message: typeof errorObj.message === 'string'
+        ? errorObj.message
+        : 'Image generation service is temporarily unavailable.',
+      retryAfter: typeof errorObj.retry_after === 'number' ? errorObj.retry_after : undefined,
+      supportUrl: typeof errorObj.support_info?.status_page === 'string'
+        ? errorObj.support_info.status_page
+        : undefined,
+    }
+  }
+
+  return {
+    message: 'Image generation service is temporarily unavailable.',
+  }
+}
+
+function extractValidationErrors(body: unknown): {
+  fieldErrors: FieldErrors
+  generalMessage: string
+} {
+  const fieldErrors: FieldErrors = {}
+  let generalMessage = 'Please review the highlighted fields.'
+
+  if (body && typeof body === 'object' && Array.isArray((body as any).detail)) {
+    const details = (body as any).detail as Array<{
+      loc?: string[]
+      msg?: string
+    }>
+
+    details.forEach(detail => {
+      const field = detail.loc?.[1]
+      if (field === 'prompt' && detail.msg) {
+        fieldErrors.prompt = detail.msg
+      }
+      if (field === 'width' && detail.msg) {
+        fieldErrors.width = detail.msg
+      }
+      if (field === 'steps' && detail.msg) {
+        fieldErrors.steps = detail.msg
+      }
+    })
+
+    if (details.length > 0) {
+      generalMessage = 'Some of your settings need attention before we can generate images.'
+    }
+  }
+
+  return { fieldErrors, generalMessage }
+}
+
+function normalizeDimension(value: number): number {
+  const rounded = Math.max(64, Math.round(value / 64) * 64)
+  return Math.min(2048, rounded)
 }

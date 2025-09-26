@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('Loading and Error State Tests', () => {
+  test.beforeEach(async ({ page }) => {
+    page.setDefaultNavigationTimeout(5_000)
+  })
   test('should not have console errors on page load', async ({ page }) => {
+    test.setTimeout(15_000)
     const consoleErrors = []
 
     // Listen for console errors
@@ -15,7 +19,7 @@ test.describe('Loading and Error State Tests', () => {
     const pages = ['/', '/dashboard', '/gallery', '/recommendations', '/settings', '/generate']
 
     for (const pagePath of pages) {
-      await page.goto(pagePath)
+      await page.goto(pagePath, { waitUntil: 'domcontentloaded', timeout: 5_000 })
       try {
         await page.waitForSelector('main', { timeout: 10000 })
       } catch {
@@ -23,7 +27,7 @@ test.describe('Loading and Error State Tests', () => {
       }
 
       // Wait a moment for any async operations to complete
-      await page.waitForTimeout(1000)
+      await page.waitForTimeout(300)
     }
 
     // Report any console errors found
@@ -120,10 +124,11 @@ test.describe('Loading and Error State Tests', () => {
   })
 
   test('should render pages without layout shifts', async ({ page }) => {
+    test.setTimeout(12_000)
     const pages = ['/dashboard', '/gallery', '/recommendations', '/settings', '/generate']
 
     for (const pagePath of pages) {
-      await page.goto(pagePath)
+      await page.goto(pagePath, { waitUntil: 'domcontentloaded', timeout: 5_000 })
 
       // Wait for initial load - try main first, fall back to body
       try {

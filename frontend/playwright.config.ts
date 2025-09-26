@@ -2,11 +2,13 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './tests/e2e',
-  timeout: 30_000,
+  timeout: 5_000,
   expect: {
-    timeout: 5_000,
+    timeout: 2_000,
   },
   use: {
+    actionTimeout: 2_000,
+    navigationTimeout: 5_000,
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4173',
     headless: true,
     viewport: { width: 1280, height: 720 },
@@ -23,10 +25,8 @@ export default defineConfig({
   webServer: {
     command: 'npm run dev -- --host 127.0.0.1 --port 4173',
     port: 4173,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    env: {
-      VITE_API_BASE_URL: 'http://127.0.0.1:8001',
-    },
-  },
+    reuseExistingServer: false,
+    timeout: process.env.CI ? 120_000 : 30_000,
+    env: { VITE_API_BASE_URL: 'http://127.0.0.1:8001' },
+  }
 })

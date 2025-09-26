@@ -10,6 +10,7 @@ import {
   MenuItem,
   TextField,
   Pagination,
+  PaginationItem,
   Alert,
   CircularProgress,
   IconButton,
@@ -133,6 +134,7 @@ export function GenerationHistory() {
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Search prompts or models..."
           sx={{ minWidth: 200 }}
+          inputProps={{ 'data-testid': 'search-input' }}
         />
 
         <FormControl size="small" sx={{ minWidth: 120 }}>
@@ -141,6 +143,8 @@ export function GenerationHistory() {
             value={statusFilter}
             onChange={(e) => handleStatusFilterChange(e.target.value)}
             label="Status"
+            inputProps={{ 'data-testid': 'status-filter-input' }}
+            SelectDisplayProps={{ 'data-testid': 'status-filter' }}
           >
             <MenuItem value="">All</MenuItem>
             <MenuItem value="pending">Pending</MenuItem>
@@ -157,6 +161,7 @@ export function GenerationHistory() {
               checked={useVirtualScrolling}
               onChange={(e) => setUseVirtualScrolling(e.target.checked)}
               size="small"
+              inputProps={{ 'data-testid': 'virtual-scroll-toggle' }}
             />
           }
           label="Virtual Scrolling"
@@ -172,17 +177,19 @@ export function GenerationHistory() {
       {filteredGenerations.length > 0 ? (
         <>
           {useVirtualScrolling ? (
-            <VirtualScrollList
-              items={filteredGenerations}
-              itemHeight={300} // Approximate height of a generation card
-              containerHeight={600} // Fixed height for virtual scrolling
-              renderItem={renderGenerationCard}
-              overscan={3}
-            />
+            <Box data-testid="generation-list">
+              <VirtualScrollList
+                items={filteredGenerations}
+                itemHeight={300} // Approximate height of a generation card
+                containerHeight={600} // Fixed height for virtual scrolling
+                renderItem={renderGenerationCard}
+                overscan={3}
+              />
+            </Box>
           ) : (
-            <Grid container spacing={2}>
+            <Grid container spacing={2} data-testid="generation-list">
               {filteredGenerations.map((generation) => (
-                <Grid key={generation.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
+                <Grid key={generation.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }} data-testid="generation-list-item">
                   <GenerationCard
                     generation={generation}
                     onView={() => handleViewGeneration(generation)}
@@ -202,6 +209,18 @@ export function GenerationHistory() {
                 onChange={(_, newPage) => setPage(newPage)}
                 color="primary"
                 size="large"
+                renderItem={(item) => (
+                  <PaginationItem
+                    {...item}
+                    data-testid={
+                      item.type === 'next'
+                        ? 'next-page'
+                        : item.type === 'previous'
+                          ? 'previous-page'
+                          : undefined
+                    }
+                  />
+                )}
               />
             </Box>
           )}

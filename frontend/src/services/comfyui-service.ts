@@ -47,6 +47,7 @@ export interface ComfyUIGenerationResponse {
   started_at?: string
   completed_at?: string
   error_message?: string
+  recovery_suggestions?: string[]
 }
 
 export interface AvailableModel {
@@ -100,12 +101,17 @@ export class ComfyUIService {
     this.apiClient = apiClient
   }
 
-  async createGeneration(request: ComfyUIGenerationCreateRequest): Promise<ComfyUIGenerationResponse> {
-    return this.apiClient.post<ComfyUIGenerationResponse>('/api/v1/comfyui/generate', request)
+  async createGeneration(
+    request: ComfyUIGenerationCreateRequest,
+    options?: { signal?: AbortSignal }
+  ): Promise<ComfyUIGenerationResponse> {
+    return this.apiClient.post<ComfyUIGenerationResponse>('/api/comfyui/generations', request, {
+      signal: options?.signal,
+    })
   }
 
   async getGeneration(id: number): Promise<ComfyUIGenerationResponse> {
-    return this.apiClient.get<ComfyUIGenerationResponse>(`/api/v1/comfyui/${id}`)
+    return this.apiClient.get<ComfyUIGenerationResponse>(`/api/comfyui/generations/${id}`)
   }
 
   async listGenerations(params?: ComfyUIGenerationListParams): Promise<ComfyUIGenerationListResponse> {
@@ -118,13 +124,13 @@ export class ComfyUIService {
     if (params?.page_size) query.append('page_size', params.page_size.toString())
 
     const queryString = query.toString()
-    const url = queryString ? `/api/v1/comfyui/?${queryString}` : '/api/v1/comfyui/'
+    const url = queryString ? `/api/comfyui/generations?${queryString}` : '/api/comfyui/generations'
 
     return this.apiClient.get<ComfyUIGenerationListResponse>(url)
   }
 
   async cancelGeneration(id: number): Promise<{ message: string }> {
-    return this.apiClient.delete<{ message: string }>(`/api/v1/comfyui/${id}`)
+    return this.apiClient.delete<{ message: string }>(`/api/comfyui/generations/${id}`)
   }
 
   async listAvailableModels(params?: ModelListParams): Promise<AvailableModelListResponse> {
@@ -134,12 +140,12 @@ export class ComfyUIService {
     if (params?.search) query.append('search', params.search)
 
     const queryString = query.toString()
-    const url = queryString ? `/api/v1/comfyui/models/?${queryString}` : '/api/v1/comfyui/models/'
+    const url = queryString ? `/api/comfyui/models?${queryString}` : '/api/comfyui/models'
 
     return this.apiClient.get<AvailableModelListResponse>(url)
   }
 
   async refreshModels(): Promise<{ message: string }> {
-    return this.apiClient.post<{ message: string }>('/api/v1/comfyui/models/refresh')
+    return this.apiClient.post<{ message: string }>('/api/comfyui/models/refresh')
   }
 }

@@ -1,6 +1,9 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('ComfyUI Generation', () => {
+  test.beforeEach(async ({ page }) => {
+    page.setDefaultNavigationTimeout(5_000)
+  })
   test.skip('should navigate to generation page', async ({ page }) => {
     await page.goto('/')
 
@@ -29,7 +32,7 @@ test.describe('ComfyUI Generation', () => {
   })
 
   test.skip('should validate required form fields', async ({ page }) => {
-    await page.goto('/generate')
+    await page.goto('/generate', { waitUntil: 'domcontentloaded', timeout: 5_000 })
 
     // Wait for form to load
     await page.waitForSelector('form', { timeout: 10000 })
@@ -46,7 +49,7 @@ test.describe('ComfyUI Generation', () => {
   })
 
   test('should show generation parameters controls', async ({ page }) => {
-    await page.goto('/generate')
+    await page.goto('/generate', { waitUntil: 'domcontentloaded', timeout: 5_000 })
 
     // Should show basic parameters
     await expect(page.locator('input[type="number"][value="832"]')).toBeVisible() // Width
@@ -59,7 +62,7 @@ test.describe('ComfyUI Generation', () => {
     // Should show advanced controls
     await expect(page.locator('label:has-text("Seed")')).toBeVisible()
     await expect(page.locator('label:has-text("Steps")')).toBeVisible()
-    await expect(page.locator('text=CFG Scale')).toBeVisible()
+    await expect(page.locator('[data-testid="cfg-scale-input"]')).toBeVisible()
     await expect(page.locator('label:has-text("Sampler")')).toBeVisible()
   })
 })

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   Card,
   CardContent,
@@ -7,6 +8,8 @@ import {
   Box,
   IconButton,
   Tooltip,
+  Button,
+  Stack,
 } from '@mui/material'
 import {
   Visibility as VisibilityIcon,
@@ -35,6 +38,8 @@ export function GenerationCard({ generation, onView, onDelete }: GenerationCardP
   const statusColor = STATUS_COLORS[generation.status as keyof typeof STATUS_COLORS] || 'default'
   const hasImages = generation.output_paths && generation.output_paths.length > 0
   const thumbnailPath = generation.thumbnail_paths?.[0]
+  const [imageError, setImageError] = useState(false)
+  const [imageReloadCount, setImageReloadCount] = useState(0)
 
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text
@@ -42,10 +47,13 @@ export function GenerationCard({ generation, onView, onDelete }: GenerationCardP
   }
 
   return (
-    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Card
+      data-testid="generation-card"
+      sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+    >
       {/* Image or Placeholder */}
       <Box sx={{ position: 'relative', paddingTop: '56.25%' }}> {/* 16:9 aspect ratio */}
-        {thumbnailPath ? (
+        {thumbnailPath && !imageError ? (
           <Box
             sx={{
               position: 'absolute',
@@ -56,9 +64,12 @@ export function GenerationCard({ generation, onView, onDelete }: GenerationCardP
             }}
           >
             <LazyImage
+              key={imageReloadCount}
               src={thumbnailPath}
               alt={`Generated image: ${truncateText(generation.prompt, 50)}`}
               objectFit="cover"
+              onError={() => setImageError(true)}
+              onLoad={() => setImageError(false)}
               placeholder={
                 <Box
                   sx={{
@@ -70,6 +81,7 @@ export function GenerationCard({ generation, onView, onDelete }: GenerationCardP
                     bgcolor: 'grey.100',
                     color: 'grey.400',
                   }}
+                  data-testid="image-placeholder"
                 >
                   <ImageIcon sx={{ fontSize: 48 }} />
                 </Box>
@@ -89,9 +101,29 @@ export function GenerationCard({ generation, onView, onDelete }: GenerationCardP
               justifyContent: 'center',
               bgcolor: 'grey.100',
               color: 'grey.400',
+              flexDirection: 'column',
+              gap: 1,
             }}
           >
-            <ImageIcon sx={{ fontSize: 48 }} />
+            <ImageIcon sx={{ fontSize: 48 }} data-testid="image-placeholder" />
+            {imageError && (
+              <Stack spacing={1} alignItems="center">
+                <Typography variant="caption" color="error" data-testid="image-error">
+                  We couldn’t load this preview.
+                </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  data-testid="retry-image-button"
+                  onClick={() => {
+                    setImageError(false)
+                    setImageReloadCount(count => count + 1)
+                  }}
+                >
+                  Retry Image
+                </Button>
+              </Stack>
+            )}
           </Box>
         )}
 
@@ -136,7 +168,7 @@ export function GenerationCard({ generation, onView, onDelete }: GenerationCardP
       <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
         <Box>
           <Tooltip title="View Details">
-            <IconButton size="small" onClick={onView}>
+            <IconButton size="small" onClick={onView} data-testid="view-details">
               <VisibilityIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -149,6 +181,7 @@ export function GenerationCard({ generation, onView, onDelete }: GenerationCardP
                   // TODO: Implement download functionality
                   console.log('Download:', generation.output_paths)
                 }}
+                data-testid="download-images"
               >
                 <DownloadIcon fontSize="small" />
               </IconButton>
@@ -172,6 +205,7 @@ export function GenerationCard({ generation, onView, onDelete }: GenerationCardP
               color="error"
               onClick={onDelete}
               sx={{ opacity: 0.7, '&:hover': { opacity: 1 } }}
+              data-testid="delete-generation"
             >
               <DeleteIcon fontSize="small" />
             </IconButton>

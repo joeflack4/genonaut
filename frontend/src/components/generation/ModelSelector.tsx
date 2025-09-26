@@ -131,7 +131,7 @@ export function ModelSelector({
   return (
     <Box sx={sx}>
       {/* Checkpoint Model Selection */}
-      <FormControl fullWidth sx={{ mb: 2 }}>
+      <FormControl fullWidth sx={{ mb: 2 }} data-testid="model-selector">
         <InputLabel>Checkpoint Model</InputLabel>
         <Select
           value={checkpointModel}

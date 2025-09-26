@@ -18,6 +18,7 @@ const routes: RouteObject[] = [
       { path: 'gallery', element: <GalleryPage /> },
       { path: 'recommendations', element: <RecommendationsPage /> },
       { path: 'generate', element: <GenerationPage /> },
+      { path: 'generation', element: <GenerationPage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],
   },

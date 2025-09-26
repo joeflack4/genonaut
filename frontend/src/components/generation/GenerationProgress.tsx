@@ -105,6 +105,30 @@ export function GenerationProgress({ generation: initialGeneration, onComplete }
   const statusConfig = STATUS_CONFIG[currentGeneration.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending
   const canCancel = currentGeneration.status === 'pending' || currentGeneration.status === 'processing'
 
+  const handleApplySuggestions = () => {
+    if (!currentGeneration.recovery_suggestions?.length) return
+
+    const detail: Record<string, unknown> = {}
+
+    currentGeneration.recovery_suggestions.forEach(suggestion => {
+      const lower = suggestion.toLowerCase()
+      if (lower.includes('batch size') && lower.match(/\b1\b/)) {
+        detail.batchSize = 1
+      }
+      if (lower.includes('reduce image width')) {
+        detail.width = Math.max(Math.floor(currentGeneration.width / 2), 64)
+      }
+      if (lower.includes('reduce image height')) {
+        detail.height = Math.max(Math.floor(currentGeneration.height / 2), 64)
+      }
+      if (lower.includes('try a different model')) {
+        detail.checkpoint = 'recommended-default'
+      }
+    })
+
+    window.dispatchEvent(new CustomEvent('generation:apply-suggestions', { detail }))
+  }
+
   return (
     <Box sx={{ width: '100%' }}>
       {error && (
@@ -197,12 +221,34 @@ export function GenerationProgress({ generation: initialGeneration, onComplete }
       </Paper>
 
       {/* Error Message */}
-      {currentGeneration.error_message && (
-        <Alert severity="error">
-          <Typography variant="body2">
-            <strong>Error:</strong> {currentGeneration.error_message}
+      {currentGeneration.status === 'failed' && (
+        <Paper
+          sx={{ p: 2, borderColor: 'error.light', borderWidth: 1, borderStyle: 'solid', mb: 2 }}
+          data-testid="generation-failed"
+        >
+          <Typography variant="subtitle1" color="error" data-testid="failure-message" sx={{ mb: 1 }}>
+            {currentGeneration.error_message || 'Generation failed. Please adjust your settings and try again.'}
           </Typography>
-        </Alert>
+          {currentGeneration.recovery_suggestions?.length ? (
+            <Stack spacing={1} sx={{ mb: 2 }} data-testid="recovery-suggestions">
+              {currentGeneration.recovery_suggestions.map((suggestion, index) => (
+                <Typography key={index} variant="body2" data-testid="suggestion-item">
+                  • {suggestion}
+                </Typography>
+              ))}
+            </Stack>
+          ) : null}
+          {currentGeneration.recovery_suggestions?.length ? (
+            <Button
+              variant="contained"
+              color="primary"
+              data-testid="retry-with-suggestions-button"
+              onClick={handleApplySuggestions}
+            >
+              Apply Suggestions
+            </Button>
+          ) : null}
+        </Paper>
       )}
 
       {/* Success Message */}

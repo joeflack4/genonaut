@@ -93,6 +93,7 @@ export function ImageViewer({ generation, open, onClose }: ImageViewerProps) {
       PaperProps={{
         sx: { height: '90vh', maxHeight: '90vh' },
       }}
+      data-testid="generation-modal"
     >
       <DialogTitle sx={{ pb: 1 }}>
         <Box display="flex" alignItems="center" justifyContent="between">
