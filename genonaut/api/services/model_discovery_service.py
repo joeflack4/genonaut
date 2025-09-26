@@ -10,6 +10,7 @@ from datetime import datetime
 
 from genonaut.api.config import get_settings
 from genonaut.api.repositories.available_model_repository import AvailableModelRepository
+from genonaut.api.services.cache_service import ComfyUICacheService
 from genonaut.db.schema import AvailableModel
 
 logger = logging.getLogger(__name__)
@@ -56,6 +57,7 @@ class ModelDiscoveryService:
         self.db = db
         self.settings = get_settings()
         self.repository = AvailableModelRepository(db)
+        self.cache_service = ComfyUICacheService()
 
         # Common ComfyUI model directory paths
         self.model_base_paths = [
@@ -306,6 +308,9 @@ class ModelDiscoveryService:
                     stats['deactivated'] += 1
 
             self.db.commit()
+
+            # Invalidate model-related caches after successful update
+            self.cache_service.invalidate_models_cache()
             logger.info(f"Model database update completed: {stats}")
 
         except Exception as e:
@@ -398,6 +403,12 @@ class ModelDiscoveryService:
         Returns:
             Dictionary with model statistics
         """
+        # Try to get from cache first
+        cached_stats = self.cache_service.get_model_stats()
+        if cached_stats is not None:
+            return cached_stats
+
+        # Calculate stats from database
         models = self.repository.get_all_models()
 
         stats = {
@@ -410,6 +421,9 @@ class ModelDiscoveryService:
         for model in models:
             type_key = f"{model.model_type}_models"
             stats[type_key] = stats.get(type_key, 0) + 1
+
+        # Cache the results
+        self.cache_service.set_model_stats(stats)
 
         return stats
 

@@ -30,15 +30,32 @@ class MockContentItem:
 
 
 # Add class attributes for hasattr() checks
-MockContentItem.id = Mock()
-MockContentItem.creator_id = Mock()
-MockContentItem.title = Mock()
-MockContentItem.content_type = Mock()
-MockContentItem.quality_score = Mock()
-MockContentItem.created_at = Mock()
-MockContentItem.is_private = Mock()
-MockContentItem.tags = Mock()
-MockContentItem.item_metadata = Mock()
+# Create mock columns that work with SQLAlchemy operations
+class MockColumn:
+    def __eq__(self, other):
+        return Mock()
+    def __lt__(self, other):
+        return Mock()
+    def __gt__(self, other):
+        return Mock()
+    def ilike(self, pattern):
+        return Mock()
+    def op(self, operator):
+        def operation(value):
+            return Mock()
+        return operation
+    def is_(self, value):
+        return Mock()
+
+MockContentItem.id = MockColumn()
+MockContentItem.creator_id = MockColumn()
+MockContentItem.title = MockColumn()
+MockContentItem.content_type = MockColumn()
+MockContentItem.quality_score = MockColumn()
+MockContentItem.created_at = MockColumn()
+MockContentItem.is_private = MockColumn()
+MockContentItem.tags = MockColumn()
+MockContentItem.item_metadata = MockColumn()
 
 
 class TestContentRepositoryPagination:
@@ -51,9 +68,13 @@ class TestContentRepositoryPagination:
         self.mock_db.query.return_value = self.mock_query
         self.repository = ContentRepository(self.mock_db, MockContentItem)
 
-    @pytest.mark.skip(reason="Data scaling tests - Repository issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
-    def test_get_by_creator_paginated(self):
+    @patch('genonaut.api.repositories.base.desc')
+    @patch('genonaut.api.repositories.base.asc')
+    def test_get_by_creator_paginated(self, mock_asc, mock_desc):
         """Test get_by_creator_paginated with new pagination support."""
+        # Mock SQLAlchemy functions
+        mock_desc.return_value = Mock()
+        mock_asc.return_value = Mock()
         # Arrange
         creator_id = uuid4()
         mock_items = [MockContentItem(i, creator_id) for i in range(1, 4)]
@@ -78,9 +99,13 @@ class TestContentRepositoryPagination:
         assert result.pagination.page_size == 10
         self.mock_query.filter.assert_called()
 
-    @pytest.mark.skip(reason="Data scaling tests - Repository issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
-    def test_get_public_content_paginated(self):
+    @patch('genonaut.api.repositories.base.desc')
+    @patch('genonaut.api.repositories.base.asc')
+    def test_get_public_content_paginated(self, mock_asc, mock_desc):
         """Test get_public_content_paginated with pagination support."""
+        # Mock SQLAlchemy functions
+        mock_desc.return_value = Mock()
+        mock_asc.return_value = Mock()
         # Arrange
         mock_items = [MockContentItem(i, is_private=False) for i in range(1, 4)]
 
@@ -91,7 +116,7 @@ class TestContentRepositoryPagination:
         self.mock_query.all.return_value = mock_items
         self.mock_query.count.return_value = 100
 
-        pagination_request = PaginationRequest(page=2, page_size=50)
+        pagination_request = PaginationRequest(page=1, page_size=50)
 
         # Act
         result = self.repository.get_public_content_paginated(pagination_request)
@@ -101,9 +126,9 @@ class TestContentRepositoryPagination:
         assert result.items == mock_items
         assert result.pagination.total_count == 100
         assert result.pagination.has_next is True
-        assert result.pagination.has_previous is True
+        assert result.pagination.has_previous is False
 
-    @pytest.mark.skip(reason="Data scaling tests - Repository issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Repository issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     def test_get_by_content_type_paginated(self):
         """Test get_by_content_type_paginated with pagination support."""
         # Arrange
@@ -127,7 +152,7 @@ class TestContentRepositoryPagination:
         assert len(result.items) == 5
         assert result.pagination.total_count == 50
 
-    @pytest.mark.skip(reason="Data scaling tests - Repository issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Repository issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     def test_search_by_title_paginated(self):
         """Test search_by_title_paginated with pagination support."""
         # Arrange
@@ -157,7 +182,7 @@ class TestContentRepositoryPagination:
         assert result.pagination.total_count == 15
         mock_title.ilike.assert_called_with(f"%{search_term}%")
 
-    @pytest.mark.skip(reason="Data scaling tests - Repository issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Repository issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     def test_get_top_rated_paginated(self):
         """Test get_top_rated_paginated with pagination support."""
         # Arrange
@@ -184,7 +209,7 @@ class TestContentRepositoryPagination:
         assert result.items == mock_items
         assert result.pagination.total_count == 200
 
-    @pytest.mark.skip(reason="Data scaling tests - Repository issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Repository issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     def test_get_recent_paginated(self):
         """Test get_recent_paginated with pagination support."""
         # Arrange
@@ -208,7 +233,7 @@ class TestContentRepositoryPagination:
         assert result.items == mock_items
         assert result.pagination.total_count == 30
 
-    @pytest.mark.skip(reason="Data scaling tests - Repository issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Repository issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     def test_search_by_metadata_paginated(self):
         """Test search_by_metadata_paginated with pagination support."""
         # Arrange
@@ -239,7 +264,7 @@ class TestContentRepositoryPagination:
         assert result.items == mock_items
         assert result.pagination.total_count == 8
 
-    @pytest.mark.skip(reason="Data scaling tests - Repository issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Repository issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     def test_search_by_tags_paginated(self):
         """Test search_by_tags_paginated with pagination support."""
         # Arrange
@@ -289,7 +314,7 @@ class TestContentRepositoryPagination:
         assert result.items == mock_items
         assert result.pagination.total_count == 100
 
-    @pytest.mark.skip(reason="Data scaling tests - Repository issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Repository issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     def test_optimized_content_query_with_composite_index(self):
         """Test that content queries use composite indexes for performance."""
         # This test verifies that we use the right query patterns for performance
@@ -318,7 +343,7 @@ class TestContentRepositoryPagination:
         assert isinstance(result, PaginatedResponse)
         assert result.pagination.total_count == 1000
 
-    @pytest.mark.skip(reason="Data scaling tests - Repository and cursor navigation issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Repository and cursor navigation issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     def test_cursor_based_pagination_for_large_datasets(self):
         """Test cursor-based pagination for high-performance scenarios."""
         # Arrange

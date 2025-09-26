@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from genonaut.api.repositories.base import BaseRepository
+from genonaut.api.services.cache_service import ComfyUICacheService, cached
 from genonaut.db.schema import AvailableModel
 
 
@@ -18,6 +19,7 @@ class AvailableModelRepository(BaseRepository[AvailableModel, Dict[str, Any], Di
             db: Database session
         """
         super().__init__(db, AvailableModel)
+        self.cache_service = ComfyUICacheService()
 
     def create_model(
         self,
@@ -58,7 +60,12 @@ class AvailableModelRepository(BaseRepository[AvailableModel, Dict[str, Any], Di
             is_active=is_active,
             metadata=metadata or {}
         )
-        return self.create(model)
+        created_model = self.create(model)
+
+        # Invalidate cache after creating new model
+        self.cache_service.invalidate_models_cache()
+
+        return created_model
 
     def get_model_by_name(self, name: str) -> Optional[AvailableModel]:
         """Get model by name.
@@ -86,6 +93,7 @@ class AvailableModelRepository(BaseRepository[AvailableModel, Dict[str, Any], Di
             AvailableModel.file_hash == file_hash
         ).first()
 
+    @cached("models_by_type", ttl_seconds=3600)  # 1 hour cache
     def get_models_by_type(self, model_type: str, active_only: bool = True) -> List[AvailableModel]:
         """Get all models of a specific type.
 
@@ -105,6 +113,7 @@ class AvailableModelRepository(BaseRepository[AvailableModel, Dict[str, Any], Di
 
         return query.order_by(AvailableModel.name).all()
 
+    @cached("all_models", ttl_seconds=3600)  # 1 hour cache
     def get_all_models(self, active_only: bool = False) -> List[AvailableModel]:
         """Get all available models.
 

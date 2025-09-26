@@ -147,7 +147,7 @@ class TestPaginationPerformance:
             for i in range(len(result.items) - 1):
                 assert result.items[i].quality_score >= result.items[i + 1].quality_score
 
-    @pytest.mark.skip(reason="Data scaling tests - Performance/stress testing (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Performance/stress testing (see notes/issues/by_priority/low/data-scaling-tests.md)")
     def test_user_pagination_performance_active_only(self, db_session: Session,
                                                     sample_users: List[User]):
         """Test pagination performance for active users queries."""
@@ -311,7 +311,7 @@ class TestPaginationPerformance:
         assert result.pagination.total_count > 5  # But total count should be higher
 
     @pytest.mark.slow
-    @pytest.mark.skip(reason="Data scaling tests - Performance/stress testing (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Performance/stress testing (see notes/issues/by_priority/low/data-scaling-tests.md)")
     def test_large_dataset_pagination_performance(self, db_session: Session):
         """Test pagination performance with a larger dataset."""
         # This test would create 10,000+ records to test real-world performance

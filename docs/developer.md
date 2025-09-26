@@ -8,7 +8,7 @@ This directory contains comprehensive documentation for Genonaut development.
 - [Database Documentation](./db.md) - Database setup, schema, JSONB usage, and maintenance
 - [API Documentation](./api.md) - FastAPI endpoints, configuration, and integration
 - [Testing Documentation](./testing.md) - Testing strategy, commands, and best practices
-- [Frontend Documentation](../scratchpads/frontend.md) - Frontend development guide and recommendations
+- [Frontend Documentation](../notes/frontend.md) - Frontend development guide and recommendations
 
 ### Specialized Documentation
 - [Database Migrations](./db_migrations.md) - Alembic migration procedures and troubleshooting
@@ -25,7 +25,7 @@ This directory contains comprehensive documentation for Genonaut development.
 1. **Setup:** Follow database setup in [db.md](./db.md)
 2. **API Development:** See endpoint documentation in [api.md](./api.md)
 3. **Testing:** Use testing strategy from [testing.md](./testing.md)
-4. **Frontend:** Plan frontend development with [frontend.md](../scratchpads/frontend.md)
+4. **Frontend:** Plan frontend development with [frontend.md](../notes/frontend.md)
 
 ### Documentation Updates
 When adding new features or making significant changes:

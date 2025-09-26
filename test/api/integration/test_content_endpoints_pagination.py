@@ -35,7 +35,7 @@ class TestContentEndpointsPagination:
         self.app.include_router(content_router)
         self.client = TestClient(self.app)
 
-    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Skipped until db-infrastructure setup - requires real database schemas and proper fixture management (Medium-High Effort)")
     @patch('genonaut.api.dependencies.get_database_session')
     @patch('genonaut.api.services.content_service.ContentService')
     def test_get_content_list_with_pagination(self, mock_service_class, mock_db_session):
@@ -63,7 +63,7 @@ class TestContentEndpointsPagination:
 
         # Act
         response = self.client.get(
-            "/api/v1/content/enhanced?page=1&page_size=10"
+            "/api/v1/content/?page=1&page_size=10"
         )
 
         # Assert
@@ -78,7 +78,7 @@ class TestContentEndpointsPagination:
         assert data["pagination"]["has_previous"] is False
         assert len(data["items"]) == 10
 
-    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     @patch('genonaut.api.dependencies.get_database_session')
     @patch('genonaut.api.services.content_service.ContentService')
     def test_get_content_by_creator_paginated(self, mock_service_class, mock_db_session):
@@ -116,7 +116,7 @@ class TestContentEndpointsPagination:
         assert len(data["items"]) == 5
         mock_service.get_content_by_creator_paginated.assert_called_once()
 
-    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     @patch('genonaut.api.dependencies.get_database_session')
     @patch('genonaut.api.services.content_service.ContentService')
     def test_get_content_by_type_paginated(self, mock_service_class, mock_db_session):
@@ -154,7 +154,7 @@ class TestContentEndpointsPagination:
         assert data["pagination"]["has_previous"] is True
         assert data["pagination"]["has_next"] is True
 
-    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Skipped until db-infrastructure setup - requires real database schemas and proper fixture management (Medium-High Effort)")
     @patch('genonaut.api.dependencies.get_database_session')
     @patch('genonaut.api.services.content_service.ContentService')
     def test_get_public_content_paginated(self, mock_service_class, mock_db_session):
@@ -190,7 +190,7 @@ class TestContentEndpointsPagination:
         assert data["pagination"]["total_count"] == 60
         assert len(data["items"]) == 3
 
-    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     @patch('genonaut.api.dependencies.get_database_session')
     @patch('genonaut.api.services.content_service.ContentService')
     def test_get_top_rated_content_paginated(self, mock_service_class, mock_db_session):
@@ -230,7 +230,7 @@ class TestContentEndpointsPagination:
         assert data["pagination"]["total_count"] == 50
         assert len(data["items"]) == 3
 
-    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     @patch('genonaut.api.dependencies.get_database_session')
     @patch('genonaut.api.services.content_service.ContentService')
     def test_get_recent_content_paginated(self, mock_service_class, mock_db_session):
@@ -266,7 +266,7 @@ class TestContentEndpointsPagination:
         assert data["pagination"]["page"] == 1
         assert data["pagination"]["page_size"] == 25
 
-    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     @patch('genonaut.api.dependencies.get_database_session')
     @patch('genonaut.api.services.content_service.ContentService')
     def test_search_content_paginated(self, mock_service_class, mock_db_session):
@@ -307,7 +307,7 @@ class TestContentEndpointsPagination:
         assert data["pagination"]["total_count"] == 30
         assert len(data["items"]) == 3
 
-    @pytest.mark.skip(reason="Data scaling tests - Mock architecture and cursor navigation issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Mock architecture and cursor navigation issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     @patch('genonaut.api.dependencies.get_database_session')
     @patch('genonaut.api.services.content_service.ContentService')
     def test_pagination_with_cursor_support(self, mock_service_class, mock_db_session):
@@ -346,7 +346,7 @@ class TestContentEndpointsPagination:
         assert data["pagination"]["prev_cursor"] is not None
         assert data["pagination"]["total_count"] == 1000000
 
-    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Skipped until db-infrastructure setup - requires real database schemas and proper fixture management (Medium-High Effort)")
     @patch('genonaut.api.dependencies.get_database_session')
     @patch('genonaut.api.services.content_service.ContentService')
     def test_pagination_default_values(self, mock_service_class, mock_db_session):
@@ -380,7 +380,7 @@ class TestContentEndpointsPagination:
         assert data["pagination"]["page"] == 1
         assert data["pagination"]["page_size"] == 50
 
-    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     @patch('genonaut.api.dependencies.get_database_session')
     @patch('genonaut.api.services.content_service.ContentService')
     def test_pagination_max_page_size_limit(self, mock_service_class, mock_db_session):
@@ -396,7 +396,7 @@ class TestContentEndpointsPagination:
         # Assert - Should be limited to max allowed (1000)
         assert response.status_code == 422  # Validation error
 
-    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Skipped until db-infrastructure setup - requires real database schemas and proper fixture management (Medium-High Effort)")
     @patch('genonaut.api.dependencies.get_database_session')
     @patch('genonaut.api.services.content_service.ContentService')
     def test_pagination_error_handling(self, mock_service_class, mock_db_session):
@@ -416,7 +416,7 @@ class TestContentEndpointsPagination:
         # Assert
         assert response.status_code == 500
 
-    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     @patch('genonaut.api.dependencies.get_database_session')
     @patch('genonaut.api.services.content_service.ContentService')
     def test_sorting_parameters_in_pagination(self, mock_service_class, mock_db_session):
@@ -456,7 +456,7 @@ class TestContentEndpointsPagination:
         # Verify items are in expected order (highest quality first)
         assert len(data["items"]) == 3
 
-    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Mock architecture issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     @patch('genonaut.api.dependencies.get_database_session')
     @patch('genonaut.api.services.content_service.ContentService')
     def test_backward_compatibility_with_old_parameters(self, mock_service_class, mock_db_session):

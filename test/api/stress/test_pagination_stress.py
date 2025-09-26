@@ -488,7 +488,7 @@ class TestPaginationStress:
         print(f"✓ Deep pagination performance: avg {result['avg_response_time']:.2f}ms, "
               f"degradation {degradation['degradation_factor']:.2f}x")
 
-    @pytest.mark.skip(reason="Data scaling tests - Performance/stress testing (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Performance/stress testing (see notes/issues/by_priority/low/data-scaling-tests.md)")
     def test_concurrent_pagination_load(self, large_db_session):
         """Test pagination performance under concurrent load."""
         # Setup large dataset
@@ -507,7 +507,7 @@ class TestPaginationStress:
         print(f"✓ Concurrent load performance: {result['successful_requests']}/{result['total_requests']} "
               f"success, avg {result['avg_response_time_ms']:.2f}ms")
 
-    @pytest.mark.skip(reason="Data scaling tests - Performance/stress testing and cursor navigation (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Performance/stress testing and cursor navigation (see notes/issues/by_priority/low/data-scaling-tests.md)")
     def test_cursor_pagination_performance(self, large_db_session):
         """Test cursor-based pagination performance and consistency."""
         # Setup large dataset
@@ -529,7 +529,7 @@ class TestPaginationStress:
         print(f"✓ Cursor pagination performance: avg {result['avg_response_time']:.2f}ms, "
               f"CV={consistency['coefficient_of_variation']:.3f}")
 
-    @pytest.mark.skip(reason="Data scaling tests - Performance/stress testing (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Performance/stress testing (see notes/issues/by_priority/low/data-scaling-tests.md)")
     def test_memory_usage_stability(self, large_db_session):
         """Test that memory usage remains stable during extended pagination."""
         # Setup large dataset
@@ -552,7 +552,7 @@ class TestPaginationStress:
 
 @pytest.mark.stress
 @pytest.mark.slow
-@pytest.mark.skip(reason="Data scaling tests - Performance/stress testing (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+@pytest.mark.skip(reason="Data scaling tests - Performance/stress testing (see notes/issues/by_priority/low/data-scaling-tests.md)")
 def test_pagination_performance_benchmarks(large_db_session):
     """Comprehensive benchmark test for pagination performance."""
     print("\n" + "="*80)

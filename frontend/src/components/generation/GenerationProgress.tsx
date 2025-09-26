@@ -16,7 +16,7 @@ import {
   Error as ErrorIcon,
   HourglassEmpty as HourglassIcon,
 } from '@mui/icons-material'
-import { useComfyUIService } from '../../hooks/useComfyUIService'
+import { useGenerationPolling, useCachedComfyUIService } from '../../hooks/useCachedComfyUIService'
 import type { ComfyUIGenerationResponse } from '../../services/comfyui-service'
 
 interface GenerationProgressProps {
@@ -53,53 +53,41 @@ const STATUS_CONFIG = {
 }
 
 export function GenerationProgress({ generation: initialGeneration, onComplete }: GenerationProgressProps) {
-  const [generation, setGeneration] = useState(initialGeneration)
   const [isCancelling, setIsCancelling] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  const { getGeneration, cancelGeneration } = useComfyUIService()
+  const { cancelGeneration } = useCachedComfyUIService()
 
-  // Poll for status updates
+  // Use the polling hook for efficient status updates
+  const {
+    generation,
+    error,
+    isActive,
+  } = useGenerationPolling(initialGeneration.id, true)
+
+  // Call onComplete when generation finishes
   useEffect(() => {
-    if (generation.status === 'completed' || generation.status === 'failed' || generation.status === 'cancelled') {
-      return
+    if (generation && !isActive && generation.status !== initialGeneration.status) {
+      setTimeout(onComplete, 1000) // Give user time to see final status
     }
+  }, [generation, isActive, onComplete, initialGeneration.status])
 
-    const interval = setInterval(async () => {
-      try {
-        const updated = await getGeneration(generation.id)
-        setGeneration(updated)
-
-        if (updated.status === 'completed' || updated.status === 'failed' || updated.status === 'cancelled') {
-          clearInterval(interval)
-          setTimeout(onComplete, 1000) // Give user time to see final status
-        }
-      } catch (err) {
-        console.error('Failed to update generation status:', err)
-        setError(err instanceof Error ? err.message : 'Failed to update status')
-      }
-    }, 2000) // Poll every 2 seconds
-
-    return () => clearInterval(interval)
-  }, [generation.id, generation.status, getGeneration, onComplete])
+  // Use the latest generation data or fall back to initial
+  const currentGeneration = generation || initialGeneration
 
   const handleCancel = async () => {
     setIsCancelling(true)
-    setError(null)
 
     try {
-      await cancelGeneration(generation.id)
-      const updated = await getGeneration(generation.id)
-      setGeneration(updated)
+      await cancelGeneration(currentGeneration.id)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to cancel generation')
+      console.error('Failed to cancel generation:', err)
     } finally {
       setIsCancelling(false)
     }
   }
 
   const getProgressValue = () => {
-    switch (generation.status) {
+    switch (currentGeneration.status) {
       case 'pending':
         return 10
       case 'processing':
@@ -114,8 +102,8 @@ export function GenerationProgress({ generation: initialGeneration, onComplete }
     }
   }
 
-  const statusConfig = STATUS_CONFIG[generation.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending
-  const canCancel = generation.status === 'pending' || generation.status === 'processing'
+  const statusConfig = STATUS_CONFIG[currentGeneration.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending
+  const canCancel = currentGeneration.status === 'pending' || currentGeneration.status === 'processing'
 
   return (
     <Box sx={{ width: '100%' }}>
@@ -151,9 +139,9 @@ export function GenerationProgress({ generation: initialGeneration, onComplete }
       </Box>
 
       {/* Progress Bar */}
-      {(generation.status === 'pending' || generation.status === 'processing') && (
+      {(currentGeneration.status === 'pending' || currentGeneration.status === 'processing') && (
         <LinearProgress
-          variant={generation.status === 'processing' ? 'indeterminate' : 'determinate'}
+          variant={currentGeneration.status === 'processing' ? 'indeterminate' : 'determinate'}
           value={getProgressValue()}
           sx={{ mb: 2, height: 8, borderRadius: 4 }}
         />
@@ -163,65 +151,65 @@ export function GenerationProgress({ generation: initialGeneration, onComplete }
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Stack spacing={1}>
           <Typography variant="body2">
-            <strong>Prompt:</strong> {generation.prompt}
+            <strong>Prompt:</strong> {currentGeneration.prompt}
           </Typography>
 
-          {generation.negative_prompt && (
+          {currentGeneration.negative_prompt && (
             <Typography variant="body2">
-              <strong>Negative Prompt:</strong> {generation.negative_prompt}
+              <strong>Negative Prompt:</strong> {currentGeneration.negative_prompt}
             </Typography>
           )}
 
           <Typography variant="body2">
-            <strong>Model:</strong> {generation.checkpoint_model}
+            <strong>Model:</strong> {currentGeneration.checkpoint_model}
           </Typography>
 
-          {generation.lora_models.length > 0 && (
+          {currentGeneration.lora_models.length > 0 && (
             <Typography variant="body2">
-              <strong>LoRA Models:</strong> {generation.lora_models.map(l => l.name).join(', ')}
+              <strong>LoRA Models:</strong> {currentGeneration.lora_models.map(l => l.name).join(', ')}
             </Typography>
           )}
 
           <Typography variant="body2">
-            <strong>Dimensions:</strong> {generation.width} × {generation.height}
+            <strong>Dimensions:</strong> {currentGeneration.width} × {currentGeneration.height}
           </Typography>
 
           <Typography variant="body2">
-            <strong>Batch Size:</strong> {generation.batch_size}
+            <strong>Batch Size:</strong> {currentGeneration.batch_size}
           </Typography>
 
           <Typography variant="body2">
-            <strong>Created:</strong> {new Date(generation.created_at).toLocaleString()}
+            <strong>Created:</strong> {new Date(currentGeneration.created_at).toLocaleString()}
           </Typography>
 
-          {generation.started_at && (
+          {currentGeneration.started_at && (
             <Typography variant="body2">
-              <strong>Started:</strong> {new Date(generation.started_at).toLocaleString()}
+              <strong>Started:</strong> {new Date(currentGeneration.started_at).toLocaleString()}
             </Typography>
           )}
 
-          {generation.completed_at && (
+          {currentGeneration.completed_at && (
             <Typography variant="body2">
-              <strong>Completed:</strong> {new Date(generation.completed_at).toLocaleString()}
+              <strong>Completed:</strong> {new Date(currentGeneration.completed_at).toLocaleString()}
             </Typography>
           )}
         </Stack>
       </Paper>
 
       {/* Error Message */}
-      {generation.error_message && (
+      {currentGeneration.error_message && (
         <Alert severity="error">
           <Typography variant="body2">
-            <strong>Error:</strong> {generation.error_message}
+            <strong>Error:</strong> {currentGeneration.error_message}
           </Typography>
         </Alert>
       )}
 
       {/* Success Message */}
-      {generation.status === 'completed' && generation.output_paths.length > 0 && (
+      {currentGeneration.status === 'completed' && currentGeneration.output_paths.length > 0 && (
         <Alert severity="success">
           <Typography variant="body2">
-            Generation completed successfully! {generation.output_paths.length} image(s) generated.
+            Generation completed successfully! {currentGeneration.output_paths.length} image(s) generated.
           </Typography>
         </Alert>
       )}

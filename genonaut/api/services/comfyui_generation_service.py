@@ -18,6 +18,9 @@ from genonaut.api.services.workflow_builder import WorkflowBuilder, GenerationRe
 from genonaut.api.services.thumbnail_service import ThumbnailService
 from genonaut.api.services.file_storage_service import FileStorageService
 from genonaut.api.services.model_discovery_service import ModelDiscoveryService
+from genonaut.api.services.error_service import ErrorService, handle_error
+from genonaut.api.services.retry_service import RetryService, with_retry
+from genonaut.api.services.metrics_service import MetricsService, timer
 from genonaut.api.exceptions import ValidationError, EntityNotFoundError, DatabaseError
 from genonaut.api.models.requests import PaginationRequest, ComfyUIModelListRequest
 from genonaut.api.models.responses import PaginatedResponse, AvailableModelListResponse, AvailableModelResponse
@@ -43,6 +46,11 @@ class ComfyUIGenerationService:
         self.thumbnail_service = ThumbnailService()
         self.file_storage_service = FileStorageService()
         self.model_discovery_service = ModelDiscoveryService(db)
+
+        # Enhanced services for monitoring and error handling
+        self.error_service = ErrorService()
+        self.retry_service = RetryService()
+        self.metrics_service = MetricsService()
 
     def create_generation_request(
         self,
@@ -101,12 +109,28 @@ class ComfyUIGenerationService:
                 status='pending'
             )
             self.db.commit()
+
+            # Track metrics
+            self.metrics_service.record_generation_request(str(user_id), "comfyui")
+
             logger.info(f"Created generation request {generation_request.id} for user {user_id}")
             return generation_request
 
         except Exception as e:
             self.db.rollback()
-            logger.error(f"Failed to create generation request for user {user_id}: {str(e)}")
+
+            # Enhanced error handling
+            error_info = self.error_service.handle_error(
+                e,
+                context={
+                    "operation": "create_generation_request",
+                    "user_id": str(user_id),
+                    "checkpoint_model": checkpoint_model
+                },
+                user_id=str(user_id)
+            )
+
+            logger.error(f"Failed to create generation request for user {user_id}: {error_info['user_message']}")
             raise
 
     def submit_to_comfyui(self, generation_request: ComfyUIGenerationRequest) -> str:
@@ -123,53 +147,83 @@ class ComfyUIGenerationService:
             ComfyUIWorkflowError: If workflow submission fails
             ValidationError: If request parameters are invalid
         """
-        try:
-            # Build workflow from request parameters
-            workflow_params = {
-                "prompt": generation_request.prompt,
-                "negative_prompt": generation_request.negative_prompt,
-                "checkpoint_model": generation_request.checkpoint_model,
-                "lora_models": generation_request.lora_models,
-                "width": generation_request.width,
-                "height": generation_request.height,
-                "batch_size": generation_request.batch_size,
-                "sampler_params": generation_request.sampler_params,
-                "filename_prefix": f"gen_{generation_request.id}"
-            }
-
-            workflow = self.workflow_builder.build_workflow_from_dict(workflow_params)
-
-            # Submit to ComfyUI
-            prompt_id = self.comfyui_client.submit_workflow(workflow)
-
-            # Update request with ComfyUI prompt ID and processing status
-            self.repository.update_status(
-                generation_request.id,
-                'processing',
-                comfyui_prompt_id=prompt_id,
-                started_at=datetime.utcnow()
-            )
-            self.db.commit()
-
-            logger.info(
-                f"Submitted generation request {generation_request.id} to ComfyUI with prompt ID {prompt_id}"
-            )
-            return prompt_id
-
-        except Exception as e:
-            # Update request status to failed
+        with timer("submit_to_comfyui", labels={"user": str(generation_request.user_id)}):
             try:
+                # Build workflow from request parameters
+                workflow_params = {
+                    "prompt": generation_request.prompt,
+                    "negative_prompt": generation_request.negative_prompt,
+                    "checkpoint_model": generation_request.checkpoint_model,
+                    "lora_models": generation_request.lora_models,
+                    "width": generation_request.width,
+                    "height": generation_request.height,
+                    "batch_size": generation_request.batch_size,
+                    "sampler_params": generation_request.sampler_params,
+                    "filename_prefix": f"gen_{generation_request.id}"
+                }
+
+                workflow = self.workflow_builder.build_workflow_from_dict(workflow_params)
+
+                # Submit to ComfyUI with retry logic
+                retry_config = self.retry_service.create_config("comfyui_connection", max_attempts=3)
+
+                def submit_workflow():
+                    return self.comfyui_client.submit_workflow(workflow)
+
+                prompt_id = self.retry_service.retry_sync(
+                    submit_workflow,
+                    retry_config,
+                    f"submit_workflow_request_{generation_request.id}"
+                )
+
+                # Update request with ComfyUI prompt ID and processing status
                 self.repository.update_status(
                     generation_request.id,
-                    'failed',
-                    error_message=str(e)
+                    'processing',
+                    comfyui_prompt_id=prompt_id,
+                    started_at=datetime.utcnow()
                 )
                 self.db.commit()
-            except Exception as db_error:
-                logger.error(f"Failed to update request status after ComfyUI error: {str(db_error)}")
 
-            logger.error(f"Failed to submit generation request {generation_request.id}: {str(e)}")
-            raise
+                logger.info(
+                    f"Submitted generation request {generation_request.id} to ComfyUI with prompt ID {prompt_id}"
+                )
+                return prompt_id
+
+            except Exception as e:
+                # Enhanced error handling and metrics
+                error_info = self.error_service.handle_error(
+                    e,
+                    context={
+                        "operation": "submit_to_comfyui",
+                        "generation_request_id": generation_request.id,
+                        "checkpoint_model": generation_request.checkpoint_model
+                    },
+                    user_id=str(generation_request.user_id)
+                )
+
+                # Update request status to failed
+                try:
+                    self.repository.update_status(
+                        generation_request.id,
+                        'failed',
+                        error_message=error_info.get('user_message', str(e))
+                    )
+                    self.db.commit()
+
+                    # Track failed generation
+                    self.metrics_service.record_generation_completion(
+                        str(generation_request.user_id),
+                        success=False,
+                        duration=0,
+                        error_type=type(e).__name__
+                    )
+
+                except Exception as db_error:
+                    logger.error(f"Failed to update request status after ComfyUI error: {str(db_error)}")
+
+                logger.error(f"Failed to submit generation request {generation_request.id}: {error_info.get('user_message', str(e))}")
+                raise
 
     def check_generation_status(self, generation_request: ComfyUIGenerationRequest) -> Dict[str, Any]:
         """Check the status of a generation request in ComfyUI.

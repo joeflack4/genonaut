@@ -148,7 +148,7 @@ class TestCursorBasedPagination:
             first_cursor_item = cursor_result.items[0]
             assert first_cursor_item.created_at < last_item_first_page.created_at
 
-    @pytest.mark.skip(reason="Data scaling tests - Cursor bidirectional navigation issues (see scratchpads/issues/by_priority/low/data-scaling-tests.md)")
+    @pytest.mark.skip(reason="Data scaling tests - Cursor bidirectional navigation issues (see notes/issues/by_priority/low/data-scaling-tests.md)")
     def test_cursor_pagination_bidirectional_navigation(self, db_session: Session,
                                                        sample_content_large: List[ContentItem]):
         """Test bidirectional navigation with cursors."""

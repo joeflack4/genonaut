@@ -1,5 +1,26 @@
-# ComfyUI Integration Implementation Tasks
+ComfyUI Integration Implementation Tasks
 
+# Incomplete phases
+## Phase 3: Worker Queue Integration (@dev: Choose worker system)
+### Async Processing Setup
+- [ ] Install and configure worker system (Ray/Celery/Kafka)
+- [ ] Create worker task definitions
+  - [ ] Generation processing task
+  - [ ] Status polling task
+  - [ ] Result retrieval task
+  - [ ] Cleanup/timeout tasks
+- [ ] Update GenerationService to use async workers
+  - [ ] Queue generation requests
+  - [ ] Handle worker status updates
+  - [ ] Process worker results
+- [ ] Add worker monitoring and error recovery
+- [ ] Write worker integration tests
+  - [ ] Test task queuing and execution
+  - [ ] Test failure scenarios and retries
+  - [ ] Test worker scaling behavior
+
+
+# Completed phases
 ## Phase 1: Backend Foundation
 
 ### Database Models & Migrations
@@ -86,25 +107,6 @@
   - [x] Mock service layer dependencies
   - [x] Test request/response validation
   - [x] Test error handling and status codes
-
-## Phase 3: Worker Queue Integration (@dev: Choose worker system)
-
-### Async Processing Setup
-- [ ] Install and configure worker system (Ray/Celery/Kafka)
-- [ ] Create worker task definitions
-  - [ ] Generation processing task
-  - [ ] Status polling task
-  - [ ] Result retrieval task
-  - [ ] Cleanup/timeout tasks
-- [ ] Update GenerationService to use async workers
-  - [ ] Queue generation requests
-  - [ ] Handle worker status updates
-  - [ ] Process worker results
-- [ ] Add worker monitoring and error recovery
-- [ ] Write worker integration tests
-  - [ ] Test task queuing and execution
-  - [ ] Test failure scenarios and retries
-  - [ ] Test worker scaling behavior
 
 ## Phase 4: Frontend Implementation
 
@@ -244,93 +246,3 @@
   - [x] Model discovery and refresh
 - [x] Add model validation and health checks
 - [x] Write model management tests
-
-### Performance & Optimization
-- [ ] Add database query optimization
-  - [ ] Add proper indexes for common queries
-  - [ ] Optimize pagination queries
-  - [ ] Add query result caching
-- [ ] Frontend performance optimization
-  - [ ] Image lazy loading
-  - [ ] Virtual scrolling for large lists
-  - [ ] Query caching and background updates
-- [ ] Write performance tests
-  - [ ] Load testing for concurrent generations
-  - [ ] Database query performance tests
-  - [ ] Frontend rendering performance tests
-
-### Error Handling & Monitoring
-- [ ] Add comprehensive error handling
-  - [ ] User-friendly error messages
-  - [ ] Automatic retry logic
-  - [ ] Error reporting and logging
-- [ ] Add monitoring and metrics
-  - [ ] Generation success/failure rates
-  - [ ] Performance metrics and alerts
-  - [ ] User activity tracking
-- [ ] Write error handling tests
-  - [ ] Test various failure scenarios
-  - [ ] Test error recovery mechanisms
-  - [ ] Test user experience during errors
-
-## Phase 7: Production Readiness
-
-### Security & Validation
-- [ ] Add input validation and sanitization
-  - [ ] Prompt content filtering
-  - [ ] File path validation
-  - [ ] Rate limiting per user
-- [ ] Add security headers and CORS
-- [ ] Write security tests
-  - [ ] Test input validation boundaries
-  - [ ] Test authentication edge cases
-  - [ ] Test file access controls
-
-### Documentation & Deployment
-- [ ] Update API documentation
-  - [ ] OpenAPI schema for generation endpoints
-  - [ ] Usage examples and tutorials
-- [ ] Add deployment configuration
-  - [ ] Docker setup for ComfyUI integration
-  - [ ] Environment variable configuration
-  - [ ] Production database migrations
-- [ ] Write deployment tests
-  - [ ] Test deployment scripts
-  - [ ] Test configuration management
-  - [ ] Test service health checks
-
-### Integration Testing & QA
-- [ ] End-to-end integration tests
-  - [ ] Test complete user workflows
-  - [ ] Test ComfyUI integration (@dev: requires ComfyUI instance)
-  - [ ] Test worker queue integration
-- [ ] Performance testing
-  - [ ] Load testing with multiple concurrent users
-  - [ ] Memory usage and leak testing
-  - [ ] Database performance under load
-- [ ] User acceptance testing (@dev)
-  - [ ] Manual testing of complete workflows
-  - [ ] UI/UX feedback and improvements
-  - [ ] Performance validation
-
-## Configuration & Dependencies (@dev Tasks)
-
-### Environment Setup
-- [ ] @dev Install and configure ComfyUI instance
-- [ ] @dev Determine ComfyUI output directory paths
-- [ ] @dev Configure ComfyUI models directory
-- [ ] @dev Set up worker queue system (Ray/Celery/Kafka)
-- [ ] @dev Configure production image storage (local/AWS S3)
-
-### Infrastructure Decisions
-- [ ] @dev Choose worker queue technology
-- [ ] @dev Decide on ComfyUI instance architecture (single/multiple)
-- [ ] @dev Configure rate limiting and resource constraints
-- [ ] @dev Set up monitoring and alerting systems
-- [ ] @dev Plan backup and disaster recovery for generated images
-
-### Model Management Strategy
-- [ ] @dev Decide on model discovery vs manual registration
-- [ ] @dev Set up model validation and security scanning
-- [ ] @dev Configure model storage and organization
-- [ ] @dev Plan model updates and versioning strategy

@@ -1,7 +1,6 @@
 import {
   Card,
   CardContent,
-  CardMedia,
   CardActions,
   Typography,
   Chip,
@@ -15,6 +14,7 @@ import {
   Delete as DeleteIcon,
   Image as ImageIcon,
 } from '@mui/icons-material'
+import { LazyImage } from '../common/LazyImage'
 import type { ComfyUIGenerationResponse } from '../../services/comfyui-service'
 
 interface GenerationCardProps {
@@ -46,19 +46,36 @@ export function GenerationCard({ generation, onView, onDelete }: GenerationCardP
       {/* Image or Placeholder */}
       <Box sx={{ position: 'relative', paddingTop: '56.25%' }}> {/* 16:9 aspect ratio */}
         {thumbnailPath ? (
-          <CardMedia
-            component="img"
-            image={thumbnailPath}
-            alt={`Generated image: ${truncateText(generation.prompt, 50)}`}
+          <Box
             sx={{
               position: 'absolute',
               top: 0,
               left: 0,
               width: '100%',
               height: '100%',
-              objectFit: 'cover',
             }}
-          />
+          >
+            <LazyImage
+              src={thumbnailPath}
+              alt={`Generated image: ${truncateText(generation.prompt, 50)}`}
+              objectFit="cover"
+              placeholder={
+                <Box
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    bgcolor: 'grey.100',
+                    color: 'grey.400',
+                  }}
+                >
+                  <ImageIcon sx={{ fontSize: 48 }} />
+                </Box>
+              }
+            />
+          </Box>
         ) : (
           <Box
             sx={{

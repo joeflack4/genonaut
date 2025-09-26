@@ -9,6 +9,7 @@ from requests.exceptions import RequestException, ConnectionError, Timeout
 
 from genonaut.api.config import get_settings
 from genonaut.api.exceptions import ValidationError
+from genonaut.api.services.cache_service import ComfyUICacheService
 
 
 class ComfyUIConnectionError(Exception):
@@ -34,6 +35,7 @@ class ComfyUIClient:
         self.timeout = self.settings.comfyui_timeout
         self.poll_interval = self.settings.comfyui_poll_interval
         self.session = requests.Session()
+        self.cache_service = ComfyUICacheService()
 
     def health_check(self) -> bool:
         """Check if ComfyUI server is accessible.
@@ -41,13 +43,37 @@ class ComfyUIClient:
         Returns:
             True if server is accessible, False otherwise
         """
+        # Try to get from cache first
+        cached_health = self.cache_service.get_comfyui_health()
+        if cached_health is not None:
+            return cached_health.get('is_healthy', False)
+
+        # Perform actual health check
         try:
             response = self.session.get(
                 f"{self.base_url}/system_stats",
                 timeout=5
             )
-            return response.status_code == 200
-        except RequestException:
+            is_healthy = response.status_code == 200
+
+            # Cache the health status
+            health_status = {
+                'is_healthy': is_healthy,
+                'checked_at': time.time(),
+                'status_code': response.status_code if is_healthy else None
+            }
+            self.cache_service.set_comfyui_health(health_status)
+
+            return is_healthy
+
+        except RequestException as e:
+            # Cache the failure status
+            health_status = {
+                'is_healthy': False,
+                'checked_at': time.time(),
+                'error': str(e)
+            }
+            self.cache_service.set_comfyui_health(health_status)
             return False
 
     def submit_workflow(self, workflow: Dict[str, Any], client_id: Optional[str] = None) -> str:

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Box,
   Grid,
@@ -13,61 +13,61 @@ import {
   Alert,
   CircularProgress,
   IconButton,
+  Switch,
+  FormControlLabel,
 } from '@mui/material'
 import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material'
 import { GenerationCard } from './GenerationCard'
 import { ImageViewer } from './ImageViewer'
-import { useComfyUIService } from '../../hooks/useComfyUIService'
+import { VirtualScrollList } from '../common/VirtualScrollList'
+import { useGenerationsList } from '../../hooks/useCachedComfyUIService'
 import type { ComfyUIGenerationResponse, ComfyUIGenerationListParams } from '../../services/comfyui-service'
 
 export function GenerationHistory() {
-  const [generations, setGenerations] = useState<ComfyUIGenerationResponse[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedGeneration, setSelectedGeneration] = useState<ComfyUIGenerationResponse | null>(null)
   const [viewerOpen, setViewerOpen] = useState(false)
+  const [useVirtualScrolling, setUseVirtualScrolling] = useState(false)
 
-  const { listGenerations } = useComfyUIService()
-  const pageSize = 12
+  const pageSize = useVirtualScrolling ? 100 : 12 // Load more items when using virtual scrolling
 
-  useEffect(() => {
-    loadGenerations()
-  }, [page, statusFilter])
-
-  const loadGenerations = async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      const params: ComfyUIGenerationListParams = {
-        page,
-        page_size: pageSize,
-        user_id: 'demo-user', // TODO: Get from auth context
-      }
-
-      if (statusFilter) {
-        params.status = statusFilter
-      }
-
-      const response = await listGenerations(params)
-      setGenerations(response.items)
-      setTotalPages(Math.ceil(response.pagination.total_count / pageSize))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load generations')
-    } finally {
-      setLoading(false)
+  // Build query parameters
+  const queryParams = useMemo((): ComfyUIGenerationListParams => {
+    const params: ComfyUIGenerationListParams = {
+      page,
+      page_size: pageSize,
+      user_id: 'demo-user', // TODO: Get from auth context
     }
-  }
+
+    if (statusFilter) {
+      params.status = statusFilter
+    }
+
+    return params
+  }, [page, pageSize, statusFilter])
+
+  // Use cached generations list
+  const {
+    data: generationsResponse,
+    loading,
+    error,
+    refetch,
+  } = useGenerationsList(queryParams)
+
+  // Derived state - wrap generations in useMemo to prevent re-renders
+  const generations = useMemo(() => {
+    return generationsResponse?.items || []
+  }, [generationsResponse?.items])
+
+  const totalPages = generationsResponse ? Math.ceil(generationsResponse.pagination.total_count / pageSize) : 1
 
   const handleRefresh = () => {
     setPage(1)
-    loadGenerations()
+    refetch()
   }
 
   const handleStatusFilterChange = (status: string) => {
@@ -85,10 +85,23 @@ export function GenerationHistory() {
     console.log('Delete generation:', id)
   }
 
-  const filteredGenerations = generations.filter(gen =>
-    searchTerm === '' ||
-    gen.prompt.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    gen.checkpoint_model.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredGenerations = useMemo(() => {
+    return generations.filter(gen =>
+      searchTerm === '' ||
+      gen.prompt.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      gen.checkpoint_model.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [generations, searchTerm])
+
+  // Render generation card for virtual scrolling
+  const renderGenerationCard = (generation: ComfyUIGenerationResponse) => (
+    <Box sx={{ p: 1 }}>
+      <GenerationCard
+        generation={generation}
+        onView={() => handleViewGeneration(generation)}
+        onDelete={() => handleDeleteGeneration(generation.id)}
+      />
+    </Box>
   )
 
   if (loading && generations.length === 0) {
@@ -112,7 +125,7 @@ export function GenerationHistory() {
       )}
 
       {/* Filters and Controls */}
-      <Box display="flex" alignItems="center" gap={2} sx={{ mb: 3 }}>
+      <Box display="flex" alignItems="center" gap={2} sx={{ mb: 3, flexWrap: 'wrap' }}>
         <TextField
           size="small"
           label="Search"
@@ -138,6 +151,18 @@ export function GenerationHistory() {
           </Select>
         </FormControl>
 
+        <FormControlLabel
+          control={
+            <Switch
+              checked={useVirtualScrolling}
+              onChange={(e) => setUseVirtualScrolling(e.target.checked)}
+              size="small"
+            />
+          }
+          label="Virtual Scrolling"
+          sx={{ ml: 1 }}
+        />
+
         <IconButton onClick={handleRefresh} disabled={loading}>
           <RefreshIcon />
         </IconButton>
@@ -146,21 +171,30 @@ export function GenerationHistory() {
       {/* Generation Grid */}
       {filteredGenerations.length > 0 ? (
         <>
-          <Grid container spacing={2}>
-            {filteredGenerations.map((generation) => (
-              // @ts-ignore
-              <Grid item xs={12} sm={6} md={4} lg={3} key={generation.id}>
-                <GenerationCard
-                  generation={generation}
-                  onView={() => handleViewGeneration(generation)}
-                  onDelete={() => handleDeleteGeneration(generation.id)}
-                />
-              </Grid>
-            ))}
-          </Grid>
+          {useVirtualScrolling ? (
+            <VirtualScrollList
+              items={filteredGenerations}
+              itemHeight={300} // Approximate height of a generation card
+              containerHeight={600} // Fixed height for virtual scrolling
+              renderItem={renderGenerationCard}
+              overscan={3}
+            />
+          ) : (
+            <Grid container spacing={2}>
+              {filteredGenerations.map((generation) => (
+                <Grid key={generation.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
+                  <GenerationCard
+                    generation={generation}
+                    onView={() => handleViewGeneration(generation)}
+                    onDelete={() => handleDeleteGeneration(generation.id)}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
+          {/* Pagination - only show for non-virtual scrolling */}
+          {!useVirtualScrolling && totalPages > 1 && (
             <Box display="flex" justifyContent="center" sx={{ mt: 4 }}>
               <Pagination
                 count={totalPages}
