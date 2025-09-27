@@ -383,15 +383,22 @@ migrate-prep:
 	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic revision --autogenerate -m "$(m)"
 
 
+# Function to run alembic upgrade with extensions check
+# Usage: $(call run-migration,DATABASE_URL,[ENVIRONMENT])
+define run-migration
+	@python -m genonaut.db.schema_extensions install $(1)
+	@echo "📦 Running database migration..."
+	@$(if $(2),GENONAUT_DB_ENVIRONMENT=$(2) DATABASE_URL=$(1) DATABASE_URL_TEST=$(1),DATABASE_URL=$(1)) ALEMBIC_SQLALCHEMY_URL=$(1) alembic upgrade head
+endef
+
 migrate-dev:
-	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL} DATABASE_URL=${DATABASE_URL} alembic upgrade head
+	$(call run-migration,${DATABASE_URL})
 
 migrate-demo:
-	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic upgrade head
+	$(call run-migration,${DATABASE_URL_DEMO})
 
 migrate-test:
-	@TEST_URL=${DATABASE_URL_TEST:-${DATABASE_URL}}; \
-	GENONAUT_DB_ENVIRONMENT=test DATABASE_URL=$$TEST_URL DATABASE_URL_TEST=$$TEST_URL ALEMBIC_SQLALCHEMY_URL=$$TEST_URL alembic upgrade head
+	$(call run-migration,${DATABASE_URL_TEST:-${DATABASE_URL}},test)
 
 migrate-down-dev:
 	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL} DATABASE_URL=${DATABASE_URL} alembic downgrade -1

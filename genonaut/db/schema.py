@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Optional, Union, Tuple
 from sqlalchemy import (
     Column, Integer, String, Text, DateTime, Float, Boolean,
-    ForeignKey, JSON, UniqueConstraint, Index, event, func, literal_column,
+    ForeignKey, JSON, UniqueConstraint, Index, event, func, literal_column, DDL,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship, declarative_base, declared_attr
@@ -143,6 +143,14 @@ class ContentItem(ContentItemColumns, Base):
                 postgresql_using="gin",
                 info={"postgres_only": True},
             ),
+            # GiST trigram index for title similarity searches (CRITICAL for content similarity)
+            Index(
+                "idx_content_items_title_gist",
+                cls.title,
+                postgresql_using="gist",
+                postgresql_ops={"title": "gist_trgm_ops"},
+                info={"postgres_only": True},
+            ),
             # Pagination optimization indexes
             Index("idx_content_items_created_at_desc", cls.created_at.desc()),
             Index("idx_content_items_creator_created", cls.creator_id, cls.created_at.desc()),
@@ -180,6 +188,14 @@ class ContentItemAuto(ContentItemColumns, Base):
                     func.coalesce(cls.title, ""),
                 ),
                 postgresql_using="gin",
+                info={"postgres_only": True},
+            ),
+            # GiST trigram index for title similarity searches (CRITICAL for content similarity)
+            Index(
+                "idx_content_items_auto_title_gist",
+                cls.title,
+                postgresql_using="gist",
+                postgresql_ops={"title": "gist_trgm_ops"},
                 info={"postgres_only": True},
             ),
             # Pagination optimization indexes
@@ -329,6 +345,14 @@ class GenerationJob(Base):
             postgresql_using="gin",
             info={"postgres_only": True},
         ),
+        # GiST trigram index for prompt similarity searches (HIGHEST PRIORITY - billions of rows)
+        Index(
+            "idx_generation_jobs_prompt_gist",
+            prompt,
+            postgresql_using="gist",
+            postgresql_ops={"prompt": "gist_trgm_ops"},
+            info={"postgres_only": True},
+        ),
         # Pagination optimization indexes
         Index("idx_generation_jobs_created_at_desc", created_at.desc()),
         Index("idx_generation_jobs_user_created", user_id, created_at.desc()),
@@ -364,6 +388,41 @@ def _restore_non_postgres_indexes(metadata, _connection, **_) -> None:
         pending = table.info.pop("_postgres_only_indexes", None)
         if pending:
             table.indexes.update(pending)
+
+
+def ensure_pg_trgm_extension(engine) -> None:
+    """Ensure pg_trgm extension is installed (PostgreSQL only).
+
+    This function can be called during database initialization to ensure
+    the trigram extension is available before creating indexes.
+    Safe to call multiple times (idempotent).
+    """
+    if engine.dialect.name == "postgresql":
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
+
+
+def ensure_trigram_indexes(engine) -> None:
+    """Ensure all trigram indexes are created (PostgreSQL only).
+
+    This function creates all GiST trigram indexes defined in the models.
+    Safe to call multiple times (idempotent).
+    """
+    if engine.dialect.name == "postgresql":
+        # Get all tables that have trigram indexes
+        for table in Base.metadata.tables.values():
+            for index in table.indexes:
+                # Check if this is a GiST trigram index
+                if (hasattr(index, 'kwargs') and
+                    index.kwargs.get('postgresql_using') == 'gist' and
+                    index.kwargs.get('postgresql_ops') and
+                    any('gist_trgm_ops' in str(op) for op in index.kwargs.get('postgresql_ops', {}).values())):
+                    try:
+                        index.create(bind=engine, checkfirst=True)
+                    except Exception as e:
+                        # Log but don't fail - the index might already exist or be created by other means
+                        print(f"Note: Could not create trigram index {index.name}: {e}")
 
 
 class AvailableModel(Base):
@@ -459,6 +518,22 @@ class ComfyUIGenerationRequest(Base):
             postgresql_using="gin",
             info={"postgres_only": True},
         ),
+        # GiST trigram index for prompt similarity searches (CRITICAL - billions of rows expected)
+        Index(
+            "idx_comfyui_gen_prompt_gist",
+            prompt,
+            postgresql_using="gist",
+            postgresql_ops={"prompt": "gist_trgm_ops"},
+            info={"postgres_only": True},
+        ),
+        # GiST trigram index for negative prompt similarity searches
+        Index(
+            "idx_comfyui_gen_negative_prompt_gist",
+            negative_prompt,
+            postgresql_using="gist",
+            postgresql_ops={"negative_prompt": "gist_trgm_ops"},
+            info={"postgres_only": True},
+        ),
         # Pagination optimization indexes
         Index("idx_comfyui_gen_created_at_desc", created_at.desc()),
         Index("idx_comfyui_gen_user_created", user_id, created_at.desc()),
@@ -473,7 +548,16 @@ class ComfyUIGenerationRequest(Base):
     )
 
 
+# Event listeners for PostgreSQL-specific functionality
 event.listen(Base.metadata, "before_create", _strip_non_postgres_indexes)
 event.listen(Base.metadata, "after_create", _restore_non_postgres_indexes)
 event.listen(Base.metadata, "before_drop", _strip_non_postgres_indexes)
 event.listen(Base.metadata, "after_drop", _restore_non_postgres_indexes)
+
+# Ensure pg_trgm extension is installed before creating any tables/indexes (PostgreSQL only)
+# This is required for GiST trigram indexes to work
+event.listen(
+    Base.metadata,
+    "before_create",
+    DDL("CREATE EXTENSION IF NOT EXISTS pg_trgm").execute_if(dialect="postgresql")
+)

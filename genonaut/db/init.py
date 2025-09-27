@@ -21,7 +21,8 @@ from sqlalchemy.orm import sessionmaker, Session
 from alembic import command
 from alembic.config import Config
 
-from genonaut.db.schema import Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob, ContentItemAuto
+from genonaut.db.schema import Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob, ContentItemAuto, ensure_pg_trgm_extension, ensure_trigram_indexes
+from genonaut.db.schema_extensions import install_extensions
 
 
 from genonaut.db.utils import get_database_url, resolve_database_environment
@@ -338,31 +339,33 @@ class DatabaseInitializer:
     
     def enable_extensions(self) -> None:
         """Enable required PostgreSQL extensions.
-        
-        Enables extensions needed for JSONB GIN indexes and other features.
-        
+
+        Uses the centralized extension management system to ensure all required
+        extensions are installed, including those needed for GIN and GiST indexes.
+
         Raises:
             SQLAlchemyError: If extension enabling fails
         """
         if not self.engine:
             raise ValueError("Engine not initialized. Call create_engine_and_session() first.")
-        
+
         # Skip if not PostgreSQL
         if not self.database_url.startswith('postgresql://'):
             return
-        
-        extensions = [
-            'btree_gin',  # For GIN indexes on JSONB
-        ]
-        
+
         try:
-            with self.engine.connect() as conn:
-                for extension in extensions:
-                    conn.execute(text(f"CREATE EXTENSION IF NOT EXISTS {extension}"))
-                    conn.commit()
-                    print(f"Enabled extension: {extension}")
+            # Use the centralized extension installation system
+            success = install_extensions(self.database_url)
+            if not success:
+                raise SQLAlchemyError("Failed to install required PostgreSQL extensions")
+
+            # Additional safety check for pg_trgm
+            ensure_pg_trgm_extension(self.engine)
+
         except SQLAlchemyError as e:
             raise SQLAlchemyError(f"Failed to enable extensions: {e}")
+        except Exception as e:
+            raise SQLAlchemyError(f"Unexpected error enabling extensions: {e}")
     
     def _create_gin_indexes_for_schema(self, conn, schema_name: Optional[str] = None) -> None:
         """Create GIN indexes for JSONB columns in the specified schema (PostgreSQL only)."""
@@ -447,6 +450,16 @@ class DatabaseInitializer:
                         # If GIN index creation fails, rollback and continue without them
                         conn.rollback()
                         print(f"Warning: GIN index creation failed, continuing without them: {e}")
+
+                    # Create trigram indexes for text similarity (PostgreSQL only)
+                    try:
+                        conn.execute(text(f"SET search_path TO {schema_name}, public"))
+                        ensure_trigram_indexes(self.engine)
+                        conn.commit()
+                    except Exception as e:
+                        # If trigram index creation fails, rollback and continue without them
+                        conn.rollback()
+                        print(f"Warning: Trigram index creation failed, continuing without them: {e}")
                     
                     # Reset search path in a new transaction
                     try:
@@ -461,7 +474,7 @@ class DatabaseInitializer:
                 # SQLite or default: Create tables in default schema
                 Base.metadata.create_all(self.engine)
                 
-                # For PostgreSQL without schemas, still create GIN indexes
+                # For PostgreSQL without schemas, still create GIN indexes and trigram indexes
                 if self.database_url.startswith('postgresql://'):
                     with self.engine.connect() as conn:
                         try:
@@ -470,6 +483,13 @@ class DatabaseInitializer:
                         except Exception as e:
                             conn.rollback()
                             print(f"Warning: GIN index creation failed, continuing without them: {e}")
+
+                        try:
+                            ensure_trigram_indexes(self.engine)
+                            conn.commit()
+                        except Exception as e:
+                            conn.rollback()
+                            print(f"Warning: Trigram index creation failed, continuing without them: {e}")
                 
                 if schema_name:
                     print(f"Database tables created successfully (SQLite doesn't support schemas)")
