@@ -30,16 +30,16 @@ describe('useRecommendations', () => {
     )
 
     const recommendations = [
-      { id: 1, userId: 1, contentId: 42, algorithm: 'collaborative', score: 0.9, servedAt: null, createdAt: '2024-01-01' },
+      { id: 1, userId: '121e194b-4caa-4b81-ad4f-86ca3919d5b9', contentId: 42, algorithm: 'collaborative', score: 0.9, servedAt: null, createdAt: '2024-01-01' },
     ]
 
     getRecommendationsMock.mockResolvedValue(recommendations)
 
-    const { result } = renderHook(() => useRecommendations(1), { wrapper })
+    const { result } = renderHook(() => useRecommendations('121e194b-4caa-4b81-ad4f-86ca3919d5b9'), { wrapper })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(getRecommendationsMock).toHaveBeenCalledWith("1")
+    expect(getRecommendationsMock).toHaveBeenCalledWith('121e194b-4caa-4b81-ad4f-86ca3919d5b9')
     expect(result.current.data).toEqual(recommendations)
   })
 
@@ -49,7 +49,7 @@ describe('useRecommendations', () => {
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     )
 
-    const { result } = renderHook(() => useRecommendations(1, false), { wrapper })
+    const { result } = renderHook(() => useRecommendations('121e194b-4caa-4b81-ad4f-86ca3919d5b9', false), { wrapper })
 
     expect(result.current.isLoading).toBe(false)
     expect(getRecommendationsMock).not.toHaveBeenCalled()

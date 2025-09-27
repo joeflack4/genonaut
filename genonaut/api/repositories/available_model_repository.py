@@ -105,7 +105,7 @@ class AvailableModelRepository(BaseRepository[AvailableModel, Dict[str, Any], Di
             List of model records
         """
         query = self.db.query(AvailableModel).filter(
-            AvailableModel.model_type == model_type
+            AvailableModel.type == model_type
         )
 
         if active_only:
@@ -128,7 +128,7 @@ class AvailableModelRepository(BaseRepository[AvailableModel, Dict[str, Any], Di
         if active_only:
             query = query.filter(AvailableModel.is_active == True)
 
-        return query.order_by(AvailableModel.model_type, AvailableModel.name).all()
+        return query.order_by(AvailableModel.type, AvailableModel.name).all()
 
     def search_models(
         self,
@@ -151,7 +151,7 @@ class AvailableModelRepository(BaseRepository[AvailableModel, Dict[str, Any], Di
         )
 
         if model_type:
-            query = query.filter(AvailableModel.model_type == model_type)
+            query = query.filter(AvailableModel.type == model_type)
 
         if active_only:
             query = query.filter(AvailableModel.is_active == True)
@@ -164,7 +164,7 @@ class AvailableModelRepository(BaseRepository[AvailableModel, Dict[str, Any], Di
         Returns:
             List of model type strings
         """
-        result = self.db.query(AvailableModel.model_type.distinct()).all()
+        result = self.db.query(AvailableModel.type.distinct()).all()
         return [row[0] for row in result]
 
     def get_models_count_by_type(self, active_only: bool = True) -> dict:
@@ -177,14 +177,14 @@ class AvailableModelRepository(BaseRepository[AvailableModel, Dict[str, Any], Di
             Dictionary mapping model types to counts
         """
         query = self.db.query(
-            AvailableModel.model_type,
+            AvailableModel.type,
             func.count(AvailableModel.id).label('count')
         )
 
         if active_only:
             query = query.filter(AvailableModel.is_active == True)
 
-        result = query.group_by(AvailableModel.model_type).all()
+        result = query.group_by(AvailableModel.type).all()
         return {model_type: count for model_type, count in result}
 
     def update_model_status(self, model_id: int, is_active: bool) -> bool:

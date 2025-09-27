@@ -12,7 +12,7 @@ vi.mock('../../../hooks', () => {
   return {
     useRecommendations,
     useServeRecommendation,
-    useCurrentUser: () => ({ data: { id: 1, name: 'Admin' }, isLoading: false }),
+    useCurrentUser: () => ({ data: { id: '121e194b-4caa-4b81-ad4f-86ca3919d5b9', name: 'Admin' }, isLoading: false }),
   }
 })
 
@@ -43,7 +43,7 @@ describe('RecommendationsPage', () => {
       data: [
         {
           id: 7,
-          userId: 1,
+          userId: '121e194b-4caa-4b81-ad4f-86ca3919d5b9',
           contentId: 42,
           algorithm: 'collaborative',
           score: 0.82,
