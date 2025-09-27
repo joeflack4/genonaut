@@ -1,0 +1,273 @@
+=== TAG PATTERN ANALYSIS ===
+
+LINGUISTIC PATTERNS:
+
+COMPOUND_TERMS:
+  3d-render (freq: 1425)
+  bird's-eye (freq: 1447)
+  cel-shaded (freq: 1391)
+  cinematic-framing (freq: 1417)
+  close-up (freq: 1422)
+  concept-art (freq: 1412)
+  digital-painting (freq: 1416)
+  editorial-style (freq: 1416)
+  hand-drawn (freq: 1401)
+  hard-light (freq: 1441)
+  high-detail (freq: 1421)
+  line-art (freq: 1428)
+  logo-ready (freq: 1416)
+  low-poly (freq: 1414)
+  magazine-cover (freq: 1406)
+  minimalist-typography (freq: 1396)
+  mixed-media (freq: 1399)
+  oil-painting (freq: 1416)
+  pixel-art (freq: 1402)
+  poster-style (freq: 1418)
+  sci-fi (freq: 1408)
+  soft-light (freq: 1414)
+  still-life (freq: 1432)
+  surreal-collage (freq: 1429)
+  tilt-shift (freq: 1420)
+  top-down (freq: 1410)
+  wide-angle (freq: 1421)
+  worm's-eye (freq: 1417)
+
+DIMENSIONAL_TERMS:
+  2d (freq: 1418)
+  3d (freq: 1373)
+
+QUALITY_TERMS:
+  4k (freq: 1419)
+  8k (freq: 1436)
+  hdr (freq: 1425)
+
+TECHNIQUE_SUFFIXES:
+  cel-shaded (freq: 1391)
+  cinematic-framing (freq: 1417)
+  concept-art (freq: 1412)
+  digital-painting (freq: 1416)
+  editorial-style (freq: 1416)
+  hard-light (freq: 1441)
+  line-art (freq: 1428)
+  oil-painting (freq: 1416)
+  pixel-art (freq: 1402)
+  poster-style (freq: 1418)
+  soft-light (freq: 1414)
+
+MATERIAL_TERMS:
+  acrylic (freq: 1447)
+  chalk (freq: 1387)
+  charcoal (freq: 1396)
+  crayon (freq: 1398)
+  inked (freq: 1430)
+  marker (freq: 1407)
+
+PERSPECTIVE_TERMS:
+  bird's-eye (freq: 1447)
+  close-up (freq: 1422)
+  top-down (freq: 1410)
+  worm's-eye (freq: 1417)
+
+STYLE_ADJECTIVES:
+  elegant (freq: 1424)
+  futuristic (freq: 1409)
+  gothic (freq: 1424)
+  minimalism (freq: 1428)
+  modern (freq: 1408)
+  ornate (freq: 1422)
+  vintage (freq: 1411)
+
+COLOR_MOOD_TERMS:
+  bright (freq: 1417)
+  colorful (freq: 1419)
+  cool (freq: 1432)
+  dark (freq: 1399)
+  monochrome (freq: 1411)
+  pastel (freq: 1600)
+  vibrant (freq: 1450)
+  warm (freq: 1389)
+
+GENRE_TERMS:
+  action (freq: 1413)
+  anime (freq: 1410)
+  fantasy (freq: 1439)
+  horror (freq: 1417)
+
+SINGLE_WORDS:
+  abstract (freq: 1406)
+  asymmetrical (freq: 1425)
+  atmospheric (freq: 1405)
+  cinematic (freq: 1419)
+  collage (freq: 1417)
+  decorative (freq: 1418)
+  dreamy (freq: 1393)
+  dynamic (freq: 1414)
+  editorial (freq: 1416)
+  ethereal (freq: 1408)
+  experimental (freq: 1409)
+  expressive (freq: 1415)
+  fisheye (freq: 1405)
+  flat (freq: 1423)
+  glitch (freq: 1440)
+  glossy (freq: 1411)
+  gritty (freq: 1396)
+  illustration (freq: 1415)
+  installation (freq: 1433)
+  isometric (freq: 1428)
+  macro (freq: 1398)
+  matte (freq: 1447)
+  moody (freq: 1594)
+  mystical (freq: 1430)
+  neon (freq: 1422)
+  overhead (freq: 1422)
+  painterly (freq: 1423)
+  panoramic (freq: 1441)
+  photobash (freq: 1407)
+  photorealistic (freq: 1410)
+  raster (freq: 1409)
+  realistic (freq: 1406)
+  sculpture (freq: 1424)
+  stylized (freq: 1411)
+  surreal (freq: 1406)
+  symmetrical (freq: 1423)
+  textured (freq: 1419)
+  thumbnail (freq: 1388)
+  trending (freq: 1401)
+  vector (freq: 1433)
+  voxel (freq: 1422)
+  watercolor (freq: 1414)
+  whimsical (freq: 1415)
+
+
+SEMANTIC CLUSTERS:
+
+COLORS_BRIGHTNESS:
+  bright (freq: 1417)
+  colorful (freq: 1419)
+  cool (freq: 1432)
+  dark (freq: 1399)
+  monochrome (freq: 1411)
+  neon (freq: 1422)
+  pastel (freq: 1600)
+  vibrant (freq: 1450)
+  warm (freq: 1389)
+
+LIGHTING_ATMOSPHERE:
+  atmospheric (freq: 1405)
+  dreamy (freq: 1393)
+  ethereal (freq: 1408)
+  glitch (freq: 1440)
+  hard-light (freq: 1441)
+  hdr (freq: 1425)
+  moody (freq: 1594)
+  soft-light (freq: 1414)
+
+VISUAL_QUALITIES:
+  elegant (freq: 1424)
+  glossy (freq: 1411)
+  gritty (freq: 1396)
+  matte (freq: 1447)
+  minimalism (freq: 1428)
+  ornate (freq: 1422)
+  textured (freq: 1419)
+
+RESOLUTION_DETAIL:
+  4k (freq: 1419)
+  8k (freq: 1436)
+  high-detail (freq: 1421)
+  low-poly (freq: 1414)
+
+RENDERING_STYLES:
+  cel-shaded (freq: 1391)
+  hand-drawn (freq: 1401)
+  painterly (freq: 1423)
+  photorealistic (freq: 1410)
+  stylized (freq: 1411)
+
+COMPOSITION_VIEWS:
+  bird's-eye (freq: 1447)
+  close-up (freq: 1422)
+  fisheye (freq: 1405)
+  isometric (freq: 1428)
+  macro (freq: 1398)
+  overhead (freq: 1422)
+  panoramic (freq: 1441)
+  tilt-shift (freq: 1420)
+  top-down (freq: 1410)
+
+SYMMETRY_BALANCE:
+  asymmetrical (freq: 1425)
+  symmetrical (freq: 1423)
+
+TRADITIONAL_MEDIA:
+  acrylic (freq: 1447)
+  chalk (freq: 1387)
+  charcoal (freq: 1396)
+  crayon (freq: 1398)
+  inked (freq: 1430)
+  marker (freq: 1407)
+  oil-painting (freq: 1416)
+
+DIGITAL_TECHNIQUES:
+  3d-render (freq: 1425)
+  digital-painting (freq: 1416)
+  pixel-art (freq: 1402)
+  raster (freq: 1409)
+  vector (freq: 1433)
+
+ART_TECHNIQUES:
+  collage (freq: 1417)
+  concept-art (freq: 1412)
+  illustration (freq: 1415)
+  line-art (freq: 1428)
+  mixed-media (freq: 1399)
+  photobash (freq: 1407)
+
+DIMENSIONS:
+  2d (freq: 1418)
+  3d (freq: 1373)
+  flat (freq: 1423)
+  voxel (freq: 1422)
+
+CONTENT_FORMATS:
+  editorial (freq: 1416)
+  logo-ready (freq: 1416)
+  magazine-cover (freq: 1406)
+  poster-style (freq: 1418)
+  thumbnail (freq: 1388)
+
+ART_MOVEMENTS:
+  abstract (freq: 1406)
+  decorative (freq: 1418)
+  experimental (freq: 1409)
+  realistic (freq: 1406)
+  surreal (freq: 1406)
+
+STYLE_PERIODS:
+  futuristic (freq: 1409)
+  gothic (freq: 1424)
+  modern (freq: 1408)
+  vintage (freq: 1411)
+
+MOOD_STYLES:
+  dreamy (freq: 1393)
+  gritty (freq: 1396)
+  mystical (freq: 1430)
+  surreal (freq: 1406)
+
+FICTION_GENRES:
+  action (freq: 1413)
+  fantasy (freq: 1439)
+  horror (freq: 1417)
+  sci-fi (freq: 1408)
+
+ART_FORMS:
+  anime (freq: 1410)
+  installation (freq: 1433)
+  sculpture (freq: 1424)
+  still-life (freq: 1432)
+
+PRODUCTION_QUALITY:
+  dynamic (freq: 1414)
+  expressive (freq: 1415)
+  trending (freq: 1401)

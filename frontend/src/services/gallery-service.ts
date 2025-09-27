@@ -45,6 +45,10 @@ export class GalleryService {
       searchParams.set('creator_id', String(params.creator_id))
     }
 
+    if (params.tag) {
+      searchParams.set('tag', params.tag)
+    }
+
     const query = searchParams.toString()
 
     const response = await this.api.get<ApiPaginatedResponse<ApiContentItem>>(
@@ -118,6 +122,10 @@ export class GalleryService {
 
     if (params.searchTerm) {
       searchParams.set('search_term', params.searchTerm)
+    }
+
+    if (params.tag) {
+      searchParams.set('tag', params.tag)
     }
 
     const query = searchParams.toString()

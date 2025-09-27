@@ -12,6 +12,7 @@ This directory contains comprehensive documentation for Genonaut development.
 
 ### Specialized Documentation
 - [Database Migrations](./db_migrations.md) - Alembic migration procedures and troubleshooting
+- [Tag Ontology](./tag_ontology.md) - Hierarchical tag classification and semantic organization
 
 ## Quick Reference
 

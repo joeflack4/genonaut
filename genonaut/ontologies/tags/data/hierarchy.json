@@ -1,0 +1,647 @@
+{
+  "nodes": [
+    {
+      "id": "artistic_medium",
+      "name": "Artistic Medium",
+      "parent": null
+    },
+    {
+      "id": "content_classification",
+      "name": "Content Classification",
+      "parent": null
+    },
+    {
+      "id": "technical_execution",
+      "name": "Technical Execution",
+      "parent": null
+    },
+    {
+      "id": "visual_aesthetics",
+      "name": "Visual Aesthetics",
+      "parent": null
+    },
+    {
+      "id": "abstract",
+      "name": "Abstract",
+      "parent": "art_movements"
+    },
+    {
+      "id": "decorative",
+      "name": "Decorative",
+      "parent": "art_movements"
+    },
+    {
+      "id": "experimental",
+      "name": "Experimental",
+      "parent": "art_movements"
+    },
+    {
+      "id": "realistic",
+      "name": "Realistic",
+      "parent": "art_movements"
+    },
+    {
+      "id": "artistic_methods",
+      "name": "Artistic Methods",
+      "parent": "artistic_medium"
+    },
+    {
+      "id": "digital_techniques",
+      "name": "Digital Techniques",
+      "parent": "artistic_medium"
+    },
+    {
+      "id": "traditional_materials",
+      "name": "Traditional Materials",
+      "parent": "artistic_medium"
+    },
+    {
+      "id": "collage",
+      "name": "Collage",
+      "parent": "artistic_methods"
+    },
+    {
+      "id": "concept-art",
+      "name": "Concept Art",
+      "parent": "artistic_methods"
+    },
+    {
+      "id": "illustration",
+      "name": "Illustration",
+      "parent": "artistic_methods"
+    },
+    {
+      "id": "line-art",
+      "name": "Line Art",
+      "parent": "artistic_methods"
+    },
+    {
+      "id": "mixed-media",
+      "name": "Mixed Media",
+      "parent": "artistic_methods"
+    },
+    {
+      "id": "bird's-eye",
+      "name": "Bird'S Eye",
+      "parent": "camera_angles"
+    },
+    {
+      "id": "overhead",
+      "name": "Overhead",
+      "parent": "camera_angles"
+    },
+    {
+      "id": "top-down",
+      "name": "Top Down",
+      "parent": "camera_angles"
+    },
+    {
+      "id": "worm's-eye",
+      "name": "Worm'S Eye",
+      "parent": "camera_angles"
+    },
+    {
+      "id": "cinematic",
+      "name": "Cinematic",
+      "parent": "cinematic_style"
+    },
+    {
+      "id": "cinematic-framing",
+      "name": "Cinematic Framing",
+      "parent": "cinematic_style"
+    },
+    {
+      "id": "bright",
+      "name": "Bright",
+      "parent": "color_properties"
+    },
+    {
+      "id": "colorful",
+      "name": "Colorful",
+      "parent": "color_properties"
+    },
+    {
+      "id": "cool",
+      "name": "Cool",
+      "parent": "color_properties"
+    },
+    {
+      "id": "dark",
+      "name": "Dark",
+      "parent": "color_properties"
+    },
+    {
+      "id": "monochrome",
+      "name": "Monochrome",
+      "parent": "color_properties"
+    },
+    {
+      "id": "neon",
+      "name": "Neon",
+      "parent": "color_properties"
+    },
+    {
+      "id": "pastel",
+      "name": "Pastel",
+      "parent": "color_properties"
+    },
+    {
+      "id": "vibrant",
+      "name": "Vibrant",
+      "parent": "color_properties"
+    },
+    {
+      "id": "warm",
+      "name": "Warm",
+      "parent": "color_properties"
+    },
+    {
+      "id": "camera_angles",
+      "name": "Camera Angles",
+      "parent": "composition_viewpoint"
+    },
+    {
+      "id": "distance_framing",
+      "name": "Distance Framing",
+      "parent": "composition_viewpoint"
+    },
+    {
+      "id": "spatial_organization",
+      "name": "Spatial Organization",
+      "parent": "composition_viewpoint"
+    },
+    {
+      "id": "art_movements",
+      "name": "Art Movements",
+      "parent": "content_classification"
+    },
+    {
+      "id": "content_genres",
+      "name": "Content Genres",
+      "parent": "content_classification"
+    },
+    {
+      "id": "format_types",
+      "name": "Format Types",
+      "parent": "content_classification"
+    },
+    {
+      "id": "production_context",
+      "name": "Production Context",
+      "parent": "content_classification"
+    },
+    {
+      "id": "action",
+      "name": "Action",
+      "parent": "content_genres"
+    },
+    {
+      "id": "anime",
+      "name": "Anime",
+      "parent": "content_genres"
+    },
+    {
+      "id": "fantasy",
+      "name": "Fantasy",
+      "parent": "content_genres"
+    },
+    {
+      "id": "horror",
+      "name": "Horror",
+      "parent": "content_genres"
+    },
+    {
+      "id": "installation",
+      "name": "Installation",
+      "parent": "content_genres"
+    },
+    {
+      "id": "sci-fi",
+      "name": "Sci Fi",
+      "parent": "content_genres"
+    },
+    {
+      "id": "sculpture",
+      "name": "Sculpture",
+      "parent": "content_genres"
+    },
+    {
+      "id": "still-life",
+      "name": "Still Life",
+      "parent": "content_genres"
+    },
+    {
+      "id": "digital-painting",
+      "name": "Digital Painting",
+      "parent": "digital_techniques"
+    },
+    {
+      "id": "photobash",
+      "name": "Photobash",
+      "parent": "digital_techniques"
+    },
+    {
+      "id": "pixel-art",
+      "name": "Pixel Art",
+      "parent": "digital_techniques"
+    },
+    {
+      "id": "raster",
+      "name": "Raster",
+      "parent": "digital_techniques"
+    },
+    {
+      "id": "vector",
+      "name": "Vector",
+      "parent": "digital_techniques"
+    },
+    {
+      "id": "2d",
+      "name": "2D",
+      "parent": "dimensional_properties"
+    },
+    {
+      "id": "3d",
+      "name": "3D",
+      "parent": "dimensional_properties"
+    },
+    {
+      "id": "3d-render",
+      "name": "3D Render",
+      "parent": "dimensional_properties"
+    },
+    {
+      "id": "flat",
+      "name": "Flat",
+      "parent": "dimensional_properties"
+    },
+    {
+      "id": "voxel",
+      "name": "Voxel",
+      "parent": "dimensional_properties"
+    },
+    {
+      "id": "close-up",
+      "name": "Close Up",
+      "parent": "distance_framing"
+    },
+    {
+      "id": "macro",
+      "name": "Macro",
+      "parent": "distance_framing"
+    },
+    {
+      "id": "panoramic",
+      "name": "Panoramic",
+      "parent": "distance_framing"
+    },
+    {
+      "id": "wide-angle",
+      "name": "Wide Angle",
+      "parent": "distance_framing"
+    },
+    {
+      "id": "editorial",
+      "name": "Editorial",
+      "parent": "editorial_design"
+    },
+    {
+      "id": "editorial-style",
+      "name": "Editorial Style",
+      "parent": "editorial_design"
+    },
+    {
+      "id": "magazine-cover",
+      "name": "Magazine Cover",
+      "parent": "editorial_design"
+    },
+    {
+      "id": "editorial_design",
+      "name": "Editorial Design",
+      "parent": "format_types"
+    },
+    {
+      "id": "logo-ready",
+      "name": "Logo Ready",
+      "parent": "format_types"
+    },
+    {
+      "id": "poster-style",
+      "name": "Poster Style",
+      "parent": "format_types"
+    },
+    {
+      "id": "thumbnail",
+      "name": "Thumbnail",
+      "parent": "format_types"
+    },
+    {
+      "id": "atmospheric",
+      "name": "Atmospheric",
+      "parent": "lighting_effects"
+    },
+    {
+      "id": "glitch",
+      "name": "Glitch",
+      "parent": "lighting_effects"
+    },
+    {
+      "id": "hard-light",
+      "name": "Hard Light",
+      "parent": "lighting_effects"
+    },
+    {
+      "id": "hdr",
+      "name": "Hdr",
+      "parent": "lighting_effects"
+    },
+    {
+      "id": "soft-light",
+      "name": "Soft Light",
+      "parent": "lighting_effects"
+    },
+    {
+      "id": "dreamy",
+      "name": "Dreamy",
+      "parent": "mood_atmosphere"
+    },
+    {
+      "id": "ethereal",
+      "name": "Ethereal",
+      "parent": "mood_atmosphere"
+    },
+    {
+      "id": "gritty",
+      "name": "Gritty",
+      "parent": "mood_atmosphere"
+    },
+    {
+      "id": "moody",
+      "name": "Moody",
+      "parent": "mood_atmosphere"
+    },
+    {
+      "id": "mystical",
+      "name": "Mystical",
+      "parent": "mood_atmosphere"
+    },
+    {
+      "id": "surreal",
+      "name": "Surreal",
+      "parent": "mood_atmosphere"
+    },
+    {
+      "id": "surreal_art",
+      "name": "Surreal Art",
+      "parent": "mood_atmosphere"
+    },
+    {
+      "id": "cinematic_style",
+      "name": "Cinematic Style",
+      "parent": "production_context"
+    },
+    {
+      "id": "cel-shaded",
+      "name": "Cel Shaded",
+      "parent": "rendering_technique"
+    },
+    {
+      "id": "hand-drawn",
+      "name": "Hand Drawn",
+      "parent": "rendering_technique"
+    },
+    {
+      "id": "painterly",
+      "name": "Painterly",
+      "parent": "rendering_technique"
+    },
+    {
+      "id": "photorealistic",
+      "name": "Photorealistic",
+      "parent": "rendering_technique"
+    },
+    {
+      "id": "stylized",
+      "name": "Stylized",
+      "parent": "rendering_technique"
+    },
+    {
+      "id": "4k",
+      "name": "4K",
+      "parent": "resolution_quality"
+    },
+    {
+      "id": "8k",
+      "name": "8K",
+      "parent": "resolution_quality"
+    },
+    {
+      "id": "high-detail",
+      "name": "High Detail",
+      "parent": "resolution_quality"
+    },
+    {
+      "id": "low-poly",
+      "name": "Low Poly",
+      "parent": "resolution_quality"
+    },
+    {
+      "id": "asymmetrical",
+      "name": "Asymmetrical",
+      "parent": "spatial_organization"
+    },
+    {
+      "id": "fisheye",
+      "name": "Fisheye",
+      "parent": "spatial_organization"
+    },
+    {
+      "id": "isometric",
+      "name": "Isometric",
+      "parent": "spatial_organization"
+    },
+    {
+      "id": "symmetrical",
+      "name": "Symmetrical",
+      "parent": "spatial_organization"
+    },
+    {
+      "id": "tilt-shift",
+      "name": "Tilt Shift",
+      "parent": "spatial_organization"
+    },
+    {
+      "id": "glossy",
+      "name": "Glossy",
+      "parent": "surface_qualities"
+    },
+    {
+      "id": "matte",
+      "name": "Matte",
+      "parent": "surface_qualities"
+    },
+    {
+      "id": "textured",
+      "name": "Textured",
+      "parent": "surface_qualities"
+    },
+    {
+      "id": "surreal-collage",
+      "name": "Surreal Collage",
+      "parent": "surreal_art"
+    },
+    {
+      "id": "composition_viewpoint",
+      "name": "Composition Viewpoint",
+      "parent": "technical_execution"
+    },
+    {
+      "id": "dimensional_properties",
+      "name": "Dimensional Properties",
+      "parent": "technical_execution"
+    },
+    {
+      "id": "rendering_technique",
+      "name": "Rendering Technique",
+      "parent": "technical_execution"
+    },
+    {
+      "id": "resolution_quality",
+      "name": "Resolution Quality",
+      "parent": "technical_execution"
+    },
+    {
+      "id": "acrylic",
+      "name": "Acrylic",
+      "parent": "traditional_materials"
+    },
+    {
+      "id": "chalk",
+      "name": "Chalk",
+      "parent": "traditional_materials"
+    },
+    {
+      "id": "charcoal",
+      "name": "Charcoal",
+      "parent": "traditional_materials"
+    },
+    {
+      "id": "crayon",
+      "name": "Crayon",
+      "parent": "traditional_materials"
+    },
+    {
+      "id": "inked",
+      "name": "Inked",
+      "parent": "traditional_materials"
+    },
+    {
+      "id": "marker",
+      "name": "Marker",
+      "parent": "traditional_materials"
+    },
+    {
+      "id": "oil-painting",
+      "name": "Oil Painting",
+      "parent": "traditional_materials"
+    },
+    {
+      "id": "watercolor",
+      "name": "Watercolor",
+      "parent": "traditional_materials"
+    },
+    {
+      "id": "color_properties",
+      "name": "Color Properties",
+      "parent": "visual_aesthetics"
+    },
+    {
+      "id": "lighting_effects",
+      "name": "Lighting Effects",
+      "parent": "visual_aesthetics"
+    },
+    {
+      "id": "mood_atmosphere",
+      "name": "Mood Atmosphere",
+      "parent": "visual_aesthetics"
+    },
+    {
+      "id": "surface_qualities",
+      "name": "Surface Qualities",
+      "parent": "visual_aesthetics"
+    },
+    {
+      "id": "visual_style",
+      "name": "Visual Style",
+      "parent": "visual_aesthetics"
+    },
+    {
+      "id": "dynamic",
+      "name": "Dynamic",
+      "parent": "visual_style"
+    },
+    {
+      "id": "elegant",
+      "name": "Elegant",
+      "parent": "visual_style"
+    },
+    {
+      "id": "expressive",
+      "name": "Expressive",
+      "parent": "visual_style"
+    },
+    {
+      "id": "futuristic",
+      "name": "Futuristic",
+      "parent": "visual_style"
+    },
+    {
+      "id": "gothic",
+      "name": "Gothic",
+      "parent": "visual_style"
+    },
+    {
+      "id": "minimalism",
+      "name": "Minimalism",
+      "parent": "visual_style"
+    },
+    {
+      "id": "minimalist-typography",
+      "name": "Minimalist Typography",
+      "parent": "visual_style"
+    },
+    {
+      "id": "modern",
+      "name": "Modern",
+      "parent": "visual_style"
+    },
+    {
+      "id": "ornate",
+      "name": "Ornate",
+      "parent": "visual_style"
+    },
+    {
+      "id": "trending",
+      "name": "Trending",
+      "parent": "visual_style"
+    },
+    {
+      "id": "vintage",
+      "name": "Vintage",
+      "parent": "visual_style"
+    },
+    {
+      "id": "whimsical",
+      "name": "Whimsical",
+      "parent": "visual_style"
+    }
+  ],
+  "metadata": {
+    "totalNodes": 127,
+    "totalRelationships": 123,
+    "rootCategories": 4,
+    "lastUpdated": "2025-09-27T07:13:30.633254+00:00",
+    "format": "flat_array",
+    "version": "1.0"
+  }
+}

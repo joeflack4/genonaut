@@ -381,3 +381,28 @@ class AvailableModelListResponse(BaseModel):
     total: int = Field(..., description="Total number of models")
 
     model_config = {"from_attributes": True}
+
+
+class TagHierarchyNode(BaseModel):
+    """Response model for a single tag hierarchy node."""
+    id: str = Field(..., description="Tag identifier")
+    name: str = Field(..., description="Human-readable tag name")
+    parent: Optional[str] = Field(None, description="Parent tag ID, null for root nodes")
+
+
+class TagHierarchyMetadata(BaseModel):
+    """Metadata for tag hierarchy response."""
+    totalNodes: int = Field(..., description="Total number of nodes in hierarchy")
+    totalRelationships: int = Field(..., description="Total number of parent-child relationships")
+    rootCategories: int = Field(..., description="Number of root categories")
+    lastUpdated: datetime = Field(..., description="Last update timestamp")
+    format: str = Field(..., description="Data format identifier")
+    version: str = Field(..., description="Schema version")
+
+
+class TagHierarchyResponse(BaseModel):
+    """Response model for tag hierarchy data."""
+    nodes: List[TagHierarchyNode] = Field(..., description="List of all nodes in flat array format")
+    metadata: TagHierarchyMetadata = Field(..., description="Hierarchy metadata and statistics")
+
+    model_config = {"from_attributes": True}

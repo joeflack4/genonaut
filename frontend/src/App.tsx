@@ -7,6 +7,7 @@ import { DashboardPage } from './pages/dashboard'
 import { RecommendationsPage } from './pages/recommendations'
 import { SettingsPage } from './pages/settings'
 import { GenerationPage } from './pages/generation'
+import { TagsPage } from './pages/tags'
 
 const routes: RouteObject[] = [
   {
@@ -19,6 +20,7 @@ const routes: RouteObject[] = [
       { path: 'recommendations', element: <RecommendationsPage /> },
       { path: 'generate', element: <GenerationPage /> },
       { path: 'generation', element: <GenerationPage /> },
+      { path: 'tags', element: <TagsPage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],
   },

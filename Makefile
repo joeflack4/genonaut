@@ -10,7 +10,8 @@ frontend-test-e2e-ui frontend-lint frontend-type-check frontend-format frontend-
 test-frontend test-frontend-unit test-frontend-watch test-frontend-coverage test-frontend-e2e test-frontend-e2e-headed \
 test-frontend-e2e-ui db-wal-buffers-reset db-wal-buffers-set init-db init-db-drop test-long-running test-coverage docs \
 check-env api-dev-profile api-dev-load-test api-production-sim api-demo-load-test api-test-load-test \
-clear-excess-test-schemas-keep-3 migrate-down-dev migrate-heads-dev migrate-down-demo migrate-heads-demo
+clear-excess-test-schemas-keep-3 migrate-down-dev migrate-heads-dev migrate-down-demo migrate-heads-demo \
+ontology-refresh ontology-generate ontology-validate ontology-stats ontology-test ontology-json
 
 # Load environment variables
 ifneq (,$(wildcard ./env/.env))
@@ -130,6 +131,14 @@ help:
 	@echo ""
 	@echo "Documentation:"
 	@echo "  docs                     Generate documentation"
+	@echo ""
+	@echo "Ontology:"
+	@echo "  ontology-refresh         Extract tags from database and update analysis"
+	@echo "  ontology-generate        Generate hierarchy TSV from tag analysis"
+	@echo "  ontology-validate        Validate hierarchy TSV consistency"
+	@echo "  ontology-stats           Show ontology statistics and coverage"
+	@echo "  ontology-test            Run comprehensive ontology test suite"
+	@echo "  ontology-json            Convert TSV hierarchy to JSON format"
 
 
 # Database initialization
@@ -281,6 +290,41 @@ clear-excess-test-schemas:
 clear-excess-test-schemas-keep-3:
 	@echo "Clearing excess test schemas (keeping 3 latest)..."
 	python test/cli.py --clear-excess-test-schemas --keep-latest 3
+
+# Ontology management
+ontology-refresh:
+	@echo "Extracting tags from database and updating analysis..."
+	@set -a && source env/.env && PYTHONPATH=. python genonaut/ontologies/tags/scripts/query_tags.py
+	@echo "✅ Tag analysis updated"
+
+ontology-generate:
+	@echo "Generating hierarchy TSV from tag analysis..."
+	@cd genonaut/ontologies/tags/scripts && python curate_final_hierarchy.py
+	@echo "✅ Hierarchy generated"
+
+ontology-validate:
+	@echo "Validating hierarchy TSV consistency..."
+	@cd genonaut/ontologies/tags/scripts && PYTHONPATH=../../../.. python -c "import sys; sys.path.append('../../../..'); from generate_hierarchy import validate_hierarchy; from pathlib import Path; errors = validate_hierarchy(Path('../data/hierarchy.tsv')); print('✅ Validation passed!' if not errors else '❌ Validation issues found:'); [print(f'  {e}') for e in errors]; sys.exit(0 if not errors else 1)"
+
+ontology-stats:
+	@echo "Generating ontology statistics..."
+	@cd genonaut/ontologies/tags && echo "=== TAG ONTOLOGY STATISTICS ===" && \
+	echo "Data files:" && ls -la data/ && echo "" && \
+	echo "Hierarchy relationships:" && tail -n +2 data/hierarchy.tsv | wc -l | tr -d ' ' | awk '{print $$1 " parent-child relationships"}' && \
+	echo "Unique tags in hierarchy:" && tail -n +2 data/hierarchy.tsv | cut -f2 | sort -u | wc -l | tr -d ' ' | awk '{print $$1 " unique child tags"}' && \
+	echo "Root categories:" && tail -n +2 data/hierarchy.tsv | cut -f1 | sort -u | wc -l | tr -d ' ' | awk '{print $$1 " unique parent categories"}' && \
+	echo "" && echo "Recent tag analysis:" && head -20 data/tags_analysis.txt
+
+ontology-test:
+	@echo "Running comprehensive ontology test suite..."
+	@echo "Testing core functionality, data quality, integration, performance, and future compatibility..."
+	@PYTHONPATH=. python -m pytest test/ontologies/tags/ -v --tb=short
+	@echo "✅ Ontology tests completed"
+
+ontology-json:
+	@echo "Converting TSV hierarchy to JSON format..."
+	@PYTHONPATH=. python genonaut/ontologies/tags/scripts/generate_json.py
+	@echo "✅ JSON conversion completed"
 
 # Development setup
 install:
