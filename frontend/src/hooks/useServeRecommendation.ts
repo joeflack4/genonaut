@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { recommendationService } from '../services'
 import { recommendationsQueryKey } from './useRecommendations'
 
-export function useServeRecommendation(userId: number) {
+export function useServeRecommendation(userId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({

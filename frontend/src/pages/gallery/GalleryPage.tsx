@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { SelectChangeEvent } from '@mui/material/Select'
 import {
   Box,
@@ -39,6 +40,7 @@ interface FiltersState {
   search: string
   sort: SortOption
   page: number
+  tag?: string  // Tag filter from URL
 }
 
 interface ContentToggles {
@@ -54,8 +56,19 @@ const sortOptions: Array<{ value: SortOption; label: string }> = [
 ]
 
 export function GalleryPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [searchInput, setSearchInput] = useState('')
-  const [filters, setFilters] = useState<FiltersState>({ search: '', sort: 'recent', page: 0 })
+
+  // Initialize filters from URL parameters
+  const [filters, setFilters] = useState<FiltersState>(() => {
+    const tag = searchParams.get('tag') || undefined
+    return {
+      search: '',
+      sort: 'recent' as SortOption,
+      page: 0,
+      tag
+    }
+  })
 
   // Initialize optionsOpen state from localStorage
   const [optionsOpen, setOptionsOpen] = useState(() => {
@@ -85,14 +98,23 @@ export function GalleryPage() {
     }
   }, [optionsOpen])
 
+  // Sync URL parameters with filters state
+  useEffect(() => {
+    const tag = searchParams.get('tag')
+    if (tag !== filters.tag) {
+      setFilters(prev => ({ ...prev, tag: tag || undefined, page: 0 }))
+    }
+  }, [searchParams, filters.tag])
+
   const queryParams = useMemo(
     () => ({
       limit: PAGE_SIZE * 2, // Get more items to account for filtering
       skip: 0, // We'll handle pagination after combining results
       search: filters.search,
       sort: filters.sort,
+      ...(filters.tag && { tag: filters.tag }), // Add tag filter if present
     }),
-    [filters.search, filters.sort]
+    [filters.search, filters.sort, filters.tag]
   )
 
   // Fetch data from different sources based on toggles
@@ -337,6 +359,30 @@ export function GalleryPage() {
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
             />
+
+            {/* Tag Filter Display */}
+            {filters.tag && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Filtered by tag:
+                </Typography>
+                <Chip
+                  label={filters.tag}
+                  variant="outlined"
+                  color="primary"
+                  onDelete={() => {
+                    setFilters(prev => ({ ...prev, tag: undefined, page: 0 }));
+                    setSearchParams(params => {
+                      const newParams = new URLSearchParams(params);
+                      newParams.delete('tag');
+                      return newParams;
+                    });
+                  }}
+                  sx={{ maxWidth: 200 }}
+                />
+              </Box>
+            )}
+
             <FormControl fullWidth>
               <InputLabel id="gallery-sort-label">Sort by</InputLabel>
               <Select

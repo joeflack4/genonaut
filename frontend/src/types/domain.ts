@@ -74,4 +74,5 @@ export interface ContentQueryParams extends PaginationParams {
   creatorId?: string
   publicOnly?: boolean
   searchTerm?: string
+  tag?: string  // Tag filter
 }

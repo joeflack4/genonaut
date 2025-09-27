@@ -1,0 +1,208 @@
+=== ALL UNIQUE TAGS (ALPHABETICAL) ===
+
+2d
+3d
+3d-render
+4k
+8k
+abstract
+acrylic
+action
+anime
+asymmetrical
+atmospheric
+bird's-eye
+bright
+cel-shaded
+chalk
+charcoal
+cinematic
+cinematic-framing
+close-up
+collage
+colorful
+concept-art
+cool
+crayon
+dark
+decorative
+digital-painting
+dreamy
+dynamic
+editorial
+editorial-style
+elegant
+ethereal
+experimental
+expressive
+fantasy
+fisheye
+flat
+futuristic
+glitch
+glossy
+gothic
+gritty
+hand-drawn
+hard-light
+hdr
+high-detail
+horror
+illustration
+inked
+installation
+isometric
+line-art
+logo-ready
+low-poly
+macro
+magazine-cover
+marker
+matte
+minimalism
+minimalist-typography
+mixed-media
+modern
+monochrome
+moody
+mystical
+neon
+oil-painting
+ornate
+overhead
+painterly
+panoramic
+pastel
+photobash
+photorealistic
+pixel-art
+poster-style
+raster
+realistic
+sci-fi
+sculpture
+soft-light
+still-life
+stylized
+surreal
+surreal-collage
+symmetrical
+textured
+thumbnail
+tilt-shift
+top-down
+trending
+vector
+vibrant
+vintage
+voxel
+warm
+watercolor
+whimsical
+wide-angle
+worm's-eye
+
+
+=== TAG FREQUENCY ANALYSIS ===
+
+pastel: 1600
+moody: 1594
+vibrant: 1450
+acrylic: 1447
+bird's-eye: 1447
+matte: 1447
+hard-light: 1441
+panoramic: 1441
+glitch: 1440
+fantasy: 1439
+8k: 1436
+installation: 1433
+vector: 1433
+still-life: 1432
+cool: 1432
+inked: 1430
+mystical: 1430
+surreal-collage: 1429
+minimalism: 1428
+line-art: 1428
+isometric: 1428
+asymmetrical: 1425
+3d-render: 1425
+hdr: 1425
+gothic: 1424
+elegant: 1424
+sculpture: 1424
+flat: 1423
+symmetrical: 1423
+painterly: 1423
+voxel: 1422
+ornate: 1422
+close-up: 1422
+neon: 1422
+overhead: 1422
+high-detail: 1421
+wide-angle: 1421
+tilt-shift: 1420
+4k: 1419
+cinematic: 1419
+textured: 1419
+colorful: 1419
+poster-style: 1418
+decorative: 1418
+2d: 1418
+cinematic-framing: 1417
+collage: 1417
+worm's-eye: 1417
+horror: 1417
+bright: 1417
+editorial-style: 1416
+editorial: 1416
+digital-painting: 1416
+oil-painting: 1416
+logo-ready: 1416
+illustration: 1415
+expressive: 1415
+whimsical: 1415
+watercolor: 1414
+low-poly: 1414
+dynamic: 1414
+soft-light: 1414
+action: 1413
+concept-art: 1412
+glossy: 1411
+vintage: 1411
+monochrome: 1411
+stylized: 1411
+anime: 1410
+top-down: 1410
+photorealistic: 1410
+raster: 1409
+experimental: 1409
+futuristic: 1409
+modern: 1408
+ethereal: 1408
+sci-fi: 1408
+photobash: 1407
+marker: 1407
+surreal: 1406
+magazine-cover: 1406
+realistic: 1406
+abstract: 1406
+fisheye: 1405
+atmospheric: 1405
+pixel-art: 1402
+trending: 1401
+hand-drawn: 1401
+mixed-media: 1399
+dark: 1399
+crayon: 1398
+macro: 1398
+minimalist-typography: 1396
+charcoal: 1396
+gritty: 1396
+dreamy: 1393
+cel-shaded: 1391
+warm: 1389
+thumbnail: 1388
+chalk: 1387
+3d: 1373

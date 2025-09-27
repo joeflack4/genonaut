@@ -531,20 +531,16 @@ class ComfyUIGenerationService:
                 model_responses.append(AvailableModelResponse(
                     id=model.id,
                     name=model.name,
-                    model_type=model.model_type,
+                    type=model.type,
                     file_path=model.file_path,
-                    relative_path=model.relative_path,
-                    file_size=model.file_size,
-                    file_hash=model.file_hash,
-                    format=model.format,
+                    description=model.description,
                     is_active=model.is_active,
-                    metadata=model.metadata or {},
                     created_at=model.created_at,
                     updated_at=model.updated_at
                 ))
 
             return AvailableModelListResponse(
-                models=model_responses,
+                items=model_responses,
                 total=len(model_responses)
             )
 

@@ -114,3 +114,6 @@ export class ApiClient {
     return merged
   }
 }
+
+// Default instance
+export const apiClient = new ApiClient()

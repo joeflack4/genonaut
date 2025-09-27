@@ -1,0 +1,122 @@
+# Example SPARQL Queries for Tag Ontology
+# These queries will work once the TSV hierarchy is converted to OWL format
+
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX genonaut: <http://genonaut.ai/ontology/tags#>
+PREFIX content: <http://genonaut.ai/content#>
+
+# Query 1: Find all direct children of a category
+# Example: Find all direct subtypes of 'visual_properties'
+SELECT ?child WHERE {
+  ?child rdfs:subClassOf genonaut:visual_properties .
+}
+
+# Query 2: Find all descendants (transitive closure)
+# Example: Find all tags that are subtypes of 'software_category' at any level
+SELECT ?descendant WHERE {
+  ?descendant rdfs:subClassOf* genonaut:software_category .
+}
+
+# Query 3: Find the parent of a specific tag
+# Example: Find the parent category of 'integration'
+SELECT ?parent WHERE {
+  genonaut:integration rdfs:subClassOf ?parent .
+}
+
+# Query 4: Find all ancestors of a tag (path to root)
+# Example: Find all ancestor categories of 'integration'
+SELECT ?ancestor WHERE {
+  genonaut:integration rdfs:subClassOf* ?ancestor .
+}
+
+# Query 5: Find siblings (tags with the same parent)
+# Example: Find all tags that share a parent with 'api'
+SELECT ?sibling WHERE {
+  genonaut:api rdfs:subClassOf ?parent .
+  ?sibling rdfs:subClassOf ?parent .
+  FILTER(?sibling != genonaut:api)
+}
+
+# Query 6: Find leaf nodes (tags with no children)
+# Example: Find all tags that have no subtypes
+SELECT ?leaf WHERE {
+  ?leaf a genonaut:Tag .
+  FILTER NOT EXISTS {
+    ?child rdfs:subClassOf ?leaf .
+  }
+}
+
+# Query 7: Find root categories (tags with no parents)
+# Example: Find all top-level categories
+SELECT ?root WHERE {
+  ?root a genonaut:Tag .
+  FILTER NOT EXISTS {
+    ?root rdfs:subClassOf ?parent .
+  }
+}
+
+# Query 8: Count children for each category
+# Example: Get hierarchy statistics
+SELECT ?category (COUNT(?child) AS ?childCount) WHERE {
+  ?child rdfs:subClassOf ?category .
+} GROUP BY ?category
+
+# Query 9: Find tags at a specific depth level
+# Example: Find all tags exactly 2 levels deep from root
+SELECT ?tag WHERE {
+  ?tag rdfs:subClassOf/rdfs:subClassOf ?root .
+  FILTER NOT EXISTS {
+    ?root rdfs:subClassOf ?grandparent .
+  }
+}
+
+# Query 10: Validate hierarchy (check for cycles)
+# Example: Find any tags that are ancestors of themselves (should be empty)
+SELECT ?tag WHERE {
+  ?tag rdfs:subClassOf+ ?tag .
+}
+
+# Future Content Queries (when integrated with content metadata)
+
+# Query 11: Find content with tags from a specific category
+# Example: Find all content tagged with any test-related tag
+SELECT ?content WHERE {
+  ?content content:hasTag ?tag .
+  ?tag rdfs:subClassOf* genonaut:test .
+}
+
+# Query 12: Find content with multiple related tags
+# Example: Find content tagged with both API and test-related tags
+SELECT ?content WHERE {
+  ?content content:hasTag ?apiTag .
+  ?content content:hasTag ?testTag .
+  ?apiTag rdfs:subClassOf* genonaut:api .
+  ?testTag rdfs:subClassOf* genonaut:test .
+}
+
+# Query 13: Content recommendation based on tag relationships
+# Example: Find content similar to a given piece (by tag hierarchy)
+SELECT ?similarContent ?sharedCategory WHERE {
+  content:example_content content:hasTag ?tag1 .
+  ?tag1 rdfs:subClassOf* ?sharedCategory .
+  ?similarContent content:hasTag ?tag2 .
+  ?tag2 rdfs:subClassOf* ?sharedCategory .
+  FILTER(?similarContent != content:example_content)
+}
+
+# Query 14: Tag usage statistics by category
+# Example: Count content items per category
+SELECT ?category (COUNT(DISTINCT ?content) AS ?contentCount) WHERE {
+  ?content content:hasTag ?tag .
+  ?tag rdfs:subClassOf* ?category .
+} GROUP BY ?category ORDER BY DESC(?contentCount)
+
+# Query 15: Find orphaned content (content without proper tag categorization)
+# Example: Find content with tags not in the ontology
+SELECT ?content ?orphanedTag WHERE {
+  ?content content:hasTag ?orphanedTag .
+  FILTER NOT EXISTS {
+    ?orphanedTag a genonaut:Tag .
+  }
+}

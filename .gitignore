@@ -12,7 +12,6 @@ logs/
 *.DS_Store
 *.egg-info
 *.swp
-tags
 MANIFEST
 
 # Custom

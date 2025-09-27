@@ -26,7 +26,7 @@ test.describe('Frontend Error Handling', () => {
 
   test('displays user-friendly error when API is unavailable', async ({ page }) => {
     // Mock API to return 503 Service Unavailable
-    await page.route('**/api/comfyui/generations*', async route => {
+    await page.route('**/api/v1/comfyui/generate', async route => {
       await route.fulfill({
         status: 503,
         contentType: 'application/json',

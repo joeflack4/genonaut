@@ -31,6 +31,7 @@ import ArticleIcon from '@mui/icons-material/Article'
 import RecommendIcon from '@mui/icons-material/Recommend'
 import SettingsIcon from '@mui/icons-material/Settings'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
+import AccountTreeIcon from '@mui/icons-material/AccountTree'
 import { useCurrentUser } from '../../hooks'
 import { useThemeMode } from '../../app/providers/theme'
 import { useUiSettings } from '../../app/providers/ui'
@@ -39,6 +40,7 @@ const navItems = [
   { label: 'Dashboard', to: '/dashboard', icon: DashboardIcon },
   { label: 'Gallery', to: '/gallery', icon: ArticleIcon },
   { label: 'Generate', to: '/generate', icon: AutoFixHighIcon },
+  { label: 'Tags', to: '/tags', icon: AccountTreeIcon },
   { label: 'Recommendations', to: '/recommendations', icon: RecommendIcon },
   { label: 'Settings', to: '/settings', icon: SettingsIcon },
 ]
