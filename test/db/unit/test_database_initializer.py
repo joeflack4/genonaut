@@ -300,6 +300,11 @@ def test_resolve_seed_path_prefers_builtin_test_directory(tmp_path):
 
     resolved_path = resolve_seed_path(config, "test")
 
-    expected_test_seed = (PROJECT_ROOT / "test" / "db" / "input" / "rdbms_init").resolve()
+    expected_primary_seed = (PROJECT_ROOT / "test" / "db" / "input" / "rdbms_init").resolve()
+    expected_fallback_seed = (PROJECT_ROOT / "test" / "db" / "input" / "rdbms_init_v1").resolve()
 
-    assert resolved_path == expected_test_seed
+    if expected_primary_seed.exists():
+        assert resolved_path == expected_primary_seed
+    else:
+        # When the newer fixture set is absent, we should fall back to the legacy directory
+        assert resolved_path == expected_fallback_seed

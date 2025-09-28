@@ -1,8 +1,13 @@
 {
+  "seed_data": {
+    "main": "io/input/init/rdbms",
+    "demo": "io/input/init/demo_rdbms",
+    "test": "test/db/input/rdbms_init_empty"
+  },
   "seed_data_premade": {
     "main": "io/input/init/rdbms",
     "demo": "io/input/init/demo_rdbms",
-    "test": "test/db/input/rdbms_init"
+    "test": "test/db/input/rdbms_init_v1"
   },
   "seed_data_generator": {
     "batch_size": 2000,

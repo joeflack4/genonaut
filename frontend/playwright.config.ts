@@ -2,13 +2,13 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './tests/e2e',
-  timeout: 5_000,
+  timeout: 10_000, // Increased for real API tests
   expect: {
-    timeout: 2_000,
+    timeout: 3_000,
   },
   use: {
-    actionTimeout: 2_000,
-    navigationTimeout: 5_000,
+    actionTimeout: 3_000,
+    navigationTimeout: 10_000,
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4173',
     headless: true,
     viewport: { width: 1280, height: 720 },

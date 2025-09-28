@@ -1,3 +1,1 @@
-user_username	content_title	recommendation_score	algorithm_version	is_served	rec_metadata
-Admin	Mystery Audio Drama	0.87	v1.0	false	{"reason": "genre_similarity"}
-carol_reader	Fantasy Landscape	0.73	v1.0	false	{"reason": "collaborative_filtering"}
+id	user_id	content_item_id	recommendation_score	algorithm_version	created_at	is_served	rec_metadata

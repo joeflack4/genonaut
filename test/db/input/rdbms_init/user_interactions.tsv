@@ -1,4 +1,1 @@
-user_username	content_title	interaction_type	rating	duration	interaction_metadata
-Admin	Fantasy Landscape	view	5	120	{"device": "mobile"}
-carol_reader	AI-Generated Sci-Fi Story	like	4		{"device": "desktop"}
-bob_artist	Mystery Audio Drama	share	4		{"platform": "social_media"}
+id	user_id	content_item_id	interaction_type	interaction_value	timestamp	interaction_metadata

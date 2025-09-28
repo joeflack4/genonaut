@@ -1,0 +1,4 @@
+username	email	preferences	is_active
+Admin	admin@genonaut.com	{"favorite_genres": ["sci-fi", "fantasy"], "content_types": ["text", "image"]}	true
+bob_artist	bob@example.com	{"favorite_genres": ["horror", "comedy"], "content_types": ["video", "audio"]}	true
+carol_reader	carol@example.com	{"favorite_genres": ["romance", "mystery"], "content_types": ["text"]}	true

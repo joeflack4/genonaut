@@ -1,14 +1,15 @@
 # Common development tasks and utilities
 .PHONY: help init-all init-dev init-demo init-test reset-db-1-data--demo reset-db-1-data--test reset-db-2-schema--demo \
 reset-db-2-schema--test reset-db-3-schema-and-history--demo reset-db-3-schema-and-history--test re-seed-demo \
-re-seed-demo-force seed-from-gen-demo seed-from-gen-test test test-quick test-verbose test-specific test-unit test-db \
+re-seed-demo-force seed-from-gen-demo seed-from-gen-test export-demo-data test test-quick test-verbose test-specific test-unit test-db \
 test-db-unit test-db-integration test-api test-all clear-excess-test-schemas install install-dev \
 lint format clean migrate-all migrate-prep migrate-dev migrate-demo migrate-test backup backup-dev backup-demo \
 backup-test api-dev api-demo api-test frontend-install frontend-dev frontend-build frontend-preview frontend-test \
 frontend-test-unit frontend-test-watch frontend-test-coverage frontend-test-e2e frontend-test-e2e-headed \
-frontend-test-e2e-ui frontend-lint frontend-type-check frontend-format frontend-format-write \
+frontend-test-e2e-ui frontend-test-e2e-real-api frontend-test-e2e-real-api-headed frontend-test-e2e-real-api-ui \
+frontend-lint frontend-type-check frontend-format frontend-format-write \
 test-frontend test-frontend-unit test-frontend-watch test-frontend-coverage test-frontend-e2e test-frontend-e2e-headed \
-test-frontend-e2e-ui db-wal-buffers-reset db-wal-buffers-set init-db init-db-drop test-long-running test-coverage docs \
+test-frontend-e2e-ui test-frontend-e2e-real-api test-frontend-e2e-real-api-headed test-frontend-e2e-real-api-ui db-wal-buffers-reset db-wal-buffers-set init-db init-db-drop test-long-running test-coverage docs \
 check-env api-dev-profile api-dev-load-test api-production-sim api-demo-load-test api-test-load-test \
 clear-excess-test-schemas-keep-3 migrate-down-dev migrate-heads-dev migrate-down-demo migrate-heads-demo \
 ontology-refresh ontology-generate ontology-validate ontology-stats ontology-test ontology-json
@@ -54,6 +55,7 @@ help:
 	@echo "  re-seed-demo-force       Re-seed demo database (no confirmation prompt)"
 	@echo "  seed-from-gen-demo       Generate synthetic data for demo database"
 	@echo "  seed-from-gen-test       Generate synthetic data for test database"
+	@echo "  export-demo-data         Export demo database data to test TSV files"
 	@echo ""
 	@echo "Database Migration:"
 	@echo "  migrate-all              Create and apply migrations for all databases"
@@ -119,6 +121,9 @@ help:
 	@echo "  frontend-test-e2e        Run frontend Playwright e2e tests"
 	@echo "  frontend-test-e2e-headed Run Playwright tests in headed mode"
 	@echo "  frontend-test-e2e-ui     Run Playwright UI mode"
+	@echo "  frontend-test-e2e-real-api Run Playwright tests with real API server"
+	@echo "  frontend-test-e2e-real-api-headed Run real API tests in headed mode"
+	@echo "  frontend-test-e2e-real-api-ui Run real API tests in UI mode"
 	@echo ""
 	@echo "Frontend Test Aliases (test-frontend*):"
 	@echo "  test-frontend            Alias for frontend-test"
@@ -128,6 +133,9 @@ help:
 	@echo "  test-frontend-e2e        Alias for frontend-test-e2e"
 	@echo "  test-frontend-e2e-headed Alias for frontend-test-e2e-headed"
 	@echo "  test-frontend-e2e-ui     Alias for frontend-test-e2e-ui"
+	@echo "  test-frontend-e2e-real-api Alias for frontend-test-e2e-real-api"
+	@echo "  test-frontend-e2e-real-api-headed Alias for frontend-test-e2e-real-api-headed"
+	@echo "  test-frontend-e2e-real-api-ui Alias for frontend-test-e2e-real-api-ui"
 	@echo ""
 	@echo "Documentation:"
 	@echo "  docs                     Generate documentation"
@@ -207,6 +215,10 @@ seed-from-gen-demo:
 seed-from-gen-test:
 	@echo "Generating synthetic data for test database..."
 	$(call seed-from-gen-helper,${DATABASE_URL_TEST})
+
+export-demo-data:
+	@echo "Exporting demo database data to test TSV files..."
+	python -m test.db.utils export-demo-data
 
 # PostgreSQL wal_buffers management
 # todo: Add support for other databases (dev, test) via parameters like db-wal-buffers-reset-dev, db-wal-buffers-set-test, etc.
@@ -524,6 +536,18 @@ frontend-test-e2e-ui:
 	@echo "Running Playwright UI mode..."
 	npm --prefix frontend run test:e2e:ui
 
+frontend-test-e2e-real-api:
+	@echo "Running Playwright tests with real API server..."
+	npm --prefix frontend run test:e2e:real-api
+
+frontend-test-e2e-real-api-headed:
+	@echo "Running real API Playwright tests in headed mode..."
+	npm --prefix frontend run test:e2e:real-api:headed
+
+frontend-test-e2e-real-api-ui:
+	@echo "Running real API Playwright tests in UI mode..."
+	npm --prefix frontend run test:e2e:real-api:ui
+
 frontend-lint:
 	@echo "Linting frontend code..."
 	npm --prefix frontend run lint
@@ -548,6 +572,9 @@ test-frontend-coverage: frontend-test-coverage
 test-frontend-e2e: frontend-test-e2e
 test-frontend-e2e-headed: frontend-test-e2e-headed
 test-frontend-e2e-ui: frontend-test-e2e-ui
+test-frontend-e2e-real-api: frontend-test-e2e-real-api
+test-frontend-e2e-real-api-headed: frontend-test-e2e-real-api-headed
+test-frontend-e2e-real-api-ui: frontend-test-e2e-real-api-ui
 
 # todo: find a better place in file
 # Integration checks

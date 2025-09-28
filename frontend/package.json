@@ -18,7 +18,11 @@
     "openapi:types": "node scripts/generate-openapi.mjs",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:real-api": "playwright test --config=playwright-real-api.config.ts",
+    "test:e2e:real-api:headed": "playwright test --config=playwright-real-api.config.ts --headed",
+    "test:e2e:real-api:ui": "playwright test --config=playwright-real-api.config.ts --ui",
+    "test:api-server": "node scripts/test-api-server.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

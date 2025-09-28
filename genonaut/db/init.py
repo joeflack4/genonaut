@@ -63,6 +63,10 @@ def resolve_seed_path(config: Dict[str, Any], environment: str) -> Optional[Path
 
     seed_section = config.get("seed_data", {}) if isinstance(config, dict) else {}
 
+    # Backwards compatibility: older config files used "seed_data_premade"
+    if not seed_section and isinstance(config, dict):
+        seed_section = config.get("seed_data_premade", {})
+
     env_key_map = {
         "dev": "main",
         "demo": "demo",
@@ -83,17 +87,33 @@ def resolve_seed_path(config: Dict[str, Any], environment: str) -> Optional[Path
             candidate = None
 
     if environment == "test":
-        default_test_seed = (PROJECT_ROOT / "test" / "db" / "input" / "rdbms_init").resolve()
-        if default_test_seed.exists():
+        fallback_dirs = [
+            (PROJECT_ROOT / "test" / "db" / "input" / "rdbms_init").resolve(),
+            (PROJECT_ROOT / "test" / "db" / "input" / "rdbms_init_v1").resolve(),
+        ]
+
+        candidate_has_data = bool(candidate and any(candidate.glob("*.tsv")))
+
+        for default_test_seed in fallback_dirs:
+            if not default_test_seed.exists():
+                continue
+
+            default_has_data = any(default_test_seed.glob("*.tsv"))
+
             if candidate is None:
-                return default_test_seed
-            # Prefer explicit config, but fall back when it points elsewhere without files
-            if not any(default_test_seed.glob("*.tsv")):
+                if default_has_data:
+                    return default_test_seed
+                continue
+
+            if candidate.resolve() == default_test_seed:
+                return candidate
+
+            if default_has_data and not candidate_has_data:
                 logger.warning(
-                    "Default test seed directory %s is empty; continuing with configured path",
+                    "Configured seed path %s has no TSV data; using fallback %s",
+                    candidate,
                     default_test_seed,
                 )
-            elif candidate is None or not any(candidate.glob("*.tsv")):
                 return default_test_seed
 
     return candidate
@@ -889,7 +909,7 @@ def initialize_database(
 
     if seed_data_path is not None:
         candidate_path = Path(seed_data_path)
-    elif schema_name is None and not is_sqlite:
+    elif schema_name is None:
         candidate_path = resolve_seed_path(
             load_project_config(),
             initializer.environment,

@@ -162,7 +162,7 @@ class TestDatabaseSeeding:
     def test_seed_database_with_custom_input_dir(self):
         """Test seeding database with custom input directory."""
         # Get the test input directory
-        test_input_dir = os.path.join(os.path.dirname(__file__), '..', 'input', 'rdbms_init')
+        test_input_dir = os.path.join(os.path.dirname(__file__), '..', 'input', 'rdbms_init_v1')
         
         # Seed with explicit directory
         seed_database_from_tsv(self.session, test_input_dir)
