@@ -1,29 +1,24 @@
 import { useQuery } from '@tanstack/react-query'
-import { galleryService } from '../services'
+import { unifiedGalleryService } from '../services'
 
 export interface GalleryStats {
   userGalleryCount: number
+  userAutoGalleryCount: number
   totalGalleryCount: number
+  totalAutoGalleryCount: number
 }
 
 export function useGalleryStats(userId: string) {
   return useQuery({
     queryKey: ['gallery-stats', userId],
     queryFn: async (): Promise<GalleryStats> => {
-      // Get gallery items created by the current user
-      const userGalleryResponse = await galleryService.listGallery({
-        creator_id: userId,
-        limit: 1,
-      })
-
-      // Get total gallery items available to the community
-      const totalGalleryResponse = await galleryService.listGallery({
-        limit: 1,
-      })
+      const stats = await unifiedGalleryService.getUnifiedStats(userId)
 
       return {
-        userGalleryCount: userGalleryResponse.total,
-        totalGalleryCount: totalGalleryResponse.total,
+        userGalleryCount: stats.userRegularCount,
+        userAutoGalleryCount: stats.userAutoCount,
+        totalGalleryCount: stats.communityRegularCount,
+        totalAutoGalleryCount: stats.communityAutoCount,
       }
     },
   })

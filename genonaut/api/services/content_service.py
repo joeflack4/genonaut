@@ -1,9 +1,9 @@
 """Content service for business logic operations."""
 
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Type, Union
 from uuid import UUID
 
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, text, literal
 from sqlalchemy.orm import Session
 
 from genonaut.api.exceptions import EntityNotFoundError, ValidationError
@@ -334,6 +334,235 @@ class ContentService:
                 filters["is_private"] = False
 
             return self.repository.get_paginated(pagination, filters=filters)
+
+    # ------------------------------------------------------------------
+    # Unified content methods
+    # ------------------------------------------------------------------
+
+    def get_unified_content_stats(self, user_id: Optional[UUID] = None) -> Dict[str, int]:
+        """Get unified content statistics across both regular and auto tables."""
+        session = self.repository.db
+
+        # Count user's regular content
+        user_regular_count = 0
+        user_auto_count = 0
+        if user_id:
+            user_regular_count = session.query(func.count(ContentItem.id)).filter(
+                ContentItem.creator_id == user_id
+            ).scalar() or 0
+
+            user_auto_count = session.query(func.count(ContentItemAuto.id)).filter(
+                ContentItemAuto.creator_id == user_id
+            ).scalar() or 0
+
+        # Count total (community) content
+        community_regular_count = session.query(func.count(ContentItem.id)).scalar() or 0
+        community_auto_count = session.query(func.count(ContentItemAuto.id)).scalar() or 0
+
+        return {
+            "user_regular_count": user_regular_count,
+            "user_auto_count": user_auto_count,
+            "community_regular_count": community_regular_count,
+            "community_auto_count": community_auto_count,
+        }
+
+    def get_unified_content_paginated(
+        self,
+        pagination: PaginationRequest,
+        content_types: Optional[List[str]] = None,
+        creator_filter: str = "all",
+        user_id: Optional[UUID] = None,
+        search_term: Optional[str] = None,
+        sort_field: str = "created_at",
+        sort_order: str = "desc",
+        **filters
+    ) -> Dict[str, Any]:
+        """
+        Get paginated content from both regular and auto tables.
+
+        Args:
+            pagination: Pagination parameters
+            content_types: List of content types to include ("regular", "auto", or both)
+            creator_filter: "all", "user", or "community"
+            user_id: User ID for filtering
+            search_term: Search term for title filtering
+            sort_field: Field to sort by
+            sort_order: Sort order ("asc" or "desc")
+            **filters: Additional filters
+        """
+        if content_types is None:
+            content_types = ["regular", "auto"]
+
+        session = self.repository.db
+
+        # Build unified query using UNION
+        queries = []
+
+        # Regular content query
+        if "regular" in content_types:
+            regular_query = session.query(
+                ContentItem.id.label('id'),
+                ContentItem.title.label('title'),
+                ContentItem.content_type.label('content_type'),
+                ContentItem.content_data.label('content_data'),
+                ContentItem.creator_id.label('creator_id'),
+                ContentItem.item_metadata.label('item_metadata'),
+                ContentItem.tags.label('tags'),
+                ContentItem.is_private.label('is_private'),
+                ContentItem.quality_score.label('quality_score'),
+                ContentItem.created_at.label('created_at'),
+                ContentItem.updated_at.label('updated_at'),
+                literal('regular').label('source_type')
+            )
+
+            # Apply filters
+            if creator_filter == "user" and user_id:
+                regular_query = regular_query.filter(ContentItem.creator_id == user_id)
+            elif creator_filter == "community" and user_id:
+                regular_query = regular_query.filter(ContentItem.creator_id != user_id)
+
+            if search_term:
+                regular_query = regular_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
+
+            queries.append(regular_query)
+
+        # Auto content query
+        if "auto" in content_types:
+            auto_query = session.query(
+                ContentItemAuto.id.label('id'),
+                ContentItemAuto.title.label('title'),
+                ContentItemAuto.content_type.label('content_type'),
+                ContentItemAuto.content_data.label('content_data'),
+                ContentItemAuto.creator_id.label('creator_id'),
+                ContentItemAuto.item_metadata.label('item_metadata'),
+                ContentItemAuto.tags.label('tags'),
+                ContentItemAuto.is_private.label('is_private'),
+                ContentItemAuto.quality_score.label('quality_score'),
+                ContentItemAuto.created_at.label('created_at'),
+                ContentItemAuto.updated_at.label('updated_at'),
+                literal('auto').label('source_type')
+            )
+
+            # Apply filters
+            if creator_filter == "user" and user_id:
+                auto_query = auto_query.filter(ContentItemAuto.creator_id == user_id)
+            elif creator_filter == "community" and user_id:
+                auto_query = auto_query.filter(ContentItemAuto.creator_id != user_id)
+
+            if search_term:
+                auto_query = auto_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
+
+            queries.append(auto_query)
+
+        if not queries:
+            # Return empty result if no content types specified
+            return {
+                "items": [],
+                "pagination": {
+                    "page": pagination.page,
+                    "page_size": pagination.page_size,
+                    "total_count": 0,
+                    "total_pages": 0,
+                    "has_next": False,
+                    "has_previous": False,
+                },
+                "stats": self.get_unified_content_stats(user_id),
+            }
+
+        # Combine queries with UNION
+        if len(queries) == 1:
+            unified_query = queries[0]
+        else:
+            unified_query = queries[0].union_all(*queries[1:])
+
+        # Add sorting - create a subquery first to be able to order by the labeled columns
+        subquery = unified_query.subquery()
+
+        if sort_field == "created_at":
+            if sort_order.lower() == "desc":
+                unified_query = session.query(subquery).order_by(desc(subquery.c.created_at))
+            else:
+                unified_query = session.query(subquery).order_by(subquery.c.created_at)
+        elif sort_field == "quality_score":
+            if sort_order.lower() == "desc":
+                unified_query = session.query(subquery).order_by(desc(subquery.c.quality_score))
+            else:
+                unified_query = session.query(subquery).order_by(subquery.c.quality_score)
+        else:
+            # Default sort by created_at desc
+            unified_query = session.query(subquery).order_by(desc(subquery.c.created_at))
+
+        # Get total count for pagination - use a simpler approach
+        try:
+            # Count from the original union query (before sorting)
+            original_union = queries[0] if len(queries) == 1 else queries[0].union_all(*queries[1:])
+            count_subquery = original_union.subquery()
+            total_count = session.query(func.count()).select_from(count_subquery).scalar() or 0
+        except Exception:
+            # Fallback: calculate count separately for each table
+            total_count = 0
+            if "regular" in content_types:
+                regular_count_query = session.query(func.count(ContentItem.id))
+                if creator_filter == "user" and user_id:
+                    regular_count_query = regular_count_query.filter(ContentItem.creator_id == user_id)
+                elif creator_filter == "community" and user_id:
+                    regular_count_query = regular_count_query.filter(ContentItem.creator_id != user_id)
+                if search_term:
+                    regular_count_query = regular_count_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
+                total_count += regular_count_query.scalar() or 0
+
+            if "auto" in content_types:
+                auto_count_query = session.query(func.count(ContentItemAuto.id))
+                if creator_filter == "user" and user_id:
+                    auto_count_query = auto_count_query.filter(ContentItemAuto.creator_id == user_id)
+                elif creator_filter == "community" and user_id:
+                    auto_count_query = auto_count_query.filter(ContentItemAuto.creator_id != user_id)
+                if search_term:
+                    auto_count_query = auto_count_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
+                total_count += auto_count_query.scalar() or 0
+
+        # Apply pagination
+        offset = (pagination.page - 1) * pagination.page_size
+        unified_query = unified_query.offset(offset).limit(pagination.page_size)
+
+        # Execute query
+        results = unified_query.all()
+
+        # Convert results to dictionaries
+        items = []
+        for row in results:
+            items.append({
+                "id": row.id,
+                "title": row.title,
+                "content_type": row.content_type,
+                "content_data": row.content_data,
+                "creator_id": str(row.creator_id),
+                "item_metadata": row.item_metadata,
+                "tags": row.tags,
+                "is_private": row.is_private,
+                "quality_score": row.quality_score,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                "source_type": row.source_type,
+            })
+
+        # Calculate pagination metadata
+        total_pages = (total_count + pagination.page_size - 1) // pagination.page_size
+        has_next = pagination.page < total_pages
+        has_previous = pagination.page > 1
+
+        return {
+            "items": items,
+            "pagination": {
+                "page": pagination.page,
+                "page_size": pagination.page_size,
+                "total_count": total_count,
+                "total_pages": total_pages,
+                "has_next": has_next,
+                "has_previous": has_previous,
+            },
+            "stats": self.get_unified_content_stats(user_id),
+        }
 
 
 class ContentAutoService(ContentService):

@@ -1,6 +1,6 @@
 """Content management API routes."""
 
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -48,6 +48,87 @@ async def create_content(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
     except EntityNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get("/unified")
+async def get_unified_content(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(10, ge=1, le=1000, description="Items per page"),
+    content_types: str = Query("regular,auto", description="Comma-separated content types (regular, auto)"),
+    creator_filter: str = Query("all", description="Creator filter (all, user, community)"),
+    user_id: Optional[UUID] = Query(None, description="User ID for filtering"),
+    search_term: Optional[str] = Query(None, description="Search term for title"),
+    sort_field: str = Query("created_at", description="Field to sort by"),
+    sort_order: str = Query("desc", description="Sort order (asc, desc)"),
+    db: Session = Depends(get_database_session)
+):
+    """Get unified content from both regular and auto tables with pagination."""
+    service = ContentService(db)
+
+    try:
+        # Parse content types
+        content_type_list = [ct.strip() for ct in content_types.split(",") if ct.strip()]
+        if not content_type_list:
+            content_type_list = ["regular", "auto"]
+
+        # Validate content types
+        valid_types = {"regular", "auto"}
+        for ct in content_type_list:
+            if ct not in valid_types:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid content type: {ct}. Must be one of: {', '.join(valid_types)}"
+                )
+
+        # Validate creator filter
+        if creator_filter not in {"all", "user", "community"}:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="creator_filter must be one of: all, user, community"
+            )
+
+        # Create pagination request
+        pagination = PaginationRequest(
+            page=page,
+            page_size=page_size
+        )
+
+        # Get unified content
+        result = service.get_unified_content_paginated(
+            pagination=pagination,
+            content_types=content_type_list,
+            creator_filter=creator_filter,
+            user_id=user_id,
+            search_term=search_term,
+            sort_field=sort_field,
+            sort_order=sort_order
+        )
+
+        return result
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving unified content: {str(exc)}"
+        )
+
+
+@router.get("/stats/unified")
+async def get_unified_content_stats(
+    user_id: Optional[UUID] = Query(None, description="User ID for user-specific stats"),
+    db: Session = Depends(get_database_session)
+):
+    """Get unified content statistics across both regular and auto tables."""
+    service = ContentService(db)
+
+    try:
+        stats = service.get_unified_content_stats(user_id=user_id)
+        return stats
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving unified stats: {str(exc)}"
+        )
 
 
 @router.get("/{content_id}", response_model=ContentResponse)
@@ -409,3 +490,5 @@ async def get_content_stats(
     service = ContentService(db)
     stats = service.get_content_stats()
     return ContentStatsResponse(**stats)
+
+

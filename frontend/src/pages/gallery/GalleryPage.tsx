@@ -16,6 +16,7 @@ import {
   ListItemText,
   MenuItem,
   Pagination,
+  Popover,
   Select,
   Skeleton,
   Stack,
@@ -26,7 +27,8 @@ import {
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
-import { useGalleryList, useGalleryAutoList, useCurrentUser } from '../../hooks'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import { useUnifiedGallery, useCurrentUser } from '../../hooks'
 import { ADMIN_USER_ID } from '../../constants/config'
 
 const PAGE_SIZE = 10
@@ -44,9 +46,9 @@ interface FiltersState {
 }
 
 interface ContentToggles {
-  yourWorks: boolean
+  yourGens: boolean
   yourAutoGens: boolean
-  communityWorks: boolean
+  communityGens: boolean
   communityAutoGens: boolean
 }
 
@@ -79,10 +81,13 @@ export function GalleryPage() {
       return true
     }
   })
+
+  // Popover state for stats
+  const [statsAnchorEl, setStatsAnchorEl] = useState<HTMLElement | null>(null)
   const [contentToggles, setContentToggles] = useState<ContentToggles>({
-    yourWorks: true,
+    yourGens: true,
     yourAutoGens: true,
-    communityWorks: true,
+    communityGens: true,
     communityAutoGens: true,
   })
 
@@ -106,97 +111,46 @@ export function GalleryPage() {
     }
   }, [searchParams, filters.tag])
 
-  const queryParams = useMemo(
-    () => ({
-      limit: PAGE_SIZE * 2, // Get more items to account for filtering
-      skip: 0, // We'll handle pagination after combining results
-      search: filters.search,
-      sort: filters.sort,
-      ...(filters.tag && { tag: filters.tag }), // Add tag filter if present
-    }),
-    [filters.search, filters.sort, filters.tag]
-  )
-
-  // Fetch data from different sources based on toggles
-  const { data: yourWorksData, isLoading: yourWorksLoading } = useGalleryList({
-    ...queryParams,
-    creator_id: userId,
-  })
-
-  const { data: yourAutoGensData, isLoading: yourAutoGensLoading } = useGalleryAutoList({
-    ...queryParams,
-    creator_id: userId,
-  })
-
-  const { data: allWorksData, isLoading: allWorksLoading } = useGalleryList(queryParams)
-
-  const { data: allAutoGensData, isLoading: allAutoGensLoading } = useGalleryAutoList(queryParams)
-
-  // Combine and filter data based on toggles
-  const combinedData = useMemo(() => {
-    const items = []
-
-    // Add your works if toggle is on
-    if (contentToggles.yourWorks && yourWorksData?.items) {
-      items.push(...yourWorksData.items)
+  // Determine content types based on toggles
+  const contentTypes = useMemo(() => {
+    const types = []
+    if (contentToggles.yourGens || contentToggles.communityGens) {
+      types.push('regular')
     }
-
-    // Add your auto-gens if toggle is on
-    if (contentToggles.yourAutoGens && yourAutoGensData?.items) {
-      items.push(...yourAutoGensData.items)
+    if (contentToggles.yourAutoGens || contentToggles.communityAutoGens) {
+      types.push('auto')
     }
+    return types
+  }, [contentToggles])
 
-    // Add community works if toggle is on (exclude user's own content)
-    if (contentToggles.communityWorks && allWorksData?.items) {
-      const communityWorks = allWorksData.items.filter(item => item.creatorId !== userId)
-      items.push(...communityWorks)
+  // Determine creator filter
+  const creatorFilter = useMemo(() => {
+    const userContent = contentToggles.yourGens || contentToggles.yourAutoGens
+    const communityContent = contentToggles.communityGens || contentToggles.communityAutoGens
+
+    if (userContent && communityContent) {
+      return 'all'
+    } else if (userContent) {
+      return 'user'
+    } else if (communityContent) {
+      return 'community'
     }
+    return 'all'
+  }, [contentToggles])
 
-    // Add community auto-gens if toggle is on (exclude user's own content)
-    if (contentToggles.communityAutoGens && allAutoGensData?.items) {
-      const communityAutoGens = allAutoGensData.items.filter(item => item.creatorId !== userId)
-      items.push(...communityAutoGens)
-    }
-
-    // Remove duplicates and sort
-    const uniqueItems = items.filter((item, index, self) =>
-      index === self.findIndex(i => i.id === item.id)
-    )
-
-    // Sort based on selected sort option
-    uniqueItems.sort((a, b) => {
-      if (filters.sort === 'recent') {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      } else {
-        // Top-rated sorting
-        return (b.qualityScore ?? 0) - (a.qualityScore ?? 0)
-      }
-    })
-
-    // Handle pagination
-    const startIndex = filters.page * PAGE_SIZE
-    const endIndex = startIndex + PAGE_SIZE
-    const paginatedItems = uniqueItems.slice(startIndex, endIndex)
-
-    return {
-      items: paginatedItems,
-      total: uniqueItems.length,
-      limit: PAGE_SIZE,
-      skip: startIndex,
-    }
-  }, [
-    contentToggles,
-    yourWorksData,
-    yourAutoGensData,
-    allWorksData,
-    allAutoGensData,
+  // Use unified gallery API
+  const { data: unifiedData, isLoading } = useUnifiedGallery({
+    page: filters.page + 1, // Convert from 0-based to 1-based
+    pageSize: PAGE_SIZE,
+    contentTypes,
+    creatorFilter,
     userId,
-    filters.sort,
-    filters.page,
-  ])
+    searchTerm: filters.search || undefined,
+    sortField: filters.sort === 'recent' ? 'created_at' : 'quality_score',
+    sortOrder: 'desc',
+  })
 
-  const isLoading = yourWorksLoading || yourAutoGensLoading || allWorksLoading || allAutoGensLoading
-  const data = combinedData
+  const data = unifiedData
 
   const totalPages = useMemo(() => {
     if (!data?.total) {
@@ -256,6 +210,11 @@ export function GalleryPage() {
         }}
       >
         <Stack spacing={4}>
+          <Stack spacing={1}>
+            <Typography component="h1" variant="h4" fontWeight={600} gutterBottom>
+              Gallery
+            </Typography>
+          </Stack>
           <Card>
             <CardContent>
               {isLoading ? (
@@ -336,9 +295,28 @@ export function GalleryPage() {
         }}
       >
         <Stack spacing={3} sx={{ height: '100%' }}>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', display: 'inline' }}>
+              {totalPages.toLocaleString()} pages showing {data?.total?.toLocaleString() || 0} results matching filters.
+            </Typography>
+            {data?.stats && (
+              <IconButton
+                size="small"
+                sx={{
+                  ml: 0.5,
+                  p: 0.25,
+                  color: 'text.secondary'
+                }}
+                onMouseEnter={(event) => setStatsAnchorEl(event.currentTarget)}
+                onMouseLeave={() => setStatsAnchorEl(null)}
+              >
+                <InfoOutlinedIcon sx={{ fontSize: 14 }} />
+              </IconButton>
+            )}
+          </Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography component="h1" variant="h5" fontWeight={600}>
-              Gallery
+            <Typography component="h2" variant="h6" fontWeight={600}>
+              Options
             </Typography>
             <Tooltip title="Hide options" enterDelay={300} arrow>
               <IconButton aria-label="Close options" onClick={() => setOptionsOpen(false)}>
@@ -411,11 +389,11 @@ export function GalleryPage() {
               <FormControlLabel
                 control={
                   <Switch
-                    checked={contentToggles.yourWorks}
-                    onChange={handleToggleChange('yourWorks')}
+                    checked={contentToggles.yourGens}
+                    onChange={handleToggleChange('yourGens')}
                   />
                 }
-                label="Your works"
+                label="Your gens"
               />
               <FormControlLabel
                 control={
@@ -429,11 +407,11 @@ export function GalleryPage() {
               <FormControlLabel
                 control={
                   <Switch
-                    checked={contentToggles.communityWorks}
-                    onChange={handleToggleChange('communityWorks')}
+                    checked={contentToggles.communityGens}
+                    onChange={handleToggleChange('communityGens')}
                   />
                 }
-                label="Community works"
+                label="Community gens"
               />
               <FormControlLabel
                 control={
@@ -448,6 +426,55 @@ export function GalleryPage() {
           </Stack>
         </Stack>
       </Drawer>
+
+      {/* Stats Popover */}
+      <Popover
+        open={Boolean(statsAnchorEl)}
+        anchorEl={statsAnchorEl}
+        onClose={() => setStatsAnchorEl(null)}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'center',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'center',
+        }}
+        disableRestoreFocus
+        sx={{
+          pointerEvents: 'none',
+        }}
+        slotProps={{
+          paper: {
+            sx: {
+              p: 1.5,
+              pointerEvents: 'auto',
+            },
+          },
+        }}
+        onMouseEnter={() => setStatsAnchorEl(statsAnchorEl)}
+        onMouseLeave={() => setStatsAnchorEl(null)}
+      >
+        {data?.stats && (
+          <Stack spacing={1}>
+             {/*<Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+               Content Statistics
+             </Typography>*/}
+            <Typography variant="body2" color="text.secondary">
+              Your gens: {data.stats.userRegularCount.toLocaleString()}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Your auto-gens: {data.stats.userAutoCount.toLocaleString()}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Community gens: {data.stats.communityRegularCount.toLocaleString()}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Community auto-gens: {data.stats.communityAutoCount.toLocaleString()}
+            </Typography>
+          </Stack>
+        )}
+      </Popover>
     </Box>
   )
 }

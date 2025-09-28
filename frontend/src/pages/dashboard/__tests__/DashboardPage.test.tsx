@@ -57,7 +57,9 @@ describe('DashboardPage', () => {
     mockedUseGalleryStats.mockReturnValue({
       data: {
         userGalleryCount: 1,
+        userAutoGalleryCount: 2,
         totalGalleryCount: 3,
+        totalAutoGalleryCount: 4,
       },
       isLoading: false,
     })
@@ -156,9 +158,13 @@ describe('DashboardPage', () => {
     expect(mockedUseGalleryList).toHaveBeenCalledWith({ limit: 20, sort: 'recent' })
     expect(mockedUseGalleryAutoList).toHaveBeenCalledWith({ limit: 20, sort: 'recent' })
     expect(screen.getByText('1')).toBeInTheDocument() // User gallery count
+    expect(screen.getByText('2')).toBeInTheDocument() // User auto gallery count
     expect(screen.getByText('3')).toBeInTheDocument() // Total gallery count
+    expect(screen.getByText('4')).toBeInTheDocument() // Total auto gallery count
     expect(screen.getByText('Your gens')).toBeInTheDocument()
+    expect(screen.getByText('Your auto-gens')).toBeInTheDocument()
     expect(screen.getByText('Community gens')).toBeInTheDocument()
+    expect(screen.getByText('Community auto-gens')).toBeInTheDocument()
     expect(screen.getByText('Your recent gens')).toBeInTheDocument()
     expect(screen.getByText('Your recent auto-gens')).toBeInTheDocument()
     expect(screen.getByText('Community recent gens')).toBeInTheDocument()

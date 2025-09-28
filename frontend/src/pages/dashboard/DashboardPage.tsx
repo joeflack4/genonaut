@@ -6,7 +6,9 @@ const DEFAULT_USER_ID = ADMIN_USER_ID
 
 const galleryStatItems = [
   { key: 'userGalleryCount' as const, label: 'Your gens' },
+  { key: 'userAutoGalleryCount' as const, label: 'Your auto-gens' },
   { key: 'totalGalleryCount' as const, label: 'Community gens' },
+  { key: 'totalAutoGalleryCount' as const, label: 'Community auto-gens' },
 ]
 
 export function DashboardPage() {
@@ -65,7 +67,7 @@ export function DashboardPage() {
         sx={{
           display: 'grid',
           gap: 3,
-          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' },
         }}
       >
         {galleryStatItems.map(({ key, label }) => (
@@ -78,7 +80,7 @@ export function DashboardPage() {
                 <Skeleton variant="text" height={48} width={80} />
               ) : (
                 <Typography variant="h4" fontWeight={600}>
-                  {galleryStats ? galleryStats[key] : '—'}
+                  {galleryStats ? galleryStats[key].toLocaleString() : '—'}
                 </Typography>
               )}
             </CardContent>
@@ -110,7 +112,7 @@ export function DashboardPage() {
             </List>
           ) : (
             <Typography variant="body2" color="text.secondary">
-              No recent works available.
+              No recent content available.
             </Typography>
           )}
         </CardContent>

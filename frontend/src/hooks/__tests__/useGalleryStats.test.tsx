@@ -5,8 +5,8 @@ import { vi } from 'vitest'
 import { useGalleryStats } from '../useGalleryStats'
 
 vi.mock('../../services', () => ({
-  galleryService: {
-    listGallery: vi.fn(),
+  unifiedGalleryService: {
+    getUnifiedStats: vi.fn(),
   },
 }))
 
@@ -24,47 +24,36 @@ const createWrapper = () => {
   )
 }
 
-const { galleryService } = await import('../../services')
-const mockGalleryService = vi.mocked(galleryService)
+const { unifiedGalleryService } = await import('../../services')
+const mockUnifiedGalleryService = vi.mocked(unifiedGalleryService)
 
 describe('useGalleryStats', () => {
   const wrapper = createWrapper()
 
   beforeEach(() => {
-    mockGalleryService.listGallery.mockReset()
+    mockUnifiedGalleryService.getUnifiedStats.mockReset()
   })
 
   it('fetches user and total gallery counts', async () => {
-    mockGalleryService.listGallery.mockResolvedValueOnce({
-      items: [{ id: 1, title: 'User Gallery Item' }],
-      total: 1,
-      limit: 1,
-      skip: 0,
+    mockUnifiedGalleryService.getUnifiedStats.mockResolvedValueOnce({
+      userRegularCount: 50,
+      userAutoCount: 30,
+      communityRegularCount: 1200,
+      communityAutoCount: 800,
     })
 
-    mockGalleryService.listGallery.mockResolvedValueOnce({
-      items: [{ id: 1, title: 'Gallery Item 1' }],
-      total: 3,
-      limit: 1,
-      skip: 0,
-    })
-
-    const { result } = renderHook(() => useGalleryStats(1), { wrapper })
+    const { result } = renderHook(() => useGalleryStats('1'), { wrapper })
 
     await waitFor(() => {
       expect(result.current.data).toEqual({
-        userGalleryCount: 1,
-        totalGalleryCount: 3,
+        userGalleryCount: 50,
+        userAutoGalleryCount: 30,
+        totalGalleryCount: 1200,
+        totalAutoGalleryCount: 800,
       })
     })
 
-    expect(mockGalleryService.listGallery).toHaveBeenCalledTimes(2)
-    expect(mockGalleryService.listGallery).toHaveBeenNthCalledWith(1, {
-      creator_id: 1,
-      limit: 1,
-    })
-    expect(mockGalleryService.listGallery).toHaveBeenNthCalledWith(2, {
-      limit: 1,
-    })
+    expect(mockUnifiedGalleryService.getUnifiedStats).toHaveBeenCalledTimes(1)
+    expect(mockUnifiedGalleryService.getUnifiedStats).toHaveBeenCalledWith('1')
   })
 })
