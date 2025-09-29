@@ -201,9 +201,66 @@ Status update: Seeded test fixtures now contain ~2,000 unified content rows (10 
 - [x] Add database state verification utilities for asserting side effects
 - [x] Create cleanup utilities for maintaining test isolation
 
-**Phase 3 Summary:** Successfully completed comprehensive migration of E2E tests from complex mocks to real API testing. Created 38 new real API tests across 7 new test files covering authentication, dashboard, settings, recommendations, content CRUD, search/filtering, and statistics. All existing test suites continue to pass (backend: 467 tests, frontend unit: 82 tests, mock E2E: 30 tests). The hybrid approach is now fully operational with clear separation between mock tests (for edge cases) and real API tests (for business logic).
+**Phase 3 Summary:** Successfully completed comprehensive migration of E2E tests from complex mocks to real API testing. 
+Created 38 new real API tests across 7 new test files covering authentication, dashboard, settings, recommendations, 
+content CRUD, search/filtering, and statistics. All existing test suites continue to pass (backend: 467 tests, frontend 
+unit: 82 tests, mock E2E: 30 tests). The hybrid approach is now fully operational with clear separation between mock 
+tests (for edge cases) and real API tests (for business logic).
 
-### **Phase 4: Optimization and Cleanup**
+### **Phase 4: Renmove unneded mock tests; activate/implement tests usin real API**
+- [ ] 1: Cull mocks: Look at all of the current, skipped mock tests, and for each:
+  - [ ] 1.1: Check if it is not just skipped simply because it is a mock test and mock infrastructure hasn't been 
+  implemented, but ALSO skipped because of functionality that does not yet exist in the app. If so, then do not delete the test, 
+  but change its description, noting that it will be used with the real test server web API.
+  - [ ] 1.2: For those mock tests that have utility because they serve an edge case better served by a mock than the real 
+  API, leave them, but continue skipping for now.
+  - [ ] 1.3: For the rest, that do not meet criteria for (1.1) or (1.2), then, if there is truly no utility for these 
+  tests any longer, delete them.
+- [ ] 2: Repurpose: For those tests which were identified in step (1.1) as being for the real API, convert them to real API tests.
+- [ ] 3: For any tests that are currently being skipped, but are for the real API, and are not awaiting any future 
+  functionality, go ahead and implement them now.
+- [ ] 4: Ensure that all tests now pass: `make test`, `make frontend-test-unit`, `make frontend-test-e2e`.
+- [ ] 5: If there are any tests which you could not identify what to do with, and need help from the user/dev, add them 
+  to a list of checkboxes here, and alert hte user that you need help.
+
+#### About real API tests
+During an earlier progress report, it was written:
+
+  | Real API Tests | ✅ Ready   | 38 tests  | Await real API environment   |
+
+But this seems like a mistake. The real API for testing is the entire point of this work as outlined in this document. 
+
+We have already gone to great lengths to update the playwright tests so that they are able to spin up the test server 
+web API so that they can be used during testing. Is there something I'm missing, or did you make a mistake in skipping 
+/ not implementing these tests? Based on what you said earlier, it sounds like we should proceed with unskipping any of 
+these that are currently being skipped, and making sure that they are all implemented / passing, at least for the ones 
+that are being skipped ONLY because they are waiting for the test web API.
+
+If they are being skipped for other reasons, then we should continue skipping them.
+
+Examples of tests mentioned in earlier report that we should continue to skip:
+1. Auth Tests: redirects logged-in user from login to dashboard - ALREADY SKIPPED
+  - we should continue skipping this, because we don't yet have a login/auth feature
+2. Settings Tests: persists profile updates and theme preference - ALREADY
+SKIPPED
+  - We should skip this test, because we are not persisting profile/theme/settings updates to the DB yet.
+3. Recommendations Tests: marks a recommendation as served - ALREADY SKIPPED
+  - We should skip these, because this page is not yet implemented.
+
+Examples of tests mentioned in earlier report which we should not be skipping:
+1. Dashboard Tests: shows gallery stats and recent content - ALREADY SKIPPED
+  - The dashboard page is functionally done. Gallery stats and recent content is currently being displayed. So we should have tests for this.
+
+#### About mock tests
+We should delete all mock tests that are instead being represented by a real API test, except for specific edge cases.
+
+Example legitimate edge cases that mocks handle better:
+  - error-handling.spec.ts - Network failures, timeouts, malformed responses
+  - performance.spec.ts - Extreme dataset simulations, memory testing
+  - loading-errors.spec.ts - Basic error state testing
+  - Working gallery mock tests (the ones that pass)
+
+### **Phase 5: Optimization and Cleanup**
 
 #### **Performance Optimization**
 - [ ] Optimize test database seeding for faster test startup
