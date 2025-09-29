@@ -37,11 +37,15 @@ export function useTagHierarchyTree(options?: { noCache?: boolean }) {
     tagHierarchyService.convertToTree(hierarchyQuery.data.nodes) :
     undefined;
 
+  const finalIsLoading = hierarchyQuery.isLoading && !treeData;
+
   return {
     ...hierarchyQuery,
     data: treeData,
     flatNodes: hierarchyQuery.data?.nodes,
     metadata: hierarchyQuery.data?.metadata,
+    // Ensure we're not loading if we have tree data
+    isLoading: finalIsLoading,
   };
 }
 

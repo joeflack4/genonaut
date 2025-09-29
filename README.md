@@ -1,5 +1,8 @@
-# Genonaut
-Recommender systems &amp; perpetual generation for gen AI.
+<p align="center">
+  <img src="docs/assets/logo.jpeg" alt="Genonaut" width="50%" />
+</p>
+
+Genonaut: Recommender systems &amp; perpetual generation for gen AI.
 
 Core features
 - **Generations**: Generate art using ComfyUI integration.

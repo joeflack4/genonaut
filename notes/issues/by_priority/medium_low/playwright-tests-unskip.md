@@ -1,3 +1,4 @@
+
 # Playwright Failures Triage
 
 ## 1. Quick Fixes
@@ -8,23 +9,23 @@
 ## 2. Needs Larger Implementation Effort
 
 ### Medium effort
-- [ ] Frontend Error Handling › shows loading states and prevents multiple submissions — @Skipped (see notes/fix-playwright-tests.md). Requires runtime to reflect updated submission state machine before re-enabling.
+- [ ] Frontend Error Handling › shows loading states and prevents multiple submissions — @Skipped (see notes/issues/complete/fix-playwright-tests.md). Requires runtime to reflect updated submission state machine before re-enabling.
 - [x] Frontend Error Handling › preserves form data during errors — Added stable `data-testid` hooks, expanded advanced settings by default, and ensured error retry button keeps field values; test passes.
 - [x] Frontend Error Handling › provides accessible error messages — Error alert now carries `role="alert"`, `aria-live`, heading and retry controls with data-test IDs; accessibility test passes.
 
 ### High effort
 - [x] Frontend Error Handling › displays user-friendly error when API is unavailable — Updated error alert overlay, support link, and endpoint alignment; test passes.
-- [ ] Frontend Error Handling › handles validation errors with specific guidance — @Skipped (see notes/fix-playwright-tests.md). UI updates partially implemented but runtime build still exposes old form; Playwright skip pending cache investigation.
-- [ ] Frontend Error Handling › provides recovery options for network errors — @Skipped (see notes/fix-playwright-tests.md). Depends on the same form/runtime issue as validation handling.
-- [ ] Frontend Error Handling › handles timeout errors gracefully — @Skipped (see notes/fix-playwright-tests.md). Timeout UI implemented but blocked by runtime mismatch.
-- [ ] Frontend Error Handling › displays generation failure errors with recovery options — @Skipped (see notes/fix-playwright-tests.md). Failure overlay wired in but unable to exercise due to same bundle mismatch.
-- [ ] Frontend Error Handling › handles image loading errors in gallery — @Skipped (see notes/fix-playwright-tests.md). History tab/placeholder wiring added; awaiting working bundle.
-- [ ] Frontend Error Handling › handles progressive enhancement gracefully — @Skipped (see notes/fix-playwright-tests.md). Pending once runtime honors new no-JS fallback hooks.
+- [ ] Frontend Error Handling › handles validation errors with specific guidance — @Skipped (see notes/issues/complete/fix-playwright-tests.md). UI updates partially implemented but runtime build still exposes old form; Playwright skip pending cache investigation.
+- [ ] Frontend Error Handling › provides recovery options for network errors — @Skipped (see notes/issues/complete/fix-playwright-tests.md). Depends on the same form/runtime issue as validation handling.
+- [ ] Frontend Error Handling › handles timeout errors gracefully — @Skipped (see notes/issues/complete/fix-playwright-tests.md). Timeout UI implemented but blocked by runtime mismatch.
+- [ ] Frontend Error Handling › displays generation failure errors with recovery options — @Skipped (see notes/issues/complete/fix-playwright-tests.md). Failure overlay wired in but unable to exercise due to same bundle mismatch.
+- [ ] Frontend Error Handling › handles image loading errors in gallery — @Skipped (see notes/issues/complete/fix-playwright-tests.md). History tab/placeholder wiring added; awaiting working bundle.
+- [ ] Frontend Error Handling › handles progressive enhancement gracefully — @Skipped (see notes/issues/complete/fix-playwright-tests.md). Pending once runtime honors new no-JS fallback hooks.
 
 ### Very high effort
-- [ ] Frontend Error Handling › provides rate limit feedback with clear timing — @Skipped (see notes/fix-playwright-tests.md). Shared dependency on updated form state machine.
-- [ ] Frontend Error Handling › shows offline mode when network is unavailable — @Skipped (see notes/fix-playwright-tests.md). Offline banner logic blocked by same issue.
-- [ ] Frontend Error Handling › reports JavaScript errors appropriately — @Skipped (see notes/fix-playwright-tests.md). Awaiting runtime alignment for new error boundary hooks.
+- [ ] Frontend Error Handling › provides rate limit feedback with clear timing — @Skipped (see notes/issues/complete/fix-playwright-tests.md). Shared dependency on updated form state machine.
+- [ ] Frontend Error Handling › shows offline mode when network is unavailable — @Skipped (see notes/issues/complete/fix-playwright-tests.md). Offline banner logic blocked by same issue.
+- [ ] Frontend Error Handling › reports JavaScript errors appropriately — @Skipped (see notes/issues/complete/fix-playwright-tests.md). Awaiting runtime alignment for new error boundary hooks.
 
 ### Performance suite
 - [x] Frontend Performance Tests › generation history component rendering performance — Restored `generation-card` hooks and raised navigation timeout; passes.

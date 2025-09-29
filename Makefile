@@ -12,7 +12,8 @@ test-frontend test-frontend-unit test-frontend-watch test-frontend-coverage test
 test-frontend-e2e-ui test-frontend-e2e-real-api test-frontend-e2e-real-api-headed test-frontend-e2e-real-api-ui db-wal-buffers-reset db-wal-buffers-set init-db init-db-drop test-long-running test-coverage docs \
 check-env api-dev-profile api-dev-load-test api-production-sim api-demo-load-test api-test-load-test \
 clear-excess-test-schemas-keep-3 migrate-down-dev migrate-heads-dev migrate-down-demo migrate-heads-demo \
-ontology-refresh ontology-generate ontology-validate ontology-stats ontology-test ontology-json
+ontology-refresh ontology-generate ontology-validate ontology-stats ontology-test ontology-json \
+md-collate md-export-tsv md-test md-github-sync-down md-github-sync-up md-github-sync
 
 # Load environment variables
 ifneq (,$(wildcard ./env/.env))
@@ -147,6 +148,14 @@ help:
 	@echo "  ontology-stats           Show ontology statistics and coverage"
 	@echo "  ontology-test            Run comprehensive ontology test suite"
 	@echo "  ontology-json            Convert TSV hierarchy to JSON format"
+	@echo ""
+	@echo "Markdown Manager:"
+	@echo "  md-collate               Scan and catalog markdown files"
+	@echo "  md-export-tsv            Export database to TSV files"
+	@echo "  md-test                  Run markdown manager tests"
+	@echo "  md-github-sync-down      Sync GitHub issues to local files"
+	@echo "  md-github-sync-up        Push local files to GitHub issues"
+	@echo "  md-github-sync           Bidirectional GitHub sync"
 
 
 # Database initialization
@@ -587,3 +596,58 @@ check-comfyui-create-img:
 	curl -X POST http://localhost:8000/prompt \
 	     -H "Content-Type: application/json" \
 	     -d @$${COMFY_EXAMPLE_FILE}
+
+# Lib: Markdown Manager
+md-collate:
+	cd libs/md_manager && source env/bin/activate && python -m md_manager.cli --config-path ../../notes/md-manager.json collate
+
+# todo: ideally would dynamically open every TSV in that dir
+md-export-tsv:
+	rm -rf notes/_archive/md-manager/export/
+	mkdir -p notes/_archive/md-manager/export/
+	cd libs/md_manager && source env/bin/activate && python -m md_manager.cli --config-path ../../notes/md-manager.json export --export-path ../../notes/_archive/md-manager/export/
+	open notes/_archive/md-manager/export/files.tsv
+
+md-test:
+	cd libs/md_manager && source env/bin/activate && python -m pytest test/ -v
+
+# GitHub Sync Commands
+md-github-sync-down:
+	@echo "Syncing GitHub issues to local files..."
+	@if [ ! -f "notes/md-manager.json" ]; then \
+		echo "Error: Configuration file notes/md-manager.json not found"; \
+		echo "Please create the configuration file or set GITHUB_TOKEN environment variable"; \
+		exit 1; \
+	fi
+	@if [ -z "$$GITHUB_TOKEN" ] && [ -z "$$MD_MANAGER_TOKEN" ]; then \
+		echo "Warning: No GitHub token found in environment variables"; \
+		echo "Please set GITHUB_TOKEN or MD_MANAGER_TOKEN, or configure in md-manager.json"; \
+	fi
+	cd libs/md_manager && source env/bin/activate && python -m md_manager.cli --config-path ../../notes/md-manager.json sync || (echo "Error: GitHub → Local sync failed"; exit 1)
+	@echo "✅ GitHub → Local sync completed successfully"
+
+md-github-sync-up:
+	@echo "Pushing local files to GitHub issues..."
+	@if [ ! -f "notes/md-manager.json" ]; then \
+		echo "Error: Configuration file notes/md-manager.json not found"; \
+		exit 1; \
+	fi
+	@if [ -z "$$GITHUB_TOKEN" ] && [ -z "$$MD_MANAGER_TOKEN" ]; then \
+		echo "Warning: No GitHub token found in environment variables"; \
+		echo "Please set GITHUB_TOKEN or MD_MANAGER_TOKEN, or configure in md-manager.json"; \
+	fi
+	cd libs/md_manager && source env/bin/activate && python -m md_manager.cli --config-path ../../notes/md-manager.json push || (echo "Error: Local → GitHub sync failed"; exit 1)
+	@echo "✅ Local → GitHub sync completed successfully"
+
+md-github-sync:
+	@echo "Running bidirectional GitHub sync..."
+	@if [ ! -f "notes/md-manager.json" ]; then \
+		echo "Error: Configuration file notes/md-manager.json not found"; \
+		exit 1; \
+	fi
+	@if [ -z "$$GITHUB_TOKEN" ] && [ -z "$$MD_MANAGER_TOKEN" ]; then \
+		echo "Warning: No GitHub token found in environment variables"; \
+		echo "Please set GITHUB_TOKEN or MD_MANAGER_TOKEN, or configure in md-manager.json"; \
+	fi
+	cd libs/md_manager && source env/bin/activate && python -m md_manager.cli --config-path ../../notes/md-manager.json sync-bidirectional || (echo "Error: Bidirectional sync failed"; exit 1)
+	@echo "✅ Bidirectional sync completed successfully"

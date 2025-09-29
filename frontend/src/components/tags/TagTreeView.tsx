@@ -22,8 +22,8 @@ import {
   Label as LabelIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { useTagHierarchy } from '../../hooks/useTagHierarchy';
-import type { TagHierarchyNode } from '../../services/tag-hierarchy-service';
+import { useTagHierarchyTree } from '../../hooks/useTagHierarchy';
+import type { TagHierarchyNode, TreeNode } from '../../services/tag-hierarchy-service';
 
 interface TagTreeViewProps {
   onNodeClick?: (nodeId: string, nodeName: string) => void;
@@ -47,55 +47,88 @@ export default function TagTreeView({
   className,
 }: TagTreeViewProps) {
   const navigate = useNavigate();
-  const { data: hierarchy, isLoading, error } = useTagHierarchy();
+  const { data: treeStructure, flatNodes, isLoading, error } = useTagHierarchyTree();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
-  // Convert flat hierarchy to react-accessible-treeview format
-  // Use a simple list approach for testing - just show the first root node and its children
+  // Convert tree structure to react-accessible-treeview format
   const treeData = useMemo((): TreeNodeData[] => {
-    if (!hierarchy?.nodes) return [];
+    if (!treeStructure || !flatNodes) {
+      return [];
+    }
 
-    // For testing, just create a simple tree with the first few nodes
     const result: TreeNodeData[] = [];
-    const rootNodes = hierarchy.nodes.filter(node => !node.parent);
+    const nodeMap = new Map<string, TagHierarchyNode>();
 
-    if (rootNodes.length === 0) return [];
+    // Create a map for quick lookup of flat node data
+    flatNodes.forEach(node => {
+      nodeMap.set(node.id, node);
+    });
 
-    // Just use the first root node to avoid react-accessible-treeview multiple root issues
-    const firstRoot = rootNodes[0];
-    const children = hierarchy.nodes.filter(node => node.parent === firstRoot.id);
+    // Create a virtual root node since react-accessible-treeview requires a single root
+    const virtualRootData: TagHierarchyNode = {
+      id: '__virtual_root__',
+      name: 'Tag Categories',
+      parent: null,
+    };
 
-    // Add the root node
     result.push({
-      id: 'root_0',
-      name: firstRoot.name,
+      id: '__virtual_root__',
+      name: 'Tag Categories',
       parent: null,
       children: [],
-      tagData: firstRoot,
-      isLeaf: children.length === 0,
+      tagData: virtualRootData,
+      isLeaf: false,
       level: 0,
     });
 
-    // Add direct children
-    children.forEach((child, index) => {
-      result.push({
-        id: `child_${index}`,
-        name: child.name,
-        parent: 'root_0',
-        children: [],
-        tagData: child,
-        isLeaf: true,
-        level: 1,
+    // Recursive function to convert TreeNode to TreeNodeData
+    const convertNode = (node: TreeNode, parent: string | null, level: number): TreeNodeData => {
+      const flatNodeData = nodeMap.get(node.id);
+      if (!flatNodeData) {
+        throw new Error(`Missing flat node data for ${node.id}`);
+      }
+
+      const hasChildren = node.children && node.children.length > 0;
+
+      return {
+        id: node.id,
+        name: node.name,
+        parent,
+        children: [], // Will be populated by react-accessible-treeview
+        tagData: flatNodeData,
+        isLeaf: !hasChildren,
+        level,
+      };
+    };
+
+    // Recursive function to build the flat array with proper parent-child relationships
+    const buildTreeData = (nodes: TreeNode[], parent: string | null, level: number) => {
+      nodes.forEach(node => {
+        const treeNodeData = convertNode(node, parent, level);
+        result.push(treeNodeData);
+
+        // Recursively add children
+        if (node.children && node.children.length > 0) {
+          buildTreeData(node.children, node.id, level + 1);
+        }
       });
-    });
+    };
+
+    // Build the tree data starting from root nodes as children of virtual root
+    buildTreeData(treeStructure, '__virtual_root__', 1);
 
     return result;
-  }, [hierarchy?.nodes]);
+  }, [treeStructure, flatNodes]);
 
   const handleNodeSelect = ({ element, isSelected }: ITreeViewOnNodeSelectProps) => {
     if (isSelected) {
       const nodeData = element as TreeNodeData;
       const tagId = nodeData.tagData.id;
+
+      // Don't navigate for the virtual root node
+      if (tagId === '__virtual_root__') {
+        return;
+      }
 
       if (onNodeClick) {
         onNodeClick(tagId, nodeData.tagData.name);
@@ -242,6 +275,7 @@ export default function TagTreeView({
     );
   }
 
+
   return (
     <Box
       className={className}
@@ -271,7 +305,7 @@ export default function TagTreeView({
         aria-label="Tag hierarchy tree"
         nodeRenderer={NodeRenderer}
         onNodeSelect={handleNodeSelect}
-        defaultExpandedIds={[]}
+        defaultExpandedIds={['__virtual_root__']}
         multiSelect={false}
         togglableSelect
         clickAction="EXCLUSIVE_SELECT"

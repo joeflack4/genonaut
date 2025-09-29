@@ -331,4 +331,4 @@ For questions or issues with the tag ontology:
 - [Database Documentation](./db.md) - Understanding tag storage and indexing
 - [API Documentation](./api.md) - Current and future API integration
 - [Testing Documentation](./testing.md) - Testing strategies for ontology features
-- [Planning Document](../notes/tag-ontology.md) - Original design and specifications
+- [Planning Document](../notes/issues/by_priority/low/tag-ontology.md) - Original design and specifications

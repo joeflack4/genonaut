@@ -1,0 +1,23 @@
+{
+  "collate": {
+    "directories": ["/Users/joeflack4/projects/genonaut/notes"],
+    "db_path": "md-manager.db",
+    "outpath_db": "/Users/joeflack4/projects/genonaut/notes",
+    "non_recursive": false
+  },
+  "export": {
+    "db_path": "/Users/joeflack4/projects/genonaut/notes/md-manager.db",
+    "export_path": "/Users/joeflack4/projects/genonaut/notes/export"
+  },
+  "github": {
+    "token": "${GITHUB_TOKEN}",
+    "repo_owner": "${GITHUB_REPO_OWNER}",
+    "repo_name": "${GITHUB_REPO_NAME}",
+    "sync_enabled": true,
+    "auto_sync_interval": 300,
+    "enable_caching": true,
+    "cache_ttl": 300,
+    "max_retries": 3,
+    "rate_limit_threshold": 10
+  }
+}

@@ -1,0 +1,7 @@
+click
+pytest
+requests
+python-dotenv
+pyyaml
+responses
+Pygments
