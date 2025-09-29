@@ -15,7 +15,7 @@ export default defineConfig({
     ignoreHTTPSErrors: true,
     trace: 'on-first-retry',
   },
-  reporter: [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
+  reporter: [['list'], ['html', { outputFolder: 'tests/e2e/output/playwright-report', open: 'never' }]],
   projects: [
     {
       name: 'chromium',

@@ -16,7 +16,7 @@ export default defineConfig({
     ignoreHTTPSErrors: true,
     trace: 'on-first-retry',
   },
-  reporter: [['list'], ['html', { outputFolder: 'playwright-report-real-api', open: 'never' }]],
+  reporter: [['list'], ['html', { outputFolder: 'tests/e2e/output/playwright-report/real-api', open: 'never' }]],
   projects: [
     {
       name: 'chromium-real-api',
@@ -32,7 +32,7 @@ export default defineConfig({
       timeout: process.env.CI ? 180_000 : 60_000,
       env: {
         API_ENVIRONMENT: 'test',
-        DATABASE_URL: 'sqlite:///test_playwright.db'
+        DATABASE_URL: 'sqlite:///tests/e2e/output/test_playwright.db'
       },
     },
     {

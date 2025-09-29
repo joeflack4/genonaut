@@ -18,7 +18,7 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '../..');
 
 // Configuration
-const TEST_DB_PATH = path.join(projectRoot, 'test_playwright.db');
+const TEST_DB_PATH = path.join(projectRoot, 'frontend', 'tests', 'e2e', 'output', 'test_playwright.db');
 const API_PORT = process.env.PORT || 8002;
 const API_ENVIRONMENT = 'test';
 

@@ -39,7 +39,7 @@ psql $DATABASE_URL_TEST -c "SELECT 1;" || echo "Connection failed"
 make init-test
 
 # 3. For SQLite test database (Playwright)
-rm -f test_playwright.db
+rm -f frontend/tests/e2e/output/test_playwright.db
 make frontend-test-e2e-real-api  # Will recreate database
 
 # 4. Check environment variables
@@ -69,7 +69,7 @@ make init-test
 # 4. Verify data was loaded
 python -c "
 import sqlite3
-conn = sqlite3.connect('test_playwright.db')
+conn = sqlite3.connect('frontend/tests/e2e/output/test_playwright.db')
 cursor = conn.cursor()
 cursor.execute('SELECT COUNT(*) FROM content_items')
 print('Content items:', cursor.fetchone()[0])
@@ -227,7 +227,7 @@ time curl "http://localhost:8002/api/v1/content/unified?page=1&page_size=10"
 # 3. Optimize test database
 python -c "
 import sqlite3
-conn = sqlite3.connect('test_playwright.db')
+conn = sqlite3.connect('frontend/tests/e2e/output/test_playwright.db')
 conn.execute('VACUUM;')
 conn.execute('ANALYZE;')
 conn.close()
@@ -372,7 +372,7 @@ echo "=== Reset Complete ==="
 
 ```bash
 # Check SQLite database size and performance
-ls -lh test_playwright.db
+ls -lh frontend/tests/e2e/output/test_playwright.db
 
 # Analyze query performance
 time curl "http://localhost:8002/api/v1/content/unified?page=50&page_size=10"
@@ -381,7 +381,7 @@ time curl "http://localhost:8002/api/v1/content/unified?page=50&page_size=10"
 python -c "
 import sqlite3
 import time
-conn = sqlite3.connect('test_playwright.db')
+conn = sqlite3.connect('frontend/tests/e2e/output/test_playwright.db')
 start = time.time()
 conn.execute('VACUUM;')
 print(f'VACUUM took {time.time() - start:.2f}s')

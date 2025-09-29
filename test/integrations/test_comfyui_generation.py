@@ -23,7 +23,7 @@ from sqlalchemy.orm import sessionmaker
 from genonaut.db.schema import Base
 
 # Test output directory
-TEST_OUTPUT_DIR = Path(__file__).parent.parent.parent / "test_output" / "comfyui_images"
+TEST_OUTPUT_DIR = Path(__file__).parent.parent / "output" / "comfyui_images"
 TEST_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 

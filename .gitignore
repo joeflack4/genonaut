@@ -50,8 +50,7 @@ node_modules
 .pnp.js
 # testing
 /coverage
-/frontend/test-results/
-/frontend/playwright-report/
+/frontend/tests/e2e/output/
 /frontend/playwright/.cache/
 /frontend/tests/playwright/performance/*
 !/frontend/tests/playwright/performance/.keep
@@ -67,4 +66,6 @@ yarn-error.log*
 .claude/
 
 # Test
-frontend/playwright-report/index.html
+playwright-report/
+test-results/
+test_output/
