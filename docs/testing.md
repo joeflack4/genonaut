@@ -17,6 +17,166 @@ Tests should be written and executed during each development phase, not just at 
 | **Database Tests** | Database Server | Test data layer and business logic | 🔄 Medium |
 | **API Integration Tests** | Web Server + Database | Test complete workflows and endpoints | 🐌 Slowest |
 
+## Design: Mock Tests vs Real API Tests
+
+### Hybrid Testing Strategy
+
+Genonaut uses a hybrid approach for E2E testing that combines mock-based tests for edge cases with real API tests for business logic validation.
+
+### When to Use Mock Tests
+
+**✅ Use Mock Tests For:**
+
+**Edge Case Scenarios**
+- Extreme pagination (page 50,000 of 1,000,000 records)
+- Network failures and timeouts
+- Malformed API responses
+- Rate limiting scenarios
+- Very large dataset simulations that would be impractical to seed
+
+**Error Simulation**
+- Connection drops during requests
+- Specific HTTP status codes (500, 503, etc.)
+- Malformed JSON responses
+- Authentication failures
+- Service unavailable scenarios
+
+**Performance Baseline Testing**
+- Memory exhaustion scenarios
+- Extreme concurrency (1000+ simultaneous requests)
+- Large payload handling
+- Browser resource limits
+
+**Example Mock Test Use Cases:**
+```typescript
+// Mock test for extreme pagination scenario
+test('handles pagination with 1M+ records', async ({ page }) => {
+  await setupMockApi(page, [{
+    pattern: '/api/v1/content/unified',
+    body: {
+      pagination: { total_count: 10000000, total_pages: 1000000 }
+    }
+  }])
+  // Test UI behavior with extreme numbers
+})
+
+// Mock test for network failure simulation
+test('gracefully handles API timeout', async ({ page }) => {
+  await setupMockApi(page, [{
+    pattern: '/api/v1/content/unified',
+    delay: 30000, // Simulate timeout
+    status: 408
+  }])
+  // Test error handling and recovery
+})
+```
+
+### When to Use Real API Tests
+
+**✅ Use Real API Tests For:**
+
+**Business Logic Validation**
+- User authentication flows
+- Content CRUD operations
+- Search and filtering functionality
+- Data consistency verification
+- Basic pagination (realistic dataset sizes)
+
+**Integration Testing**
+- Database query correctness
+- API contract validation
+- Data serialization/deserialization
+- Foreign key constraints
+- Transaction handling
+
+**User Workflow Testing**
+- End-to-end user journeys
+- Multi-step operations
+- State management across pages
+- Real data relationships
+
+**Example Real API Test Use Cases:**
+```typescript
+// Real API test for business logic
+test('filters content by type correctly', async ({ page }) => {
+  // Uses actual database and API
+  await page.goto('/gallery')
+  await toggleContentTypeFilter(page, 'regular', false)
+
+  const pagination = await getPaginationInfo(page)
+  const apiResponse = await getUnifiedContent(page, { content_types: 'auto' })
+
+  // Validates real data consistency
+  expect(pagination.results).toBe(apiResponse.pagination.total_count)
+})
+
+// Real API test for user workflow
+test('creates and edits content successfully', async ({ page }) => {
+  await loginAsTestUser(page)
+  await createTestContent(page, { title: 'Test Content' })
+  await editContentMetadata(page, { title: 'Updated Title' })
+
+  // Verifies actual database state
+  const content = await getContentFromApi(page, testContentId)
+  expect(content.title).toBe('Updated Title')
+})
+```
+
+### Decision Matrix
+
+| Scenario | Mock | Real API | Reason |
+|----------|------|----------|--------|
+| Normal pagination (10-100 pages) | ❌ | ✅ | Real data relationships needed |
+| Extreme pagination (50K+ pages) | ✅ | ❌ | Impractical to seed that much data |
+| User login flow | ❌ | ✅ | Test actual authentication logic |
+| Network timeout handling | ✅ | ❌ | Need to simulate specific failure |
+| Content type filtering | ❌ | ✅ | Validate SQL queries and results |
+| Memory leak detection | ✅ | ❌ | Need controlled data patterns |
+| Search functionality | ❌ | ✅ | Test real text matching algorithms |
+| Rate limiting behavior | ✅ | ❌ | Simulate specific error responses |
+
+### Test File Organization
+
+**Mock Test Files:**
+- `error-handling.spec.ts` - Network failures, timeouts, malformed responses
+- `performance.spec.ts` - Extreme dataset simulations, memory testing
+- `loading-errors.spec.ts` - Basic error state testing
+- `gallery.spec.ts` - Edge case pagination scenarios (kept minimal)
+
+**Real API Test Files:**
+- `auth-real-api.spec.ts` - Authentication flows and user management
+- `dashboard-real-api.spec.ts` - Dashboard functionality and statistics
+- `gallery-real-api.spec.ts` - Gallery pagination and content display
+- `search-filtering-real-api.spec.ts` - Search and filtering functionality
+- `content-crud-real-api.spec.ts` - Content creation, editing, deletion
+- `settings-real-api.spec.ts` - User settings and preferences
+- `recommendations-real-api.spec.ts` - Recommendation system testing
+
+### Implementation Guidelines
+
+**Mock Test Guidelines:**
+- Use precise mock patterns that match your edge case scenario
+- Keep mock complexity minimal - focus on the specific edge case
+- Document why the mock is needed vs real API
+- Use defensive programming for pattern matching
+
+**Real API Test Guidelines:**
+- Use defensive skips when API server isn't available
+- Verify sufficient test data exists before running assertions
+- Clean up test data to maintain isolation
+- Use helper functions for common API operations
+
+### Migration Strategy
+
+When converting from mock to real API tests:
+
+1. **Evaluate necessity**: Does this test serve a legitimate edge case?
+2. **Check implementation**: Is the functionality actually implemented?
+3. **Assess data requirements**: Can this be tested with realistic data volumes?
+4. **Convert or preserve**: Either convert to real API or preserve as edge case mock
+
+This hybrid approach ensures comprehensive coverage while maintaining test performance and reliability.
+
 ## Test Commands
 
 ### Test Database Quickstart

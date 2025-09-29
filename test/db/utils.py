@@ -209,7 +209,7 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
     """
     if test_input_dir is None:
         # Get the directory containing this utils.py file, then go to input/rdbms_init/
-        test_input_dir = os.path.join(os.path.dirname(__file__), 'input', 'rdbms_init_v1')
+        test_input_dir = os.path.join(os.path.dirname(__file__), 'input', 'rdbms_init')
 
     # If we have a schema name, we'll set the search path in the session (PostgreSQL only)
     need_to_reset_search_path = False

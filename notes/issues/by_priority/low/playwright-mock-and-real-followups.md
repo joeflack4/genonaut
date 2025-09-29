@@ -1,4 +1,6 @@
 # Playwright tests: Run some tests off of an actual test database and web API server
+This work wsa done 2025/09/29. Some tasks remained that are marked for the future.
+
 # Intro
 The main objective is to split the playwright tests such that some of them run off of mocks (the extreme edge cases, as 
 you say), but most of them run off of an actual running web API instance running off the test db.
@@ -207,21 +209,27 @@ content CRUD, search/filtering, and statistics. All existing test suites continu
 unit: 82 tests, mock E2E: 30 tests). The hybrid approach is now fully operational with clear separation between mock 
 tests (for edge cases) and real API tests (for business logic).
 
-### **Phase 4: Renmove unneded mock tests; activate/implement tests usin real API**
-- [ ] 1: Cull mocks: Look at all of the current, skipped mock tests, and for each:
-  - [ ] 1.1: Check if it is not just skipped simply because it is a mock test and mock infrastructure hasn't been 
-  implemented, but ALSO skipped because of functionality that does not yet exist in the app. If so, then do not delete the test, 
+### **Phase 4: Remove unneeded mock tests; activate/implement tests using real API**
+- [x] 1: Cull mocks: Look at all of the current, skipped mock tests, and for each:
+  - [x] 1.1: Check if it is not just skipped simply because it is a mock test and mock infrastructure hasn't been
+  implemented, but ALSO skipped because of functionality that does not yet exist in the app. If so, then do not delete the test,
   but change its description, noting that it will be used with the real test server web API.
-  - [ ] 1.2: For those mock tests that have utility because they serve an edge case better served by a mock than the real 
+  - [x] 1.2: For those mock tests that have utility because they serve an edge case better served by a mock than the real
   API, leave them, but continue skipping for now.
-  - [ ] 1.3: For the rest, that do not meet criteria for (1.1) or (1.2), then, if there is truly no utility for these 
+  - [x] 1.3: For the rest, that do not meet criteria for (1.1) or (1.2), then, if there is truly no utility for these
   tests any longer, delete them.
-- [ ] 2: Repurpose: For those tests which were identified in step (1.1) as being for the real API, convert them to real API tests.
-- [ ] 3: For any tests that are currently being skipped, but are for the real API, and are not awaiting any future 
+- [x] 2: Repurpose: For those tests which were identified in step (1.1) as being for the real API, convert them to real API tests.
+- [x] 3: For any tests that are currently being skipped, but are for the real API, and are not awaiting any future
   functionality, go ahead and implement them now.
-- [ ] 4: Ensure that all tests now pass: `make test`, `make frontend-test-unit`, `make frontend-test-e2e`.
-- [ ] 5: If there are any tests which you could not identify what to do with, and need help from the user/dev, add them 
+- [x] 4: Ensure that all tests now pass: `make test`, `make frontend-test-unit`, `make frontend-test-e2e`.
+- [x] 5: If there are any tests which you could not identify what to do with, and need help from the user/dev, add them
   to a list of checkboxes here, and alert hte user that you need help.
+
+**Phase 4 Summary:** Successfully completed systematic cleanup of mock tests and verification of real API test coverage.
+Deleted 4 obsolete mock test files (auth.spec.ts, settings.spec.ts, recommendations.spec.ts, and skipped tests from gallery.spec.ts)
+that had comprehensive real API replacements. Preserved legitimate edge case mock tests for extreme scenarios. Verified all existing
+functionality-based tests were already implemented in real API versions. All test suites pass: backend (467 tests), frontend unit (82 tests),
+mock E2E (30 tests). The hybrid testing approach is fully operational and clean.
 
 #### About real API tests
 During an earlier progress report, it was written:
@@ -263,19 +271,27 @@ Example legitimate edge cases that mocks handle better:
 ### **Phase 5: Optimization and Cleanup**
 
 #### **Performance Optimization**
-- [ ] Optimize test database seeding for faster test startup
-- [ ] Implement test data caching to avoid rebuilding database on each run
-- [ ] Add parallel test execution support with database isolation
-- [ ] Optimize test server startup time
+- [ ] Optimize test database seeding for faster test startup @skipped-until-future
+- [ ] Implement test data caching to avoid rebuilding database on each run @skipped-until-future
+- [ ] Add parallel test execution support with database isolation @skipped-until-future
+- [ ] Optimize test server startup time @skipped-until-future
 
 #### **Mock Strategy Refinement**
-- [ ] Identify truly necessary mock tests (extreme edge cases, network failures)
-- [ ] Simplify remaining mock patterns to be more maintainable
-- [ ] Document clear guidelines for when to use mocks vs real API
-- [ ] Remove unnecessary mock complexity from converted tests
+- [x] Identify truly necessary mock tests (extreme edge cases, network failures)
+- [x] Simplify remaining mock patterns to be more maintainable
+- [x] Document clear guidelines for when to use mocks vs real API: `docs/testing.md`: add a new "design" section and discuss this there.
+- [x] Remove unnecessary mock complexity from converted tests
 
 #### **Documentation and Maintenance**
-- [ ] Document the hybrid testing approach and when to use each method
-- [ ] Create troubleshooting guide for test database and server issues
-- [ ] Add CI/CD integration considerations for real API testing
-- [ ] Create maintenance procedures for keeping test data up-to-date
+- [x] Document the hybrid testing approach and when to use each method
+- [x] Create troubleshooting guide for test database and server issues: `docs/test-troubleshooting-db-and-server.md`
+- [ ] Create maintenance procedures for keeping test data up-to-date @skipped-until-future
+- [ ] Add CI/CD integration considerations for real API testing @skipped-until-future
+
+#### **Update backend tests**
+- [x] Streamline to 1 set of db input files: There are backend tests that are loading the old tests
+`test/db/input/rdbms_init_v1`. We kept them that way so that we could continue adding new tests without breaking the old
+ones. Howver, let's try to change these tests to all use the new canonical test inputs instead:
+`test/db/input/rdbms_init/`. After changing that, fix any backend tests that are now broken.
+- [x] Ensure all backend tests are passing when running `make test`
+- [x] When all are passing, delete `test/db/input/rdbms_init_v1`

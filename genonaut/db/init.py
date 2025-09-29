@@ -89,7 +89,6 @@ def resolve_seed_path(config: Dict[str, Any], environment: str) -> Optional[Path
     if environment == "test":
         fallback_dirs = [
             (PROJECT_ROOT / "test" / "db" / "input" / "rdbms_init").resolve(),
-            (PROJECT_ROOT / "test" / "db" / "input" / "rdbms_init_v1").resolve(),
         ]
 
         candidate_has_data = bool(candidate and any(candidate.glob("*.tsv")))
