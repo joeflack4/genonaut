@@ -86,7 +86,7 @@ export interface ApiContentQueryParams {
   search?: string
   sort?: 'recent' | 'top-rated'
   creator_id?: string  // UUID
-  tag?: string  // Tag filter
+  tag?: string | string[]  // Tag filter - single tag or multiple tags
 }
 
 export interface ApiEnhancedContentQueryParams extends ApiEnhancedPaginationParams {
@@ -94,5 +94,5 @@ export interface ApiEnhancedContentQueryParams extends ApiEnhancedPaginationPara
   creator_id?: string
   public_only?: boolean
   search_term?: string
-  tag?: string  // Tag filter
+  tag?: string | string[]  // Tag filter - single tag or multiple tags
 }

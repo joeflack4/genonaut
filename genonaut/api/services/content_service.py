@@ -375,6 +375,7 @@ class ContentService:
         search_term: Optional[str] = None,
         sort_field: str = "created_at",
         sort_order: str = "desc",
+        tags: Optional[List[str]] = None,
         **filters
     ) -> Dict[str, Any]:
         """
@@ -388,6 +389,7 @@ class ContentService:
             search_term: Search term for title filtering
             sort_field: Field to sort by
             sort_order: Sort order ("asc" or "desc")
+            tags: List of tags to filter by (returns content with at least 1 matching tag)
             **filters: Additional filters
         """
         if content_types is None:
@@ -424,6 +426,13 @@ class ContentService:
             if search_term:
                 regular_query = regular_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
 
+            # Apply tag filtering - match if content has at least 1 of the specified tags
+            if tags:
+                # Use jsonb_exists_any function for PostgreSQL JSON array overlap
+                regular_query = regular_query.filter(
+                    func.jsonb_exists_any(ContentItem.tags, text(':tags'))
+                ).params(tags=tags)
+
             queries.append(regular_query)
 
         # Auto content query
@@ -451,6 +460,13 @@ class ContentService:
 
             if search_term:
                 auto_query = auto_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
+
+            # Apply tag filtering - match if content has at least 1 of the specified tags
+            if tags:
+                # Use jsonb_exists_any function for PostgreSQL JSON array overlap
+                auto_query = auto_query.filter(
+                    func.jsonb_exists_any(ContentItemAuto.tags, text(':tags'))
+                ).params(tags=tags)
 
             queries.append(auto_query)
 

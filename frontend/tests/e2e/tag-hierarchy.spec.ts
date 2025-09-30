@@ -113,4 +113,137 @@ test.describe('Tag Hierarchy Tests', () => {
     // Eventually the tree should load
     await expect(page.locator('[aria-label="Tag hierarchy tree"]')).toBeVisible({ timeout: 10000 });
   });
+
+  test('should expand and collapse nodes without navigation', async ({ page }) => {
+    await page.goto('/tags', { waitUntil: 'domcontentloaded' });
+
+    // Wait for tree to load
+    await page.waitForSelector('[aria-label="Tag hierarchy tree"]');
+
+    // Find the first root category with children
+    const rootNode = page.locator('text=Artistic Medium').first();
+    await expect(rootNode).toBeVisible();
+
+    // Click the expand arrow (not the text)
+    const expandButton = page.locator('[aria-label="Tag hierarchy tree"] button').first();
+    await expandButton.click();
+
+    // Should expand without navigating away from tags page
+    await expect(page).toHaveURL('/tags');
+
+    // Should show expanded content (wait for children to appear)
+    await page.waitForTimeout(500); // Small delay for animation
+
+    // Click collapse button
+    await expandButton.click();
+
+    // Should still be on tags page
+    await expect(page).toHaveURL('/tags');
+  });
+
+  test('should select tags and show apply button', async ({ page }) => {
+    await page.goto('/tags', { waitUntil: 'domcontentloaded' });
+
+    // Wait for tree to load
+    await page.waitForSelector('[aria-label="Tag hierarchy tree"]');
+
+    // Apply button should not be visible initially
+    await expect(page.locator('button:has-text("Apply & Query Content")')).not.toBeVisible();
+
+    // Click on a tag to select it (not the expand arrow)
+    const tagNode = page.locator('text=Artistic Medium').first();
+    await tagNode.click();
+
+    // Should show the apply button
+    await expect(page.locator('button:has-text("Apply & Query Content")')).toBeVisible();
+
+    // Should show selection indicator (checkmark)
+    await expect(page.locator('[data-testid="CheckCircleIcon"]')).toBeVisible();
+
+    // Should show count in separate display area (not on button)
+    await expect(page.locator('text=1 tag selected')).toBeVisible();
+  });
+
+  test('should handle multiple tag selections', async ({ page }) => {
+    await page.goto('/tags', { waitUntil: 'domcontentloaded' });
+
+    // Wait for tree to load
+    await page.waitForSelector('[aria-label="Tag hierarchy tree"]');
+
+    // Select first tag
+    const firstTag = page.locator('text=Artistic Medium').first();
+    await firstTag.click();
+
+    // Select second tag
+    const secondTag = page.locator('text=Content Classification').first();
+    await secondTag.click();
+
+    // Should show apply button
+    await expect(page.locator('button:has-text("Apply & Query Content")')).toBeVisible();
+
+    // Should show tag count in separate display area (not on button)
+    await expect(page.locator('text=2 tags selected')).toBeVisible();
+
+    // Should show multiple checkmarks
+    await expect(page.locator('[data-testid="CheckCircleIcon"]')).toHaveCount(2);
+  });
+
+  test('should toggle tag selection on/off', async ({ page }) => {
+    await page.goto('/tags', { waitUntil: 'domcontentloaded' });
+
+    // Wait for tree to load
+    await page.waitForSelector('[aria-label="Tag hierarchy tree"]');
+
+    const tagNode = page.locator('text=Artistic Medium').first();
+
+    // Click to select
+    await tagNode.click();
+    await expect(page.locator('button:has-text("Apply & Query Content")')).toBeVisible();
+
+    // Click again to deselect
+    await tagNode.click();
+    await expect(page.locator('button:has-text("Apply & Query Content")')).not.toBeVisible();
+  });
+
+  test('should apply selected tags and navigate to gallery', async ({ page }) => {
+    await page.goto('/tags', { waitUntil: 'domcontentloaded' });
+
+    // Wait for tree to load
+    await page.waitForSelector('[aria-label="Tag hierarchy tree"]');
+
+    // Select a tag
+    const tagNode = page.locator('text=Artistic Medium').first();
+    await tagNode.click();
+
+    // Click apply button
+    const applyButton = page.locator('button:has-text("Apply & Query Content")');
+    await expect(applyButton).toBeVisible();
+    await applyButton.click();
+
+    // Should navigate to gallery with tag filter
+    await expect(page).toHaveURL(/\/gallery\?.*tag=/);
+
+    // Apply button should be hidden after successful navigation
+    // (Note: This might not be testable if we navigate away)
+  });
+
+  test('should preserve expanded state when selecting tags', async ({ page }) => {
+    await page.goto('/tags', { waitUntil: 'domcontentloaded' });
+
+    // Wait for tree to load
+    await page.waitForSelector('[aria-label="Tag hierarchy tree"]');
+
+    // Expand a node
+    const expandButton = page.locator('[aria-label="Tag hierarchy tree"] button').first();
+    await expandButton.click();
+    await page.waitForTimeout(500); // Wait for expansion
+
+    // Select a tag
+    const tagNode = page.locator('text=Artistic Medium').first();
+    await tagNode.click();
+
+    // The expanded state should be preserved
+    // (This is implicit - if the page reloaded, the expansion would be lost)
+    await expect(page.locator('[aria-label="Tag hierarchy tree"]')).toBeVisible();
+  });
 });

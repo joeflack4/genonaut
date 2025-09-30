@@ -60,6 +60,7 @@ async def get_unified_content(
     search_term: Optional[str] = Query(None, description="Search term for title"),
     sort_field: str = Query("created_at", description="Field to sort by"),
     sort_order: str = Query("desc", description="Sort order (asc, desc)"),
+    tag: Optional[List[str]] = Query(None, description="Filter by tags (can specify multiple)"),
     db: Session = Depends(get_database_session)
 ):
     """Get unified content from both regular and auto tables with pagination."""
@@ -101,7 +102,8 @@ async def get_unified_content(
             user_id=user_id,
             search_term=search_term,
             sort_field=sort_field,
-            sort_order=sort_order
+            sort_order=sort_order,
+            tags=tag
         )
 
         return result

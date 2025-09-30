@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import type { SelectChangeEvent } from '@mui/material/Select'
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
@@ -42,7 +43,7 @@ interface FiltersState {
   search: string
   sort: SortOption
   page: number
-  tag?: string  // Tag filter from URL
+  tag?: string | string[]  // Tag filter from URL - single or multiple tags
 }
 
 interface ContentToggles {
@@ -63,7 +64,9 @@ export function GalleryPage() {
 
   // Initialize filters from URL parameters
   const [filters, setFilters] = useState<FiltersState>(() => {
-    const tag = searchParams.get('tag') || undefined
+    // Handle multiple tag parameters from URL
+    const tags = searchParams.getAll('tag')
+    const tag = tags.length === 0 ? undefined : tags.length === 1 ? tags[0] : tags
     return {
       search: '',
       sort: 'recent' as SortOption,
@@ -94,6 +97,13 @@ export function GalleryPage() {
   const { data: currentUser } = useCurrentUser()
   const userId = currentUser?.id ?? DEFAULT_USER_ID
 
+  // Update filters when URL parameters change
+  useEffect(() => {
+    const tags = searchParams.getAll('tag')
+    const tag = tags.length === 0 ? undefined : tags.length === 1 ? tags[0] : tags
+    setFilters(prev => ({ ...prev, tag, page: 0 }))
+  }, [searchParams])
+
   // Save optionsOpen state to localStorage whenever it changes
   useEffect(() => {
     try {
@@ -103,13 +113,6 @@ export function GalleryPage() {
     }
   }, [optionsOpen])
 
-  // Sync URL parameters with filters state
-  useEffect(() => {
-    const tag = searchParams.get('tag')
-    if (tag !== filters.tag) {
-      setFilters(prev => ({ ...prev, tag: tag || undefined, page: 0 }))
-    }
-  }, [searchParams, filters.tag])
 
   // Determine content types based on toggles
   const contentTypes = useMemo(() => {
@@ -148,6 +151,7 @@ export function GalleryPage() {
     searchTerm: filters.search || undefined,
     sortField: filters.sort === 'recent' ? 'created_at' : 'quality_score',
     sortOrder: 'desc',
+    tag: filters.tag, // Pass tag filter(s) to API
   })
 
   const data = unifiedData
@@ -340,24 +344,78 @@ export function GalleryPage() {
 
             {/* Tag Filter Display */}
             {filters.tag && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                 <Typography variant="body2" color="text.secondary">
-                  Filtered by tag:
+                  Filtered by {Array.isArray(filters.tag) ? 'tags' : 'tag'}:
                 </Typography>
-                <Chip
-                  label={filters.tag}
-                  variant="outlined"
-                  color="primary"
-                  onDelete={() => {
-                    setFilters(prev => ({ ...prev, tag: undefined, page: 0 }));
-                    setSearchParams(params => {
-                      const newParams = new URLSearchParams(params);
-                      newParams.delete('tag');
-                      return newParams;
-                    });
-                  }}
-                  sx={{ maxWidth: 200 }}
-                />
+                {Array.isArray(filters.tag) ? (
+                  // Multiple tags
+                  filters.tag.map((tag, index) => (
+                    <Chip
+                      key={tag}
+                      label={tag}
+                      variant="outlined"
+                      color="primary"
+                      onDelete={() => {
+                        const remainingTags = filters.tag.filter(t => t !== tag);
+                        if (remainingTags.length === 0) {
+                          // Remove all tags if this was the last one
+                          setFilters(prev => ({ ...prev, tag: undefined, page: 0 }));
+                          setSearchParams(params => {
+                            const newParams = new URLSearchParams(params);
+                            newParams.delete('tag');
+                            return newParams;
+                          });
+                        } else {
+                          // Update with remaining tags
+                          setFilters(prev => ({ ...prev, tag: remainingTags.length === 1 ? remainingTags[0] : remainingTags, page: 0 }));
+                          setSearchParams(params => {
+                            const newParams = new URLSearchParams(params);
+                            newParams.delete('tag');
+                            remainingTags.forEach(t => newParams.append('tag', t));
+                            return newParams;
+                          });
+                        }
+                      }}
+                      sx={{ maxWidth: 200 }}
+                    />
+                  ))
+                ) : (
+                  // Single tag
+                  <Chip
+                    label={filters.tag}
+                    variant="outlined"
+                    color="primary"
+                    onDelete={() => {
+                      setFilters(prev => ({ ...prev, tag: undefined, page: 0 }));
+                      setSearchParams(params => {
+                        const newParams = new URLSearchParams(params);
+                        newParams.delete('tag');
+                        return newParams;
+                      });
+                    }}
+                    sx={{ maxWidth: 200 }}
+                  />
+                )}
+                {/* Clear All Tags Button */}
+                {filters.tag && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    color="secondary"
+                    onClick={() => {
+                      setFilters(prev => ({ ...prev, tag: undefined, page: 0 }));
+                      setSearchParams(params => {
+                        const newParams = new URLSearchParams(params);
+                        newParams.delete('tag');
+                        return newParams;
+                      });
+                    }}
+                    sx={{ ml: 1 }}
+                  >
+                    Clear All Tags
+                  </Button>
+                )}
               </Box>
             )}
 

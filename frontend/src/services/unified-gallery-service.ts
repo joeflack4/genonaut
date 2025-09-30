@@ -10,6 +10,7 @@ export interface UnifiedGalleryParams {
   searchTerm?: string
   sortField?: string
   sortOrder?: 'asc' | 'desc'
+  tag?: string | string[]  // Tag filter - single tag or multiple tags
 }
 
 export interface UnifiedGalleryStats {
@@ -63,6 +64,16 @@ export class UnifiedGalleryService {
 
     if (params.sortOrder) {
       searchParams.set('sort_order', params.sortOrder)
+    }
+
+    if (params.tag) {
+      if (Array.isArray(params.tag)) {
+        // Add multiple tag parameters
+        params.tag.forEach(tag => searchParams.append('tag', tag))
+      } else {
+        // Add single tag parameter
+        searchParams.set('tag', params.tag)
+      }
     }
 
     const query = searchParams.toString()

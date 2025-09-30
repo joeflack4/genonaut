@@ -46,7 +46,13 @@ export class GalleryService {
     }
 
     if (params.tag) {
-      searchParams.set('tag', params.tag)
+      if (Array.isArray(params.tag)) {
+        // Add multiple tag parameters
+        params.tag.forEach(tag => searchParams.append('tag', tag))
+      } else {
+        // Add single tag parameter
+        searchParams.set('tag', params.tag)
+      }
     }
 
     const query = searchParams.toString()
@@ -125,7 +131,13 @@ export class GalleryService {
     }
 
     if (params.tag) {
-      searchParams.set('tag', params.tag)
+      if (Array.isArray(params.tag)) {
+        // Add multiple tag parameters
+        params.tag.forEach(tag => searchParams.append('tag', tag))
+      } else {
+        // Add single tag parameter
+        searchParams.set('tag', params.tag)
+      }
     }
 
     const query = searchParams.toString()

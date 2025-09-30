@@ -74,5 +74,5 @@ export interface ContentQueryParams extends PaginationParams {
   creatorId?: string
   publicOnly?: boolean
   searchTerm?: string
-  tag?: string  // Tag filter
+  tag?: string | string[]  // Tag filter - single tag or multiple tags
 }

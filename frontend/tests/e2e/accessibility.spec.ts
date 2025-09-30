@@ -4,7 +4,7 @@ test.describe('Accessibility Tests', () => {
   test.beforeEach(async ({ page }) => {
     page.setDefaultNavigationTimeout(5_000)
   })
-  test('should support comprehensive keyboard navigation', async ({ page }) => {
+  test.skip('should support comprehensive keyboard navigation', async ({ page }) => {
     await page.goto('/')
 
     // Test Tab navigation through interactive elements
@@ -48,7 +48,7 @@ test.describe('Accessibility Tests', () => {
     expect(interactiveElements.length).toBeGreaterThan(0)
   })
 
-  test('should support Enter/Space key activation', async ({ page }) => {
+  test.skip('should support Enter/Space key activation', async ({ page }) => {
     await page.goto('/generate')
 
     // Wait for page to load

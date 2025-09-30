@@ -2,7 +2,7 @@
  * Tags Page - Main page for browsing and exploring tag hierarchy
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -16,17 +16,21 @@ import {
   Divider,
   Alert,
   Skeleton,
+  Button,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
   Info as InfoIcon,
   Search as SearchIcon,
   AccountTree as AccountTreeIcon,
+  Check as CheckIcon,
+  Launch as LaunchIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import TagTreeView from '../../components/tags/TagTreeView';
 import TagSearchFilter from '../../components/tags/TagSearchFilter';
 import { useTagHierarchy, useRefreshHierarchy } from '../../hooks/useTagHierarchy';
+import { usePersistedSetState } from '../../hooks/usePersistedState';
 
 export default function TagsPage() {
   const navigate = useNavigate();
@@ -34,16 +38,50 @@ export default function TagsPage() {
   const refreshMutation = useRefreshHierarchy();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [searchMode, setSearchMode] = useState(false);
+  const [selectedTagIds, setSelectedTagIds] = usePersistedSetState('tagHierarchy:selectedTags', new Set());
+  const [isDirty, setIsDirty] = useState(false);
+
+  // Initialize dirty state based on persisted selected tags
+  useEffect(() => {
+    setIsDirty(selectedTagIds.size > 0);
+  }, [selectedTagIds.size]);
 
   const handleNodeClick = useCallback((nodeId: string, _nodeName: string) => {
     setSelectedNodeId(nodeId);
-    // Navigate to gallery with tag filter
-    navigate(`/gallery?tag=${encodeURIComponent(nodeId)}`);
-  }, [navigate]);
+    // No longer navigate immediately - only highlight the node
+  }, []);
 
   const handleTagSelect = useCallback((nodeId: string, nodeName: string) => {
     handleNodeClick(nodeId, nodeName);
   }, [handleNodeClick]);
+
+  const handleSelectionChange = useCallback((newSelectedTagIds: Set<string>) => {
+    setSelectedTagIds(newSelectedTagIds);
+  }, []);
+
+  const handleDirtyStateChange = useCallback((newIsDirty: boolean) => {
+    setIsDirty(newIsDirty);
+  }, []);
+
+  const handleApply = useCallback(() => {
+    // For now, this button does nothing as requested
+    // It just confirms the current selection without navigating
+    console.log('Apply clicked - maintaining current state');
+  }, []);
+
+  const handleApplyAndQuery = useCallback(() => {
+    if (selectedTagIds.size > 0) {
+      // Build URLSearchParams to properly handle multiple tag parameters
+      const searchParams = new URLSearchParams();
+      Array.from(selectedTagIds).forEach(tagId => {
+        searchParams.append('tag', tagId);
+      });
+      navigate(`/gallery?${searchParams.toString()}`);
+
+      // Reset dirty state
+      setIsDirty(false);
+    }
+  }, [selectedTagIds, navigate]);
 
   const handleRefresh = useCallback(() => {
     refreshMutation.mutate();
@@ -170,9 +208,75 @@ export default function TagsPage() {
                 <TagTreeView
                   onNodeClick={handleNodeClick}
                   selectedNodeId={selectedNodeId || undefined}
-                  showNodeCounts={true}
+                  selectedTagIds={selectedTagIds}
+                  onSelectionChange={handleSelectionChange}
+                  onDirtyStateChange={handleDirtyStateChange}
+                  showNodeCounts={false}
                   maxHeight={600}
                 />
+
+                {/* Tag Selection Status & Action Buttons - shows when tree state is dirty */}
+                {isDirty && (
+                  <Box sx={{ mt: 2, p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                    {/* Tag Count Display */}
+                    <Box sx={{ mb: 2, textAlign: 'center' }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        Selection Status
+                      </Typography>
+                      <Chip
+                        label={`${selectedTagIds.size} tag${selectedTagIds.size !== 1 ? 's' : ''} selected`}
+                        color="primary"
+                        variant="outlined"
+                        sx={{ fontWeight: 600 }}
+                      />
+                    </Box>
+
+                    {/* Clear All Tags Button */}
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                      <Button
+                        variant="outlined"
+                        color="secondary"
+                        size="small"
+                        onClick={() => {
+                          setSelectedTagIds(new Set());
+                          setIsDirty(false);
+                        }}
+                      >
+                        Clear All Tags
+                      </Button>
+                    </Box>
+
+                    {/* Action Buttons */}
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button
+                        variant="outlined"
+                        color="primary"
+                        onClick={handleApply}
+                        startIcon={<CheckIcon />}
+                        sx={{
+                          flex: 1,
+                          py: 1.5,
+                          fontWeight: 600,
+                        }}
+                      >
+                        Apply
+                      </Button>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handleApplyAndQuery}
+                        startIcon={<LaunchIcon />}
+                        sx={{
+                          flex: 1,
+                          py: 1.5,
+                          fontWeight: 600,
+                        }}
+                      >
+                        Apply & Query Content
+                      </Button>
+                    </Box>
+                  </Box>
+                )}
               </Box>
             )}
           </Paper>

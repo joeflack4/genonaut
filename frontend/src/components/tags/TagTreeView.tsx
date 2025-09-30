@@ -20,9 +20,11 @@ import {
   Folder as FolderIcon,
   FolderOpen as FolderOpenIcon,
   Label as LabelIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useTagHierarchyTree } from '../../hooks/useTagHierarchy';
+import { usePersistedSetState } from '../../hooks/usePersistedState';
 import type { TagHierarchyNode, TreeNode } from '../../services/tag-hierarchy-service';
 
 interface TagTreeViewProps {
@@ -31,6 +33,9 @@ interface TagTreeViewProps {
   showNodeCounts?: boolean;
   maxHeight?: number | string;
   className?: string;
+  selectedTagIds?: Set<string>;
+  onSelectionChange?: (selectedTagIds: Set<string>) => void;
+  onDirtyStateChange?: (isDirty: boolean) => void;
 }
 
 interface TreeNodeData extends INode {
@@ -45,10 +50,13 @@ export default function TagTreeView({
   showNodeCounts = false,
   maxHeight = 600,
   className,
+  selectedTagIds = new Set(),
+  onSelectionChange,
+  onDirtyStateChange,
 }: TagTreeViewProps) {
   const navigate = useNavigate();
   const { data: treeStructure, flatNodes, isLoading, error } = useTagHierarchyTree();
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = usePersistedSetState('tagHierarchy:expandedIds', new Set(['__virtual_root__']));
 
   // Convert tree structure to react-accessible-treeview format
   const treeData = useMemo((): TreeNodeData[] => {
@@ -125,21 +133,35 @@ export default function TagTreeView({
   }, [treeStructure, flatNodes]);
 
   const handleNodeSelect = ({ element, isSelected }: ITreeViewOnNodeSelectProps) => {
-    if (isSelected) {
-      const nodeData = element as TreeNodeData;
-      const tagId = nodeData.tagData.id;
+    const nodeData = element as TreeNodeData;
+    const tagId = nodeData.tagData.id;
 
-      // Don't navigate for the virtual root node
-      if (tagId === '__virtual_root__') {
-        return;
-      }
+    // Don't handle selection for the virtual root node
+    if (tagId === '__virtual_root__') {
+      return;
+    }
 
-      if (onNodeClick) {
-        onNodeClick(tagId, nodeData.tagData.name);
-      } else {
-        // Default behavior: navigate to gallery with tag filter
-        navigate(`/gallery?tag=${encodeURIComponent(tagId)}`);
-      }
+    // Toggle tag selection
+    const newSelectedTags = new Set(selectedTagIds);
+    if (newSelectedTags.has(tagId)) {
+      newSelectedTags.delete(tagId);
+    } else {
+      newSelectedTags.add(tagId);
+    }
+
+    // Notify parent component of selection change
+    if (onSelectionChange) {
+      onSelectionChange(newSelectedTags);
+    }
+
+    // Notify parent if dirty state changed
+    if (onDirtyStateChange) {
+      onDirtyStateChange(newSelectedTags.size > 0);
+    }
+
+    // Call the optional click handler
+    if (onNodeClick) {
+      onNodeClick(tagId, nodeData.tagData.name);
     }
   };
 
@@ -156,7 +178,8 @@ export default function TagTreeView({
   // Custom node renderer
   const NodeRenderer = ({ element, isBranch, isExpanded, getNodeProps, level }: any) => {
     const nodeData = element as TreeNodeData;
-    const isSelected = selectedNodeId === nodeData.tagData.id;
+    const isHighlighted = selectedNodeId === nodeData.tagData.id;
+    const isSelected = selectedTagIds.has(nodeData.tagData.id);
 
     return (
       <div
@@ -167,17 +190,25 @@ export default function TagTreeView({
           alignItems: 'center',
           padding: '8px 12px',
           cursor: 'pointer',
-          backgroundColor: isSelected ? alpha('#1976d2', 0.1) : 'transparent',
-          borderLeft: isSelected ? '3px solid #1976d2' : '3px solid transparent',
-          transition: 'background-color 0.2s ease',
+          backgroundColor: isSelected
+            ? alpha('#4caf50', 0.15) // Green for selected tags
+            : isHighlighted
+            ? alpha('#1976d2', 0.1) // Blue for highlighted
+            : 'transparent',
+          borderLeft: isSelected
+            ? '3px solid #4caf50' // Green border for selected
+            : isHighlighted
+            ? '3px solid #1976d2' // Blue border for highlighted
+            : '3px solid transparent',
+          transition: 'all 0.2s ease',
         }}
         onMouseEnter={(e) => {
-          if (!isSelected) {
+          if (!isSelected && !isHighlighted) {
             e.currentTarget.style.backgroundColor = alpha('#000', 0.04);
           }
         }}
         onMouseLeave={(e) => {
-          if (!isSelected) {
+          if (!isSelected && !isHighlighted) {
             e.currentTarget.style.backgroundColor = 'transparent';
           }
         }}
@@ -186,6 +217,13 @@ export default function TagTreeView({
         {isBranch && (
           <IconButton
             size="small"
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent triggering node selection
+              handleNodeToggle({
+                element: nodeData,
+                isExpanded: !isExpanded
+              });
+            }}
             sx={{
               mr: 0.5,
               p: 0.25,
@@ -218,12 +256,27 @@ export default function TagTreeView({
           variant="body2"
           sx={{
             flex: 1,
-            fontWeight: isSelected ? 600 : 400,
-            color: isSelected ? 'primary.main' : 'text.primary',
+            fontWeight: isSelected ? 600 : isHighlighted ? 500 : 400,
+            color: isSelected
+              ? '#4caf50' // Green for selected
+              : isHighlighted
+              ? 'primary.main' // Blue for highlighted
+              : 'text.primary',
           }}
         >
           {nodeData.name}
         </Typography>
+
+        {/* Selection Indicator */}
+        {isSelected && (
+          <CheckCircleIcon
+            fontSize="small"
+            sx={{
+              ml: 1,
+              color: '#4caf50',
+            }}
+          />
+        )}
 
         {/* Node Count Badge (if enabled) */}
         {showNodeCounts && isBranch && (
@@ -309,7 +362,8 @@ export default function TagTreeView({
         aria-label="Tag hierarchy tree"
         nodeRenderer={NodeRenderer}
         onNodeSelect={handleNodeSelect}
-        defaultExpandedIds={['__virtual_root__']}
+        expandedIds={Array.from(expandedIds)}
+        onNodeToggle={handleNodeToggle}
         multiSelect={false}
         togglableSelect
         clickAction="EXCLUSIVE_SELECT"
