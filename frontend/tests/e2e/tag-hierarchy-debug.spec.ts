@@ -80,6 +80,15 @@ test.describe('Tag Hierarchy Debug', () => {
     });
     console.log('React Query error indicators:', reactQueryStates);
 
+    // Get the debug panel content to see the exact data structure (if it exists)
+    try {
+      const debugPanel = await page.locator('*:has-text("🐛 DEBUG TreeView:")').first();
+      const debugText = await debugPanel.textContent({ timeout: 1000 });
+      console.log('DEBUG PANEL CONTENT:', debugText);
+    } catch (error) {
+      console.log('No debug panel found (this is expected in production)');
+    }
+
     // Basic assertion that the page loads something
     await expect(page.locator('body')).not.toBeEmpty();
   });

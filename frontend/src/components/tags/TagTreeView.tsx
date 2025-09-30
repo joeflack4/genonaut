@@ -71,11 +71,14 @@ export default function TagTreeView({
       parent: null,
     };
 
+    // Get the root category IDs for the virtual root's children array
+    const rootCategoryIds = treeStructure.map(node => node.id);
+
     result.push({
       id: '__virtual_root__',
       name: 'Tag Categories',
       parent: null,
-      children: [],
+      children: rootCategoryIds, // Array of root category IDs
       tagData: virtualRootData,
       isLeaf: false,
       level: 0,
@@ -89,12 +92,13 @@ export default function TagTreeView({
       }
 
       const hasChildren = node.children && node.children.length > 0;
+      const childIds = hasChildren ? node.children!.map(child => child.id) : [];
 
       return {
         id: node.id,
         name: node.name,
         parent,
-        children: [], // Will be populated by react-accessible-treeview
+        children: childIds, // Array of child IDs for react-accessible-treeview
         tagData: flatNodeData,
         isLeaf: !hasChildren,
         level,

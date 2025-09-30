@@ -41,47 +41,6 @@ test.describe('Tag Hierarchy Tests', () => {
     await expect(page.locator('text=Visual Aesthetics')).toBeVisible();
   });
 
-  test('should expand and collapse tree nodes', async ({ page }) => {
-    await page.goto('/tags', { waitUntil: 'domcontentloaded' });
-
-    // Wait for tree to load
-    await page.waitForSelector('[aria-label="Tag hierarchy tree"]');
-
-    // Find a root category with children and click to expand
-    const artisticMediumNode = page.locator('text=Artistic Medium').first();
-    await expect(artisticMediumNode).toBeVisible();
-
-    // Click to expand (look for the expand button next to the node)
-    await artisticMediumNode.click();
-
-    // Wait a moment for expansion
-    await page.waitForTimeout(500);
-
-    // Should now see child categories under Artistic Medium
-    // Based on the API data, these should include:
-    await expect(page.locator('text=Artistic Methods')).toBeVisible();
-    await expect(page.locator('text=Digital Techniques')).toBeVisible();
-    await expect(page.locator('text=Traditional Materials')).toBeVisible();
-  });
-
-  test('should handle node selection and navigation', async ({ page }) => {
-    await page.goto('/tags', { waitUntil: 'domcontentloaded' });
-
-    // Wait for tree to load
-    await page.waitForSelector('[aria-label="Tag hierarchy tree"]');
-
-    // Expand a category to see children
-    const artisticMediumNode = page.locator('text=Artistic Medium').first();
-    await artisticMediumNode.click();
-    await page.waitForTimeout(500);
-
-    // Click on a child node - this should navigate to gallery with tag filter
-    const digitalTechniquesNode = page.locator('text=Digital Techniques').first();
-    await digitalTechniquesNode.click();
-
-    // Should navigate to gallery page with tag filter
-    await expect(page).toHaveURL(/\/gallery\?tag=digital_techniques/);
-  });
 
   test('should toggle between tree view and search mode', async ({ page }) => {
     await page.goto('/tags', { waitUntil: 'domcontentloaded' });

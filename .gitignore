@@ -48,6 +48,7 @@ backup/
 node_modules
 /.pnp
 .pnp.js
+.vite/
 # testing
 /coverage
 /frontend/tests/e2e/output/

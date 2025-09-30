@@ -13,7 +13,7 @@ import * as tagHierarchyHooks from '../../../hooks/useTagHierarchy';
 // Mock the hook
 vi.mock('../../../hooks/useTagHierarchy');
 
-const mockUseTagHierarchy = vi.mocked(tagHierarchyHooks.useTagHierarchy);
+const mockUseTagHierarchyTree = vi.mocked(tagHierarchyHooks.useTagHierarchyTree);
 
 // Test data
 const mockHierarchyData = {
@@ -59,8 +59,10 @@ describe('TagTreeView', () => {
   });
 
   it('renders loading state', () => {
-    mockUseTagHierarchy.mockReturnValue({
+    mockUseTagHierarchyTree.mockReturnValue({
       data: undefined,
+      flatNodes: undefined,
+      metadata: undefined,
       isLoading: true,
       error: null,
     } as any);
@@ -76,8 +78,10 @@ describe('TagTreeView', () => {
   });
 
   it('renders error state', () => {
-    mockUseTagHierarchy.mockReturnValue({
+    mockUseTagHierarchyTree.mockReturnValue({
       data: undefined,
+      flatNodes: undefined,
+      metadata: undefined,
       isLoading: false,
       error: new Error('Failed to load'),
     } as any);
@@ -92,8 +96,10 @@ describe('TagTreeView', () => {
   });
 
   it('renders empty state', () => {
-    mockUseTagHierarchy.mockReturnValue({
-      data: { nodes: [], metadata: mockHierarchyData.metadata },
+    mockUseTagHierarchyTree.mockReturnValue({
+      data: undefined,
+      flatNodes: undefined,
+      metadata: mockHierarchyData.metadata,
       isLoading: false,
       error: null,
     } as any);
@@ -108,8 +114,10 @@ describe('TagTreeView', () => {
   });
 
   it.skip('renders tree structure with data', async () => {
-    mockUseTagHierarchy.mockReturnValue({
+    mockUseTagHierarchyTree.mockReturnValue({
       data: mockHierarchyData,
+      flatNodes: mockHierarchyData.nodes,
+      metadata: mockHierarchyData.metadata,
       isLoading: false,
       error: null,
     } as any);
@@ -133,8 +141,10 @@ describe('TagTreeView', () => {
   it.skip('calls onNodeClick when node is clicked', async () => {
     const mockOnNodeClick = vi.fn();
 
-    mockUseTagHierarchy.mockReturnValue({
+    mockUseTagHierarchyTree.mockReturnValue({
       data: mockHierarchyData,
+      flatNodes: mockHierarchyData.nodes,
+      metadata: mockHierarchyData.metadata,
       isLoading: false,
       error: null,
     } as any);
@@ -159,8 +169,10 @@ describe('TagTreeView', () => {
   });
 
   it.skip('shows node counts when enabled', async () => {
-    mockUseTagHierarchy.mockReturnValue({
+    mockUseTagHierarchyTree.mockReturnValue({
       data: mockHierarchyData,
+      flatNodes: mockHierarchyData.nodes,
+      metadata: mockHierarchyData.metadata,
       isLoading: false,
       error: null,
     } as any);
@@ -182,8 +194,10 @@ describe('TagTreeView', () => {
   });
 
   it.skip('highlights selected node', async () => {
-    mockUseTagHierarchy.mockReturnValue({
+    mockUseTagHierarchyTree.mockReturnValue({
       data: mockHierarchyData,
+      flatNodes: mockHierarchyData.nodes,
+      metadata: mockHierarchyData.metadata,
       isLoading: false,
       error: null,
     } as any);

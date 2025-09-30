@@ -14,6 +14,7 @@ import * as tagHierarchyHooks from '../../../hooks/useTagHierarchy';
 vi.mock('../../../hooks/useTagHierarchy');
 
 const mockUseTagHierarchy = vi.mocked(tagHierarchyHooks.useTagHierarchy);
+const mockUseTagHierarchyTree = vi.mocked(tagHierarchyHooks.useTagHierarchyTree);
 const mockUseRefreshHierarchy = vi.mocked(tagHierarchyHooks.useRefreshHierarchy);
 const mockUseTagSearch = vi.mocked(tagHierarchyHooks.useTagSearch);
 
@@ -67,6 +68,18 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => {
 describe('TagsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Default mock for tree hierarchy (used by TagTreeView)
+    mockUseTagHierarchyTree.mockReturnValue({
+      data: [
+        { id: 'visual_aesthetics', name: 'Visual Aesthetics', children: [{ id: 'color_properties', name: 'Color Properties', children: [{ id: 'bright', name: 'Bright', children: [] }] }] },
+        { id: 'technical_execution', name: 'Technical Execution', children: [] },
+      ],
+      flatNodes: mockHierarchyData.nodes,
+      metadata: mockHierarchyData.metadata,
+      isLoading: false,
+      error: null,
+    } as any);
 
     // Default mock for refresh mutation
     mockUseRefreshHierarchy.mockReturnValue({
