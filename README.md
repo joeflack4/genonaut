@@ -152,7 +152,7 @@ Genonaut includes an automatic content flagging system that detects potentially 
 
 1. Create your flag words configuration:
    ```bash
-   cp flag-words.txt.example flag-words.txt
+   cp docs/flag-words.txt.example flag-words.txt
    ```
 
 2. Edit `flag-words.txt` to add words that should trigger flagging
@@ -169,9 +169,11 @@ Genonaut includes an automatic content flagging system that detects potentially 
 
 ### Documentation
 
-- **Full Guide**: [Content Flagging Documentation](docs/flagging.md)
-- **API Reference**: See `/api/v1/admin/flagged-content` endpoints in API docs
-- **Spec**: [Implementation Details](notes/flagging.md)
+- **Quick Start**: [5-Minute Setup Guide](docs/flagging-quickstart.md) - Get started fast!
+- **Full Guide**: [Content Flagging Documentation](docs/flagging.md) - Complete API reference and examples
+- **Testing**: [Testing Guide](docs/flagging-testing.md) - Test suites and manual testing checklist
+- **API Reference**: See `/api/v1/admin/flagged-content` endpoints in API docs (http://localhost:8001/docs)
+- **Implementation Spec**: [Technical Details](notes/flagging.md) - Phase-by-phase implementation notes
 
 ## Developer docs
 Running tests:

@@ -21,7 +21,7 @@ The Genonaut Content Flagging System automatically detects and flags content con
 Create a `flag-words.txt` file in the project root directory:
 
 ```bash
-cp flag-words.txt.example flag-words.txt
+cp docs/flag-words.txt.example flag-words.txt
 ```
 
 Edit the file to add words that should trigger flagging:
@@ -35,7 +35,7 @@ explicit
 # Add more words as needed
 ```
 
-**Important**: The `flag-words.txt` file is in `.gitignore` for security. Never commit this file to version control.
+**Important**: The `flag-words.txt` file is in `.gitignore` for security. Never commit this file to version control. Use the example file at `docs/flag-words.txt.example` as a template.
 
 ### Environment Variables
 
@@ -362,7 +362,7 @@ pytest test/api/integration/test_flagged_content_api.py -v
 **Error**: `ValidationError: Flag words file not found`
 
 **Solution**:
-1. Copy `flag-words.txt.example` to `flag-words.txt`
+1. Copy `docs/flag-words.txt.example` to `flag-words.txt` in project root
 2. Ensure file is in project root
 3. Verify file contains at least one word
 
