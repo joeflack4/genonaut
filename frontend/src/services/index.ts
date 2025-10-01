@@ -5,6 +5,7 @@ import { UnifiedGalleryService } from './unified-gallery-service'
 import { RecommendationService } from './recommendation-service'
 import { UserService } from './user-service'
 import { ComfyUIService } from './comfyui-service'
+import { FlaggedContentService } from './flagged-content-service'
 
 const apiClient = new ApiClient()
 
@@ -14,6 +15,7 @@ export const galleryAutoService = new GalleryAutoService(apiClient)
 export const unifiedGalleryService = new UnifiedGalleryService(apiClient)
 export const recommendationService = new RecommendationService(apiClient)
 export const comfyUIService = new ComfyUIService(apiClient)
+export const flaggedContentService = new FlaggedContentService(apiClient)
 
 export type { GalleryListParams } from './gallery-service'
 export type { GalleryAutoListParams } from './gallery-auto-service'

@@ -76,3 +76,73 @@ export interface ContentQueryParams extends PaginationParams {
   searchTerm?: string
   tag?: string | string[]  // Tag filter - single tag or multiple tags
 }
+
+// Flagged Content Types
+export interface FlaggedContent {
+  id: number
+  contentItemId: number | null
+  contentItemAutoId: number | null
+  contentSource: 'regular' | 'auto'
+  flaggedText: string
+  flaggedWords: string[]
+  totalProblemWords: number
+  totalWords: number
+  problemPercentage: number
+  riskScore: number
+  creatorId: string
+  flaggedAt: string
+  reviewed: boolean
+  reviewedAt: string | null
+  reviewedBy: string | null
+  notes: string | null
+}
+
+export interface FlaggedContentFilters extends PaginationParams {
+  creatorId?: string
+  contentSource?: 'regular' | 'auto' | 'all'
+  minRiskScore?: number
+  maxRiskScore?: number
+  reviewed?: boolean
+}
+
+export interface ScanRequest {
+  contentTypes: ('regular' | 'auto')[]
+  forceRescan: boolean
+}
+
+export interface ScanResponse {
+  itemsScanned: number
+  itemsFlagged: number
+  processingTimeMs: number
+}
+
+export interface ReviewRequest {
+  reviewed: boolean
+  reviewedBy: string
+  notes?: string
+}
+
+export interface BulkDeleteRequest {
+  ids: number[]
+}
+
+export interface BulkDeleteResponse {
+  deletedCount: number
+  errors: Array<{
+    id: number
+    error: string
+  }>
+}
+
+export interface FlaggedContentStats {
+  totalFlagged: number
+  unreviewedCount: number
+  averageRiskScore: number
+  highRiskCount: number
+  bySource: {
+    regular: number
+    auto: number
+  }
+}
+
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'

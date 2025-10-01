@@ -8,6 +8,7 @@ import { RecommendationsPage } from './pages/recommendations'
 import { SettingsPage } from './pages/settings'
 import { GenerationPage } from './pages/generation'
 import { TagsPage } from './pages/tags'
+import { AdminFlaggedContentPage } from './pages/admin'
 
 const routes: RouteObject[] = [
   {
@@ -22,6 +23,7 @@ const routes: RouteObject[] = [
       { path: 'generation', element: <GenerationPage /> },
       { path: 'tags', element: <TagsPage /> },
       { path: 'settings', element: <SettingsPage /> },
+      { path: 'admin/flagged-content', element: <AdminFlaggedContentPage /> },
     ],
   },
   { path: '/login', element: <LoginPage /> },

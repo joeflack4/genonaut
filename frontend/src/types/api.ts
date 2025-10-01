@@ -96,3 +96,71 @@ export interface ApiEnhancedContentQueryParams extends ApiEnhancedPaginationPara
   search_term?: string
   tag?: string | string[]  // Tag filter - single tag or multiple tags
 }
+
+// Flagged Content Types
+export interface ApiFlaggedContent {
+  id: number
+  content_item_id: number | null
+  content_item_auto_id: number | null
+  content_source: 'regular' | 'auto'
+  flagged_text: string
+  flagged_words: string[]
+  total_problem_words: number
+  total_words: number
+  problem_percentage: number
+  risk_score: number
+  creator_id: string  // UUID
+  flagged_at: string
+  reviewed: boolean
+  reviewed_at: string | null
+  reviewed_by: string | null  // UUID
+  notes: string | null
+}
+
+export interface ApiFlaggedContentFilters extends ApiEnhancedPaginationParams {
+  creator_id?: string
+  content_source?: 'regular' | 'auto' | 'all'
+  min_risk_score?: number
+  max_risk_score?: number
+  reviewed?: boolean
+}
+
+export interface ApiScanRequest {
+  content_types: ('regular' | 'auto')[]
+  force_rescan: boolean
+}
+
+export interface ApiScanResponse {
+  items_scanned: number
+  items_flagged: number
+  processing_time_ms: number
+}
+
+export interface ApiReviewRequest {
+  reviewed: boolean
+  reviewed_by: string  // UUID
+  notes?: string
+}
+
+export interface ApiBulkDeleteRequest {
+  ids: number[]
+}
+
+export interface ApiBulkDeleteResponse {
+  deleted_count: number
+  errors: Array<{
+    id: number
+    error: string
+  }>
+}
+
+export interface ApiFlaggedContentStats {
+  total_flagged: number
+  unreviewed_count: number
+  average_risk_score: number
+  high_risk_count: number
+  by_source: {
+    regular: number
+    auto: number
+  }
+}

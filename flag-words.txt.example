@@ -1,0 +1,52 @@
+# Flag Words Configuration
+#
+# This file contains words that will trigger content flagging.
+# Lines starting with # are comments and will be ignored.
+# Empty lines are also ignored.
+#
+# To use this file:
+# 1. Copy this file to flag-words.txt in the project root
+# 2. Add or remove words as needed for your use case
+# 3. The flag-words.txt file is in .gitignore for security
+
+# Violence & Weapons
+violence
+weapon
+gun
+knife
+sword
+combat
+attack
+kill
+murder
+assault
+
+# Hate & Discrimination
+hatred
+racist
+discrimination
+bigotry
+slur
+offensive
+
+# Explicit Content
+explicit
+nude
+sexual
+pornographic
+inappropriate
+
+# Drugs & Substances
+drug
+cocaine
+heroin
+methamphetamine
+
+# Gore & Horror
+gore
+blood
+dismember
+mutilate
+torture
+
+# Add your custom words below:

@@ -21,6 +21,7 @@ bak/
 !config.json
 */cache/*
 !*/cache/.keep
+flag-words.txt
 # Environment files
 .env
 .env.*

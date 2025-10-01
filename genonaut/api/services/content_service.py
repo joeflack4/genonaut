@@ -12,6 +12,7 @@ from genonaut.api.repositories.user_repository import UserRepository
 from genonaut.api.models.requests import PaginationRequest
 from genonaut.api.models.responses import PaginatedResponse
 from genonaut.db.schema import ContentItem, ContentItemAuto, UserInteraction
+from genonaut.api.services.flagged_content_service import FlaggedContentService
 
 _VALID_CONTENT_TYPES = {"text", "image", "video", "audio"}
 
@@ -21,8 +22,17 @@ class ContentService:
 
     def __init__(self, db: Session, *, model: Type[ContentItem] = ContentItem):
         self.model: Type[ContentItem] = model
+        self.db = db
         self.repository = ContentRepository(db, model=model)
         self.user_repository = UserRepository(db)
+
+        # Try to initialize flagging service (optional)
+        self.flagging_service = None
+        try:
+            self.flagging_service = FlaggedContentService(db)
+        except ValidationError:
+            # Flag words file not configured - flagging will be disabled
+            pass
 
     # ------------------------------------------------------------------
     # CRUD helpers
@@ -113,7 +123,37 @@ class ContentService:
             "quality_score": 0.5,
         }
 
-        return self.repository.create(payload)
+        # Create the content item
+        content_item = self.repository.create(payload)
+
+        # Automatically check for problematic words and flag if needed
+        if self.flagging_service:
+            try:
+                # Extract text to analyze (prompt from metadata, or title as fallback)
+                text_to_check = ""
+                if final_item_metadata and isinstance(final_item_metadata, dict):
+                    text_to_check = final_item_metadata.get("prompt", "")
+                if not text_to_check:
+                    text_to_check = final_title
+
+                # Determine content source based on model type
+                content_source = "auto" if self.model == ContentItemAuto else "regular"
+
+                # Flag if problematic words found
+                if text_to_check:
+                    self.flagging_service.flag_content_item(
+                        text=text_to_check,
+                        content_item_id=content_item.id if content_source == "regular" else None,
+                        content_item_auto_id=content_item.id if content_source == "auto" else None,
+                        content_source=content_source,
+                        creator_id=final_creator_id
+                    )
+            except Exception:
+                # Don't fail content creation if flagging fails
+                # Just log silently and continue
+                pass
+
+        return content_item
 
     def update_content(
         self,

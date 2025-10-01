@@ -10,6 +10,7 @@ Core features
 - **Browse & Catalogue**: Browse, search, filter, rate, and tag.
 - **Recommenders**: Automatically generate works based on your preferences and use cases. Explore novel combinations / directions.
 - **Community**: Browse and auto-generate based on popular community trends, and other users like you.
+- **Content Moderation**: Automatic content flagging system with risk assessment and admin management tools.
 
 Platforms
 - **Cloud**
@@ -143,9 +144,38 @@ make api-test               # Start API server for testing
 
 For detailed testing documentation, setup requirements, troubleshooting, and best practices, see [Testing Documentation](docs/testing.md).
 
+## Content Flagging
+
+Genonaut includes an automatic content flagging system that detects potentially problematic content based on configurable word lists.
+
+### Quick Setup
+
+1. Create your flag words configuration:
+   ```bash
+   cp flag-words.txt.example flag-words.txt
+   ```
+
+2. Edit `flag-words.txt` to add words that should trigger flagging
+
+3. Content is automatically flagged during creation - no additional setup needed!
+
+### Features
+
+- **Automatic Detection**: Content is scanned when created
+- **Risk Scoring**: 0-100 risk score with configurable thresholds
+- **Admin API**: Full REST API for managing flagged content
+- **Statistics**: Real-time metrics about flagged content
+- **Bulk Operations**: Review and delete multiple items at once
+
+### Documentation
+
+- **Full Guide**: [Content Flagging Documentation](docs/flagging.md)
+- **API Reference**: See `/api/v1/admin/flagged-content` endpoints in API docs
+- **Spec**: [Implementation Details](notes/flagging.md)
+
 ## Developer docs
 Running tests:
-`make test` or `pytest test/ -v` (`-v` optional, for verbosity) 
+`make test` or `pytest test/ -v` (`-v` optional, for verbosity)
 
 See more: [full dev docs](docs/developer.md)
 

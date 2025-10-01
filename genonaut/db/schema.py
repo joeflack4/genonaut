@@ -548,6 +548,72 @@ class ComfyUIGenerationRequest(Base):
     )
 
 
+class FlaggedContent(Base):
+    """Flagged content model for tracking content with problematic words.
+
+    Tracks content items that contain words from a configurable danger word list,
+    with risk metrics and admin review capabilities.
+
+    Attributes:
+        id: Primary key
+        content_item_id: Foreign key to content_items (nullable, either this or content_item_auto_id)
+        content_item_auto_id: Foreign key to content_items_auto (nullable, either this or content_item_id)
+        content_source: Source type ('regular' or 'auto')
+        flagged_text: The actual text that was flagged (prompt/content)
+        flagged_words: JSON array of problem words found in the content
+        total_problem_words: Count of problem word occurrences (with duplicates)
+        total_words: Total word count in the flagged text
+        problem_percentage: Percentage of words that are problematic (0-100)
+        risk_score: Calculated risk score (0-100) based on various metrics
+        creator_id: Foreign key to user who created the content (denormalized for filtering)
+        flagged_at: Timestamp when content was flagged
+        reviewed: Whether an admin has reviewed this flagged item
+        reviewed_at: Timestamp when review occurred
+        reviewed_by: Foreign key to user who reviewed (admin)
+        notes: Admin notes about the flagged content
+    """
+    __tablename__ = 'flagged_content'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    content_item_id = Column(Integer, ForeignKey('content_items.id', ondelete='CASCADE'), nullable=True, index=True)
+    content_item_auto_id = Column(Integer, ForeignKey('content_items_auto.id', ondelete='CASCADE'), nullable=True, index=True)
+    content_source = Column(String(20), nullable=False, index=True)  # 'regular' or 'auto'
+    flagged_text = Column(Text, nullable=False)
+    flagged_words = Column(JSONColumn, default=list, nullable=False)  # Array of problem words found
+    total_problem_words = Column(Integer, nullable=False, default=0)
+    total_words = Column(Integer, nullable=False, default=0)
+    problem_percentage = Column(Float, nullable=False, default=0.0)
+    risk_score = Column(Float, nullable=False, default=0.0)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
+    flagged_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    reviewed = Column(Boolean, default=False, nullable=False, index=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    reviewed_by = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True)
+    notes = Column(Text, nullable=True)
+
+    # Relationships
+    content_item = relationship("ContentItem", foreign_keys=[content_item_id])
+    content_item_auto = relationship("ContentItemAuto", foreign_keys=[content_item_auto_id])
+    creator = relationship("User", foreign_keys=[creator_id])
+    reviewer = relationship("User", foreign_keys=[reviewed_by])
+
+    # Indexes for efficient querying and pagination
+    __table_args__ = (
+        # Pagination optimization indexes
+        Index("idx_flagged_content_risk_score_desc", risk_score.desc()),
+        Index("idx_flagged_content_flagged_at_desc", flagged_at.desc()),
+        Index("idx_flagged_content_creator_flagged", creator_id, flagged_at.desc()),
+        Index("idx_flagged_content_source_flagged", content_source, flagged_at.desc()),
+        Index("idx_flagged_content_reviewed_flagged", reviewed, flagged_at.desc()),
+        Index("idx_flagged_content_risk_flagged", risk_score.desc(), flagged_at.desc()),
+        # Index for unreviewed high-risk items
+        Index("idx_flagged_content_unreviewed_high_risk", risk_score.desc(),
+              postgresql_where=(reviewed == False)),
+        # GIN index for flagged words array operations
+        Index("idx_flagged_content_words_gin", flagged_words, postgresql_using="gin", info={"postgres_only": True}),
+    )
+
+
 # Event listeners for PostgreSQL-specific functionality
 event.listen(Base.metadata, "before_create", _strip_non_postgres_indexes)
 event.listen(Base.metadata, "after_create", _restore_non_postgres_indexes)
