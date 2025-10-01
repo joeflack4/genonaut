@@ -97,7 +97,7 @@ export default function TagsPage() {
 
   if (error) {
     return (
-      <Box sx={{ p: 3 }} data-testid="tags-page-error">
+      <Box sx={{ pt: 0, pb: 3 }} data-testid="tags-page-error">
         <Alert severity="error" data-testid="tags-page-error-alert">
           Failed to load tag hierarchy. Please check your connection and try again.
         </Alert>
@@ -106,7 +106,7 @@ export default function TagsPage() {
   }
 
   return (
-    <Box sx={{ p: 3, maxWidth: '100%', overflow: 'hidden' }} data-testid="tags-page-root">
+    <Box sx={{ pt: 0, pb: 3, maxWidth: '100%', overflow: 'hidden' }} data-testid="tags-page-root">
       {/* Page Header */}
       <Box sx={{ mb: 3 }} data-testid="tags-page-header">
         <Box

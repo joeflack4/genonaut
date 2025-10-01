@@ -281,9 +281,11 @@ export function AppLayout() {
         <Container
           component="main"
           maxWidth={false}
+          disableGutters
           sx={{
             flexGrow: 1,
             py: 2,
+            px: { xs: 2, lg: 3 },
             ml: { md: sidebarOpen ? 0 : `-${drawerWidth}px` },
             transition: theme.transitions.create(['margin'], {
               easing: theme.transitions.easing.sharp,

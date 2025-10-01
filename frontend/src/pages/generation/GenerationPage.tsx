@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Container, Grid, Paper, Typography, Box, Tabs, Tab } from '@mui/material'
+import { Grid, Paper, Typography, Box, Tabs, Tab } from '@mui/material'
 import { GenerationForm } from '../../components/generation/GenerationForm'
 import { GenerationProgress } from '../../components/generation/GenerationProgress'
 import { GenerationHistory } from '../../components/generation/GenerationHistory'
@@ -21,7 +21,7 @@ export function GenerationPage() {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }} data-testid="generation-page">
+    <Box component="section" sx={{ pt: 0, pb: 4 }} data-testid="generation-page">
       <Typography variant="h4" component="h1" gutterBottom data-testid="generation-page-title">
         Image Generation
       </Typography>
@@ -96,6 +96,6 @@ export function GenerationPage() {
           <GenerationHistory key={refreshHistory} />
         </Paper>
       )}
-    </Container>
+    </Box>
   )
 }

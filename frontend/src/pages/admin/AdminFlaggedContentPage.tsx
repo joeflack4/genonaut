@@ -156,7 +156,8 @@ export function AdminFlaggedContentPage() {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          pt: 0,
+          pb: 3,
           width: { xs: '100%', md: `calc(100% - ${filtersOpen ? DRAWER_WIDTH : 0}px)` },
           transition: (theme) =>
             theme.transitions.create(['width', 'margin'], {
