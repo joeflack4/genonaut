@@ -157,8 +157,13 @@ async def get_flagged_content_by_id(
         return FlaggedContentResponse.model_validate(flagged_content)
     except EntityNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
     except DatabaseError as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    except Exception as e:
+        # Catch-all for unexpected errors
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Unexpected error: {str(e)}")
 
 
 @router.put("/{flagged_content_id}/review", response_model=FlaggedContentResponse)

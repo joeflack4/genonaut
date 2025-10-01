@@ -34,14 +34,26 @@ class FlaggedContentService:
             flag_words_path: Optional path to flag-words.txt file.
                            If None, uses default path from get_default_flag_words_path()
 
-        Raises:
-            ValidationError: If flag words file not found or invalid
+        Note:
+            Flag words are loaded lazily - only when needed for scanning/flagging operations.
+            Read-only operations (get, review, delete, statistics) don't require flag words.
         """
         self.db = db
         self.repository = FlaggedContentRepository(db)
         self.content_repository = ContentRepository(db)
+        self._flag_words_path = flag_words_path
+        self._flag_words: Optional[Set[str]] = None
 
-        # Load flag words
+    def _ensure_flag_words_loaded(self):
+        """Lazy load flag words when needed for scanning/flagging operations.
+
+        Raises:
+            ValidationError: If flag words file not found or invalid
+        """
+        if self._flag_words is not None:
+            return
+
+        flag_words_path = self._flag_words_path
         if flag_words_path is None:
             flag_words_path = get_default_flag_words_path()
 
@@ -51,9 +63,15 @@ class FlaggedContentService:
             )
 
         try:
-            self.flag_words = load_flag_words(flag_words_path)
+            self._flag_words = load_flag_words(flag_words_path)
         except (FileNotFoundError, ValueError) as exc:
             raise ValidationError(f"Failed to load flag words: {exc}")
+
+    @property
+    def flag_words(self) -> Set[str]:
+        """Get flag words, loading them if necessary."""
+        self._ensure_flag_words_loaded()
+        return self._flag_words
 
     def scan_content_items(
         self,
