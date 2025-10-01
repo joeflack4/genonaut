@@ -42,7 +42,7 @@ This document summarizes the completion of tasks from `notes/tag-tree-expand-and
 **Files Modified**:
 - `/src/pages/gallery/GalleryPage.tsx`: Updated tag display logic for multiple tags
 
-### Task 4: Make "apply & query content" actually filter results ⚠️
+### Task 4: Make "Apply & Query" actually filter results ⚠️
 **Status**: FRONTEND COMPLETE - BACKEND LIMITATION IDENTIFIED
 
 **Implementation**:
@@ -105,7 +105,7 @@ The backend `/api/v1/content/unified` endpoint does not actually filter results 
 
 ### Backend API Limitation
 **Issue**: The `/api/v1/content/unified` endpoint accepts tag parameters but doesn't filter results
-**Impact**: "Apply & Query Content" appears to work but doesn't actually restrict results
+**Impact**: "Apply & Query" appears to work but doesn't actually restrict results
 **Evidence**: API returns same total count (1,175,000) with and without tag filters
 **Required Fix**:
 - [ ] Backend implementation needed in unified API endpoint

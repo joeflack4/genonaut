@@ -9,7 +9,7 @@ that is the problem. I'm not sure.
 2. Let's change it so that clicking on items on the tree does not bring you to the "Content Browser" page. Instead, let's 
 change it so that if the state of the tree becomes "dirty" (the user changes its state it from when it was last saved / 
 applied, by clicking on a tag, toggling it from being selected or de-selected), a button that is otherwise hidden will 
-appear, with the label "Apply & query content". And it will only apply the filter to the content browsing and jump you 
+appear, with the label "Apply & Query". And it will only apply the filter to the content browsing and jump you 
 to the content browser only after the user clicks that. Then, when the query successfully completes, that button will 
 become hidden again.
 

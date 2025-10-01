@@ -363,7 +363,6 @@ export default function TagTreeView({
         nodeRenderer={NodeRenderer}
         onNodeSelect={handleNodeSelect}
         expandedIds={Array.from(expandedIds)}
-        onNodeToggle={handleNodeToggle}
         multiSelect={false}
         togglableSelect
         clickAction="EXCLUSIVE_SELECT"

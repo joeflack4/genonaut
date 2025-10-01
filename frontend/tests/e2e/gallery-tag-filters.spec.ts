@@ -88,10 +88,10 @@ test.describe('Gallery Tag Filters Tests', () => {
     await secondTag.click();
 
     // Should show the apply button
-    await expect(page.locator('button:has-text("Apply & Query Content")')).toBeVisible();
+    await expect(page.locator('button:has-text("Apply & Query")')).toBeVisible();
 
     // Click apply and query
-    await page.locator('button:has-text("Apply & Query Content")').click();
+    await page.locator('button:has-text("Apply & Query")').click();
 
     // Should navigate to gallery
     await expect(page).toHaveURL(/\/gallery\?.*tag=/);
@@ -141,7 +141,7 @@ test.describe('Gallery Tag Filters Tests', () => {
     await page.locator('button:has-text("Clear All Tags")').click();
 
     // Apply buttons should disappear (since no tags are selected)
-    await expect(page.locator('button:has-text("Apply & Query Content")')).not.toBeVisible();
+    await expect(page.locator('button:has-text("Apply & Query")')).not.toBeVisible();
     await expect(page.locator('button:has-text("Clear All Tags")')).not.toBeVisible();
   });
 });

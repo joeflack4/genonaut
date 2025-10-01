@@ -148,14 +148,14 @@ test.describe('Tag Hierarchy Tests', () => {
     await page.waitForSelector('[aria-label="Tag hierarchy tree"]');
 
     // Apply button should not be visible initially
-    await expect(page.locator('button:has-text("Apply & Query Content")')).not.toBeVisible();
+    await expect(page.locator('button:has-text("Apply & Query")')).not.toBeVisible();
 
     // Click on a tag to select it (not the expand arrow)
     const tagNode = page.locator('text=Artistic Medium').first();
     await tagNode.click();
 
     // Should show the apply button
-    await expect(page.locator('button:has-text("Apply & Query Content")')).toBeVisible();
+    await expect(page.locator('button:has-text("Apply & Query")')).toBeVisible();
 
     // Should show selection indicator (checkmark)
     await expect(page.locator('[data-testid="CheckCircleIcon"]')).toBeVisible();
@@ -179,7 +179,7 @@ test.describe('Tag Hierarchy Tests', () => {
     await secondTag.click();
 
     // Should show apply button
-    await expect(page.locator('button:has-text("Apply & Query Content")')).toBeVisible();
+    await expect(page.locator('button:has-text("Apply & Query")')).toBeVisible();
 
     // Should show tag count in separate display area (not on button)
     await expect(page.locator('text=2 tags selected')).toBeVisible();
@@ -198,11 +198,11 @@ test.describe('Tag Hierarchy Tests', () => {
 
     // Click to select
     await tagNode.click();
-    await expect(page.locator('button:has-text("Apply & Query Content")')).toBeVisible();
+    await expect(page.locator('button:has-text("Apply & Query")')).toBeVisible();
 
     // Click again to deselect
     await tagNode.click();
-    await expect(page.locator('button:has-text("Apply & Query Content")')).not.toBeVisible();
+    await expect(page.locator('button:has-text("Apply & Query")')).not.toBeVisible();
   });
 
   test('should apply selected tags and navigate to gallery', async ({ page }) => {
@@ -216,7 +216,7 @@ test.describe('Tag Hierarchy Tests', () => {
     await tagNode.click();
 
     // Click apply button
-    const applyButton = page.locator('button:has-text("Apply & Query Content")');
+    const applyButton = page.locator('button:has-text("Apply & Query")');
     await expect(applyButton).toBeVisible();
     await applyButton.click();
 

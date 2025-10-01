@@ -12,7 +12,7 @@ skipped, please write that detail in the "Details" section.
   there are tag filters currently active.
 - [x] 3: The "filtered by: TAGS" is only showing 1 tag, even if multiple tags have been selected when clicking "apply &
   query content". It should show all tags selected.
-- [x] 4: When "apply & query content" is clicked, it does not appear to actually perform a query and filter the results.
+- [x] 4: When "Apply & Query" is clicked, it does not appear to actually perform a query and filter the results.
   The reason I can ascertain this is because I can see that the "117,500 pages showing 1,175,000 results matching
   filters" remains unchanged, as well as the total number of pages. Let me describe clearly what this button should do:
   It should restrict the content being queried by the Gallery page, and return only the content that both matches the
@@ -38,7 +38,7 @@ skipped, please write that detail in the "Details" section.
 - Added `tag` parameter to `/api/v1/content/unified` endpoint
 - Implemented PostgreSQL JSON array filtering with `jsonb_exists_any()`
 - Backend now returns only content items that have at least 1 matching tag
-- "Apply & Query Content" button now performs actual filtering, not just navigation
+- "Apply & Query" button now performs actual filtering, not just navigation
 
 ### 🧪 Test Status
 - **Unit Tests**: 81 passed, 11 skipped ✅

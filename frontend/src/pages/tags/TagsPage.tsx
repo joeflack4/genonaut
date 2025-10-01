@@ -17,6 +17,7 @@ import {
   Alert,
   Skeleton,
   Button,
+  Collapse,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -25,6 +26,7 @@ import {
   AccountTree as AccountTreeIcon,
   Check as CheckIcon,
   Launch as LaunchIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import TagTreeView from '../../components/tags/TagTreeView';
@@ -40,6 +42,8 @@ export default function TagsPage() {
   const [searchMode, setSearchMode] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = usePersistedSetState('tagHierarchy:selectedTags', new Set());
   const [isDirty, setIsDirty] = useState(false);
+  const [helpExpanded, setHelpExpanded] = useState(false);
+  const [hierarchyOverviewExpanded, setHierarchyOverviewExpanded] = useState(false);
 
   // Initialize dirty state based on persisted selected tags
   useEffect(() => {
@@ -175,7 +179,7 @@ export default function TagsPage() {
 
       <Grid container spacing={3}>
         {/* Main Content Area */}
-        <Grid size={{ xs: 12, lg: 8 }}>
+        <Grid size={{ xs: 12, lg: 9 }}>
           <Paper elevation={1} sx={{ height: 'fit-content', minHeight: 600 }}>
             {searchMode ? (
               <Box sx={{ p: 3 }}>
@@ -197,14 +201,6 @@ export default function TagsPage() {
               </Box>
             ) : (
               <Box>
-                <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-                  <Typography variant="h6">
-                    Browse Categories
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Expand categories to explore subcategories and individual tags
-                  </Typography>
-                </Box>
                 <TagTreeView
                   onNodeClick={handleNodeClick}
                   selectedNodeId={selectedNodeId || undefined}
@@ -214,77 +210,79 @@ export default function TagsPage() {
                   showNodeCounts={false}
                   maxHeight={600}
                 />
-
-                {/* Tag Selection Status & Action Buttons - shows when tree state is dirty */}
-                {isDirty && (
-                  <Box sx={{ mt: 2, p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-                    {/* Tag Count Display */}
-                    <Box sx={{ mb: 2, textAlign: 'center' }}>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        Selection Status
-                      </Typography>
-                      <Chip
-                        label={`${selectedTagIds.size} tag${selectedTagIds.size !== 1 ? 's' : ''} selected`}
-                        color="primary"
-                        variant="outlined"
-                        sx={{ fontWeight: 600 }}
-                      />
-                    </Box>
-
-                    {/* Clear All Tags Button */}
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-                      <Button
-                        variant="outlined"
-                        color="secondary"
-                        size="small"
-                        onClick={() => {
-                          setSelectedTagIds(new Set());
-                          setIsDirty(false);
-                        }}
-                      >
-                        Clear All Tags
-                      </Button>
-                    </Box>
-
-                    {/* Action Buttons */}
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Button
-                        variant="outlined"
-                        color="primary"
-                        onClick={handleApply}
-                        startIcon={<CheckIcon />}
-                        sx={{
-                          flex: 1,
-                          py: 1.5,
-                          fontWeight: 600,
-                        }}
-                      >
-                        Apply
-                      </Button>
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={handleApplyAndQuery}
-                        startIcon={<LaunchIcon />}
-                        sx={{
-                          flex: 1,
-                          py: 1.5,
-                          fontWeight: 600,
-                        }}
-                      >
-                        Apply & Query Content
-                      </Button>
-                    </Box>
-                  </Box>
-                )}
               </Box>
             )}
           </Paper>
         </Grid>
 
         {/* Sidebar */}
-        <Grid size={{ xs: 12, lg: 4 }}>
+        <Grid size={{ xs: 12, lg: 3 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* Tag Selection Status & Action Buttons - shows when tree state is dirty */}
+            {isDirty && (
+              <Card>
+                <CardContent>
+                  {/* Tag Count Display */}
+                  <Box sx={{ mb: 2, textAlign: 'center' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      Selection Status
+                    </Typography>
+                    <Chip
+                      label={`${selectedTagIds.size} tag${selectedTagIds.size !== 1 ? 's' : ''} selected`}
+                      color="primary"
+                      variant="outlined"
+                      sx={{ fontWeight: 600 }}
+                    />
+                  </Box>
+
+                  {/* Clear All Tags Button */}
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                    <Button
+                      variant="outlined"
+                      color="secondary"
+                      size="small"
+                      onClick={() => {
+                        setSelectedTagIds(new Set());
+                        setIsDirty(false);
+                      }}
+                    >
+                      Clear All Tags
+                    </Button>
+                  </Box>
+
+                  {/* Action Buttons */}
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      onClick={handleApply}
+                      startIcon={<CheckIcon />}
+                      sx={{
+                        flex: 1,
+                        py: 1.5,
+                        fontWeight: 600,
+                      }}
+                    >
+                      Apply
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={handleApplyAndQuery}
+                      startIcon={<LaunchIcon />}
+                      sx={{
+                        flex: 1,
+                        py: 1.5,
+                        fontWeight: 600,
+                      }}
+                    >
+                      Apply & Query
+                    </Button>
+                  </Box>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Quick Search Card */}
             {!searchMode && (
               <Card>
@@ -305,23 +303,45 @@ export default function TagsPage() {
             {/* Help Card */}
             <Card>
               <CardContent>
-                <Typography variant="h6" sx={{ mb: 2 }}>
-                  How to Use
-                </Typography>
-                <Box component="ul" sx={{ pl: 2, m: 0 }}>
-                  <Typography component="li" variant="body2" sx={{ mb: 1 }}>
-                    <strong>Browse:</strong> Expand categories in the tree to explore subcategories
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                    mb: helpExpanded ? 2 : 0
+                  }}
+                  onClick={() => setHelpExpanded(!helpExpanded)}
+                >
+                  <Typography variant="h6">
+                    How to Use
                   </Typography>
-                  <Typography component="li" variant="body2" sx={{ mb: 1 }}>
-                    <strong>Search:</strong> Use the search box to quickly find specific tags
-                  </Typography>
-                  <Typography component="li" variant="body2" sx={{ mb: 1 }}>
-                    <strong>Navigate:</strong> Click any tag to view related content in the gallery
-                  </Typography>
-                  <Typography component="li" variant="body2">
-                    <strong>Switch views:</strong> Toggle between tree and search modes using the toolbar
-                  </Typography>
+                  <IconButton
+                    size="small"
+                    sx={{
+                      transform: helpExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.3s',
+                    }}
+                  >
+                    <ExpandMoreIcon />
+                  </IconButton>
                 </Box>
+                <Collapse in={helpExpanded}>
+                  <Box component="ul" sx={{ pl: 2, m: 0 }}>
+                    <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                      <strong>Browse:</strong> Expand categories in the tree to explore subcategories
+                    </Typography>
+                    <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                      <strong>Search:</strong> Use the search box to quickly find specific tags
+                    </Typography>
+                    <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                      <strong>Navigate:</strong> Click any tag to view related content in the gallery
+                    </Typography>
+                    <Typography component="li" variant="body2">
+                      <strong>Switch views:</strong> Toggle between tree and search modes using the toolbar
+                    </Typography>
+                  </Box>
+                </Collapse>
               </CardContent>
             </Card>
 
@@ -329,38 +349,60 @@ export default function TagsPage() {
             {hierarchy && (
               <Card>
                 <CardContent>
-                  <Typography variant="h6" sx={{ mb: 2 }}>
-                    Hierarchy Overview
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2">Total Tags:</Typography>
-                      <Typography variant="body2" fontWeight="bold">
-                        {hierarchy.metadata.totalNodes}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2">Root Categories:</Typography>
-                      <Typography variant="body2" fontWeight="bold">
-                        {hierarchy.metadata.rootCategories}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2">Relationships:</Typography>
-                      <Typography variant="body2" fontWeight="bold">
-                        {hierarchy.metadata.totalRelationships}
-                      </Typography>
-                    </Box>
-                    <Divider sx={{ my: 1 }} />
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2">Format:</Typography>
-                      <Typography variant="body2">{hierarchy.metadata.format}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2">Version:</Typography>
-                      <Typography variant="body2">{hierarchy.metadata.version}</Typography>
-                    </Box>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: 'pointer',
+                      mb: hierarchyOverviewExpanded ? 2 : 0
+                    }}
+                    onClick={() => setHierarchyOverviewExpanded(!hierarchyOverviewExpanded)}
+                  >
+                    <Typography variant="h6">
+                      Hierarchy Overview
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      sx={{
+                        transform: hierarchyOverviewExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.3s',
+                      }}
+                    >
+                      <ExpandMoreIcon />
+                    </IconButton>
                   </Box>
+                  <Collapse in={hierarchyOverviewExpanded}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2">Total Tags:</Typography>
+                        <Typography variant="body2" fontWeight="bold">
+                          {hierarchy.metadata.totalNodes}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2">Root Categories:</Typography>
+                        <Typography variant="body2" fontWeight="bold">
+                          {hierarchy.metadata.rootCategories}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2">Relationships:</Typography>
+                        <Typography variant="body2" fontWeight="bold">
+                          {hierarchy.metadata.totalRelationships}
+                        </Typography>
+                      </Box>
+                      <Divider sx={{ my: 1 }} />
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2">Format:</Typography>
+                        <Typography variant="body2">{hierarchy.metadata.format}</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2">Version:</Typography>
+                        <Typography variant="body2">{hierarchy.metadata.version}</Typography>
+                      </Box>
+                    </Box>
+                  </Collapse>
                 </CardContent>
               </Card>
             )}

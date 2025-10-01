@@ -266,6 +266,7 @@ export function AppLayout() {
         </Box>
         <Container
           component="main"
+          maxWidth={false}
           sx={{
             flexGrow: 1,
             py: 2,
