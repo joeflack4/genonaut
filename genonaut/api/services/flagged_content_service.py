@@ -195,7 +195,7 @@ class FlaggedContentService:
         reviewed: Optional[bool] = None,
         sort_by: str = "flagged_at",
         sort_order: str = "desc"
-    ) -> PaginatedResponse[FlaggedContent]:
+    ) -> Any:  # Returns PaginatedResponse[FlaggedContent]
         """Get paginated list of flagged content with filters.
 
         Args:
