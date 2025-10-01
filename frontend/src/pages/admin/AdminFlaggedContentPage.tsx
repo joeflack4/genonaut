@@ -151,7 +151,7 @@ export function AdminFlaggedContentPage() {
   }
 
   return (
-    <Box sx={{ display: 'flex', position: 'relative' }}>
+    <Box sx={{ display: 'flex', position: 'relative' }} data-testid="admin-flagged-page-root">
       <Box
         component="main"
         sx={{
@@ -164,20 +164,21 @@ export function AdminFlaggedContentPage() {
               duration: theme.transitions.duration.leavingScreen,
             }),
         }}
+        data-testid="admin-flagged-main"
       >
-        <Stack spacing={3}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h4" component="h1" fontWeight={600}>
+        <Stack spacing={3} data-testid="admin-flagged-content">
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} data-testid="admin-flagged-header">
+            <Typography variant="h4" component="h1" fontWeight={600} data-testid="admin-flagged-title">
               Flagged Content Management
             </Typography>
-            <Stack direction="row" spacing={1}>
+            <Stack direction="row" spacing={1} data-testid="admin-flagged-header-actions">
               <Tooltip title="Refresh">
-                <IconButton onClick={handleRefresh} disabled={loading}>
+                <IconButton onClick={handleRefresh} disabled={loading} data-testid="admin-flagged-refresh">
                   <RefreshIcon />
                 </IconButton>
               </Tooltip>
               <Tooltip title={filtersOpen ? 'Hide filters' : 'Show filters'}>
-                <IconButton onClick={() => setFiltersOpen(!filtersOpen)}>
+                <IconButton onClick={() => setFiltersOpen(!filtersOpen)} data-testid="admin-flagged-toggle-filters">
                   <FilterListIcon />
                 </IconButton>
               </Tooltip>
@@ -185,10 +186,10 @@ export function AdminFlaggedContentPage() {
           </Box>
 
           {selectedIds.length > 0 && (
-            <Card>
+            <Card data-testid="admin-flagged-selection-card">
               <CardContent>
-                <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
-                  <Typography variant="body1">
+                <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" data-testid="admin-flagged-selection-content">
+                  <Typography variant="body1" data-testid="admin-flagged-selection-text">
                     {selectedIds.length} item{selectedIds.length !== 1 ? 's' : ''} selected
                   </Typography>
                   <Button
@@ -196,6 +197,7 @@ export function AdminFlaggedContentPage() {
                     color="error"
                     startIcon={<DeleteIcon />}
                     onClick={() => setBulkDeleteDialogOpen(true)}
+                    data-testid="admin-flagged-selection-delete"
                   >
                     Delete Selected
                   </Button>
@@ -204,21 +206,21 @@ export function AdminFlaggedContentPage() {
             </Card>
           )}
 
-          <Card>
+          <Card data-testid="admin-flagged-table-card">
             <CardContent>
-              <Stack spacing={2}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" color="text.secondary">
+              <Stack spacing={2} data-testid="admin-flagged-table-section">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} data-testid="admin-flagged-summary">
+                  <Typography variant="body2" color="text.secondary" data-testid="admin-flagged-summary-text">
                     Showing {items.length} of {totalCount} flagged items
                   </Typography>
                 </Box>
 
                 {loading ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                    <CircularProgress />
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }} data-testid="admin-flagged-loading">
+                    <CircularProgress data-testid="admin-flagged-loading-spinner" />
                   </Box>
                 ) : error ? (
-                  <Alert severity="error">{error}</Alert>
+                  <Alert severity="error" data-testid="admin-flagged-error-alert">{error}</Alert>
                 ) : (
                   <>
                     <FlaggedContentTable
@@ -230,13 +232,14 @@ export function AdminFlaggedContentPage() {
                       currentUserId={currentUserId}
                     />
                     {totalPages > 1 && (
-                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }} data-testid="admin-flagged-pagination">
                         <Pagination
                           count={totalPages}
                           page={page}
                           onChange={handlePageChange}
                           color="primary"
                           shape="rounded"
+                          data-testid="admin-flagged-pagination-control"
                         />
                       </Box>
                     )}
@@ -262,6 +265,7 @@ export function AdminFlaggedContentPage() {
             position: 'fixed',
           },
         }}
+        data-testid="admin-flagged-filters-drawer"
       >
         <FlaggedContentFilters
           filters={filters}
@@ -271,18 +275,18 @@ export function AdminFlaggedContentPage() {
       </Drawer>
 
       {/* Bulk Delete Confirmation Dialog */}
-      <Dialog open={bulkDeleteDialogOpen} onClose={() => setBulkDeleteDialogOpen(false)}>
-        <DialogTitle>Bulk Delete Flagged Content</DialogTitle>
+      <Dialog open={bulkDeleteDialogOpen} onClose={() => setBulkDeleteDialogOpen(false)} data-testid="admin-flagged-bulk-dialog">
+        <DialogTitle data-testid="admin-flagged-bulk-dialog-title">Bulk Delete Flagged Content</DialogTitle>
         <DialogContent>
-          <DialogContentText>
+          <DialogContentText data-testid="admin-flagged-bulk-dialog-text">
             Are you sure you want to delete {selectedIds.length} flagged item
             {selectedIds.length !== 1 ? 's' : ''}? This will also delete the original content items.
             This action cannot be undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setBulkDeleteDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleBulkDelete} variant="contained" color="error">
+          <Button onClick={() => setBulkDeleteDialogOpen(false)} data-testid="admin-flagged-bulk-dialog-cancel">Cancel</Button>
+          <Button onClick={handleBulkDelete} variant="contained" color="error" data-testid="admin-flagged-bulk-dialog-confirm">
             Delete {selectedIds.length} Item{selectedIds.length !== 1 ? 's' : ''}
           </Button>
         </DialogActions>
@@ -294,8 +298,9 @@ export function AdminFlaggedContentPage() {
         autoHideDuration={4000}
         onClose={() => setSuccess(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        data-testid="admin-flagged-success-snackbar"
       >
-        <Alert onClose={() => setSuccess(null)} severity="success" sx={{ width: '100%' }}>
+        <Alert onClose={() => setSuccess(null)} severity="success" sx={{ width: '100%' }} data-testid="admin-flagged-success-alert">
           {success}
         </Alert>
       </Snackbar>
@@ -306,8 +311,9 @@ export function AdminFlaggedContentPage() {
         autoHideDuration={6000}
         onClose={() => setError(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        data-testid="admin-flagged-error-snackbar"
       >
-        <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }}>
+        <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }} data-testid="admin-flagged-error-alert">
           {error}
         </Alert>
       </Snackbar>

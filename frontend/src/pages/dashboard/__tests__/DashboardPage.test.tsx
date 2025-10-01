@@ -152,6 +152,10 @@ describe('DashboardPage', () => {
   it('displays gallery stats and recent content', () => {
     renderDashboard()
 
+    expect(screen.getByTestId('dashboard-page-root')).toBeInTheDocument()
+    expect(screen.getByTestId('dashboard-stat-grid')).toBeInTheDocument()
+    expect(screen.getByTestId('dashboard-user-recent-list')).toBeInTheDocument()
+
     expect(mockedUseGalleryStats).toHaveBeenCalledWith('121e194b-4caa-4b81-ad4f-86ca3919d5b9')
     expect(mockedUseGalleryList).toHaveBeenCalledWith({ limit: 5, sort: 'recent', creator_id: '121e194b-4caa-4b81-ad4f-86ca3919d5b9' })
     expect(mockedUseGalleryAutoList).toHaveBeenCalledWith({ limit: 5, sort: 'recent', creator_id: '121e194b-4caa-4b81-ad4f-86ca3919d5b9' })

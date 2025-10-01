@@ -17,6 +17,7 @@ npm install
 - Follow React best practices with hooks and functional components
 - Use React Query for all data fetching and caching
 - Prefer pure functions and avoid side effects where possible
+- Instrument UI markup with stable `data-testid` attributes so components are easy to reference in reviews, automated tests, and debugging tools. See **Data Test IDs** below for conventions.
 
 ## Key Libraries & Patterns
 - **Routing**: `react-router-dom@7`
@@ -82,6 +83,30 @@ frontend/src/
 - Include hook tests for custom hooks
 - Follow Material UI design patterns
 - Ensure responsive design principles
+- Verify new `data-testid` hooks are covered by unit/E2E tests where practical, and update existing tests when markup changes.
+
+## Data Test IDs
+- Every routed page, major layout container, toolbar, card/list section, loading/empty state, and interactive control should expose a unique `data-testid`.
+- Use a consistent `page-or-component-element` pattern (e.g. `dashboard-page-root`, `tags-page-refresh`, `app-layout-search-form`). For collections, interpolate context (`gallery-result-item-${item.id}`).
+- When using Material UI, set IDs via the appropriate props (e.g. `inputProps={{ 'data-testid': 'search-input' }}`, `slotProps={{ paper: { 'data-testid': '...' } }}`).
+- Ensure skeleton/loading and empty states have their own IDs so tests can assert transitions.
+- Update existing tests (Vitest + Playwright) to assert against the new IDs whenever markup changes. Example snippets from `notes/el-ids.md`:
+  ```tsx
+  <Box data-testid="page-root" sx={{ p: 3 }}>
+    <List data-testid="gallery-results-list">
+      {items.map((item) => (
+        <ListItem key={item.id} data-testid={`gallery-result-item-${item.id}`} />
+      ))}
+    </List>
+  </Box>
+
+  <TextField
+    label="Search"
+    inputProps={{ 'data-testid': 'search-input' }}
+    FormHelperTextProps={{ 'data-testid': 'search-help' }}
+  />
+  ```
+- Treat `data-testid` coverage as part of the definition of done for UI work; new sections without IDs should be considered incomplete.
 
 ## Documentation Requirements
 - Update component documentation for significant changes

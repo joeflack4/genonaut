@@ -62,6 +62,9 @@ describe('SettingsPage', () => {
   it('shows current user info and saves updates', async () => {
     renderSettingsPage()
 
+    expect(screen.getByTestId('settings-page-root')).toBeInTheDocument()
+    expect(screen.getByTestId('settings-profile-card')).toBeInTheDocument()
+
     const nameInput = screen.getByLabelText(/display name/i)
     expect(nameInput).toHaveValue('Admin')
 

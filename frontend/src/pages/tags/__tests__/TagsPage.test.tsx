@@ -182,21 +182,21 @@ describe('TagsPage', () => {
     );
 
     // Initially should show tree view
-    expect(screen.getByText('Browse Categories')).toBeInTheDocument();
+    expect(screen.getByTestId('tags-page-tree-mode')).toBeInTheDocument();
 
     // Click search toggle
     const searchToggle = screen.getByLabelText('Show search');
     await user.click(searchToggle);
 
     // Should now show search view
-    expect(screen.getByText('Search Tags')).toBeInTheDocument();
+    expect(screen.getByTestId('tags-page-search-mode')).toBeInTheDocument();
 
     // Click tree toggle
     const treeToggle = screen.getByLabelText('Show tree view');
     await user.click(treeToggle);
 
     // Should be back to tree view
-    expect(screen.getByText('Browse Categories')).toBeInTheDocument();
+    expect(screen.getByTestId('tags-page-tree-mode')).toBeInTheDocument();
   });
 
   it('calls refresh when refresh button is clicked', async () => {

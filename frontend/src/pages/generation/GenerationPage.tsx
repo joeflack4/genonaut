@@ -22,15 +22,16 @@ export function GenerationPage() {
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }} data-testid="generation-page">
-      <Typography variant="h4" component="h1" gutterBottom>
+      <Typography variant="h4" component="h1" gutterBottom data-testid="generation-page-title">
         Image Generation
       </Typography>
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }} data-testid="generation-page-tabs">
         <Tabs
           value={activeTab}
           onChange={(_, value) => setActiveTab(value)}
           aria-label="Generation workflow tabs"
+          data-testid="generation-tabs"
         >
           <Tab
             label="Create"
@@ -46,12 +47,12 @@ export function GenerationPage() {
       </Box>
 
       {activeTab === 'create' ? (
-        <Grid container spacing={3}>
+        <Grid container spacing={3} data-testid="generation-create-layout">
           {/* Generation Form */}
           {/* @ts-ignore */}
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
+          <Grid item xs={12} md={6} data-testid="generation-form-column">
+            <Paper sx={{ p: 3 }} data-testid="generation-form-card">
+              <Typography variant="h6" gutterBottom data-testid="generation-form-title">
                 Create New Generation
               </Typography>
               <GenerationForm onGenerationStart={handleGenerationStart} />
@@ -60,9 +61,9 @@ export function GenerationPage() {
 
           {/* Generation Progress */}
           {/* @ts-ignore */}
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
+          <Grid item xs={12} md={6} data-testid="generation-progress-column">
+            <Paper sx={{ p: 3 }} data-testid="generation-progress-card">
+              <Typography variant="h6" gutterBottom data-testid="generation-progress-title">
                 Generation Status
               </Typography>
               {currentGeneration ? (
@@ -77,8 +78,9 @@ export function GenerationPage() {
                   justifyContent="center"
                   minHeight={300}
                   color="text.secondary"
+                  data-testid="generation-progress-empty"
                 >
-                  <Typography variant="body1">
+                  <Typography variant="body1" data-testid="generation-progress-empty-text">
                     Start a generation to see progress here
                   </Typography>
                 </Box>
@@ -87,8 +89,8 @@ export function GenerationPage() {
           </Grid>
         </Grid>
       ) : (
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
+        <Paper sx={{ p: 3 }} data-testid="generation-history-card">
+          <Typography variant="h6" gutterBottom data-testid="generation-history-title">
             Generation History
           </Typography>
           <GenerationHistory key={refreshHistory} />

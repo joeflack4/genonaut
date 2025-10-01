@@ -187,7 +187,11 @@ export function GalleryPage() {
   }
 
   return (
-    <Box component="section" sx={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
+    <Box
+      component="section"
+      sx={{ position: 'relative', display: 'flex', flexDirection: 'column' }}
+      data-testid="gallery-page-root"
+    >
       {!optionsOpen && (
         <Tooltip title="Options" enterDelay={300} arrow>
           <IconButton
@@ -201,6 +205,7 @@ export function GalleryPage() {
               bgcolor: 'background.paper',
               boxShadow: 1,
             }}
+            data-testid="gallery-options-open-button"
           >
             <SettingsOutlinedIcon />
           </IconButton>
@@ -212,47 +217,84 @@ export function GalleryPage() {
           display: 'flex',
           flexDirection: 'column',
         }}
+        data-testid="gallery-content-wrapper"
       >
-        <Stack spacing={4}>
-          <Stack spacing={1}>
-            <Typography component="h1" variant="h4" fontWeight={600} gutterBottom>
+        <Stack spacing={4} data-testid="gallery-content-stack">
+          <Stack spacing={1} data-testid="gallery-header">
+            <Typography
+              component="h1"
+              variant="h4"
+              fontWeight={600}
+              gutterBottom
+              data-testid="gallery-title"
+            >
               Gallery
             </Typography>
           </Stack>
-          <Card>
+          <Card data-testid="gallery-results-card">
             <CardContent>
               {isLoading ? (
-                <Stack spacing={2}>
+                <Stack spacing={2} data-testid="gallery-results-loading">
                   {Array.from({ length: 5 }).map((_, index) => (
-                    <Skeleton key={index} variant="rectangular" height={72} />
+                    <Skeleton
+                      key={index}
+                      variant="rectangular"
+                      height={72}
+                      data-testid={`gallery-results-skeleton-${index}`}
+                    />
                   ))}
                 </Stack>
               ) : data && data.items.length > 0 ? (
-                <List>
+                <List data-testid="gallery-results-list">
                   {data.items.map((item) => (
-                    <ListItem key={item.id} alignItems="flex-start" divider>
+                    <ListItem
+                      key={item.id}
+                      alignItems="flex-start"
+                      divider
+                      data-testid={`gallery-result-item-${item.id}`}
+                    >
                       <ListItemText
                         primary={
-                          <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-                            <Typography variant="h6" component="span">
+                          <Stack
+                            direction="row"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            spacing={2}
+                            data-testid={`gallery-result-item-${item.id}-header`}
+                          >
+                            <Typography variant="h6" component="span" data-testid={`gallery-result-item-${item.id}-title`}>
                               {item.title}
                             </Typography>
                             {item.qualityScore !== null && item.qualityScore !== undefined && (
                               <Chip
                                 label={`Quality ${(item.qualityScore * 100).toFixed(0)}%`}
                                 color={item.qualityScore > 0.75 ? 'success' : 'default'}
+                                data-testid={`gallery-result-item-${item.id}-quality`}
                               />
                             )}
                           </Stack>
                         }
                         secondary={
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 1 }}>
+                          <Box
+                            sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 1 }}
+                            data-testid={`gallery-result-item-${item.id}-meta`}
+                          >
                             {item.description && (
-                              <Typography variant="body2" color="text.secondary" component="span">
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                component="span"
+                                data-testid={`gallery-result-item-${item.id}-description`}
+                              >
                                 {item.description}
                               </Typography>
                             )}
-                            <Typography variant="caption" color="text.secondary" component="span">
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              component="span"
+                              data-testid={`gallery-result-item-${item.id}-created`}
+                            >
                               Created {new Date(item.createdAt).toLocaleString()}
                             </Typography>
                           </Box>
@@ -264,20 +306,21 @@ export function GalleryPage() {
                   ))}
                 </List>
               ) : (
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" data-testid="gallery-results-empty">
                   No gallery items found. Try adjusting your filters.
                 </Typography>
               )}
             </CardContent>
           </Card>
 
-          <Box display="flex" justifyContent="flex-end">
+          <Box display="flex" justifyContent="flex-end" data-testid="gallery-pagination">
             <Pagination
               count={totalPages}
               page={filters.page + 1}
               onChange={handlePageChange}
               color="primary"
               shape="rounded"
+              data-testid="gallery-pagination-control"
             />
           </Box>
         </Stack>
@@ -297,10 +340,16 @@ export function GalleryPage() {
             zIndex: (theme) => theme.zIndex.drawer,
           },
         }}
+        data-testid="gallery-options-drawer"
       >
-        <Stack spacing={3} sx={{ height: '100%' }}>
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', display: 'inline' }}>
+        <Stack spacing={3} sx={{ height: '100%' }} data-testid="gallery-options-stack">
+          <Box sx={{ textAlign: 'center' }} data-testid="gallery-options-summary">
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ fontStyle: 'italic', display: 'inline' }}
+              data-testid="gallery-options-summary-text"
+            >
               {totalPages.toLocaleString()} pages showing {data?.total?.toLocaleString() || 0} results matching filters.
             </Typography>
             {data?.stats && (
@@ -313,17 +362,25 @@ export function GalleryPage() {
                 }}
                 onMouseEnter={(event) => setStatsAnchorEl(event.currentTarget)}
                 onMouseLeave={() => setStatsAnchorEl(null)}
+                data-testid="gallery-options-stats-info-button"
               >
                 <InfoOutlinedIcon sx={{ fontSize: 14 }} />
               </IconButton>
             )}
           </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography component="h2" variant="h6" fontWeight={600}>
+          <Box
+            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+            data-testid="gallery-options-header"
+          >
+            <Typography component="h2" variant="h6" fontWeight={600} data-testid="gallery-options-title">
               Options
             </Typography>
             <Tooltip title="Hide options" enterDelay={300} arrow>
-              <IconButton aria-label="Close options" onClick={() => setOptionsOpen(false)}>
+              <IconButton
+                aria-label="Close options"
+                onClick={() => setOptionsOpen(false)}
+                data-testid="gallery-options-close-button"
+              >
                 <CloseIcon />
               </IconButton>
             </Tooltip>
@@ -333,6 +390,7 @@ export function GalleryPage() {
             spacing={2}
             onSubmit={handleSearchSubmit}
             aria-label="gallery filters"
+            data-testid="gallery-filter-form"
           >
             <TextField
               label="Search"
@@ -340,12 +398,16 @@ export function GalleryPage() {
               fullWidth
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
+              inputProps={{ 'data-testid': 'gallery-search-input' }}
             />
 
             {/* Tag Filter Display */}
             {filters.tag && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                <Typography variant="body2" color="text.secondary">
+              <Box
+                sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}
+                data-testid="gallery-tag-filter"
+              >
+                <Typography variant="body2" color="text.secondary" data-testid="gallery-tag-filter-label">
                   Filtered by {Array.isArray(filters.tag) ? 'tags' : 'tag'}:
                 </Typography>
                 {Array.isArray(filters.tag) ? (
@@ -378,6 +440,7 @@ export function GalleryPage() {
                         }
                       }}
                       sx={{ maxWidth: 200 }}
+                      data-testid={`gallery-tag-chip-${index}`}
                     />
                   ))
                 ) : (
@@ -395,6 +458,7 @@ export function GalleryPage() {
                       });
                     }}
                     sx={{ maxWidth: 200 }}
+                    data-testid="gallery-tag-chip-single"
                   />
                 )}
                 {/* Clear All Tags Button */}
@@ -412,6 +476,7 @@ export function GalleryPage() {
                       });
                     }}
                     sx={{ ml: 1 }}
+                    data-testid="gallery-clear-tags-button"
                   >
                     Clear All Tags
                   </Button>
@@ -426,9 +491,14 @@ export function GalleryPage() {
                 label="Sort by"
                 value={filters.sort}
                 onChange={handleSortChange}
+                data-testid="gallery-sort-select"
               >
                 {sortOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
+                  <MenuItem
+                    key={option.value}
+                    value={option.value}
+                    data-testid={`gallery-sort-option-${option.value}`}
+                  >
                     {option.label}
                   </MenuItem>
                 ))}
@@ -436,49 +506,57 @@ export function GalleryPage() {
             </FormControl>
           </Stack>
 
-          <Stack spacing={2}>
-            <Typography variant="h6" component="h2">
+          <Stack spacing={2} data-testid="gallery-content-toggles">
+            <Typography variant="h6" component="h2" data-testid="gallery-content-toggles-title">
               Content Types
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" data-testid="gallery-content-toggles-description">
               Choose which types of content to include in your gallery view.
             </Typography>
-            <Stack spacing={1}>
+            <Stack spacing={1} data-testid="gallery-content-toggles-switches">
               <FormControlLabel
                 control={
                   <Switch
                     checked={contentToggles.yourGens}
                     onChange={handleToggleChange('yourGens')}
+                    inputProps={{ 'data-testid': 'gallery-toggle-your-gens' }}
                   />
                 }
                 label="Your gens"
+                data-testid="gallery-toggle-your-gens-label"
               />
               <FormControlLabel
                 control={
                   <Switch
                     checked={contentToggles.yourAutoGens}
                     onChange={handleToggleChange('yourAutoGens')}
+                    inputProps={{ 'data-testid': 'gallery-toggle-your-autogens' }}
                   />
                 }
                 label="Your auto-gens"
+                data-testid="gallery-toggle-your-autogens-label"
               />
               <FormControlLabel
                 control={
                   <Switch
                     checked={contentToggles.communityGens}
                     onChange={handleToggleChange('communityGens')}
+                    inputProps={{ 'data-testid': 'gallery-toggle-community-gens' }}
                   />
                 }
                 label="Community gens"
+                data-testid="gallery-toggle-community-gens-label"
               />
               <FormControlLabel
                 control={
                   <Switch
                     checked={contentToggles.communityAutoGens}
                     onChange={handleToggleChange('communityAutoGens')}
+                    inputProps={{ 'data-testid': 'gallery-toggle-community-autogens' }}
                   />
                 }
                 label="Community auto-gens"
+                data-testid="gallery-toggle-community-autogens-label"
               />
             </Stack>
           </Stack>
@@ -512,22 +590,23 @@ export function GalleryPage() {
         }}
         onMouseEnter={() => setStatsAnchorEl(statsAnchorEl)}
         onMouseLeave={() => setStatsAnchorEl(null)}
+        data-testid="gallery-stats-popover"
       >
         {data?.stats && (
-          <Stack spacing={1}>
+          <Stack spacing={1} data-testid="gallery-stats-list">
              {/*<Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
                Content Statistics
              </Typography>*/}
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-user-regular">
               Your gens: {data.stats.userRegularCount.toLocaleString()}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-user-auto">
               Your auto-gens: {data.stats.userAutoCount.toLocaleString()}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-community-regular">
               Community gens: {data.stats.communityRegularCount.toLocaleString()}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-community-auto">
               Community auto-gens: {data.stats.communityAutoCount.toLocaleString()}
             </Typography>
           </Stack>

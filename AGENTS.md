@@ -35,20 +35,21 @@ TodoWrite and TodoRead functionality. You can utilize those tools here.
    - Unit tests (`make test-unit`) for individual functions/methods
    - Database tests (`make test-db`) for repository and service layer functionality
    - API integration tests (`make test-api`) for complete workflows and endpoints
-4. Add documentation: Module level docstrings, class level docstrings, function level docstrings, and method / function
+4. Whenever you touch frontend or UI-adjacent code, add or update stable `data-testid` attributes on new layouts, sections, list items, loading/empty states, and interactive controls. Follow the conventions documented in `frontend/AGENTS.md#data-test-ids` (e.g. `page-or-component-element` naming, using MUI `inputProps`/`slotProps`), and update affected unit/E2E tests.
+5. Add documentation: Module level docstrings, class level docstrings, function level docstrings, and method / function
 level docstrings. Function / method docstrings should include information about parameters and returns, and a 
 description. 
-5. Periodic code commenting. For example, for a function that has several distinct steps, where each step involves a 
+6. Periodic code commenting. For example, for a function that has several distinct steps, where each step involves a 
 block of code (e.g. a `for` loop with several operations), put at least 1 comment above each block, explaining what it 
 does.
-6. If any new Python requirements / packages are added to the project, include them (unversioned) in the 
+7. If any new Python requirements / packages are added to the project, include them (unversioned) in the 
 `requirements-unlocked.txt` file.
-7.  If the new feature has a CLI, document it in a "Features" section in the `README.md`. Include a table showing the 
+8.  If the new feature has a CLI, document it in a "Features" section in the `README.md`. Include a table showing the 
 args, their description, defaults, data types, etc.
-8. Consider otherwise any other documentation that might need to be added or updated in `README.md` after adding a 
+9. Consider otherwise any other documentation that might need to be added or updated in `README.md` after adding a 
 feature, and either do those updates or ask for input.
-9. Ensure that the whole test suite passes before completion of a feature or major task.
-10. If there is a command involved that needs to work, but for which it does not make sense to have a test (like if you 
+10. Ensure that the whole test suite passes before completion of a feature or major task.
+11. If there is a command involved that needs to work, but for which it does not make sense to have a test (like if you 
 are asked to fix a one-off script or command), then make sure to run the command to ensure that it works, unless asked 
 not to or otherwise if you think it is inadvisable to do so.
 

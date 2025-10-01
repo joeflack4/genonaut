@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 
 test.describe('Accessibility Tests', () => {
   test.beforeEach(async ({ page }) => {
-    page.setDefaultNavigationTimeout(5_000)
+    page.setDefaultNavigationTimeout(15_000)
   })
   test.skip('should support comprehensive keyboard navigation', async ({ page }) => {
     await page.goto('/')

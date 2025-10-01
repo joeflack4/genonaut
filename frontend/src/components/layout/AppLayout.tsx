@@ -102,10 +102,13 @@ export function AppLayout() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', color: 'text.primary' }}>
-      <AppBar position="static" component="header" elevation={0} color="primary">
-        <Toolbar sx={{ justifyContent: 'space-between', gap: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+    <Box
+      sx={{ minHeight: '100vh', bgcolor: 'background.default', color: 'text.primary' }}
+      data-testid="app-layout-root"
+    >
+      <AppBar position="static" component="header" elevation={0} color="primary" data-testid="app-layout-appbar">
+        <Toolbar sx={{ justifyContent: 'space-between', gap: 2 }} data-testid="app-layout-toolbar">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }} data-testid="app-layout-brand">
             <Tooltip title="Toggle sidebar" enterDelay={1500} arrow>
               <IconButton
                 color="inherit"
@@ -113,15 +116,19 @@ export function AppLayout() {
                 edge="start"
                 onClick={handleSidebarToggle}
                 sx={{ mr: 1 }}
+                data-testid="app-layout-toggle-sidebar"
               >
                 <MenuIcon />
               </IconButton>
             </Tooltip>
-            <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
+            <Typography variant="h6" component="div" sx={{ fontWeight: 600 }} data-testid="app-layout-logo">
               Genonaut
             </Typography>
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexGrow: 1, justifyContent: 'flex-end' }}>
+          <Box
+            sx={{ display: 'flex', alignItems: 'center', gap: 2, flexGrow: 1, justifyContent: 'flex-end' }}
+            data-testid="app-layout-header-controls"
+          >
             <Box
               component="form"
               onSubmit={handleSearchSubmit}
@@ -136,6 +143,7 @@ export function AppLayout() {
                 width: searchExpanded ? 250 : 'auto',
                 mr: 1,
               }}
+              data-testid="app-layout-search-form"
             >
               {!searchExpanded ? (
                 <Tooltip title="Search" enterDelay={1500} arrow>
@@ -143,12 +151,13 @@ export function AppLayout() {
                     color="inherit"
                     onClick={handleSearchClick}
                     sx={{ p: 1 }}
+                    data-testid="app-layout-search-trigger"
                   >
                     <SearchIcon />
                   </IconButton>
                 </Tooltip>
               ) : (
-                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', px: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', px: 1 }} data-testid="app-layout-search-active">
                   <SearchIcon sx={{ color: 'inherit', mr: 1 }} />
                   <InputBase
                     placeholder="Search..."
@@ -167,6 +176,7 @@ export function AppLayout() {
                         },
                       },
                     }}
+                    inputProps={{ 'data-testid': 'app-layout-search-input' }}
                   />
                 </Box>
               )}
@@ -180,12 +190,13 @@ export function AppLayout() {
                   mode === 'dark' ? <LightModeOutlinedIcon fontSize="small" /> : <DarkModeOutlinedIcon fontSize="small" />
                 }
                 sx={{ textTransform: 'none' }}
+                data-testid="app-layout-theme-toggle"
               >
                 {showButtonLabels && (mode === 'dark' ? 'Light mode' : 'Dark mode')}
               </Button>
             </Tooltip>
             {isUserLoading ? (
-              <Skeleton variant="text" width={120} />
+              <Skeleton variant="text" width={120} data-testid="app-layout-user-loading" />
             ) : (
               <Tooltip title="Go to account settings" enterDelay={1500} arrow>
                 <Box
@@ -202,10 +213,11 @@ export function AppLayout() {
                     }
                   }}
                   onClick={handleUserClick}
+                  data-testid="app-layout-user"
                 >
                   <PersonIcon fontSize="small" />
                   {showButtonLabels && (
-                    <Typography variant="subtitle1" component="div">
+                    <Typography variant="subtitle1" component="div" data-testid="app-layout-user-name">
                       {currentUser?.name ?? 'Admin'}
                     </Typography>
                   )}
@@ -215,8 +227,8 @@ export function AppLayout() {
           </Box>
         </Toolbar>
       </AppBar>
-      <Box sx={{ display: 'flex', minHeight: 'calc(100vh - 64px)' }}>
-        <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
+      <Box sx={{ display: 'flex', minHeight: 'calc(100vh - 64px)' }} data-testid="app-layout-body">
+        <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }} data-testid="app-layout-nav">
           <Drawer
             variant={isMobile ? 'temporary' : 'persistent'}
             open={sidebarOpen}
@@ -235,12 +247,13 @@ export function AppLayout() {
                 top: { xs: 64, md: 0 }, // Account for AppBar height on mobile
               },
             }}
+            data-testid="app-layout-drawer"
           >
-            <List>
+            <List data-testid="app-layout-nav-list">
               {navItems.map((item) => {
                 const IconComponent = item.icon
                 return (
-                  <ListItem key={item.to} disablePadding>
+                  <ListItem key={item.to} disablePadding data-testid={`app-layout-nav-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}>
                     <Tooltip title={item.label} enterDelay={1500} arrow placement="right">
                       <ListItemButton
                         component={NavLinkButton}
@@ -251,8 +264,9 @@ export function AppLayout() {
                             bgcolor: 'action.selected',
                           },
                         }}
+                        data-testid={`app-layout-nav-link-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                       >
-                        <ListItemIcon>
+                        <ListItemIcon data-testid={`app-layout-nav-icon-${item.label.toLowerCase().replace(/\s+/g, '-')}`}>
                           <IconComponent />
                         </ListItemIcon>
                         {showButtonLabels && <ListItemText primary={item.label} />}
@@ -276,6 +290,7 @@ export function AppLayout() {
               duration: theme.transitions.duration.leavingScreen,
             }),
           }}
+          data-testid="app-layout-content"
         >
           <Outlet />
         </Container>

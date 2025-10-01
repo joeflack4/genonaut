@@ -47,14 +47,14 @@ test.describe('Tag Hierarchy Tests', () => {
 
     // Should start in tree view mode
     await expect(page.locator('[aria-label="Tag hierarchy tree"]')).toBeVisible();
-    await expect(page.locator('text=Browse Categories')).toBeVisible();
+    await expect(page.locator('[data-testid="tags-page-tree-mode"]')).toBeVisible();
 
     // Click search toggle button
     const searchToggle = page.locator('button[aria-label*="search"], button:has-text("search"), [title*="search"]').first();
     await searchToggle.click();
 
     // Should now be in search mode
-    await expect(page.locator('text=Search Tags')).toBeVisible();
+    await expect(page.locator('[data-testid="tags-page-search-title"]')).toBeVisible();
     await expect(page.locator('input[placeholder*="Search for tags"]')).toBeVisible();
 
     // Tree view should be hidden
@@ -66,7 +66,7 @@ test.describe('Tag Hierarchy Tests', () => {
 
     // Should be back to tree view
     await expect(page.locator('[aria-label="Tag hierarchy tree"]')).toBeVisible();
-    await expect(page.locator('text=Browse Categories')).toBeVisible();
+    await expect(page.locator('[data-testid="tags-page-tree-mode"]')).toBeVisible();
   });
 
   test('should display hierarchy metadata correctly', async ({ page }) => {

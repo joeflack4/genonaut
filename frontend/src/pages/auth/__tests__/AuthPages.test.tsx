@@ -48,6 +48,7 @@ describe('Auth placeholder pages', () => {
     )
 
     expect(screen.getByRole('heading', { name: /login/i })).toBeInTheDocument()
+    expect(screen.getByTestId('login-page-root')).toBeInTheDocument()
   })
 
   it('redirects authenticated user away from login', () => {

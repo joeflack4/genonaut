@@ -52,3 +52,22 @@ Some MUI components render multiple elements; set testids via slot/input props:
 <IconButton data-testid="more-actions" />
 
 ```
+
+i want you to go through all of our pages in the frontend and update as many elements as possible in this way
+
+## Task Checklist
+- [x] Review frontend pages to define consistent `data-testid` naming
+- [x] Add `data-testid` attributes to `DashboardPage`
+- [x] Add `data-testid` attributes to `GalleryPage`
+- [x] Add `data-testid` attributes to `EnhancedGalleryPage`
+- [x] Add `data-testid` attributes to `GenerationPage`
+- [x] Add `data-testid` attributes to `RecommendationsPage`
+- [x] Add `data-testid` attributes to `TagsPage`
+- [x] Add `data-testid` attributes to `SettingsPage`
+- [x] Add `data-testid` attributes to admin pages (e.g., `AdminFlaggedContentPage`)
+- [x] Add `data-testid` attributes to auth pages (`LoginPage`, `SignupPage`)
+- [x] Add `data-testid` attributes to shared layout/root components (`App.tsx`, layout wrappers)
+- [x] Update/frontend unit tests for new selectors where needed
+- [x] Update frontend e2e tests for new selectors where needed
+- [x] Run frontend unit tests
+- [x] Run frontend e2e tests

@@ -97,8 +97,8 @@ export default function TagsPage() {
 
   if (error) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">
+      <Box sx={{ p: 3 }} data-testid="tags-page-error">
+        <Alert severity="error" data-testid="tags-page-error-alert">
           Failed to load tag hierarchy. Please check your connection and try again.
         </Alert>
       </Box>
@@ -106,22 +106,26 @@ export default function TagsPage() {
   }
 
   return (
-    <Box sx={{ p: 3, maxWidth: '100%', overflow: 'hidden' }}>
+    <Box sx={{ p: 3, maxWidth: '100%', overflow: 'hidden' }} data-testid="tags-page-root">
       {/* Page Header */}
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <AccountTreeIcon color="primary" sx={{ fontSize: 32 }} />
-            <Typography variant="h4" component="h1">
+      <Box sx={{ mb: 3 }} data-testid="tags-page-header">
+        <Box
+          sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}
+          data-testid="tags-page-toolbar"
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }} data-testid="tags-page-title-group">
+            <AccountTreeIcon color="primary" sx={{ fontSize: 32 }} data-testid="tags-page-title-icon" />
+            <Typography variant="h4" component="h1" data-testid="tags-page-title">
               Tag Hierarchy
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1 }} data-testid="tags-page-action-buttons">
             <Tooltip title={searchMode ? "Show tree view" : "Show search"}>
               <IconButton
                 onClick={toggleSearchMode}
                 color={searchMode ? "primary" : "default"}
+                data-testid="tags-page-toggle-search"
               >
                 {searchMode ? <AccountTreeIcon /> : <SearchIcon />}
               </IconButton>
@@ -132,6 +136,7 @@ export default function TagsPage() {
                 onClick={handleRefresh}
                 disabled={refreshMutation.isPending}
                 color="primary"
+                data-testid="tags-page-refresh"
               >
                 <RefreshIcon />
               </IconButton>
@@ -139,51 +144,60 @@ export default function TagsPage() {
           </Box>
         </Box>
 
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography
+          variant="body1"
+          color="text.secondary"
+          sx={{ mb: 2 }}
+          data-testid="tags-page-description"
+        >
           Explore the organized structure of content tags. Click on any tag to view related content.
         </Typography>
 
         {/* Hierarchy Stats */}
         {isLoading ? (
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Skeleton variant="rectangular" width={120} height={32} />
-            <Skeleton variant="rectangular" width={100} height={32} />
-            <Skeleton variant="rectangular" width={140} height={32} />
+          <Box sx={{ display: 'flex', gap: 2 }} data-testid="tags-page-stats-loading">
+            <Skeleton variant="rectangular" width={120} height={32} data-testid="tags-page-stats-skeleton-0" />
+            <Skeleton variant="rectangular" width={100} height={32} data-testid="tags-page-stats-skeleton-1" />
+            <Skeleton variant="rectangular" width={140} height={32} data-testid="tags-page-stats-skeleton-2" />
           </Box>
         ) : hierarchy ? (
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }} data-testid="tags-page-stats">
             <Chip
               icon={<InfoIcon />}
               label={`${hierarchy.metadata.totalNodes} total tags`}
               variant="outlined"
               size="small"
+              data-testid="tags-page-stats-total-tags"
             />
             <Chip
               label={`${hierarchy.metadata.rootCategories} root categories`}
               variant="outlined"
               size="small"
+              data-testid="tags-page-stats-root-categories"
             />
             <Chip
               label={`${hierarchy.metadata.totalRelationships} relationships`}
               variant="outlined"
               size="small"
+              data-testid="tags-page-stats-relationships"
             />
             <Chip
               label={`Updated: ${new Date(hierarchy.metadata.lastUpdated).toLocaleDateString()}`}
               variant="outlined"
               size="small"
+              data-testid="tags-page-stats-updated"
             />
           </Box>
         ) : null}
       </Box>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={3} data-testid="tags-page-layout">
         {/* Main Content Area */}
-        <Grid size={{ xs: 12, lg: 9 }}>
-          <Paper elevation={1} sx={{ height: 'fit-content', minHeight: 600 }}>
+        <Grid size={{ xs: 12, lg: 9 }} data-testid="tags-page-main">
+          <Paper elevation={1} sx={{ height: 'fit-content', minHeight: 600 }} data-testid="tags-page-main-card">
             {searchMode ? (
-              <Box sx={{ p: 3 }}>
-                <Typography variant="h6" sx={{ mb: 2 }}>
+              <Box sx={{ p: 3 }} data-testid="tags-page-search-mode">
+                <Typography variant="h6" sx={{ mb: 2 }} data-testid="tags-page-search-title">
                   Search Tags
                 </Typography>
                 <TagSearchFilter
@@ -192,15 +206,15 @@ export default function TagsPage() {
                   showBreadcrumbs={true}
                   maxResults={100}
                 />
-                <Box sx={{ mt: 3 }}>
-                  <Typography variant="body2" color="text.secondary">
+                <Box sx={{ mt: 3 }} data-testid="tags-page-search-hint">
+                  <Typography variant="body2" color="text.secondary" data-testid="tags-page-search-hint-text">
                     Start typing to search through all {hierarchy?.metadata.totalNodes || 0} tags in the hierarchy.
                     Click on any result to view related content.
                   </Typography>
                 </Box>
               </Box>
             ) : (
-              <Box>
+              <Box data-testid="tags-page-tree-mode">
                 <TagTreeView
                   onNodeClick={handleNodeClick}
                   selectedNodeId={selectedNodeId || undefined}
@@ -216,15 +230,15 @@ export default function TagsPage() {
         </Grid>
 
         {/* Sidebar */}
-        <Grid size={{ xs: 12, lg: 3 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Grid size={{ xs: 12, lg: 3 }} data-testid="tags-page-sidebar">
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }} data-testid="tags-page-sidebar-content">
             {/* Tag Selection Status & Action Buttons - shows when tree state is dirty */}
             {isDirty && (
-              <Card>
-                <CardContent>
+              <Card data-testid="tags-page-selection-card">
+                <CardContent data-testid="tags-page-selection-content">
                   {/* Tag Count Display */}
-                  <Box sx={{ mb: 2, textAlign: 'center' }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  <Box sx={{ mb: 2, textAlign: 'center' }} data-testid="tags-page-selection-status">
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }} data-testid="tags-page-selection-status-label">
                       Selection Status
                     </Typography>
                     <Chip
@@ -232,11 +246,12 @@ export default function TagsPage() {
                       color="primary"
                       variant="outlined"
                       sx={{ fontWeight: 600 }}
+                      data-testid="tags-page-selection-count"
                     />
                   </Box>
 
                   {/* Clear All Tags Button */}
-                  <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }} data-testid="tags-page-selection-clear">
                     <Button
                       variant="outlined"
                       color="secondary"
@@ -245,13 +260,14 @@ export default function TagsPage() {
                         setSelectedTagIds(new Set());
                         setIsDirty(false);
                       }}
+                      data-testid="tags-page-selection-clear-button"
                     >
                       Clear All Tags
                     </Button>
                   </Box>
 
                   {/* Action Buttons */}
-                  <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Box sx={{ display: 'flex', gap: 1 }} data-testid="tags-page-selection-actions">
                     <Button
                       variant="outlined"
                       color="primary"
@@ -262,6 +278,7 @@ export default function TagsPage() {
                         py: 1.5,
                         fontWeight: 600,
                       }}
+                      data-testid="tags-page-apply-button"
                     >
                       Apply
                     </Button>
@@ -275,6 +292,7 @@ export default function TagsPage() {
                         py: 1.5,
                         fontWeight: 600,
                       }}
+                      data-testid="tags-page-apply-query-button"
                     >
                       Apply & Query
                     </Button>
@@ -285,9 +303,9 @@ export default function TagsPage() {
 
             {/* Quick Search Card */}
             {!searchMode && (
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" sx={{ mb: 2 }}>
+              <Card data-testid="tags-page-quick-search-card">
+                <CardContent data-testid="tags-page-quick-search-content">
+                  <Typography variant="h6" sx={{ mb: 2 }} data-testid="tags-page-quick-search-title">
                     Quick Search
                   </Typography>
                   <TagSearchFilter
@@ -301,8 +319,8 @@ export default function TagsPage() {
             )}
 
             {/* Help Card */}
-            <Card>
-              <CardContent>
+            <Card data-testid="tags-page-help-card">
+              <CardContent data-testid="tags-page-help-content">
                 <Box
                   sx={{
                     display: 'flex',
@@ -312,8 +330,9 @@ export default function TagsPage() {
                     mb: helpExpanded ? 2 : 0
                   }}
                   onClick={() => setHelpExpanded(!helpExpanded)}
+                  data-testid="tags-page-help-header"
                 >
-                  <Typography variant="h6">
+                  <Typography variant="h6" data-testid="tags-page-help-title">
                     How to Use
                   </Typography>
                   <IconButton
@@ -322,22 +341,23 @@ export default function TagsPage() {
                       transform: helpExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
                       transition: 'transform 0.3s',
                     }}
+                    data-testid="tags-page-help-toggle"
                   >
                     <ExpandMoreIcon />
                   </IconButton>
                 </Box>
-                <Collapse in={helpExpanded}>
-                  <Box component="ul" sx={{ pl: 2, m: 0 }}>
-                    <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                <Collapse in={helpExpanded} data-testid="tags-page-help-collapse">
+                  <Box component="ul" sx={{ pl: 2, m: 0 }} data-testid="tags-page-help-list">
+                    <Typography component="li" variant="body2" sx={{ mb: 1 }} data-testid="tags-page-help-item-browse">
                       <strong>Browse:</strong> Expand categories in the tree to explore subcategories
                     </Typography>
-                    <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                    <Typography component="li" variant="body2" sx={{ mb: 1 }} data-testid="tags-page-help-item-search">
                       <strong>Search:</strong> Use the search box to quickly find specific tags
                     </Typography>
-                    <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                    <Typography component="li" variant="body2" sx={{ mb: 1 }} data-testid="tags-page-help-item-navigate">
                       <strong>Navigate:</strong> Click any tag to view related content in the gallery
                     </Typography>
-                    <Typography component="li" variant="body2">
+                    <Typography component="li" variant="body2" data-testid="tags-page-help-item-switch">
                       <strong>Switch views:</strong> Toggle between tree and search modes using the toolbar
                     </Typography>
                   </Box>
@@ -347,8 +367,8 @@ export default function TagsPage() {
 
             {/* Hierarchy Info Card */}
             {hierarchy && (
-              <Card>
-                <CardContent>
+              <Card data-testid="tags-page-hierarchy-card">
+                <CardContent data-testid="tags-page-hierarchy-content">
                   <Box
                     sx={{
                       display: 'flex',
@@ -358,8 +378,9 @@ export default function TagsPage() {
                       mb: hierarchyOverviewExpanded ? 2 : 0
                     }}
                     onClick={() => setHierarchyOverviewExpanded(!hierarchyOverviewExpanded)}
+                    data-testid="tags-page-hierarchy-header"
                   >
-                    <Typography variant="h6">
+                    <Typography variant="h6" data-testid="tags-page-hierarchy-title">
                       Hierarchy Overview
                     </Typography>
                     <IconButton
@@ -368,38 +389,39 @@ export default function TagsPage() {
                         transform: hierarchyOverviewExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
                         transition: 'transform 0.3s',
                       }}
+                      data-testid="tags-page-hierarchy-toggle"
                     >
                       <ExpandMoreIcon />
                     </IconButton>
                   </Box>
-                  <Collapse in={hierarchyOverviewExpanded}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Collapse in={hierarchyOverviewExpanded} data-testid="tags-page-hierarchy-collapse">
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }} data-testid="tags-page-hierarchy-details">
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }} data-testid="tags-page-hierarchy-total-tags">
                         <Typography variant="body2">Total Tags:</Typography>
-                        <Typography variant="body2" fontWeight="bold">
+                        <Typography variant="body2" fontWeight="bold" data-testid="tags-page-hierarchy-total-tags-value">
                           {hierarchy.metadata.totalNodes}
                         </Typography>
                       </Box>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }} data-testid="tags-page-hierarchy-root-categories">
                         <Typography variant="body2">Root Categories:</Typography>
-                        <Typography variant="body2" fontWeight="bold">
+                        <Typography variant="body2" fontWeight="bold" data-testid="tags-page-hierarchy-root-categories-value">
                           {hierarchy.metadata.rootCategories}
                         </Typography>
                       </Box>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }} data-testid="tags-page-hierarchy-relationships">
                         <Typography variant="body2">Relationships:</Typography>
-                        <Typography variant="body2" fontWeight="bold">
+                        <Typography variant="body2" fontWeight="bold" data-testid="tags-page-hierarchy-relationships-value">
                           {hierarchy.metadata.totalRelationships}
                         </Typography>
                       </Box>
-                      <Divider sx={{ my: 1 }} />
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Divider sx={{ my: 1 }} data-testid="tags-page-hierarchy-divider" />
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }} data-testid="tags-page-hierarchy-format">
                         <Typography variant="body2">Format:</Typography>
-                        <Typography variant="body2">{hierarchy.metadata.format}</Typography>
+                        <Typography variant="body2" data-testid="tags-page-hierarchy-format-value">{hierarchy.metadata.format}</Typography>
                       </Box>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }} data-testid="tags-page-hierarchy-version">
                         <Typography variant="body2">Version:</Typography>
-                        <Typography variant="body2">{hierarchy.metadata.version}</Typography>
+                        <Typography variant="body2" data-testid="tags-page-hierarchy-version-value">{hierarchy.metadata.version}</Typography>
                       </Box>
                     </Box>
                   </Collapse>

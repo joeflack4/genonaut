@@ -202,7 +202,11 @@ export function EnhancedGalleryPage() {
   }
 
   return (
-    <Box component="section" sx={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
+    <Box
+      component="section"
+      sx={{ position: 'relative', display: 'flex', flexDirection: 'column' }}
+      data-testid="enhanced-gallery-page-root"
+    >
       {!optionsOpen && (
         <Tooltip title="Options" enterDelay={300} arrow>
           <IconButton
@@ -216,20 +220,21 @@ export function EnhancedGalleryPage() {
               bgcolor: 'background.paper',
               boxShadow: 1,
             }}
+            data-testid="enhanced-gallery-options-open-button"
           >
             <SettingsOutlinedIcon />
           </IconButton>
         </Tooltip>
       )}
 
-      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        <Stack spacing={4}>
+      <Box sx={{ display: 'flex', flexDirection: 'column' }} data-testid="enhanced-gallery-content-wrapper">
+        <Stack spacing={4} data-testid="enhanced-gallery-content-stack">
           {/* Performance Indicators */}
           {(isFetching || prefetchStatus.isNextPagePrefetched) && (
-            <Alert severity="info" sx={{ alignItems: 'center' }}>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                {isFetching && <LinearProgress sx={{ minWidth: 100, flexGrow: 1 }} />}
-                <Typography variant="caption">
+            <Alert severity="info" sx={{ alignItems: 'center' }} data-testid="enhanced-gallery-performance-alert">
+              <Stack direction="row" alignItems="center" spacing={1} data-testid="enhanced-gallery-performance-content">
+                {isFetching && <LinearProgress sx={{ minWidth: 100, flexGrow: 1 }} data-testid="enhanced-gallery-performance-progress" />}
+                <Typography variant="caption" data-testid="enhanced-gallery-performance-text">
                   {isFetching && 'Loading...'}
                   {prefetchStatus.isNextPagePrefetched && (
                     <Stack direction="row" alignItems="center" spacing={0.5}>
@@ -244,24 +249,28 @@ export function EnhancedGalleryPage() {
 
           {/* Error State */}
           {isError && error && (
-            <Alert severity="error" action={
-              <IconButton size="small" onClick={handleRefresh}>
-                <CachedIcon />
-              </IconButton>
-            }>
+            <Alert
+              severity="error"
+              action={
+                <IconButton size="small" onClick={handleRefresh} data-testid="enhanced-gallery-error-retry">
+                  <CachedIcon />
+                </IconButton>
+              }
+              data-testid="enhanced-gallery-error-alert"
+            >
               Failed to load gallery: {error.message}
             </Alert>
           )}
 
           {/* Pagination Info */}
           {pagination && (
-            <Card variant="outlined">
+            <Card variant="outlined" data-testid="enhanced-gallery-pagination-card">
               <CardContent>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="body2" color="text.secondary">
+                <Stack direction="row" justifyContent="space-between" alignItems="center" data-testid="enhanced-gallery-pagination-header">
+                  <Typography variant="body2" color="text.secondary" data-testid="enhanced-gallery-pagination-summary">
                     Page {pagination.page} of {pagination.totalPages} • {pagination.totalCount} total items
                   </Typography>
-                  <Stack direction="row" alignItems="center" spacing={1}>
+                  <Stack direction="row" alignItems="center" spacing={1} data-testid="enhanced-gallery-pagination-badge">
                     <SpeedIcon fontSize="small" color="primary" />
                     <Typography variant="caption" color="primary">
                       Enhanced with pre-fetching
@@ -273,46 +282,76 @@ export function EnhancedGalleryPage() {
           )}
 
           {/* Content List */}
-          <Card>
+          <Card data-testid="enhanced-gallery-results-card">
             <CardContent>
               {isLoading ? (
-                <Stack spacing={2}>
+                <Stack spacing={2} data-testid="enhanced-gallery-results-loading">
                   {Array.from({ length: 5 }).map((_, index) => (
-                    <Skeleton key={index} variant="rectangular" height={72} />
+                    <Skeleton
+                      key={index}
+                      variant="rectangular"
+                      height={72}
+                      data-testid={`enhanced-gallery-results-skeleton-${index}`}
+                    />
                   ))}
                 </Stack>
               ) : items && items.length > 0 ? (
-                <List>
+                <List data-testid="enhanced-gallery-results-list">
                   {items.map((item) => (
-                    <ListItem key={item.id} alignItems="flex-start" divider>
+                    <ListItem
+                      key={item.id}
+                      alignItems="flex-start"
+                      divider
+                      data-testid={`enhanced-gallery-result-item-${item.id}`}
+                    >
                       <ListItemText
                         primary={
-                          <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-                            <Typography variant="h6" component="span">
+                          <Stack
+                            direction="row"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            spacing={2}
+                            data-testid={`enhanced-gallery-result-item-${item.id}-header`}
+                          >
+                            <Typography variant="h6" component="span" data-testid={`enhanced-gallery-result-item-${item.id}-title`}>
                               {item.title}
                             </Typography>
-                            <Stack direction="row" spacing={1}>
+                            <Stack direction="row" spacing={1} data-testid={`enhanced-gallery-result-item-${item.id}-badges`}>
                               {item.qualityScore !== null && item.qualityScore !== undefined && (
                                 <Chip
                                   label={`Quality ${(item.qualityScore * 100).toFixed(0)}%`}
                                   color={item.qualityScore > 0.75 ? 'success' : 'default'}
                                   size="small"
+                                  data-testid={`enhanced-gallery-result-item-${item.id}-quality`}
                                 />
                               )}
                               {item.creatorId === userId && (
-                                <Chip label="Your Content" size="small" color="primary" />
+                                <Chip label="Your Content" size="small" color="primary" data-testid={`enhanced-gallery-result-item-${item.id}-owner`} />
                               )}
                             </Stack>
                           </Stack>
                         }
                         secondary={
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 1 }}>
+                          <Box
+                            sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 1 }}
+                            data-testid={`enhanced-gallery-result-item-${item.id}-meta`}
+                          >
                             {item.description && (
-                              <Typography variant="body2" color="text.secondary" component="span">
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                component="span"
+                                data-testid={`enhanced-gallery-result-item-${item.id}-description`}
+                              >
                                 {item.description}
                               </Typography>
                             )}
-                            <Typography variant="caption" color="text.secondary" component="span">
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              component="span"
+                              data-testid={`enhanced-gallery-result-item-${item.id}-created`}
+                            >
                               Created {new Date(item.createdAt).toLocaleString()}
                             </Typography>
                           </Box>
@@ -324,7 +363,7 @@ export function EnhancedGalleryPage() {
                   ))}
                 </List>
               ) : (
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" data-testid="enhanced-gallery-results-empty">
                   No gallery items found. Try adjusting your filters.
                 </Typography>
               )}
@@ -333,18 +372,18 @@ export function EnhancedGalleryPage() {
 
           {/* Enhanced Pagination */}
           {pagination && pagination.totalPages > 1 && (
-            <Box display="flex" justifyContent="space-between" alignItems="center">
-              <Stack direction="row" spacing={1}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" data-testid="enhanced-gallery-pagination-controls">
+              <Stack direction="row" spacing={1} data-testid="enhanced-gallery-pagination-back">
                 <Tooltip title="First Page">
                   <span>
-                    <IconButton onClick={goToFirstPage} disabled={!canGoPrevious} size="small">
+                    <IconButton onClick={goToFirstPage} disabled={!canGoPrevious} size="small" data-testid="enhanced-gallery-first-page">
                       ⏮
                     </IconButton>
                   </span>
                 </Tooltip>
                 <Tooltip title="Previous Page">
                   <span>
-                    <IconButton onClick={goToPreviousPage} disabled={!canGoPrevious} size="small">
+                    <IconButton onClick={goToPreviousPage} disabled={!canGoPrevious} size="small" data-testid="enhanced-gallery-prev-page">
                       ⏸
                     </IconButton>
                   </span>
@@ -359,19 +398,20 @@ export function EnhancedGalleryPage() {
                 shape="rounded"
                 showFirstButton
                 showLastButton
+                data-testid="enhanced-gallery-pagination-control"
               />
 
-              <Stack direction="row" spacing={1}>
+              <Stack direction="row" spacing={1} data-testid="enhanced-gallery-pagination-forward">
                 <Tooltip title="Next Page">
                   <span>
-                    <IconButton onClick={goToNextPage} disabled={!canGoNext} size="small">
+                    <IconButton onClick={goToNextPage} disabled={!canGoNext} size="small" data-testid="enhanced-gallery-next-page">
                       ⏯
                     </IconButton>
                   </span>
                 </Tooltip>
                 <Tooltip title="Last Page">
                   <span>
-                    <IconButton onClick={() => goToLastPage()} disabled={!canGoNext} size="small">
+                    <IconButton onClick={() => goToLastPage()} disabled={!canGoNext} size="small" data-testid="enhanced-gallery-last-page">
                       ⏭
                     </IconButton>
                   </span>
@@ -397,21 +437,35 @@ export function EnhancedGalleryPage() {
             zIndex: (theme) => theme.zIndex.drawer,
           },
         }}
+        data-testid="enhanced-gallery-options-drawer"
       >
-        <Stack spacing={3} sx={{ height: '100%' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography component="h1" variant="h5" fontWeight={600}>
+        <Stack spacing={3} sx={{ height: '100%' }} data-testid="enhanced-gallery-options-stack">
+          <Box
+            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+            data-testid="enhanced-gallery-options-header"
+          >
+            <Typography component="h1" variant="h5" fontWeight={600} data-testid="enhanced-gallery-options-title">
               Enhanced Gallery
             </Typography>
             <Tooltip title="Hide options" enterDelay={300} arrow>
-              <IconButton aria-label="Close options" onClick={() => setOptionsOpen(false)}>
+              <IconButton
+                aria-label="Close options"
+                onClick={() => setOptionsOpen(false)}
+                data-testid="enhanced-gallery-options-close-button"
+              >
                 <CloseIcon />
               </IconButton>
             </Tooltip>
           </Box>
 
           {/* Search and Sorting */}
-          <Stack component="form" spacing={2} onSubmit={handleSearchSubmit} aria-label="gallery filters">
+          <Stack
+            component="form"
+            spacing={2}
+            onSubmit={handleSearchSubmit}
+            aria-label="gallery filters"
+            data-testid="enhanced-gallery-filter-form"
+          >
             <TextField
               label="Search"
               variant="outlined"
@@ -419,6 +473,7 @@ export function EnhancedGalleryPage() {
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Search by title or description..."
+              inputProps={{ 'data-testid': 'enhanced-gallery-search-input' }}
             />
 
             <FormControl fullWidth>
@@ -428,9 +483,14 @@ export function EnhancedGalleryPage() {
                 label="Sort by"
                 value={filters.sortField}
                 onChange={handleSortFieldChange}
+                data-testid="enhanced-gallery-sort-field-select"
               >
                 {sortOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
+                  <MenuItem
+                    key={option.value}
+                    value={option.value}
+                    data-testid={`enhanced-gallery-sort-field-option-${option.value}`}
+                  >
                     {option.label}
                   </MenuItem>
                 ))}
@@ -444,9 +504,10 @@ export function EnhancedGalleryPage() {
                 label="Sort order"
                 value={filters.sortOrder}
                 onChange={handleSortOrderChange}
+                data-testid="enhanced-gallery-sort-order-select"
               >
-                <MenuItem value="desc">Descending</MenuItem>
-                <MenuItem value="asc">Ascending</MenuItem>
+                <MenuItem value="desc" data-testid="enhanced-gallery-sort-order-option-desc">Descending</MenuItem>
+                <MenuItem value="asc" data-testid="enhanced-gallery-sort-order-option-asc">Ascending</MenuItem>
               </Select>
             </FormControl>
 
@@ -457,10 +518,15 @@ export function EnhancedGalleryPage() {
                 label="Content Type"
                 value={filters.contentType || 'all'}
                 onChange={handleContentTypeChange}
+                data-testid="enhanced-gallery-content-type-select"
               >
-                <MenuItem value="all">All Types</MenuItem>
+                <MenuItem value="all" data-testid="enhanced-gallery-content-type-option-all">All Types</MenuItem>
                 {contentTypeOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
+                  <MenuItem
+                    key={option.value}
+                    value={option.value}
+                    data-testid={`enhanced-gallery-content-type-option-${option.value}`}
+                  >
                     {option.label}
                   </MenuItem>
                 ))}
@@ -469,65 +535,71 @@ export function EnhancedGalleryPage() {
           </Stack>
 
           {/* Content Filters */}
-          <Stack spacing={2}>
-            <Typography variant="h6" component="h2">
+          <Stack spacing={2} data-testid="enhanced-gallery-content-filters">
+            <Typography variant="h6" component="h2" data-testid="enhanced-gallery-content-filters-title">
               Content Filters
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" data-testid="enhanced-gallery-content-filters-description">
               Choose which content to display. Enhanced pagination automatically handles filtering server-side.
             </Typography>
-            <Stack spacing={1}>
+            <Stack spacing={1} data-testid="enhanced-gallery-content-filters-switches">
               <FormControlLabel
                 control={
                   <Switch
                     checked={contentToggles.showYourContent}
                     onChange={handleToggleChange('showYourContent')}
+                    inputProps={{ 'data-testid': 'enhanced-gallery-toggle-your-content' }}
                   />
                 }
                 label="Your content"
+                data-testid="enhanced-gallery-toggle-your-content-label"
               />
               <FormControlLabel
                 control={
                   <Switch
                     checked={contentToggles.showPublicContent}
                     onChange={handleToggleChange('showPublicContent')}
+                    inputProps={{ 'data-testid': 'enhanced-gallery-toggle-public-content' }}
                   />
                 }
                 label="Public content"
+                data-testid="enhanced-gallery-toggle-public-content-label"
               />
               <FormControlLabel
                 control={
                   <Switch
                     checked={contentToggles.showPrivateContent}
                     onChange={handleToggleChange('showPrivateContent')}
+                    inputProps={{ 'data-testid': 'enhanced-gallery-toggle-private-content' }}
                   />
                 }
                 label="Private content"
+                data-testid="enhanced-gallery-toggle-private-content-label"
               />
             </Stack>
           </Stack>
 
           {/* Performance Info */}
-          <Stack spacing={1}>
-            <Typography variant="h6" component="h2">
+          <Stack spacing={1} data-testid="enhanced-gallery-performance-info">
+            <Typography variant="h6" component="h2" data-testid="enhanced-gallery-performance-title">
               Performance
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" data-testid="enhanced-gallery-performance-description">
               Enhanced pagination with server-side filtering and automatic pre-fetching.
             </Typography>
-            <Stack spacing={0.5}>
-              <Typography variant="caption">
+            <Stack spacing={0.5} data-testid="enhanced-gallery-performance-details">
+              <Typography variant="caption" data-testid="enhanced-gallery-performance-page-size">
                 Page Size: {pageSize} items
               </Typography>
               {pagination && (
                 <>
-                  <Typography variant="caption">
+                  <Typography variant="caption" data-testid="enhanced-gallery-performance-total">
                     Total: {pagination.totalCount} items across {pagination.totalPages} pages
                   </Typography>
-                  <Typography variant="caption" color="primary">
+                  <Typography variant="caption" color="primary" data-testid="enhanced-gallery-performance-next">
                     {prefetchStatus.isNextPagePrefetched ? '✓ Next page cached' : '◦ Next page loading...'}
                   </Typography>
-                  <Typography variant="caption" color="secondary">
+                  <Typography variant="caption" color="secondary" data-testid="enhanced-gallery-performance-previous">
                     {prefetchStatus.isPreviousPagePrefetched ? '✓ Previous page cached' : '◦ Previous page available'}
                   </Typography>
                 </>
