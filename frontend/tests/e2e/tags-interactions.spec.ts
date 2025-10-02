@@ -1,7 +1,13 @@
 import { test, expect } from '@playwright/test'
+import { setupMockApi } from './utils/mockApi'
+import { getCommonApiMocks, getTagHierarchyMocks } from './utils/mockData'
 
 test.describe('Tags Page Interactions', () => {
   test.beforeEach(async ({ page }) => {
+    await setupMockApi(page, [
+      ...getCommonApiMocks(),
+      ...getTagHierarchyMocks(),
+    ])
     await page.goto('/tags')
     await page.waitForSelector('main', { timeout: 10000 })
   })

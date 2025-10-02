@@ -41,7 +41,7 @@ export class GalleryAutoService {
     )
 
     return {
-      items: response.items.map(this.transformGalleryItem),
+      items: response.items.map((item) => this.transformGalleryItem(item)),
       total: response.total,
       limit: response.limit,
       skip: response.skip,
@@ -54,10 +54,16 @@ export class GalleryAutoService {
       title: item.title,
       description: item.description ?? null,
       imageUrl: item.image_url ?? null,
+      pathThumb: item.path_thumb ?? null,
+      contentData: item.content_data ?? null,
+      contentType: item.content_type,
       qualityScore: item.quality_score,
       createdAt: item.created_at,
       updatedAt: item.updated_at ?? item.created_at,
       creatorId: item.creator_id,
+      tags: item.tags ?? [],
+      itemMetadata: item.item_metadata ?? null,
+      sourceType: 'auto',
     }
   }
 }

@@ -2,8 +2,8 @@ import type { RouteObject } from 'react-router-dom'
 import { Navigate, useRoutes } from 'react-router-dom'
 import { AppLayout } from './components/layout'
 import { LoginPage, SignupPage } from './pages/auth'
-import { GalleryPage } from './pages/gallery'
-import { DashboardPage } from './pages/dashboard'
+import { GalleryPage, GalleryImageView } from './pages/gallery'
+import { DashboardPage, DashboardImageView } from './pages/dashboard'
 import { RecommendationsPage } from './pages/recommendations'
 import { SettingsPage } from './pages/settings'
 import { GenerationPage } from './pages/generation'
@@ -17,7 +17,9 @@ const routes: RouteObject[] = [
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard', element: <DashboardPage /> },
+      { path: 'dashboard/:id', element: <DashboardImageView /> },
       { path: 'gallery', element: <GalleryPage /> },
+      { path: 'gallery/:id', element: <GalleryImageView /> },
       { path: 'recommendations', element: <RecommendationsPage /> },
       { path: 'generate', element: <GenerationPage /> },
       { path: 'generation', element: <GenerationPage /> },

@@ -20,10 +20,17 @@ export interface GalleryItem {
   title: string
   description: string | null
   imageUrl: string | null
+  pathThumb: string | null
+  pathThumbsAltRes: Record<string, string> | null  // Alternate resolution thumbnails keyed by resolution
+  contentData: string | null
+  contentType: string
   qualityScore: number | null
   createdAt: string
   updatedAt: string
   creatorId: string  // UUID
+  tags: string[]
+  itemMetadata: Record<string, unknown> | null
+  sourceType: 'regular' | 'auto'
 }
 
 export interface RecommendationItem {
@@ -146,3 +153,23 @@ export interface FlaggedContentStats {
 }
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
+
+export type ThumbnailResolutionId =
+  | '576x768'
+  | '520x698'
+  | '480x644'
+  | '440x590'
+  | '400x537'
+  | '360x484'
+  | '320x430'
+  | '300x403'
+
+export type ViewMode = 'list' | `grid-${ThumbnailResolutionId}`
+
+export interface ThumbnailResolution {
+  id: ThumbnailResolutionId
+  width: number
+  height: number
+  label: string
+  scale?: number
+}

@@ -1,4 +1,4 @@
-import { ApiClient } from './api-client'
+import { ApiClient, ApiError } from './api-client'
 import type {
   ApiContentItem,
   ApiContentQueryParams,
@@ -62,23 +62,58 @@ export class GalleryService {
     )
 
     return {
-      items: response.items.map(this.transformGalleryItem),
+      items: response.items.map((item) => this.transformGalleryItem(item)),
       total: response.total,
       limit: response.limit,
       skip: response.skip,
     }
   }
 
-  private transformGalleryItem(item: ApiContentItem): GalleryItem {
+  async getContentItem(
+    id: number,
+    options: { sourceType?: 'regular' | 'auto' } = {}
+  ): Promise<GalleryItem> {
+    const order: Array<'regular' | 'auto'> = options.sourceType
+      ? options.sourceType === 'auto'
+        ? ['auto', 'regular']
+        : ['regular', 'auto']
+      : ['regular', 'auto']
+
+    for (const source of order) {
+      try {
+        const endpoint = source === 'regular'
+          ? `/api/v1/content/${id}`
+          : `/api/v1/content-auto/${id}`
+
+        const item = await this.api.get<ApiContentItem>(endpoint)
+        return this.transformGalleryItem(item, source)
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+          continue
+        }
+        throw error
+      }
+    }
+
+    throw new ApiError(`Content item ${id} not found`, 404)
+  }
+
+  private transformGalleryItem(item: ApiContentItem, sourceType: 'regular' | 'auto' = 'regular'): GalleryItem {
     return {
       id: item.id,
       title: item.title,
       description: item.description ?? null,
       imageUrl: item.image_url ?? null,
+      pathThumb: item.path_thumb ?? null,
+      contentData: item.content_data ?? null,
+      contentType: item.content_type,
       qualityScore: item.quality_score,
       createdAt: item.created_at,
       updatedAt: item.updated_at ?? item.created_at,
       creatorId: item.creator_id,
+      tags: item.tags ?? [],
+      itemMetadata: item.item_metadata ?? null,
+      sourceType,
     }
   }
 
@@ -148,7 +183,7 @@ export class GalleryService {
     )
 
     return {
-      items: response.items.map(this.transformGalleryItem),
+      items: response.items.map((item) => this.transformGalleryItem(item)),
       pagination: {
         page: response.pagination.page,
         pageSize: response.pagination.page_size,

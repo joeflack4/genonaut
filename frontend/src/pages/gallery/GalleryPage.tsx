@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { SelectChangeEvent } from '@mui/material/Select'
 import {
   Box,
@@ -14,6 +14,7 @@ import {
   InputLabel,
   List,
   ListItem,
+  ListItemButton,
   ListItemText,
   MenuItem,
   Pagination,
@@ -29,8 +30,21 @@ import {
 import CloseIcon from '@mui/icons-material/Close'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import ViewListIcon from '@mui/icons-material/ViewList'
+import GridViewIcon from '@mui/icons-material/GridView'
 import { useUnifiedGallery, useCurrentUser } from '../../hooks'
 import { ADMIN_USER_ID } from '../../constants/config'
+import type { GalleryItem, ThumbnailResolutionId, ViewMode } from '../../types/domain'
+import {
+  DEFAULT_GRID_VIEW_MODE,
+  DEFAULT_THUMBNAIL_RESOLUTION,
+  DEFAULT_THUMBNAIL_RESOLUTION_ID,
+  DEFAULT_VIEW_MODE,
+  GALLERY_VIEW_MODE_STORAGE_KEY,
+  THUMBNAIL_RESOLUTION_OPTIONS,
+} from '../../constants/gallery'
+import { loadViewMode, persistViewMode } from '../../utils/viewModeStorage'
+import { GridView as GalleryGridView, ResolutionDropdown } from '../../components/gallery'
 
 const PAGE_SIZE = 10
 const PANEL_WIDTH = 360
@@ -94,6 +108,55 @@ export function GalleryPage() {
     communityAutoGens: true,
   })
 
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    loadViewMode(GALLERY_VIEW_MODE_STORAGE_KEY, DEFAULT_VIEW_MODE)
+  )
+
+  const navigate = useNavigate()
+
+  const isGridView = viewMode.startsWith('grid-')
+
+  const currentGridResolutionId = useMemo<ThumbnailResolutionId>(() => {
+    if (isGridView) {
+      const resolutionId = viewMode.slice(5) as ThumbnailResolutionId
+      const exists = THUMBNAIL_RESOLUTION_OPTIONS.some((option) => option.id === resolutionId)
+      if (exists) {
+        return resolutionId
+      }
+    }
+    return DEFAULT_THUMBNAIL_RESOLUTION_ID
+  }, [isGridView, viewMode])
+
+  const currentResolution = useMemo(
+    () =>
+      THUMBNAIL_RESOLUTION_OPTIONS.find((option) => option.id === currentGridResolutionId)
+      ?? DEFAULT_THUMBNAIL_RESOLUTION,
+    [currentGridResolutionId]
+  )
+
+  const updateViewMode = (mode: ViewMode) => {
+    setViewMode(mode)
+    persistViewMode(GALLERY_VIEW_MODE_STORAGE_KEY, mode)
+  }
+
+  const handleSelectListView = () => {
+    updateViewMode('list')
+  }
+
+  const handleSelectGridView = () => {
+    const nextMode = isGridView ? viewMode : DEFAULT_GRID_VIEW_MODE
+    updateViewMode(nextMode)
+  }
+
+  const handleResolutionChange = (resolutionId: ThumbnailResolutionId) => {
+    const nextMode: ViewMode = `grid-${resolutionId}`
+    updateViewMode(nextMode)
+  }
+
+  const navigateToDetail = (item: GalleryItem) => {
+    navigate(`/gallery/${item.id}`, { state: { sourceType: item.sourceType } })
+  }
+
   const { data: currentUser } = useCurrentUser()
   const userId = currentUser?.id ?? DEFAULT_USER_ID
 
@@ -155,6 +218,7 @@ export function GalleryPage() {
   })
 
   const data = unifiedData
+  const items = data?.items ?? []
 
   const totalPages = useMemo(() => {
     if (!data?.total) {
@@ -220,20 +284,78 @@ export function GalleryPage() {
         data-testid="gallery-content-wrapper"
       >
         <Stack spacing={4} data-testid="gallery-content-stack">
-          <Stack spacing={1} data-testid="gallery-header">
-            <Typography
-              component="h1"
-              variant="h4"
-              fontWeight={600}
-              gutterBottom
-              data-testid="gallery-title"
-            >
-              Gallery
-            </Typography>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            justifyContent="space-between"
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
+            spacing={2}
+            data-testid="gallery-header"
+          >
+            <Box data-testid="gallery-header-title">
+              <Typography
+                component="h1"
+                variant="h4"
+                fontWeight={600}
+                gutterBottom
+                data-testid="gallery-title"
+              >
+                Gallery
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1} alignItems="center" data-testid="gallery-view-toggle-group">
+              <Tooltip title="List view" enterDelay={300} arrow>
+                <IconButton
+                  aria-label="Switch to list view"
+                  color={isGridView ? 'default' : 'primary'}
+                  onClick={handleSelectListView}
+                  data-testid="gallery-view-toggle-list"
+                  aria-pressed={!isGridView}
+                >
+                  <ViewListIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Grid view" enterDelay={300} arrow>
+                <IconButton
+                  aria-label="Switch to grid view"
+                  color={isGridView ? 'primary' : 'default'}
+                  onClick={handleSelectGridView}
+                  data-testid="gallery-view-toggle-grid"
+                  aria-pressed={isGridView}
+                >
+                  <GridViewIcon />
+                </IconButton>
+              </Tooltip>
+              {isGridView && (
+                <ResolutionDropdown
+                  currentResolution={currentGridResolutionId}
+                  onResolutionChange={handleResolutionChange}
+                  dataTestId="gallery-resolution-dropdown"
+                />
+              )}
+              <Tooltip title={optionsOpen ? 'Hide options panel' : 'Show options panel'} enterDelay={300} arrow>
+                <IconButton
+                  aria-label={optionsOpen ? 'Hide options panel' : 'Show options panel'}
+                  color={optionsOpen ? 'primary' : 'default'}
+                  onClick={() => setOptionsOpen((prev) => !prev)}
+                  data-testid="gallery-options-toggle-button"
+                >
+                  <SettingsOutlinedIcon />
+                </IconButton>
+              </Tooltip>
+            </Stack>
           </Stack>
           <Card data-testid="gallery-results-card">
             <CardContent>
-              {isLoading ? (
+              {isGridView ? (
+                <GalleryGridView
+                  items={items}
+                  resolution={currentResolution}
+                  isLoading={isLoading}
+                  onItemClick={navigateToDetail}
+                  emptyMessage="No gallery items found. Try adjusting your filters."
+                  dataTestId="gallery-grid-view"
+                />
+              ) : isLoading ? (
                 <Stack spacing={2} data-testid="gallery-results-loading">
                   {Array.from({ length: 5 }).map((_, index) => (
                     <Skeleton
@@ -244,64 +366,71 @@ export function GalleryPage() {
                     />
                   ))}
                 </Stack>
-              ) : data && data.items.length > 0 ? (
+              ) : items.length > 0 ? (
                 <List data-testid="gallery-results-list">
-                  {data.items.map((item) => (
+                  {items.map((item) => (
                     <ListItem
                       key={item.id}
+                      disablePadding
                       alignItems="flex-start"
                       divider
                       data-testid={`gallery-result-item-${item.id}`}
                     >
-                      <ListItemText
-                        primary={
-                          <Stack
-                            direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
-                            spacing={2}
-                            data-testid={`gallery-result-item-${item.id}-header`}
-                          >
-                            <Typography variant="h6" component="span" data-testid={`gallery-result-item-${item.id}-title`}>
-                              {item.title}
-                            </Typography>
-                            {item.qualityScore !== null && item.qualityScore !== undefined && (
-                              <Chip
-                                label={`Quality ${(item.qualityScore * 100).toFixed(0)}%`}
-                                color={item.qualityScore > 0.75 ? 'success' : 'default'}
-                                data-testid={`gallery-result-item-${item.id}-quality`}
-                              />
-                            )}
-                          </Stack>
-                        }
-                        secondary={
-                          <Box
-                            sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 1 }}
-                            data-testid={`gallery-result-item-${item.id}-meta`}
-                          >
-                            {item.description && (
+                      <ListItemButton
+                        onClick={() => navigateToDetail(item)}
+                        data-testid={`gallery-result-item-${item.id}-button`}
+                        alignItems="flex-start"
+                      >
+                        <ListItemText
+                          primary={
+                            <Stack
+                              direction="row"
+                              justifyContent="space-between"
+                              alignItems="center"
+                              spacing={2}
+                              data-testid={`gallery-result-item-${item.id}-header`}
+                            >
+                              <Typography variant="h6" component="span" data-testid={`gallery-result-item-${item.id}-title`}>
+                                {item.title}
+                              </Typography>
+                              {item.qualityScore !== null && item.qualityScore !== undefined && (
+                                <Chip
+                                  label={`Quality ${(item.qualityScore * 100).toFixed(0)}%`}
+                                  color={item.qualityScore > 0.75 ? 'success' : 'default'}
+                                  data-testid={`gallery-result-item-${item.id}-quality`}
+                                />
+                              )}
+                            </Stack>
+                          }
+                          secondary={
+                            <Box
+                              sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 1 }}
+                              data-testid={`gallery-result-item-${item.id}-meta`}
+                            >
+                              {item.description && (
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                  component="span"
+                                  data-testid={`gallery-result-item-${item.id}-description`}
+                                >
+                                  {item.description}
+                                </Typography>
+                              )}
                               <Typography
-                                variant="body2"
+                                variant="caption"
                                 color="text.secondary"
                                 component="span"
-                                data-testid={`gallery-result-item-${item.id}-description`}
+                                data-testid={`gallery-result-item-${item.id}-created`}
                               >
-                                {item.description}
+                                Created {new Date(item.createdAt).toLocaleString()}
                               </Typography>
-                            )}
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              component="span"
-                              data-testid={`gallery-result-item-${item.id}-created`}
-                            >
-                              Created {new Date(item.createdAt).toLocaleString()}
-                            </Typography>
-                          </Box>
-                        }
-                        primaryTypographyProps={{ component: 'span' }}
-                        secondaryTypographyProps={{ component: 'span' }}
-                      />
+                            </Box>
+                          }
+                          primaryTypographyProps={{ component: 'span' }}
+                          secondaryTypographyProps={{ component: 'span' }}
+                        />
+                      </ListItemButton>
                     </ListItem>
                   ))}
                 </List>

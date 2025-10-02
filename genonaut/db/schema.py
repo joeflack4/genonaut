@@ -100,6 +100,7 @@ class ContentItemColumns:
     content_type = Column(String(50), nullable=False, index=True)  # text, image, video, audio
     content_data = Column(Text, nullable=False)
     path_thumb = Column(String(512), nullable=True)  # Path to thumbnail image on disk
+    path_thumbs_alt_res = Column(JSONColumn, nullable=True)  # Alternate thumbnail paths keyed by resolution
     prompt = Column(String(20000), nullable=False)  # Generation prompt (immutable via trigger)
     item_metadata = Column(JSONColumn, default=dict)
     creator_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)

@@ -2,7 +2,7 @@
   <img src="docs/assets/logo.jpeg" alt="Genonaut" width="50%" />
 </p>
 
-Genonaut: Supercharge your Gen-AI art process. Generate huge numbers of images based on your preferences, artistic 
+Supercharge your Gen-AI art process. Generate huge numbers of images based on your preferences, artistic 
 directions you wish to explore, and novel routes you didn't even think of. Find models and prompts that work amazingly 
 when combined, and find and filter those which do not.
 

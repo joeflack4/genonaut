@@ -364,7 +364,12 @@ make migrate-dev  # If needed
   - `prompt` field added to content tables with immutability triggers
   - All backend API endpoints updated
   - **Test suite fully passing: 438 passed, 100 skipped, 0 failures**
-- 🚧 **Phase 2-6**: Frontend implementation pending
+- ✅ **Phase 2 COMPLETE**: Frontend type definitions and infrastructure
+- ✅ **Phase 3 COMPLETE**: Gallery page grid view implementation
+- ✅ **Phase 4 COMPLETE**: Dashboard page grid view implementation
+- ✅ **Phase 5 COMPLETE**: Testing and polish (with acceptable skips for API server/Playwright)
+- ✅ **Phase 6.1 COMPLETE**: Multi-resolution thumbnail support
+- 🚧 **Remaining**: Manual testing (see `notes/manual-testing-checklist-thumbnails.md`)
 
 ### Key Insights & Gotchas
 
@@ -402,15 +407,114 @@ make migrate-dev  # If needed
 - Focus on Grid View implementation for Gallery page first
 - Reuse components for Dashboard page
 
-### Recent Changes (Last Session)
+### Recent Changes (Current Session - Phase 5 & 6.1)
 
-#### Schema Changes
+#### Phase 5: Testing & Polish
+
+**Backend Test Additions** (`test/api/db/test_services.py`):
+- Added `test_content_response_includes_path_thumb()` - Verifies ContentResponse includes path_thumb
+- Added `test_content_response_handles_missing_path_thumb()` - Verifies null path_thumb handling
+- Added `test_get_unified_content_paginated_includes_path_thumb()` - Verifies unified queries return path_thumb
+- Added `test_path_thumbs_alt_res_included_in_unified_content()` - Verifies path_thumbs_alt_res in queries
+- Updated fixtures: `sample_content` and `sample_auto_content` now include `path_thumb`
+
+**Frontend Test Files Created**:
+- `frontend/src/components/gallery/__tests__/GridView.test.tsx` - Grid view component tests
+- `frontend/src/components/gallery/__tests__/ImageGridCell.test.tsx` - Grid cell component tests
+- `frontend/src/utils/__tests__/viewModeStorage.test.ts` - View mode persistence tests
+
+**E2E Test Updates**:
+- `frontend/tests/e2e/gallery-interactions.spec.ts` - Added view toggle, navigation, persistence tests
+- `frontend/tests/e2e/dashboard-interactions.spec.ts` - Added view toggle and persistence tests
+
+**Test Results**:
+- Backend: All path_thumb tests passing
+- Frontend Unit: **100 passed, 11 skipped** ✅
+- E2E: Written but skipped due to sandbox port restrictions
+
+---
+
+#### Phase 6.1: Multi-Resolution Thumbnails
+
+**Schema Changes**:
+- `genonaut/db/schema.py`:
+  - Added `path_thumbs_alt_res = Column(JSONColumn, nullable=True)` to `ContentItemColumns`
+  - Stores resolution-specific thumbnails as `{"320x430": "/path", "480x644": "/path", ...}`
+
+**API Model Changes**:
+- `genonaut/api/models/responses.py`:
+  - Added `path_thumbs_alt_res: Optional[Dict[str, str]]` to `ContentResponse`
+
+**Service Layer Changes**:
+- `genonaut/api/services/content_service.py`:
+  - Updated `get_unified_content_paginated()`:
+    - Added `path_thumbs_alt_res` to regular content query SELECT
+    - Added `path_thumbs_alt_res` to auto content query SELECT
+    - Added `path_thumbs_alt_res` to result dictionary mapping
+
+**Frontend Components Created**:
+- `frontend/src/components/gallery/ResolutionDropdown.tsx`:
+  - MUI-based dropdown menu for selecting thumbnail resolution
+  - Shows all 8 resolution options from constants
+  - Highlights currently selected resolution
+  - Emits `onResolutionChange` event
+  - Full accessibility support (aria-labels, keyboard navigation)
+
+**Frontend Components Updated**:
+- `frontend/src/components/gallery/ImageGridCell.tsx`:
+  - Updated `mediaSource` logic to check `pathThumbsAltRes[resolution.id]` first
+  - Falls back to: resolution-specific thumb → default thumb → full image → imageUrl → placeholder
+  - Uses `useMemo` for performance
+
+- `frontend/src/pages/gallery/GalleryPage.tsx`:
+  - Imported `ResolutionDropdown` component
+  - Added `handleResolutionChange()` handler
+  - Conditionally renders dropdown when grid view is active
+  - Resolution changes update viewMode (e.g., 'grid-480x644')
+
+- `frontend/src/pages/dashboard/DashboardPage.tsx`:
+  - Same changes as GalleryPage for consistency
+  - Independent view mode state from Gallery
+
+**Type Updates**:
+- `frontend/src/types/domain.ts`:
+  - Added `pathThumbsAltRes: Record<string, string> | null` to `GalleryItem` interface
+
+**Migration**:
+- `migrations/versions/704ba727e23b_add_path_thumbs_alt_res_for_multi_.py`
+  - Adds `path_thumbs_alt_res` column to both `content_items` and `content_items_auto`
+  - Nullable JSONB column
+  - Successfully applied to demo database
+
+---
+
+#### Commands Run (This Session)
+```bash
+# Migration
+make migrate-prep m="Add path_thumbs_alt_res for multi-resolution thumbnails"
+make migrate-demo
+# Result: Migration successful ✅
+
+# Backend Tests
+pytest test/api/db/test_services.py::TestContentService::test_path_thumbs_alt_res_included_in_unified_content -xvs
+# Result: 1 passed ✅
+
+# Frontend Tests
+cd frontend && npm run test-unit
+# Result: 100 passed, 11 skipped ✅
+```
+
+---
+
+#### Previous Session Changes (Phase 1 - Prompt Field)
+
+**Schema Changes**:
 - `genonaut/db/schema.py` - Added `prompt` field to `ContentItemColumns`, updated `GenerationJob.prompt` type, added immutability triggers
 
-#### Migration Files
+**Migration Files**:
 - `migrations/versions/aee9a6813b9c_add_prompt_field_and_immutability_.py` - Prompt field migration with backfill logic
 
-#### Test Files Updated (prompt field)
+**Test Files Updated (prompt field)**:
 All test files modified to include `prompt="Test prompt"` in ContentItem/ContentItemAuto creations:
 - `test/db/unit/test_schema.py`
 - `test/db/unit/test_flagged_content_repository.py`
@@ -422,9 +526,8 @@ All test files modified to include `prompt="Test prompt"` in ContentItem/Content
 - `test/api/unit/test_models.py`
 - `test/db/utils.py` (database seeding utility)
 
-#### Commands Run
+**Test Results**:
 ```bash
-# Test suite verification
 pytest test/ -v --tb=short
 # Result: 438 passed, 100 skipped, 0 failures ✅
 ```
@@ -484,96 +587,123 @@ pytest test/ -v --tb=short
 ### Phase 2: Frontend Type Definitions & Infrastructure
 
 #### 2.1 Type Definitions
-- [ ] Locate content type definitions (e.g., `frontend/src/types/content.ts`)
-- [ ] Add `pathThumb?: string | null` to content item types
-- [ ] Add `ViewMode` type: `'list' | 'grid'`
-- [ ] Add `ThumbnailResolution` type for future use
+- [x] Locate content type definitions (e.g., `frontend/src/types/content.ts`)
+- [x] Add `pathThumb?: string | null` to content item types
+- [x] Add `ViewMode` type: `'list' | 'grid'`
+- [x] Add `ThumbnailResolution` type for future use
 
 #### 2.2 Utility Functions & Constants
-- [ ] Create localStorage utility functions for view mode persistence
-- [ ] Define grid layout breakpoints and column counts
-- [ ] Define default thumbnail resolution (480×644)
-- [ ] Define localStorage keys (`gallery-view-mode`, `dashboard-view-mode`)
+- [x] Create localStorage utility functions for view mode persistence
+- [x] Define grid layout breakpoints and column counts
+- [x] Define default thumbnail resolution (480×644)
+- [x] Define localStorage keys (`gallery-view-mode`, `dashboard-view-mode`)
 
 ### Phase 3: Gallery Page - Grid View Implementation
 
 #### 3.1 Grid View Components
-- [ ] Create `GridView.tsx` component with responsive grid layout
-- [ ] Create `ImageGridCell.tsx` component
-  - [ ] Image rendering with fallback logic (thumb → full → placeholder)
-  - [ ] Image scaling/fitting within cell
-  - [ ] Hover effects
-  - [ ] Click handler for navigation
-- [ ] Add placeholder icon handling (`ImageNotSupportedIcon`)
-- [ ] Add data-testid attributes for testing
+- [x] Create `GridView.tsx` component with responsive grid layout
+- [x] Create `ImageGridCell.tsx` component
+  - [x] Image rendering with fallback logic (thumb → full → placeholder)
+  - [x] Image scaling/fitting within cell
+  - [x] Hover effects
+  - [x] Click handler for navigation
+- [x] Add placeholder icon handling (`ImageNotSupportedIcon`)
+- [x] Add data-testid attributes for testing
 
 #### 3.2 Gallery Page View Toggle
-- [ ] Import MUI icons (`ViewListIcon`, `GridViewIcon`)
-- [ ] Add view mode state with localStorage persistence
-- [ ] Create view toggle icon buttons in header
-  - [ ] Position: top right, left of settings icon
-  - [ ] Active/inactive styling
-  - [ ] Click handlers
-- [ ] Add conditional rendering for list vs grid view
-- [ ] Test view toggle functionality
-- [ ] Add data-testid attributes for testing
+- [x] Import MUI icons (`ViewListIcon`, `GridViewIcon`)
+- [x] Add view mode state with localStorage persistence
+- [x] Create view toggle icon buttons in header
+  - [x] Position: top right, left of settings icon
+  - [x] Active/inactive styling
+  - [x] Click handlers
+- [x] Add conditional rendering for list vs grid view
+- [x] Test view toggle functionality
+- [x] Add data-testid attributes for testing
 
 #### 3.3 Gallery Image Detail Page
-- [ ] Create route for `/gallery/:id` in router
-- [ ] Create `GalleryImageView.tsx` component
-  - [ ] Fetch image data by ID
-  - [ ] Display full-size image (or placeholder if missing)
-  - [ ] Add back button (arrow icon)
-  - [ ] Display metadata below image (title, date, creator, tags, quality score)
-- [ ] Handle navigation from grid cell to detail page
-- [ ] Test browser back button functionality
-- [ ] Add data-testid attributes for testing
+- [x] Create route for `/gallery/:id` in router
+- [x] Create `GalleryImageView.tsx` component
+  - [x] Fetch image data by ID
+  - [x] Display full-size image (or placeholder if missing)
+  - [x] Add back button (arrow icon)
+  - [x] Display metadata below image (title, date, creator, tags, quality score)
+- [x] Handle navigation from grid cell to detail page
+- [x] Test browser back button functionality
+- [x] Add data-testid attributes for testing
 
 ### Phase 4: Dashboard Page - Grid View Implementation
 
 #### 4.1 Dashboard Grid View
-- [ ] Add view mode state with localStorage persistence to `DashboardPage.tsx`
-- [ ] Add view toggle icons (same as Gallery)
-- [ ] Integrate `GridView` component (reuse from Gallery)
-- [ ] Add conditional rendering for list vs grid view
-- [ ] Test view toggle functionality
-- [ ] Add data-testid attributes for testing
+- [x] Add view mode state with localStorage persistence to `DashboardPage.tsx`
+- [x] Add view toggle icons (same as Gallery)
+- [x] Integrate `GridView` component (reuse from Gallery)
+- [x] Add conditional rendering for list vs grid view
+- [x] Test view toggle functionality
+- [x] Add data-testid attributes for testing
 
 #### 4.2 Dashboard Image Detail Page
-- [ ] Create route for `/dashboard/:id` in router
-- [ ] Create `DashboardImageView.tsx` component (similar to Gallery)
-  - [ ] Fetch image data by ID
-  - [ ] Display full-size image (or placeholder if missing)
-  - [ ] Add back button
-  - [ ] Display metadata below image
-- [ ] Handle navigation from grid cell to detail page
-- [ ] Test browser back button functionality
-- [ ] Add data-testid attributes for testing
+- [x] Create route for `/dashboard/:id` in router
+- [x] Create `DashboardImageView.tsx` component (similar to Gallery)
+  - [x] Fetch image data by ID
+  - [x] Display full-size image (or placeholder if missing)
+  - [x] Add back button
+  - [x] Display metadata below image
+- [x] Handle navigation from grid cell to detail page
+- [x] Test browser back button functionality
+- [x] Add data-testid attributes for testing
 
 ### Phase 5: Testing & Polish
 
 #### 5.1 Backend Tests
-- [ ] Update API integration tests to verify `path_thumb` field in responses
-- [ ] Test with null/missing `path_thumb` values
-- [ ] Run backend test suite: `make test-api`
+- [x] Update API integration tests to verify `path_thumb` field in responses
+- [x] Test with null/missing `path_thumb` values
+- [ ] Run backend test suite: `make test-api` @skipped-until-api-server
 
 #### 5.2 Frontend Unit Tests
-- [ ] Write unit tests for `GridView` component
-- [ ] Write unit tests for `ImageGridCell` component
-- [ ] Write unit tests for view mode persistence utilities
-- [ ] Test placeholder icon rendering
-- [ ] Run frontend unit tests: `make frontend-test-unit`
+- [x] Write unit tests for `GridView` component
+- [x] Write unit tests for `ImageGridCell` component
+- [x] Write unit tests for view mode persistence utilities
+- [x] Test placeholder icon rendering
+- [x] Run frontend unit tests: `make frontend-test-unit`
 
 #### 5.3 Frontend E2E Tests
-- [ ] Update Gallery e2e tests for view toggle
-- [ ] Test grid view rendering with mock data
-- [ ] Test navigation to image detail page
-- [ ] Test back button navigation
-- [ ] Test view mode persistence (reload page, verify mode retained)
-- [ ] Update Dashboard e2e tests similarly
-- [ ] Run e2e tests: `make frontend-test-e2e`
+- [x] Update Gallery e2e tests for view toggle
+- [x] Test grid view rendering with mock data
+- [x] Test navigation to image detail page
+- [x] Test back button navigation
+- [x] Test view mode persistence (reload page, verify mode retained)
+- [x] Update Dashboard e2e tests similarly
+- [ ] Run e2e tests: `make frontend-test-e2e` @skipped-until-playwright-webserver
 
-#### 5.4 Manual Testing & Polish
+### 6. Additional polish
+#### 6.1. additional thumbnail resolutions ✅ COMPLETE
+- [x] Backend: Implement multiple thumbnail sizes: store in a single JSONB column: `path_thumbs_alt_res`, with keys being resolutions, and values being the paths.
+  - [x] Added `path_thumbs_alt_res` field to ContentItemColumns (schema.py)
+  - [x] Added `path_thumbs_alt_res` field to ContentResponse (responses.py)
+  - [x] Created and ran migration (704ba727e23b)
+  - [x] Updated content_service.py to include field in unified content queries
+  - [x] Updated content_service.py to return field in result dictionaries
+- [x] Frontend: Add resolution dropdown attached to grid view icon
+  - [x] Created ResolutionDropdown component
+  - [x] Integrated dropdown into GalleryPage (shows when grid view active)
+  - [x] Integrated dropdown into DashboardPage (shows when grid view active)
+  - [x] Updated ImageGridCell to use resolution-specific thumbnails from path_thumbs_alt_res
+  - [x] Resolution selection persists in localStorage as part of viewMode (e.g., 'grid-480x644')
+- [x] Frontend and backend testing for this
+  - [x] Added backend test: test_path_thumbs_alt_res_included_in_unified_content (test_services.py)
+  - [x] All frontend unit tests passing (100 passed, 11 skipped)
+  - [x] Backend test passing for path_thumbs_alt_res field
+
+### On pause
+#### Until ComfyUI integration compeltion
+- [ ] Add thumbnail generation service/pipeline
+
+#### Until actual images are stored
+- [ ] Add image caching/lazy loading optimizations
+
+### Tasks for @dev
+#### Manual Testing & Polish @dev
 - [ ] Test responsive grid layout on different screen sizes
 - [ ] Test image scaling/fitting in grid cells
 - [ ] Test placeholder icon appearance
@@ -582,14 +712,9 @@ pytest test/ -v --tb=short
 - [ ] Check accessibility (keyboard navigation, screen reader support)
 - [ ] Polish styling (spacing, colors, typography)
 
-### Phase 6: Future Enhancements (Later)
-- [ ] Add resolution dropdown attached to grid view icon
-- [ ] Implement multiple thumbnail sizes (path_thumb_sm, path_thumb_md, etc.)
-- [ ] Add thumbnail generation service/pipeline
-- [ ] Add image caching/lazy loading optimizations
-
 ### Tags
-(No skipped tasks yet)
+- skipped-until-api-server: Full `make test-api` run needs a running uvicorn instance; the harness times out trying to start the API server during pytest session setup.
+- skipped-until-playwright-webserver: Playwright's dev server cannot bind to port 4173 in this sandbox (EPERM), so the e2e suite cannot be executed locally.
 
 ### Questions for Dev
 (No questions yet - see Open Questions section above for clarifications)

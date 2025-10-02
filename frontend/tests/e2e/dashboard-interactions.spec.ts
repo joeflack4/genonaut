@@ -1,9 +1,52 @@
 import { test, expect } from '@playwright/test'
+import { setupMockApi } from './utils/mockApi'
+import { getCommonApiMocks, getTagHierarchyMocks } from './utils/mockData'
 
 test.describe('Dashboard Page Interactions', () => {
   test.beforeEach(async ({ page }) => {
+    await setupMockApi(page, [
+      ...getCommonApiMocks(),
+      ...getTagHierarchyMocks(),
+    ])
     await page.goto('/dashboard')
     await page.waitForSelector('main', { timeout: 10000 })
+  })
+
+  test('should toggle between list and grid views', async ({ page }) => {
+    const listView = page.locator('[data-testid="dashboard-user-recent-list"]')
+    const gridView = page.locator('[data-testid="dashboard-user-recent-grid"]')
+    const listToggle = page.locator('[data-testid="dashboard-view-toggle-list"]')
+    const gridToggle = page.locator('[data-testid="dashboard-view-toggle-grid"]')
+
+    await expect(listView).toBeVisible()
+    await expect(gridView).toHaveCount(0)
+
+    await gridToggle.click()
+    await expect(gridView).toBeVisible()
+    await expect(listView).toHaveCount(0)
+
+    const storedGridMode = await page.evaluate(() => window.localStorage.getItem('dashboard-view-mode'))
+    expect(storedGridMode).toBe('grid-480x644')
+
+    await listToggle.click()
+    await expect(listView).toBeVisible()
+    await expect(gridView).toHaveCount(0)
+
+    const storedListMode = await page.evaluate(() => window.localStorage.getItem('dashboard-view-mode'))
+    expect(storedListMode).toBe('list')
+  })
+
+  test('should persist dashboard grid view after reload', async ({ page }) => {
+    await page.locator('[data-testid="dashboard-view-toggle-grid"]').click()
+    await expect(page.locator('[data-testid="dashboard-user-recent-grid"]')).toBeVisible()
+
+    await page.reload()
+    await page.waitForSelector('[data-testid="dashboard-user-recent-grid"]', { timeout: 10000 })
+
+    const storedMode = await page.evaluate(() => window.localStorage.getItem('dashboard-view-mode'))
+    expect(storedMode).toBe('grid-480x644')
+    await expect(page.locator('[data-testid="dashboard-user-recent-grid"]')).toBeVisible()
+    await expect(page.locator('[data-testid="dashboard-user-recent-list"]')).toHaveCount(0)
   })
 
   test('should display welcome message with user name', async ({ page }) => {
@@ -129,6 +172,22 @@ test.describe('Dashboard Page Interactions', () => {
     } else {
       test.skip()
     }
+  })
+
+  test('should open dashboard detail view from grid', async ({ page }) => {
+    await page.locator('[data-testid="dashboard-view-toggle-grid"]').click()
+    await page.waitForTimeout(300)
+    await expect(page.locator('[data-testid="dashboard-user-recent-grid"]')).toBeVisible()
+
+    const gridItem = page.locator('[data-testid^="gallery-grid-item-"]').first()
+    await expect(gridItem).toBeVisible()
+    await gridItem.click()
+
+    await expect(page).toHaveURL(/\/dashboard\/1$/)
+    await expect(page.locator('[data-testid="dashboard-detail-title"]').first()).toHaveText('Mock Artwork')
+
+    await page.locator('[data-testid="dashboard-detail-back-button"]').click()
+    await expect(page).toHaveURL(/\/dashboard$/)
   })
 
   test('should handle loading states gracefully', async ({ page }) => {

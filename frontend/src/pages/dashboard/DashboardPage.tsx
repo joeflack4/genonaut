@@ -1,6 +1,34 @@
-import { Box, Card, CardContent, List, ListItem, ListItemText, Skeleton, Stack, Typography } from '@mui/material'
+import { useState, useMemo } from 'react'
+import {
+  Box,
+  Card,
+  CardContent,
+  IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  Skeleton,
+  Stack,
+  Tooltip,
+  Typography,
+} from '@mui/material'
+import ViewListIcon from '@mui/icons-material/ViewList'
+import GridViewIcon from '@mui/icons-material/GridView'
+import { useNavigate } from 'react-router-dom'
 import { useGalleryList, useGalleryAutoList, useGalleryStats, useCurrentUser } from '../../hooks'
 import { ADMIN_USER_ID } from '../../constants/config'
+import type { GalleryItem, ThumbnailResolutionId, ViewMode } from '../../types/domain'
+import {
+  DASHBOARD_VIEW_MODE_STORAGE_KEY,
+  DEFAULT_GRID_VIEW_MODE,
+  DEFAULT_THUMBNAIL_RESOLUTION,
+  DEFAULT_THUMBNAIL_RESOLUTION_ID,
+  DEFAULT_VIEW_MODE,
+  THUMBNAIL_RESOLUTION_OPTIONS,
+} from '../../constants/gallery'
+import { GridView as GalleryGridView, ResolutionDropdown } from '../../components/gallery'
+import { loadViewMode, persistViewMode } from '../../utils/viewModeStorage'
 
 const DEFAULT_USER_ID = ADMIN_USER_ID
 
@@ -14,6 +42,54 @@ const galleryStatItems = [
 export function DashboardPage() {
   const { data: currentUser } = useCurrentUser()
   const userId = currentUser?.id ?? DEFAULT_USER_ID
+  const navigate = useNavigate()
+
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    loadViewMode(DASHBOARD_VIEW_MODE_STORAGE_KEY, DEFAULT_VIEW_MODE)
+  )
+
+  const isGridView = viewMode.startsWith('grid-')
+
+  const currentGridResolutionId = useMemo<ThumbnailResolutionId>(() => {
+    if (isGridView) {
+      const resolutionId = viewMode.slice(5) as ThumbnailResolutionId
+      const exists = THUMBNAIL_RESOLUTION_OPTIONS.some((option) => option.id === resolutionId)
+      if (exists) {
+        return resolutionId
+      }
+    }
+    return DEFAULT_THUMBNAIL_RESOLUTION_ID
+  }, [isGridView, viewMode])
+
+  const currentResolution = useMemo(
+    () =>
+      THUMBNAIL_RESOLUTION_OPTIONS.find((option) => option.id === currentGridResolutionId) ??
+      DEFAULT_THUMBNAIL_RESOLUTION,
+    [currentGridResolutionId]
+  )
+
+  const updateViewMode = (mode: ViewMode) => {
+    setViewMode(mode)
+    persistViewMode(DASHBOARD_VIEW_MODE_STORAGE_KEY, mode)
+  }
+
+  const handleSelectListView = () => {
+    updateViewMode('list')
+  }
+
+  const handleSelectGridView = () => {
+    const nextMode = isGridView ? viewMode : DEFAULT_GRID_VIEW_MODE
+    updateViewMode(nextMode)
+  }
+
+  const handleResolutionChange = (resolutionId: ThumbnailResolutionId) => {
+    const nextMode: ViewMode = `grid-${resolutionId}`
+    updateViewMode(nextMode)
+  }
+
+  const navigateToDetail = (item: GalleryItem) => {
+    navigate(`/dashboard/${item.id}`, { state: { sourceType: item.sourceType } })
+  }
 
   const { data: galleryStats, isLoading: galleryStatsLoading } = useGalleryStats(userId)
 
@@ -56,7 +132,13 @@ export function DashboardPage() {
 
   return (
     <Stack spacing={4} component="section" data-testid="dashboard-page-root">
-      <Stack spacing={1} data-testid="dashboard-header">
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        spacing={2}
+        data-testid="dashboard-header"
+      >
         <Typography
           component="h1"
           variant="h4"
@@ -66,6 +148,37 @@ export function DashboardPage() {
         >
           Welcome back{currentUser?.name ? `, ${currentUser.name}` : ''}
         </Typography>
+        <Stack direction="row" spacing={1} alignItems="center" data-testid="dashboard-view-toggle-group">
+          <Tooltip title="List view" enterDelay={300} arrow>
+            <IconButton
+              aria-label="Switch to list view"
+              color={isGridView ? 'default' : 'primary'}
+              onClick={handleSelectListView}
+              data-testid="dashboard-view-toggle-list"
+              aria-pressed={!isGridView}
+            >
+              <ViewListIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Grid view" enterDelay={300} arrow>
+            <IconButton
+              aria-label="Switch to grid view"
+              color={isGridView ? 'primary' : 'default'}
+              onClick={handleSelectGridView}
+              data-testid="dashboard-view-toggle-grid"
+              aria-pressed={isGridView}
+            >
+              <GridViewIcon />
+            </IconButton>
+          </Tooltip>
+          {isGridView && (
+            <ResolutionDropdown
+              currentResolution={currentGridResolutionId}
+              onResolutionChange={handleResolutionChange}
+              dataTestId="dashboard-resolution-dropdown"
+            />
+          )}
+        </Stack>
       </Stack>
 
       <Box
@@ -113,7 +226,17 @@ export function DashboardPage() {
           <Typography variant="h6" component="h2" gutterBottom data-testid="dashboard-user-recent-title">
             Your recent gens
           </Typography>
-          {userRecentGalleryLoading ? (
+          {isGridView ? (
+            <GalleryGridView
+              items={userRecentGallery?.items ?? []}
+              resolution={currentResolution}
+              isLoading={userRecentGalleryLoading}
+              onItemClick={navigateToDetail}
+              loadingPlaceholderCount={3}
+              dataTestId="dashboard-user-recent-grid"
+              emptyMessage="No recent gens available."
+            />
+          ) : userRecentGalleryLoading ? (
             <Stack spacing={2} data-testid="dashboard-user-recent-loading">
               {Array.from({ length: 3 }).map((_, index) => (
                 <Skeleton key={index} variant="rectangular" height={56} data-testid={`dashboard-user-recent-skeleton-${index}`} />
@@ -124,14 +247,17 @@ export function DashboardPage() {
               {userRecentGallery.items.map((item) => (
                 <ListItem
                   key={item.id}
+                  disablePadding
                   disableGutters
                   divider
                   data-testid={`dashboard-user-recent-item-${item.id}`}
                 >
-                  <ListItemText
-                    primary={item.title}
-                    secondary={item.createdAt ? new Date(item.createdAt).toLocaleString() : undefined}
-                  />
+                  <ListItemButton onClick={() => navigateToDetail(item)} data-testid={`dashboard-user-recent-item-${item.id}-button`}>
+                    <ListItemText
+                      primary={item.title}
+                      secondary={item.createdAt ? new Date(item.createdAt).toLocaleString() : undefined}
+                    />
+                  </ListItemButton>
                 </ListItem>
               ))}
             </List>
@@ -148,7 +274,17 @@ export function DashboardPage() {
           <Typography variant="h6" component="h2" gutterBottom data-testid="dashboard-user-autogens-title">
             Your recent auto-gens
           </Typography>
-          {userRecentAutoGensLoading ? (
+          {isGridView ? (
+            <GalleryGridView
+              items={userRecentAutoGens?.items ?? []}
+              resolution={currentResolution}
+              isLoading={userRecentAutoGensLoading}
+              onItemClick={navigateToDetail}
+              loadingPlaceholderCount={3}
+              dataTestId="dashboard-user-autogens-grid"
+              emptyMessage="No recent auto-gens available."
+            />
+          ) : userRecentAutoGensLoading ? (
             <Stack spacing={2} data-testid="dashboard-user-autogens-loading">
               {Array.from({ length: 3 }).map((_, index) => (
                 <Skeleton key={index} variant="rectangular" height={56} data-testid={`dashboard-user-autogens-skeleton-${index}`} />
@@ -159,14 +295,17 @@ export function DashboardPage() {
               {userRecentAutoGens.items.map((item) => (
                 <ListItem
                   key={item.id}
+                  disablePadding
                   disableGutters
                   divider
                   data-testid={`dashboard-user-autogens-item-${item.id}`}
                 >
-                  <ListItemText
-                    primary={item.title}
-                    secondary={item.createdAt ? new Date(item.createdAt).toLocaleString() : undefined}
-                  />
+                  <ListItemButton onClick={() => navigateToDetail(item)} data-testid={`dashboard-user-autogens-item-${item.id}-button`}>
+                    <ListItemText
+                      primary={item.title}
+                      secondary={item.createdAt ? new Date(item.createdAt).toLocaleString() : undefined}
+                    />
+                  </ListItemButton>
                 </ListItem>
               ))}
             </List>
@@ -183,7 +322,17 @@ export function DashboardPage() {
           <Typography variant="h6" component="h2" gutterBottom data-testid="dashboard-community-recent-title">
             Community recent gens
           </Typography>
-          {recentGalleryLoading ? (
+          {isGridView ? (
+            <GalleryGridView
+              items={recentGallery?.items ?? []}
+              resolution={currentResolution}
+              isLoading={recentGalleryLoading}
+              onItemClick={navigateToDetail}
+              loadingPlaceholderCount={3}
+              dataTestId="dashboard-community-recent-grid"
+              emptyMessage="No community gens available."
+            />
+          ) : recentGalleryLoading ? (
             <Stack spacing={2} data-testid="dashboard-community-recent-loading">
               {Array.from({ length: 3 }).map((_, index) => (
                 <Skeleton key={index} variant="rectangular" height={56} data-testid={`dashboard-community-recent-skeleton-${index}`} />
@@ -194,14 +343,17 @@ export function DashboardPage() {
               {recentGallery.items.map((item) => (
                 <ListItem
                   key={item.id}
+                  disablePadding
                   disableGutters
                   divider
                   data-testid={`dashboard-community-recent-item-${item.id}`}
                 >
-                  <ListItemText
-                    primary={item.title}
-                    secondary={item.createdAt ? new Date(item.createdAt).toLocaleString() : undefined}
-                  />
+                  <ListItemButton onClick={() => navigateToDetail(item)} data-testid={`dashboard-community-recent-item-${item.id}-button`}>
+                    <ListItemText
+                      primary={item.title}
+                      secondary={item.createdAt ? new Date(item.createdAt).toLocaleString() : undefined}
+                    />
+                  </ListItemButton>
                 </ListItem>
               ))}
             </List>
@@ -218,7 +370,17 @@ export function DashboardPage() {
           <Typography variant="h6" component="h2" gutterBottom data-testid="dashboard-community-autogens-title">
             Community recent auto-gens
           </Typography>
-          {communityRecentAutoGensLoading ? (
+          {isGridView ? (
+            <GalleryGridView
+              items={communityRecentAutoGens?.items ?? []}
+              resolution={currentResolution}
+              isLoading={communityRecentAutoGensLoading}
+              onItemClick={navigateToDetail}
+              loadingPlaceholderCount={3}
+              dataTestId="dashboard-community-autogens-grid"
+              emptyMessage="No community auto-gens available."
+            />
+          ) : communityRecentAutoGensLoading ? (
             <Stack spacing={2} data-testid="dashboard-community-autogens-loading">
               {Array.from({ length: 3 }).map((_, index) => (
                 <Skeleton key={index} variant="rectangular" height={56} data-testid={`dashboard-community-autogens-skeleton-${index}`} />
@@ -229,14 +391,17 @@ export function DashboardPage() {
               {communityRecentAutoGens.items.map((item) => (
                 <ListItem
                   key={item.id}
+                  disablePadding
                   disableGutters
                   divider
                   data-testid={`dashboard-community-autogens-item-${item.id}`}
                 >
-                  <ListItemText
-                    primary={item.title}
-                    secondary={item.createdAt ? new Date(item.createdAt).toLocaleString() : undefined}
-                  />
+                  <ListItemButton onClick={() => navigateToDetail(item)} data-testid={`dashboard-community-autogens-item-${item.id}-button`}>
+                    <ListItemText
+                      primary={item.title}
+                      secondary={item.createdAt ? new Date(item.createdAt).toLocaleString() : undefined}
+                    />
+                  </ListItemButton>
                 </ListItem>
               ))}
             </List>

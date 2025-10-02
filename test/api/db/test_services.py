@@ -21,6 +21,8 @@ from genonaut.api.services.interaction_service import InteractionService
 from genonaut.api.services.recommendation_service import RecommendationService
 from genonaut.api.services.generation_service import GenerationService
 from genonaut.api.exceptions import EntityNotFoundError, ValidationError
+from genonaut.api.models.requests import PaginationRequest
+from genonaut.api.models.responses import ContentResponse
 
 
 @pytest.fixture(scope="function")
@@ -60,7 +62,8 @@ def sample_content(test_db_session, sample_user):
         creator_id=sample_user.id,
         item_metadata={"category": "test"},
         tags=["test", "sample"],
-        prompt="Test prompt"
+        prompt="Test prompt",
+        path_thumb="/thumbs/test-content.png",
     )
     test_db_session.add(content)
     test_db_session.commit()
@@ -79,6 +82,7 @@ def sample_auto_content(test_db_session, sample_user):
         prompt="Test prompt",
         item_metadata={"generator": "system"},
         tags=["auto"],
+        path_thumb="/thumbs/auto-content.png",
     )
     test_db_session.add(content)
     test_db_session.commit()
@@ -175,7 +179,7 @@ class TestUserService:
 
 class TestContentService:
     """Test ContentService business logic operations."""
-    
+
     def test_create_content_success(self, test_db_session, sample_user):
         """Test successful content creation."""
         service = ContentService(test_db_session)
@@ -257,6 +261,95 @@ class TestContentService:
         assert "avg_rating" in analytics
         assert analytics["total_views"] >= 1
         assert analytics["total_likes"] >= 1
+
+    def test_content_response_includes_path_thumb(self, sample_content):
+        """Ensure ContentResponse exposes thumbnail paths when present."""
+        response = ContentResponse.model_validate(sample_content)
+        assert response.path_thumb == "/thumbs/test-content.png"
+
+    def test_content_response_handles_missing_path_thumb(self, test_db_session, sample_user):
+        """Ensure ContentResponse gracefully handles missing thumbnail paths."""
+        content_without_thumb = ContentItem(
+            title="No Thumb",
+            content_type="text",
+            content_data="Body",
+            creator_id=sample_user.id,
+            prompt="Test prompt",
+            item_metadata={},
+            tags=["none"],
+        )
+        test_db_session.add(content_without_thumb)
+        test_db_session.commit()
+        test_db_session.refresh(content_without_thumb)
+
+        response = ContentResponse.model_validate(content_without_thumb)
+        assert response.path_thumb is None
+
+    def test_get_unified_content_paginated_includes_path_thumb(self, test_db_session, sample_content, sample_auto_content, sample_user):
+        """Unified content payloads should include thumbnail paths and support null values."""
+        # Create an additional record without a thumbnail to verify null handling.
+        no_thumb_content = ContentItem(
+            title="Missing Thumb",
+            content_type="image",
+            content_data="/images/missing.png",
+            creator_id=sample_user.id,
+            prompt="Test prompt",
+            item_metadata={},
+            tags=[],
+            path_thumb=None,
+        )
+        test_db_session.add(no_thumb_content)
+        test_db_session.commit()
+
+        service = ContentService(test_db_session)
+        pagination = PaginationRequest(page=1, page_size=10)
+        result = service.get_unified_content_paginated(
+            pagination=pagination,
+            content_types=["regular", "auto"],
+        )
+
+        id_to_item = {(item["id"], item["source_type"]): item for item in result["items"]}
+
+        assert id_to_item[(sample_content.id, "regular")]["path_thumb"] == "/thumbs/test-content.png"
+        assert id_to_item[(sample_auto_content.id, "auto")]["path_thumb"] == "/thumbs/auto-content.png"
+        assert id_to_item[(no_thumb_content.id, "regular")]["path_thumb"] is None
+
+    def test_path_thumbs_alt_res_included_in_unified_content(self, test_db_session, sample_user):
+        """Verify path_thumbs_alt_res field is returned in unified content queries."""
+        # Create content with alternate resolution thumbnails
+        content_with_alt_res = ContentItem(
+            title="Multi-Res Content",
+            content_type="image",
+            content_data="/images/full.png",
+            creator_id=sample_user.id,
+            prompt="Test prompt",
+            path_thumb="/thumbs/480x644.png",
+            path_thumbs_alt_res={
+                "320x430": "/thumbs/320x430.png",
+                "400x537": "/thumbs/400x537.png",
+                "576x768": "/thumbs/576x768.png"
+            },
+            item_metadata={},
+            tags=[],
+        )
+        test_db_session.add(content_with_alt_res)
+        test_db_session.commit()
+
+        service = ContentService(test_db_session)
+        pagination = PaginationRequest(page=1, page_size=10)
+        result = service.get_unified_content_paginated(
+            pagination=pagination,
+            content_types=["regular"],
+        )
+
+        matching_items = [item for item in result["items"] if item["id"] == content_with_alt_res.id]
+        assert len(matching_items) == 1
+        item = matching_items[0]
+
+        assert item["path_thumbs_alt_res"] is not None
+        assert item["path_thumbs_alt_res"]["320x430"] == "/thumbs/320x430.png"
+        assert item["path_thumbs_alt_res"]["400x537"] == "/thumbs/400x537.png"
+        assert item["path_thumbs_alt_res"]["576x768"] == "/thumbs/576x768.png"
 
 
 class TestContentAutoService:

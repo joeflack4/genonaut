@@ -26,6 +26,7 @@ export interface ApiContentItem {
   title: string
   description?: string | null
   image_url?: string | null
+  path_thumb?: string | null
   quality_score: number | null
   created_at: string
   updated_at?: string

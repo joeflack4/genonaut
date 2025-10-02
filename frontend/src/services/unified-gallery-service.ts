@@ -84,11 +84,16 @@ export class UnifiedGalleryService {
         title: string
         description?: string
         image_url?: string
+        content_type: string
+        content_data: string | null
+        path_thumb?: string | null
         quality_score?: number
         created_at: string
         updated_at: string
         creator_id: string
         source_type: 'regular' | 'auto'
+        tags?: string[]
+        item_metadata?: Record<string, unknown>
       }>
       pagination: {
         page: number
@@ -107,7 +112,7 @@ export class UnifiedGalleryService {
     }>(`/api/v1/content/unified${query ? `?${query}` : ''}`)
 
     return {
-      items: response.items.map(this.transformGalleryItem),
+      items: response.items.map((item) => this.transformGalleryItem(item)),
       total: response.pagination.total_count,
       limit: response.pagination.page_size,
       skip: (response.pagination.page - 1) * response.pagination.page_size,
@@ -149,21 +154,32 @@ export class UnifiedGalleryService {
     title: string
     description?: string
     image_url?: string
+    content_type: string
+    content_data: string | null
+    path_thumb?: string | null
     quality_score?: number
     created_at: string
     updated_at: string
     creator_id: string
     source_type: 'regular' | 'auto'
+    tags?: string[]
+    item_metadata?: Record<string, unknown>
   }): GalleryItem {
     return {
       id: item.id,
       title: item.title,
       description: item.description ?? null,
       imageUrl: item.image_url ?? null,
+      pathThumb: item.path_thumb ?? null,
+      contentData: item.content_data ?? null,
+      contentType: item.content_type,
       qualityScore: item.quality_score,
       createdAt: item.created_at,
       updatedAt: item.updated_at,
       creatorId: item.creator_id,
+      tags: item.tags ?? [],
+      itemMetadata: item.item_metadata ?? null,
+      sourceType: item.source_type,
     }
   }
 }

@@ -1,8 +1,14 @@
 import { test, expect } from '@playwright/test';
+import { setupMockApi } from './utils/mockApi';
+import { getCommonApiMocks, getTagHierarchyMocks } from './utils/mockData';
 
 test.describe('Tag Hierarchy Tests', () => {
   test.beforeEach(async ({ page }) => {
     page.setDefaultNavigationTimeout(10_000);
+    await setupMockApi(page, [
+      ...getCommonApiMocks(),
+      ...getTagHierarchyMocks(),
+    ]);
   });
 
   test('should display tag hierarchy page with tree view', async ({ page }) => {

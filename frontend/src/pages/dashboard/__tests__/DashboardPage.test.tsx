@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, vi } from 'vitest'
 import { ThemeModeProvider } from '../../../app/providers/theme'
 import { UiSettingsProvider } from '../../../app/providers/ui'
 import { DashboardPage } from '../DashboardPage'
+import { MemoryRouter } from 'react-router-dom'
 
 vi.mock('../../../hooks', () => {
   const useCurrentUser = vi.fn()
@@ -34,7 +36,9 @@ const renderDashboard = () => {
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       <UiSettingsProvider>
-        <ThemeModeProvider>{children}</ThemeModeProvider>
+        <ThemeModeProvider>
+          <MemoryRouter>{children}</MemoryRouter>
+        </ThemeModeProvider>
       </UiSettingsProvider>
     </QueryClientProvider>
   )
@@ -64,89 +68,111 @@ describe('DashboardPage', () => {
       isLoading: false,
     })
 
-    mockedUseGalleryList
-      .mockReturnValueOnce({
-        data: {
-          items: [
-            {
-              id: 1,
-              title: 'User Content Item',
-              description: null,
-              imageUrl: null,
-              qualityScore: 0.9,
-              createdAt: '2024-01-10T00:00:00Z',
-              updatedAt: '2024-01-10T00:00:00Z',
-              creatorId: '121e194b-4caa-4b81-ad4f-86ca3919d5b9',
-            },
-          ],
-          total: 1,
-          limit: 5,
-          skip: 0,
+    const userGalleryResponse = {
+      items: [
+        {
+          id: 1,
+          title: 'User Content Item',
+          description: null,
+          imageUrl: null,
+          pathThumb: null,
+          contentData: null,
+          contentType: 'image',
+          qualityScore: 0.9,
+          createdAt: '2024-01-10T00:00:00Z',
+          updatedAt: '2024-01-10T00:00:00Z',
+          creatorId: '121e194b-4caa-4b81-ad4f-86ca3919d5b9',
+          tags: [],
+          itemMetadata: null,
+          sourceType: 'regular' as const,
         },
-        isLoading: false,
-      })
-      .mockReturnValueOnce({
-        data: {
-          items: [
-            {
-              id: 2,
-              title: 'Surreal Landscape',
-              description: null,
-              imageUrl: null,
-              qualityScore: 0.9,
-              createdAt: '2024-01-10T00:00:00Z',
-              updatedAt: '2024-01-10T00:00:00Z',
-              creatorId: 'different-user-id',
-            },
-          ],
-          total: 3,
-          limit: 20,
-          skip: 0,
-        },
-        isLoading: false,
-      })
+      ],
+      total: 1,
+      limit: 5,
+      skip: 0,
+    }
 
-    mockedUseGalleryAutoList
-      .mockReturnValueOnce({
-        data: {
-          items: [
-            {
-              id: 3,
-              title: 'User Auto-Gen Item',
-              description: null,
-              imageUrl: null,
-              qualityScore: 0.8,
-              createdAt: '2024-01-10T00:00:00Z',
-              updatedAt: '2024-01-10T00:00:00Z',
-              creatorId: '121e194b-4caa-4b81-ad4f-86ca3919d5b9',
-            },
-          ],
-          total: 1,
-          limit: 5,
-          skip: 0,
+    const communityGalleryResponse = {
+      items: [
+        {
+          id: 2,
+          title: 'Surreal Landscape',
+          description: null,
+          imageUrl: null,
+          pathThumb: null,
+          contentData: null,
+          contentType: 'image',
+          qualityScore: 0.9,
+          createdAt: '2024-01-10T00:00:00Z',
+          updatedAt: '2024-01-10T00:00:00Z',
+          creatorId: 'different-user-id',
+          tags: [],
+          itemMetadata: null,
+          sourceType: 'regular' as const,
         },
-        isLoading: false,
-      })
-      .mockReturnValueOnce({
-        data: {
-          items: [
-            {
-              id: 4,
-              title: 'Community Auto-Gen Item',
-              description: null,
-              imageUrl: null,
-              qualityScore: 0.85,
-              createdAt: '2024-01-10T00:00:00Z',
-              updatedAt: '2024-01-10T00:00:00Z',
-              creatorId: 'different-user-id',
-            },
-          ],
-          total: 2,
-          limit: 20,
-          skip: 0,
+      ],
+      total: 3,
+      limit: 20,
+      skip: 0,
+    }
+
+    const userAutoResponse = {
+      items: [
+        {
+          id: 3,
+          title: 'User Auto-Gen Item',
+          description: null,
+          imageUrl: null,
+          pathThumb: null,
+          contentData: null,
+          contentType: 'image',
+          qualityScore: 0.8,
+          createdAt: '2024-01-10T00:00:00Z',
+          updatedAt: '2024-01-10T00:00:00Z',
+          creatorId: '121e194b-4caa-4b81-ad4f-86ca3919d5b9',
+          tags: [],
+          itemMetadata: null,
+          sourceType: 'auto' as const,
         },
-        isLoading: false,
-      })
+      ],
+      total: 1,
+      limit: 5,
+      skip: 0,
+    }
+
+    const communityAutoResponse = {
+      items: [
+        {
+          id: 4,
+          title: 'Community Auto-Gen Item',
+          description: null,
+          imageUrl: null,
+          pathThumb: null,
+          contentData: null,
+          contentType: 'image',
+          qualityScore: 0.85,
+          createdAt: '2024-01-10T00:00:00Z',
+          updatedAt: '2024-01-10T00:00:00Z',
+          creatorId: 'different-user-id',
+          tags: [],
+          itemMetadata: null,
+          sourceType: 'auto' as const,
+        },
+      ],
+      total: 2,
+      limit: 20,
+      skip: 0,
+    }
+
+    mockedUseGalleryList.mockImplementation((params: any) => ({
+      data: params?.creator_id ? userGalleryResponse : communityGalleryResponse,
+      isLoading: false,
+    }))
+
+    mockedUseGalleryAutoList.mockImplementation((params: any) => ({
+      data: params?.creator_id ? userAutoResponse : communityAutoResponse,
+      isLoading: false,
+    }))
   })
 
   it('displays gallery stats and recent content', () => {
@@ -177,5 +203,15 @@ describe('DashboardPage', () => {
     expect(screen.getByText('User Auto-Gen Item')).toBeInTheDocument() // User's recent auto-gen
     expect(screen.getByText('Surreal Landscape')).toBeInTheDocument() // Community recent content
     expect(screen.getByText('Community Auto-Gen Item')).toBeInTheDocument() // Community recent auto-gen
+  })
+
+  it('switches to grid view when toggled', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+
+    await user.click(screen.getByTestId('dashboard-view-toggle-grid'))
+
+    expect(screen.getByTestId('dashboard-user-recent-grid')).toBeInTheDocument()
+    expect(screen.getByTestId('dashboard-community-recent-grid')).toBeInTheDocument()
   })
 })

@@ -56,6 +56,10 @@ class ContentResponse(BaseModel):
     content_type: ContentType = Field(..., description="Content type")
     content_data: str = Field(..., description="Content data")
     path_thumb: Optional[str] = Field(None, description="Path to thumbnail image on disk")
+    path_thumbs_alt_res: Optional[Dict[str, str]] = Field(
+        None,
+        description="Mapping of alternate thumbnail resolution identifiers to disk paths",
+    )
     prompt: Optional[str] = Field(None, description="Generation prompt (only included in detail views)")
     item_metadata: Dict[str, Any] = Field(..., description="Content metadata")
     creator_id: UUID = Field(..., description="Creator user ID")
