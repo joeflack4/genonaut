@@ -38,6 +38,7 @@ async def create_content(
             title=content_data.title,
             content_type=content_data.content_type,
             content_data=content_data.content_data,
+            prompt=content_data.prompt,
             creator_id=content_data.creator_id,
             item_metadata=content_data.item_metadata,
             tags=content_data.tags,

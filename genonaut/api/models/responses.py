@@ -55,13 +55,15 @@ class ContentResponse(BaseModel):
     title: str = Field(..., description="Content title")
     content_type: ContentType = Field(..., description="Content type")
     content_data: str = Field(..., description="Content data")
+    path_thumb: Optional[str] = Field(None, description="Path to thumbnail image on disk")
+    prompt: Optional[str] = Field(None, description="Generation prompt (only included in detail views)")
     item_metadata: Dict[str, Any] = Field(..., description="Content metadata")
     creator_id: UUID = Field(..., description="Creator user ID")
     created_at: datetime = Field(..., description="Content creation timestamp")
     tags: List[str] = Field(..., description="Content tags")
     quality_score: float = Field(..., description="Content quality score")
     is_private: bool = Field(..., description="Private status")
-    
+
     model_config = {"from_attributes": True}
 
 

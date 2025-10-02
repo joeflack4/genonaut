@@ -53,14 +53,16 @@ class TestFlaggedContentRepository:
             content_type="text",
             content_data="Test content data",
             creator_id=self.user1.id,
-            item_metadata={"prompt": "violence and hatred"}
+            item_metadata={"prompt": "violence and hatred"},
+            prompt="Test prompt"
         )
         self.content2 = ContentItem(
             title="Test Content 2",
             content_type="text",
             content_data="Test content data 2",
             creator_id=self.user2.id,
-            item_metadata={"prompt": "peaceful scene"}
+            item_metadata={"prompt": "peaceful scene"},
+            prompt="Test prompt"
         )
 
         self.session.add_all([self.content1, self.content2])

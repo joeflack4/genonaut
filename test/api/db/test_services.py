@@ -59,7 +59,8 @@ def sample_content(test_db_session, sample_user):
         content_data="This is test content",
         creator_id=sample_user.id,
         item_metadata={"category": "test"},
-        tags=["test", "sample"]
+        tags=["test", "sample"],
+        prompt="Test prompt"
     )
     test_db_session.add(content)
     test_db_session.commit()
@@ -75,6 +76,7 @@ def sample_auto_content(test_db_session, sample_user):
         content_type="text",
         content_data="Automatically generated content",
         creator_id=sample_user.id,
+        prompt="Test prompt",
         item_metadata={"generator": "system"},
         tags=["auto"],
     )
@@ -182,10 +184,11 @@ class TestContentService:
             "content_type": "text",
             "content_data": "New content data",
             "creator_id": sample_user.id,
+            "prompt": "Test prompt",
             "item_metadata": {"category": "new"},
             "tags": ["new", "content"]
         }
-        
+
         content = service.create_content(content_data)
         assert content.id is not None
         assert content.title == "New Content"
@@ -267,6 +270,7 @@ class TestContentAutoService:
                 "content_type": "text",
                 "content_data": "Auto body",
                 "creator_id": sample_user.id,
+                "prompt": "Test prompt",
                 "item_metadata": {"source": "automation"},
                 "tags": ["auto"],
             }
@@ -420,7 +424,8 @@ class TestRecommendationService:
             title="Second Content",
             content_type="text",
             content_data="Second content data",
-            creator_id=sample_user.id
+            creator_id=sample_user.id,
+            prompt="Test prompt"
         )
         test_db_session.add(content2)
         test_db_session.commit()

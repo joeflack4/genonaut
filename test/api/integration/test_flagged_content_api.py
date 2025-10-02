@@ -74,10 +74,9 @@ class TestFlaggedContentAPI:
             "title": "Action Scene",
             "content_type": "text",
             "content_data": "Description of scene",
+            "prompt": "Create a scene with violence and weapon combat",
             "creator_id": test_user["id"],
-            "item_metadata": {
-                "prompt": "Create a scene with violence and weapon combat"
-            },
+            "item_metadata": {},
             "tags": ["action"],
             "is_private": False
         }
@@ -98,10 +97,9 @@ class TestFlaggedContentAPI:
                 "title": f"Test Content {i}",
                 "content_type": "text",
                 "content_data": f"Test content {i}",
+                "prompt": f"violence hatred destruction scene {i}",
                 "creator_id": test_user["id"],
-                "item_metadata": {
-                    "prompt": f"violence hatred destruction scene {i}"
-                },
+                "item_metadata": {},
                 "tags": ["test"],
                 "is_private": False
             }
@@ -369,10 +367,9 @@ class TestFlaggedContentWorkflow:
             "title": "Workflow Test Content",
             "content_type": "text",
             "content_data": "Test data",
+            "prompt": "A scene with violence and weapons",
             "creator_id": test_user["id"],
-            "item_metadata": {
-                "prompt": "A scene with violence and weapons"
-            },
+            "item_metadata": {},
             "tags": ["workflow"],
             "is_private": False
         }

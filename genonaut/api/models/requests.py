@@ -43,6 +43,7 @@ class ContentCreateRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=255, description="Content title")
     content_type: ContentType = Field(..., description="Type of content")
     content_data: str = Field(..., min_length=1, description="The actual content or reference to it")
+    prompt: str = Field(..., min_length=1, max_length=20000, description="Generation prompt (immutable after creation)")
     creator_id: UUID = Field(..., description="ID of the user creating the content")
     item_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Content metadata")
     tags: Optional[List[str]] = Field(default_factory=list, description="Content tags")

@@ -105,6 +105,7 @@ class TestContentModels:
             "title": "Test Content",
             "content_type": ContentType.TEXT,
             "content_data": "This is test content",
+            "prompt": "Test prompt",
             "creator_id": TEST_CREATOR_ID,
             "item_metadata": {"category": "test"},
             "tags": ["tag1", "tag2"],
@@ -123,42 +124,46 @@ class TestContentModels:
             "title": "Test Content",
             "content_type": ContentType.TEXT,
             "content_data": "This is test content",
+            "prompt": "Test prompt",
             "creator_id": "invalid-uuid"  # Invalid UUID format
         }
         with pytest.raises(ValidationError):
             ContentCreateRequest(**data)
-    
+
     def test_content_create_request_valid_private(self):
         """Test content creation with private setting."""
         data = {
             "title": "Test Content",
             "content_type": ContentType.TEXT,
             "content_data": "This is test content",
+            "prompt": "Test prompt",
             "creator_id": TEST_CREATOR_ID,
             "is_private": True
         }
         content = ContentCreateRequest(**data)
         assert content.is_private is True
-    
+
     def test_content_create_request_too_many_tags(self):
         """Test content creation with too many tags."""
         data = {
             "title": "Test Content",
             "content_type": ContentType.TEXT,
             "content_data": "This is test content",
+            "prompt": "Test prompt",
             "creator_id": TEST_CREATOR_ID,
             "tags": [f"tag{i}" for i in range(25)]  # Too many tags
         }
         with pytest.raises(ValidationError) as exc_info:
             ContentCreateRequest(**data)
         assert "Cannot have more than 20 tags" in str(exc_info.value)
-    
+
     def test_content_create_request_duplicate_tags(self):
         """Test content creation removes duplicate tags."""
         data = {
             "title": "Test Content",
             "content_type": ContentType.TEXT,
             "content_data": "This is test content",
+            "prompt": "Test prompt",
             "creator_id": TEST_CREATOR_ID,
             "tags": ["tag1", "tag2", "tag1", "tag3", "tag2"]  # Duplicates
         }

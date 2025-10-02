@@ -61,7 +61,8 @@ def sample_content(test_db_session, sample_user):
         content_data="This is test content",
         creator_id=sample_user.id,
         item_metadata={"category": "test"},
-        tags=["test", "sample"]
+        tags=["test", "sample"],
+        prompt="Test prompt"
     )
     test_db_session.add(content)
     test_db_session.commit()
@@ -235,6 +236,7 @@ class TestContentRepository:
                 "content_type": "text",
                 "content_data": "New content data",
                 "creator_id": sample_user.id,
+                "prompt": "Test prompt",
                 "item_metadata": {"category": "new"},
                 "tags": ["new", "content"],
             }
@@ -280,6 +282,7 @@ class TestContentAutoRepository:
                 "content_type": "text",
                 "content_data": "Story seed",
                 "creator_id": sample_user.id,
+                "prompt": "Test prompt",
                 "item_metadata": {"generator": "system"},
                 "tags": ["auto", "story"],
             }

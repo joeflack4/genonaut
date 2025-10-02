@@ -112,6 +112,7 @@ class TestSchemaModels:
             title="Test Content",
             content_type="text",
             content_data="This is test content",
+            prompt="Test prompt for schema test",
             creator_id=self.test_user1.id,
             item_metadata={"word_count": 4},
             tags=["test", "sample"]
@@ -133,6 +134,7 @@ class TestSchemaModels:
             title="Auto Content",
             content_type="text",
             content_data="Automated content payload",
+            prompt="Test prompt for auto content",
             creator_id=self.test_user1.id,
             item_metadata={"generator": "system"},
             tags=["auto", "system"],
@@ -156,6 +158,7 @@ class TestSchemaModels:
             title="Relationship Test",
             content_type="image",
             content_data="/path/to/image.jpg",
+            prompt="Test prompt for schema test",
             creator_id=self.test_user1.id
         )
         
@@ -174,6 +177,7 @@ class TestSchemaModels:
             title="Auto Relationship",
             content_type="image",
             content_data="/auto/path.png",
+            prompt="Test prompt for auto relationship",
             creator_id=self.test_user1.id,
         )
 
@@ -190,6 +194,7 @@ class TestSchemaModels:
             title="Interaction Test Content",
             content_type="text",
             content_data="Test content for interaction",
+            prompt="Test prompt for schema test",
             creator_id=self.test_user1.id
         )
         self.session.add(content)
@@ -220,6 +225,7 @@ class TestSchemaModels:
             title="Relationship Test",
             content_type="audio", 
             content_data="/path/to/audio.mp3",
+            prompt="Test prompt for schema test",
             creator_id=self.test_user1.id
         )
         self.session.add(content)
@@ -246,6 +252,7 @@ class TestSchemaModels:
             title="Recommended Content",
             content_type="video",
             content_data="/path/to/video.mp4",
+            prompt="Test prompt for schema test",
             creator_id=self.test_user1.id
         )
         self.session.add(content)
@@ -295,6 +302,7 @@ class TestSchemaModels:
             title="Generated Story",
             content_type="text",
             content_data="Once upon a time, there were robots...",
+            prompt="Test prompt for schema test",
             creator_id=self.test_user1.id
         )
         self.session.add(result_content)

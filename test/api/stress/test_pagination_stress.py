@@ -125,6 +125,7 @@ class StressTester:
                     title=f"Stress Test Item {j:06d}",
                     content_data=f"Generated content item for stress testing - Item #{j}",
                     creator_id=creator_id,
+                    prompt="Test prompt",
                     quality_score=0.5 + (j % 100) / 200,  # Vary quality scores
                     content_type="text",
                     is_private=(j % 3 == 0)  # Mix of public/private content

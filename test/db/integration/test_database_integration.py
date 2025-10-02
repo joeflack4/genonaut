@@ -87,7 +87,8 @@ class TestDatabaseIntegration:
             content_type="text",
             content_data="Test content 1",
             creator_id=user.id,
-            tags=["integration", "test"]
+            tags=["integration", "test"],
+            prompt="Test prompt"
         )
         
         content2 = ContentItem(
@@ -95,7 +96,8 @@ class TestDatabaseIntegration:
             content_type="image",
             content_data="/path/to/test/image.jpg",
             creator_id=user.id,
-            item_metadata={"size": "1024x768"}
+            item_metadata={"size": "1024x768"},
+            prompt="Test prompt"
         )
         
         auto_item = ContentItemAuto(
@@ -103,6 +105,7 @@ class TestDatabaseIntegration:
             content_type="text",
             content_data="Automated payload",
             creator_id=user.id,
+            prompt="Test prompt",
             item_metadata={"source": "auto"},
             tags=["automation"]
         )
@@ -145,7 +148,8 @@ class TestDatabaseIntegration:
             title="Interactive Content",
             content_type="video",
             content_data="/path/to/video.mp4",
-            creator_id=1  # Will be set after commit
+            creator_id=1,  # Will be set after commit
+            prompt="Test prompt"
         )
         
         session.add_all([creator, viewer])
@@ -213,14 +217,16 @@ class TestDatabaseIntegration:
             title="Content 1",
             content_type="text",
             content_data="Content 1 data",
-            creator_id=1  # Will be updated
+            creator_id=1,  # Will be updated
+            prompt="Test prompt"
         )
         
         content2 = ContentItem(
             title="Content 2",
-            content_type="image", 
+            content_type="image",
             content_data="/path/to/image.jpg",
-            creator_id=1  # Will be updated
+            creator_id=1,  # Will be updated
+            prompt="Test prompt"
         )
         
         session.add_all([user1, user2])
@@ -312,7 +318,8 @@ class TestDatabaseIntegration:
             content_type="text",
             content_data="Once upon a time in a digital realm...",
             creator_id=user.id,
-            item_metadata={"generated_by": "test-gpt"}
+            item_metadata={"generated_by": "test-gpt"},
+            prompt="Test prompt"
         )
 
         session.add(result_content)

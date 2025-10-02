@@ -67,6 +67,7 @@ class ContentService:
         title: Optional[str] = None,
         content_type: Optional[str] = None,
         content_data: Optional[Any] = None,
+        prompt: Optional[str] = None,
         creator_id: Optional[int] = None,
         item_metadata: Optional[Dict[str, Any]] = None,
         tags: Optional[List[str]] = None,
@@ -78,6 +79,7 @@ class ContentService:
             final_title = content_data_dict.get("title")
             final_content_type = content_data_dict.get("content_type")
             final_content_payload = content_data_dict.get("content_data")
+            final_prompt = content_data_dict.get("prompt")
             final_creator_id = content_data_dict.get("creator_id")
             final_item_metadata = content_data_dict.get("item_metadata") or {}
             final_tags = content_data_dict.get("tags") or []
@@ -86,6 +88,7 @@ class ContentService:
             final_title = title
             final_content_type = content_type
             final_content_payload = content_data
+            final_prompt = prompt
             final_creator_id = creator_id
             final_item_metadata = item_metadata or {}
             final_tags = tags or []
@@ -112,10 +115,16 @@ class ContentService:
         if not final_content_payload or not str(final_content_payload).strip():
             raise ValidationError("Content data cannot be empty")
 
+        if not final_prompt or not final_prompt.strip():
+            raise ValidationError("Prompt cannot be empty")
+        if len(final_prompt) > 20000:
+            raise ValidationError("Prompt cannot exceed 20000 characters")
+
         payload = {
             "title": final_title.strip(),
             "content_type": final_content_type,
             "content_data": final_content_payload,
+            "prompt": final_prompt.strip(),
             "creator_id": final_creator_id,
             "item_metadata": final_item_metadata,
             "tags": final_tags,
@@ -447,6 +456,7 @@ class ContentService:
                 ContentItem.title.label('title'),
                 ContentItem.content_type.label('content_type'),
                 ContentItem.content_data.label('content_data'),
+                ContentItem.path_thumb.label('path_thumb'),
                 ContentItem.creator_id.label('creator_id'),
                 ContentItem.item_metadata.label('item_metadata'),
                 ContentItem.tags.label('tags'),
@@ -482,6 +492,7 @@ class ContentService:
                 ContentItemAuto.title.label('title'),
                 ContentItemAuto.content_type.label('content_type'),
                 ContentItemAuto.content_data.label('content_data'),
+                ContentItemAuto.path_thumb.label('path_thumb'),
                 ContentItemAuto.creator_id.label('creator_id'),
                 ContentItemAuto.item_metadata.label('item_metadata'),
                 ContentItemAuto.tags.label('tags'),
@@ -592,6 +603,7 @@ class ContentService:
                 "title": row.title,
                 "content_type": row.content_type,
                 "content_data": row.content_data,
+                "path_thumb": row.path_thumb,
                 "creator_id": str(row.creator_id),
                 "item_metadata": row.item_metadata,
                 "tags": row.tags,

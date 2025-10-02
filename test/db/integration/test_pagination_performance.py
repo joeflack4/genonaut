@@ -44,6 +44,7 @@ class TestPaginationPerformance:
                 content_type=["text", "image", "video", "audio"][i % 4],
                 content_data=f"Sample content data for item {i}",
                 creator_id=user.id,
+                prompt="Test prompt",
                 created_at=datetime.utcnow() - timedelta(hours=i),
                 quality_score=0.1 + (i % 10) * 0.1,  # Scores from 0.1 to 1.0
                 is_private=i % 5 == 0  # 20% private content
@@ -334,6 +335,7 @@ class TestPaginationPerformance:
                 title=f"Performance Test Content {i:05d}",
                 content_type=["text", "image", "video", "audio"][i % 4],
                 content_data=f"Large dataset test content {i}",
+                prompt="Test prompt",
                 creator_id=users[i % len(users)].id,
                 created_at=datetime.utcnow() - timedelta(hours=i % (24 * 30)),
                 quality_score=(i % 100) / 100.0,

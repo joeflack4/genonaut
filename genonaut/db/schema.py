@@ -99,6 +99,8 @@ class ContentItemColumns:
     title = Column(String(255), nullable=False)
     content_type = Column(String(50), nullable=False, index=True)  # text, image, video, audio
     content_data = Column(Text, nullable=False)
+    path_thumb = Column(String(512), nullable=True)  # Path to thumbnail image on disk
+    prompt = Column(String(20000), nullable=False)  # Generation prompt (immutable via trigger)
     item_metadata = Column(JSONColumn, default=dict)
     creator_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -319,7 +321,7 @@ class GenerationJob(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
     job_type = Column(String(50), nullable=False, index=True)  # text, image, video, audio
-    prompt = Column(Text, nullable=False)
+    prompt = Column(String(20000), nullable=False)  # Generation prompt (immutable via trigger)
     parameters = Column(JSONColumn, default=dict)
     status = Column(String(20), default='pending', nullable=False, index=True)  # pending, running, completed, failed, cancelled
     result_content_id = Column(Integer, ForeignKey('content_items.id'), nullable=True)
@@ -626,4 +628,61 @@ event.listen(
     Base.metadata,
     "before_create",
     DDL("CREATE EXTENSION IF NOT EXISTS pg_trgm").execute_if(dialect="postgresql")
+)
+
+# Create prompt immutability trigger function and triggers (PostgreSQL only)
+# This prevents modification of the prompt field after initial creation
+_create_prompt_trigger_function = DDL("""
+CREATE OR REPLACE FUNCTION forbid_prompt_update() RETURNS trigger AS $$
+BEGIN
+  IF NEW.prompt IS DISTINCT FROM OLD.prompt THEN
+    RAISE EXCEPTION 'prompt is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+""")
+
+_create_generation_jobs_trigger = DDL("""
+CREATE TRIGGER trg_forbid_prompt_update_gj
+BEFORE UPDATE ON generation_jobs
+FOR EACH ROW EXECUTE FUNCTION forbid_prompt_update();
+""")
+
+_create_content_items_trigger = DDL("""
+CREATE TRIGGER trg_forbid_prompt_update_ci
+BEFORE UPDATE ON content_items
+FOR EACH ROW EXECUTE FUNCTION forbid_prompt_update();
+""")
+
+_create_content_items_auto_trigger = DDL("""
+CREATE TRIGGER trg_forbid_prompt_update_cia
+BEFORE UPDATE ON content_items_auto
+FOR EACH ROW EXECUTE FUNCTION forbid_prompt_update();
+""")
+
+# Register trigger function creation (once, after all tables are created)
+event.listen(
+    Base.metadata,
+    "after_create",
+    _create_prompt_trigger_function.execute_if(dialect="postgresql")
+)
+
+# Register individual table triggers
+event.listen(
+    GenerationJob.__table__,
+    "after_create",
+    _create_generation_jobs_trigger.execute_if(dialect="postgresql")
+)
+
+event.listen(
+    ContentItem.__table__,
+    "after_create",
+    _create_content_items_trigger.execute_if(dialect="postgresql")
+)
+
+event.listen(
+    ContentItemAuto.__table__,
+    "after_create",
+    _create_content_items_auto_trigger.execute_if(dialect="postgresql")
 )

@@ -37,6 +37,7 @@ class TestCursorBasedPagination:
                 title=f"Cursor Test Content {i:04d}",
                 content_type="text",
                 content_data=f"Content data for cursor test {i}",
+                prompt=f"Test prompt for content {i}",
                 creator_id=user.id,
                 created_at=base_time - timedelta(minutes=i),
                 quality_score=0.5 + (i % 50) / 100.0,
@@ -123,9 +124,11 @@ class TestCursorBasedPagination:
             title="New Content Added During Pagination",
             content_type="text",
             content_data="This content was added while paginating",
+            prompt="Test prompt for new content",
             creator_id=user.id,
             created_at=datetime.utcnow(),  # Newer than existing content
-            quality_score=0.9
+            quality_score=0.9,
+            is_private=False
         )
         db_session.add(new_content)
         db_session.commit()
@@ -328,9 +331,11 @@ class TestCursorBasedPagination:
                 title=f"Duplicate Time Content {i:03d}",
                 content_type="text",
                 content_data=f"Content with same timestamp {i}",
+                prompt=f"Test prompt for duplicate time content {i}",
                 creator_id=user.id,
                 created_at=same_time,  # All have same timestamp
-                quality_score=0.5
+                quality_score=0.5,
+                is_private=False
             )
             db_session.add(content)
             content_items.append(content)
