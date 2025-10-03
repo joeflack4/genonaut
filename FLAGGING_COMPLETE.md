@@ -279,7 +279,7 @@ hatred
 ### Environment
 **Development**: `make api-dev`
 **Testing**: `make api-test`
-**Production**: Set `API_ENVIRONMENT=production`
+**Production**: Set `APP_ENV=production`
 
 ---
 

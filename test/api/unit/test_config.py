@@ -15,7 +15,7 @@ class TestSettings:
         with patch.dict(os.environ, {}, clear=True):
             settings = Settings()
             assert settings.api_secret_key == "your-secret-key-change-this-in-production"
-            assert settings.api_environment == "dev"
+            assert settings.app_env == "dev"
             assert settings.api_host == "0.0.0.0"
             assert settings.api_port == 8001
             assert settings.api_debug is False
@@ -24,7 +24,7 @@ class TestSettings:
         """Test settings loaded from environment variables."""
         env_vars = {
             "API_SECRET_KEY": "test-secret-key",
-            "API_ENVIRONMENT": "test-env",
+            "APP_ENV": "test-env",
             "API_HOST": "127.0.0.1",
             "API_PORT": "9000",
             "API_DEBUG": "true"
@@ -32,7 +32,7 @@ class TestSettings:
         with patch.dict(os.environ, env_vars, clear=True):
             settings = Settings()
             assert settings.api_secret_key == "test-secret-key"
-            assert settings.api_environment == "test-env"
+            assert settings.app_env == "test-env"
             assert settings.api_host == "127.0.0.1"
             assert settings.api_port == 9000
             assert settings.api_debug is True
@@ -43,7 +43,7 @@ class TestSettings:
         env_vars = {
             "DATABASE_URL": "postgresql://user:pass@localhost:5432/genonaut_main",
             "DATABASE_URL_DEMO": "postgresql://user:pass@localhost:5432/genonaut_test_env",
-            "API_ENVIRONMENT": "test_env"
+            "APP_ENV": "test_env"
         }
         with patch.dict(os.environ, env_vars, clear=True):
             settings = Settings()
@@ -64,12 +64,12 @@ class TestSettings:
     def test_settings_support_test_environment(self):
         """Test that the test environment loads dedicated database settings."""
         env_vars = {
-            "API_ENVIRONMENT": "test",
+            "APP_ENV": "test",
             "DATABASE_URL_TEST": "postgresql://tester:pass@localhost:5432/genonaut_test_env"
         }
         with patch.dict(os.environ, env_vars, clear=True):
             settings = Settings()
-            assert settings.api_environment == "test"
+            assert settings.app_env == "test"
             assert settings.database_url_test == "postgresql://tester:pass@localhost:5432/genonaut_test_env"
     
     def test_get_settings_singleton(self):

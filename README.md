@@ -79,7 +79,7 @@ Configure database and API settings via environment variables:
 **Key Optional Variables:**
 - `DATABASE_URL` - Complete PostgreSQL connection URL (recommended for production)
 - `API_SECRET_KEY` - Secret key for JWT tokens and cryptographic operations
-- `API_ENVIRONMENT` - Which database to use by default (`dev`/`demo`/`test`)
+- `APP_ENV` - Which database to use by default (`dev`/`demo`/`test`)
 
 For complete environment variable documentation, configuration behavior, and troubleshooting, see [Database Documentation](docs/db.md).
 
@@ -124,6 +124,128 @@ The React frontend lives in `frontend/` and mirrors the API feature set with das
 - Make helpers: `make frontend-dev`, `make frontend-test`, `make frontend-build`
 
 See [Frontend Overview](docs/frontend/overview.md) for architecture, commands, and testing notes.
+
+## Celery + Redis for Async Tasks
+
+Genonaut uses Celery with Redis for asynchronous task processing, primarily for image generation jobs via ComfyUI integration.
+
+### Prerequisites
+
+1. **Redis Server**: Install and start Redis
+   ```bash
+   # macOS
+   brew install redis
+   brew services start redis
+
+   # Ubuntu/Debian
+   sudo apt-get install redis-server
+   sudo systemctl start redis
+
+   # Docker
+   docker run -d -p 6379:6379 redis:latest
+   ```
+
+2. **Environment Variables**: Already configured in `.env` (see env/.env for Redis URLs and namespaces)
+
+### Running Workers
+
+Start a Celery worker to process async tasks:
+
+```bash
+# Development environment
+make celery-dev              # Start Celery worker for dev
+
+# Demo/Test environments
+make celery-demo             # Start Celery worker for demo
+make celery-test             # Start Celery worker for test
+```
+
+**Typical Workflow:**
+```bash
+# Terminal 1: Start API server
+make api-dev
+
+# Terminal 2: Start Celery worker
+make celery-dev
+
+# Terminal 3: (Optional) Start Flower monitoring dashboard
+make flower-dev              # Access at http://localhost:5555
+```
+
+### Flower Monitoring Dashboard
+
+Monitor your Celery workers and tasks in real-time:
+
+```bash
+make flower-dev              # Development (http://localhost:5555)
+make flower-demo             # Demo
+make flower-test             # Test
+```
+
+Flower provides:
+- Real-time task monitoring
+- Worker status and statistics
+- Task history and results
+- Task retry and revoke capabilities
+
+### Redis Management
+
+Useful Redis commands for development:
+
+```bash
+# View keys in Redis
+make redis-keys-dev          # List all keys in dev DB
+make redis-info-dev          # Show Redis DB size
+
+# Clear Redis data (use with caution!)
+make redis-flush-dev         # Flush dev Redis DB (DB 4)
+make redis-flush-demo        # Flush demo Redis DB (DB 2)
+make redis-flush-test        # Flush test Redis DB (DB 3)
+```
+
+### How It Works
+
+1. **Job Creation**: When you create a generation job via API, it's queued in Celery
+2. **Worker Processing**: Celery worker picks up the job and processes it asynchronously
+3. **Status Updates**: Job status is updated in the database (pending → running → completed/failed)
+4. **Task ID**: Each job has a `celery_task_id` for tracking and cancellation
+
+**Example API Usage:**
+```bash
+# Create a generation job (returns immediately with job_id)
+curl -X POST http://localhost:8001/api/v1/generation-jobs/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "your-user-id",
+    "job_type": "image",
+    "prompt": "a beautiful sunset over mountains",
+    "width": 832,
+    "height": 1216
+  }'
+
+# Check job status
+curl http://localhost:8001/api/v1/generation-jobs/{job_id}
+
+# Cancel a job
+curl -X POST http://localhost:8001/api/v1/generation-jobs/{job_id}/cancel
+```
+
+### Troubleshooting
+
+**Worker won't start:**
+- Ensure Redis is running: `redis-cli ping` (should return "PONG")
+- Check environment variables in `.env`
+- Verify Python virtual environment is activated
+
+**Jobs stuck in pending:**
+- Ensure Celery worker is running
+- Check worker logs for errors
+- Verify Redis connection: `redis-cli -n 4 KEYS '*'` (for dev)
+
+**Clear stuck jobs:**
+```bash
+make redis-flush-dev         # Clear all Redis data for dev
+```
 
 ## Testing
 

@@ -4,7 +4,10 @@ reset-db-2-schema--test reset-db-3-schema-and-history--demo reset-db-3-schema-an
 re-seed-demo-force seed-from-gen-demo seed-from-gen-test export-demo-data test test-quick test-verbose test-specific test-unit test-db \
 test-db-unit test-db-integration test-api test-all clear-excess-test-schemas install install-dev \
 lint format clean migrate-all migrate-prep migrate-dev migrate-demo migrate-test backup backup-dev backup-demo \
-backup-test api-dev api-demo api-test frontend-install frontend-dev frontend-build frontend-preview frontend-test \
+backup-test api-dev api-demo api-test celery-dev celery-demo celery-test flower-dev flower-demo flower-test \
+redis-flush-dev redis-flush-demo redis-flush-test redis-keys-dev redis-keys-demo redis-keys-test \
+redis-info-dev redis-info-demo redis-info-test \
+frontend-install frontend-dev frontend-build frontend-preview frontend-test \
 frontend-test-unit frontend-test-watch frontend-test-coverage frontend-test-e2e frontend-test-e2e-headed \
 frontend-test-e2e-ui frontend-test-e2e-real-api frontend-test-e2e-real-api-headed frontend-test-e2e-real-api-ui \
 frontend-lint frontend-type-check frontend-format frontend-format-write \
@@ -103,6 +106,27 @@ help:
 	@echo "  api-production-sim       Start FastAPI simulating production"
 	@echo "  api-demo-load-test       Start FastAPI for demo load testing"
 	@echo "  api-test-load-test       Start FastAPI for test load testing"
+	@echo ""
+	@echo "Celery Workers:"
+	@echo "  celery-dev               Start Celery worker for development"
+	@echo "  celery-demo              Start Celery worker for demo"
+	@echo "  celery-test              Start Celery worker for test"
+	@echo ""
+	@echo "Flower Monitoring:"
+	@echo "  flower-dev               Start Flower dashboard for development (port 5555)"
+	@echo "  flower-demo              Start Flower dashboard for demo (port 5555)"
+	@echo "  flower-test              Start Flower dashboard for test (port 5555)"
+	@echo ""
+	@echo "Redis Management:"
+	@echo "  redis-flush-dev          Flush development Redis DB (DB 4)"
+	@echo "  redis-flush-demo         Flush demo Redis DB (DB 2)"
+	@echo "  redis-flush-test         Flush test Redis DB (DB 3)"
+	@echo "  redis-keys-dev           List keys in development Redis DB"
+	@echo "  redis-keys-demo          List keys in demo Redis DB"
+	@echo "  redis-keys-test          List keys in test Redis DB"
+	@echo "  redis-info-dev           Show Redis info for development DB"
+	@echo "  redis-info-demo          Show Redis info for demo DB"
+	@echo "  redis-info-test          Show Redis info for test DB"
 	@echo ""
 	@echo "Frontend:"
 	@echo "  frontend-install         Install frontend dependencies"
@@ -469,36 +493,102 @@ backup: backup-dev backup-demo backup-test
 # FastAPI server
 api-dev:
 	@echo "Starting FastAPI server for development database..."
-	API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
+	APP_ENV=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
 
 api-demo:
 	@echo "Starting FastAPI server for demo database..."
-	API_ENVIRONMENT=demo uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
+	APP_ENV=demo uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
 
 api-test:
 	@echo "Starting FastAPI server for test database..."
-	API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
+	APP_ENV=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
 
 # FastAPI server variants for performance testing
 api-dev-profile:
 	@echo "Starting FastAPI server for development with profiling (single worker, no reload)..."
-	API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 1
+	APP_ENV=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 1
 
 api-dev-load-test:
 	@echo "Starting FastAPI server for load testing (4 workers)..."
-	API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 4
+	APP_ENV=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 4
 
 api-production-sim:
 	@echo "Starting FastAPI server simulating production (8 workers)..."
-	API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 8
+	APP_ENV=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 8
 
 api-demo-load-test:
 	@echo "Starting FastAPI server for demo load testing (4 workers)..."
-	API_ENVIRONMENT=demo uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 4
+	APP_ENV=demo uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 4
 
 api-test-load-test:
 	@echo "Starting FastAPI server for test load testing (4 workers)..."
-	API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 4
+	APP_ENV=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 4
+
+# Celery worker commands
+celery-dev:
+	@echo "Starting Celery worker for development environment..."
+	APP_ENV=dev celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation
+
+celery-demo:
+	@echo "Starting Celery worker for demo environment..."
+	APP_ENV=demo celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation
+
+celery-test:
+	@echo "Starting Celery worker for test environment..."
+	APP_ENV=test celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation
+
+# Flower monitoring dashboard
+flower-dev:
+	@echo "Starting Flower dashboard for development environment..."
+	APP_ENV=dev celery -A genonaut.worker.queue_app:celery_app flower --port=5555
+
+flower-demo:
+	@echo "Starting Flower dashboard for demo environment..."
+	APP_ENV=demo celery -A genonaut.worker.queue_app:celery_app flower --port=5555
+
+flower-test:
+	@echo "Starting Flower dashboard for test environment..."
+	APP_ENV=test celery -A genonaut.worker.queue_app:celery_app flower --port=5555
+
+# Redis management commands
+redis-flush-dev:
+	@echo "Flushing Redis DB 4 (dev)..."
+	@redis-cli -n 4 FLUSHDB
+	@echo "✅ Dev Redis DB flushed"
+
+redis-flush-demo:
+	@echo "Flushing Redis DB 2 (demo)..."
+	@redis-cli -n 2 FLUSHDB
+	@echo "✅ Demo Redis DB flushed"
+
+redis-flush-test:
+	@echo "Flushing Redis DB 3 (test)..."
+	@redis-cli -n 3 FLUSHDB
+	@echo "✅ Test Redis DB flushed"
+
+redis-keys-dev:
+	@echo "Listing keys in Redis DB 4 (dev)..."
+	@redis-cli -n 4 KEYS '*'
+
+redis-keys-demo:
+	@echo "Listing keys in Redis DB 2 (demo)..."
+	@redis-cli -n 2 KEYS '*'
+
+redis-keys-test:
+	@echo "Listing keys in Redis DB 3 (test)..."
+	@redis-cli -n 3 KEYS '*'
+
+redis-info-dev:
+	@echo "Redis info for dev (DB 4)..."
+	@redis-cli -n 4 DBSIZE
+
+redis-info-demo:
+	@echo "Redis info for demo (DB 2)..."
+	@redis-cli -n 2 DBSIZE
+
+redis-info-test:
+	@echo "Redis info for test (DB 3)..."
+	@redis-cli -n 3 DBSIZE
 
 # Frontend helpers
 frontend-install:

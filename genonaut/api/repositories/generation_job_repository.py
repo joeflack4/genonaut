@@ -257,22 +257,22 @@ class GenerationJobRepository(BaseRepository[GenerationJob, Dict[str, Any], Dict
     
     def set_result_content(self, job_id: int, content_id: int) -> GenerationJob:
         """Set the result content for a generation job.
-        
+
         Args:
             job_id: Job ID
             content_id: Content item ID that was generated
-            
+
         Returns:
             Updated generation job
-            
+
         Raises:
             EntityNotFoundError: If job not found
             DatabaseError: If database operation fails
         """
         try:
             job = self.get_or_404(job_id)
-            job.result_content_id = content_id
-            
+            job.content_id = content_id
+
             self.db.commit()
             self.db.refresh(job)
             return job
@@ -357,19 +357,19 @@ class GenerationJobRepository(BaseRepository[GenerationJob, Dict[str, Any], Dict
         user_id: UUID,
         job_type: str,
         prompt: str,
-        parameters: Optional[Dict[str, Any]] = None
+        params: Optional[Dict[str, Any]] = None
     ) -> GenerationJob:
         """Create a new generation job.
-        
+
         Args:
             user_id: User ID
             job_type: Type of generation job
             prompt: Generation prompt
-            parameters: Optional generation parameters
-            
+            params: Optional generation parameters
+
         Returns:
             Created generation job
-            
+
         Raises:
             DatabaseError: If database operation fails
         """
@@ -378,10 +378,10 @@ class GenerationJobRepository(BaseRepository[GenerationJob, Dict[str, Any], Dict
                 'user_id': user_id,
                 'job_type': job_type,
                 'prompt': prompt,
-                'parameters': parameters or {},
+                'params': params or {},
                 'status': 'pending'
             }
-            
+
             return self.create(job_data)
         except SQLAlchemyError as e:
             raise DatabaseError(f"Failed to create generation job: {str(e)}")

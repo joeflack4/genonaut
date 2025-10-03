@@ -189,20 +189,35 @@ class RecommendationServedResponse(BaseModel):
 
 
 class GenerationJobResponse(BaseModel):
-    """Response model for generation job data."""
+    """Response model for generation job data.
+
+    This model includes both general generation job fields and ComfyUI-specific fields.
+    """
     id: int = Field(..., description="Job ID")
     user_id: UUID = Field(..., description="User ID")
     job_type: JobType = Field(..., description="Job type")
     prompt: str = Field(..., description="Generation prompt")
-    parameters: Dict[str, Any] = Field(..., description="Generation parameters")
+    params: Dict[str, Any] = Field(..., description="Generation parameters")
     status: JobStatus = Field(..., description="Job status")
-    result_content_id: Optional[int] = Field(..., description="Result content ID")
+    content_id: Optional[int] = Field(..., description="Result content ID")
     created_at: datetime = Field(..., description="Job creation timestamp")
     started_at: Optional[datetime] = Field(..., description="Job start timestamp")
     completed_at: Optional[datetime] = Field(..., description="Job completion timestamp")
     error_message: Optional[str] = Field(..., description="Error message if failed")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Job last update timestamp")
-    
+
+    # Celery integration fields
+    celery_task_id: Optional[str] = Field(None, description="Celery task ID for async processing")
+
+    # ComfyUI-specific fields
+    negative_prompt: Optional[str] = Field(None, description="Negative prompt for ComfyUI generation")
+    checkpoint_model: Optional[str] = Field(None, description="Checkpoint model name for ComfyUI")
+    lora_models: Optional[List[Dict[str, Any]]] = Field(None, description="LoRA models with strengths for ComfyUI")
+    width: Optional[int] = Field(None, description="Image width for ComfyUI")
+    height: Optional[int] = Field(None, description="Image height for ComfyUI")
+    batch_size: Optional[int] = Field(None, description="Number of images to generate for ComfyUI")
+    comfyui_prompt_id: Optional[str] = Field(None, description="ComfyUI workflow prompt ID")
+
     model_config = {"from_attributes": True}
 
 

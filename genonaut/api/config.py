@@ -16,7 +16,7 @@ load_dotenv(dotenv_path=env_path)
 
 class Settings(BaseSettings):
     """API configuration settings."""
-    
+
     # Existing database settings (inherited from existing setup)
     database_url: Optional[str] = None
     database_url_demo: Optional[str] = None
@@ -32,13 +32,13 @@ class Settings(BaseSettings):
     db_user: str = "postgres"
     db_password: Optional[str] = None
     db_echo: bool = False
-    
+
     # New API settings
     api_secret_key: str = "your-secret-key-change-this-in-production"
     api_host: str = "0.0.0.0"
     api_port: int = 8001
     api_debug: bool = False
-    api_environment: str = "dev"  # dev, demo, or test
+    app_env: str = "dev"  # dev, demo, or test
 
     # ComfyUI integration settings
     comfyui_url: str = "http://localhost:8000"
@@ -46,11 +46,65 @@ class Settings(BaseSettings):
     comfyui_poll_interval: float = 2.0  # seconds between status polls
     comfyui_output_dir: str = "/Users/joeflack4/Documents/ComfyUI/output"
     comfyui_models_dir: str = "/tmp/comfyui_models"  # @dev: configure actual ComfyUI models directory
-    
+
+    # Redis settings
+    redis_url_demo: str = "redis://localhost:6379/2"
+    redis_url_test: str = "redis://localhost:6379/3"
+    redis_url_dev: str = "redis://localhost:6379/4"
+    redis_ns_demo: str = "genonaut_demo"
+    redis_ns_test: str = "genonaut_test"
+    redis_ns_dev: str = "genonaut_dev"
+
+    # Celery settings
+    celery_broker_url_demo: Optional[str] = None
+    celery_result_backend_demo: Optional[str] = None
+    celery_broker_url_test: Optional[str] = None
+    celery_result_backend_test: Optional[str] = None
+    celery_broker_url_dev: Optional[str] = None
+    celery_result_backend_dev: Optional[str] = None
+
     class Config:
         env_file = PROJECT_ROOT / "env" / ".env"
         case_sensitive = False
         extra = "ignore"
+
+    @property
+    def redis_url(self) -> str:
+        """Get Redis URL based on current environment."""
+        return {
+            "demo": self.redis_url_demo,
+            "test": self.redis_url_test,
+            "dev": self.redis_url_dev,
+        }[self.app_env]
+
+    @property
+    def redis_ns(self) -> str:
+        """Get Redis namespace based on current environment."""
+        return {
+            "demo": self.redis_ns_demo,
+            "test": self.redis_ns_test,
+            "dev": self.redis_ns_dev,
+        }[self.app_env]
+
+    @property
+    def celery_broker_url(self) -> str:
+        """Get Celery broker URL based on current environment."""
+        fallback = self.redis_url
+        return {
+            "demo": self.celery_broker_url_demo or fallback,
+            "test": self.celery_broker_url_test or fallback,
+            "dev": self.celery_broker_url_dev or fallback,
+        }[self.app_env]
+
+    @property
+    def celery_result_backend(self) -> str:
+        """Get Celery result backend URL based on current environment."""
+        fallback = self.redis_url
+        return {
+            "demo": self.celery_result_backend_demo or fallback,
+            "test": self.celery_result_backend_test or fallback,
+            "dev": self.celery_result_backend_dev or fallback,
+        }[self.app_env]
 
 
 @lru_cache()

@@ -1,144 +1,36 @@
-# FastAPI + Celery + Redis Setup Guide (macOS)
+# FastAPI + Celery + Redis
+This spec shows how to add **Celery + Redis** to a FastAPI backend for job orchestration. Code snippets are just 
+examples. They may not be optimal or even work if you copy/paste them as-is. Think through how best to implement. The 
+snippets are only there for reference / inspiration. 
 
-This guide shows how to add **Celery + Redis** to a FastAPI backend for job orchestration.
+## Install Redis (done)
 
----
+## Redis & Celery settings
+New environment variables have been added in env/ to .env and env.example. They either start with 
+REDIS_ or CELERY_. There are variables for use with the different databases: dev, test, demo.
 
-## 2) Settings
-
-**.env**
-```env
-REDIS_URL=redis://localhost:6379/0
-CELERY_BROKER_URL=${REDIS_URL}
-CELERY_RESULT_BACKEND=${REDIS_URL}
+```
+REDIS_URL_DEMO=redis://localhost:6379/2
+REDIS_URL_TEST=redis://localhost:6379/3
+REDIS_URL_DEV=redis://localhost:6379/4
+REDIS_NS_DEMO=genonaut_demo
+REDIS_NS_TEST=genonaut_test
+REDIS_NS_DEV=genonaut_dev
+CELERY_BROKER_URL_DEMO=${REDIS_URL_DEMO}
+CELERY_RESULT_BACKEND_DEMO=${REDIS_URL_DEMO}
+CELERY_BROKER_URL_TEST=${REDIS_URL_TEST}
+CELERY_RESULT_BACKEND_TEST=${REDIS_URL_TEST}
+CELERY_BROKER_URL_DEV=${REDIS_URL_DEV}
+CELERY_RESULT_BACKEND_DEV=${REDIS_URL_DEV}
 ```
 
-**app/core/settings.py**
-```python
-from pydantic_settings import BaseSettings
+**How does the backend know which Redis URL to use?**  
+You'll need to program this to be responsive to the `APP_ENV` we pass already, which we currently have dictating
+which Postgres DB to connect to. E.g. `make api-demo` does: 
+`APP_ENV=demo uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload`
 
-class Settings(BaseSettings):
-    redis_url: str = "redis://localhost:6379/0"
-    celery_broker_url: str | None = None
-    celery_result_backend: str | None = None
-
-    class Config:
-        env_file = ".env"
-
-settings = Settings()
-```
-
----
-
-## 3) Celery app
-
-**app/worker/celery_app.py**
-```python
-from celery import Celery
-from app.core.settings import settings
-
-celery = Celery(
-    "genonaut",
-    broker=settings.celery_broker_url or settings.redis_url,
-    backend=settings.celery_result_backend or settings.redis_url,
-)
-
-celery.conf.update(
-    task_serializer="json",
-    result_serializer="json",
-    accept_content=["json"],
-    task_time_limit=60*30,      # 30 min per task
-    task_soft_time_limit=60*25,
-    worker_max_tasks_per_child=100,
-)
-```
-
----
-
-## 4) Define tasks
-
-**app/worker/tasks.py**
-```python
-from .celery_app import celery
-
-@celery.task(bind=True, autoretry_for=(Exception,), retry_backoff=5, max_retries=3)
-def run_comfy_job(self, job_id: str, workflow: dict):
-    # 1) tell DB: STARTED
-    # 2) submit to ComfyUI (HTTP to /prompt or ws)
-    # 3) poll or wait for webhook; when images ready, persist to storage
-    # 4) write metadata/thumbnails; DB: SUCCESS; return artifact ids
-    return {"job_id": job_id, "artifacts": []}
-```
-
----
-
-## 5) FastAPI endpoints
-
-**app/main.py**
-```python
-from fastapi import FastAPI
-from app.worker.tasks import run_comfy_job
-
-app = FastAPI()
-
-@app.post("/jobs")
-def create_job(payload: dict):
-    job_id = "generate-uuid-and-insert-row"  # write PENDING row in DB
-    run_comfy_job.delay(job_id, payload)     # enqueue
-    return {"job_id": job_id, "status": "queued"}
-
-@app.get("/jobs/{job_id}")
-def get_status(job_id: str):
-    # read status from your DB (preferred)
-    # or: from celery if you stored AsyncResult id
-    return {"job_id": job_id, "status": "STARTED/SUCCESS/FAILURE"}
-```
-
----
-
-## 6) Run it
-
-```bash
-# Start FastAPI
-uvicorn app.main:app --reload
-
-# Start Celery worker
-celery -A app.worker.celery_app.celery worker --loglevel=INFO -Q default -n worker@%h
-
-# Optional: Flower dashboard
-celery -A app.worker.celery_app.celery flower
-```
-
----
-
-## Tips
-
-- Use DB as the **source of truth** for job state; store Celery `task_id` on your job row.
-- For instant UI updates, have the worker push progress to Redis Pub/Sub and your FastAPI WebSocket relays it.
-- If ComfyUI supports webhooks, expose `/webhooks/comfyui` to mark jobs done without polling (still keep Celery to orchestrate and post-process).
-
-
-
-
-
-
-
-
-
------------------
-
-
-
-
-
-
-
-
-
-# Single Redis Server for Three Local Environments (_demo, _test, _dev)
-## 1) DB Index Mapping
-
-We’ll map each Postgres DB (suffix) to a **Redis logical DB** (0–15 are available by default).
+**Single Redis Server for Three Local Environments (_demo, _test, _dev)**
+DB Index Mapping: We’ll map each Postgres DB (suffix) to a **Redis logical DB** (0–15 are available by default).
 
 ```
 _demo -> DB 2
@@ -156,43 +48,11 @@ REDIS_URL_DEV=redis://localhost:6379/4
 
 > Why different DBs? Prevents collisions and lets you safely run `FLUSHDB` in one environment without touching the others.
 
----
+**Selecting the Right URL in Code**
+We already have `genonaut/api/config.py`. Below is just an example of what a fresh new `Settings` class woudl look like 
+that incorporates redis and celery. Use it for inspiration. Udpate our existing Settings.
 
-## 2) .env Examples (this is already done; env/.env and env/env.example are already updated)
-
-Create or update your `.env` with per-environment URLs and a namespace prefix (used for keys/queues).
-
-```env
-# Redis URLs (single server, 3 logical DBs)
-REDIS_URL_DEMO=redis://localhost:6379/2
-REDIS_URL_TEST=redis://localhost:6379/3
-REDIS_URL_DEV=redis://localhost:6379/4
-
-# Active environment (one of: demo, test, dev)
-APP_ENV=dev
-
-# Optional: per-env namespaces for keys/queues (recommended)
-REDIS_NS_DEMO=genonaut_demo
-REDIS_NS_TEST=genonaut_test
-REDIS_NS_DEV=genonaut_dev
-
-# Celery (you can keep broker and result in the same DB, or split them—see §4)
-CELERY_BROKER_URL_DEMO=${REDIS_URL_DEMO}
-CELERY_RESULT_BACKEND_DEMO=${REDIS_URL_DEMO}
-
-CELERY_BROKER_URL_TEST=${REDIS_URL_TEST}
-CELERY_RESULT_BACKEND_TEST=${REDIS_URL_TEST}
-
-CELERY_BROKER_URL_DEV=${REDIS_URL_DEV}
-CELERY_RESULT_BACKEND_DEV=${REDIS_URL_DEV}
-```
-
----
-
-## 3) Selecting the Right URL in Code
-
-**app/core/settings.py**
-
+genonaut/api/config.py:
 ```python
 from pydantic_settings import BaseSettings
 
@@ -256,134 +116,145 @@ settings = Settings()
 
 Use `settings.redis_url`, `settings.redis_ns`, `settings.celery_broker_url`, `settings.celery_result_backend` throughout your app.
 
----
+## Celery app
 
-## 4) Celery Wiring (Single Redis, Separate DBs)
-
-**app/worker/celery_app.py**
-
+**genonaut/worker/queue_app.py**
 ```python
 from celery import Celery
 from app.core.settings import settings
 
 celery = Celery(
     "genonaut",
-    broker=settings.celery_broker_url,
-    backend=settings.celery_result_backend,
+    broker=settings.celery_broker_url or settings.redis_url,
+    backend=settings.celery_result_backend or settings.redis_url,
 )
 
-# Optional: put tasks in per-env queues
 celery.conf.update(
     task_serializer="json",
     result_serializer="json",
     accept_content=["json"],
-    task_time_limit=60*30,
+    task_time_limit=60*30,      # 30 min per task
     task_soft_time_limit=60*25,
     worker_max_tasks_per_child=100,
-    task_default_queue=f"{settings.redis_ns}:queue:default",
 )
 ```
 
-**app/worker/tasks.py**
+---
 
+## Define tasks
+
+**genonaut/worker/tasks.py**
 ```python
-from .celery_app import celery
-from app.core.settings import settings
-
-def k(key: str) -> str:
-    # Namespace your keys to avoid collisions across envs
-    return f"{settings.redis_ns}:{key}"
+from .queue_app import celery
 
 @celery.task(bind=True, autoretry_for=(Exception,), retry_backoff=5, max_retries=3)
 def run_comfy_job(self, job_id: str, workflow: dict):
-    # Example: publish progress channel per env
-    progress_channel = k(f"progress:{job_id}")
-    # ... do work ...
+    # 1) tell DB: STARTED
+    # 2) submit to ComfyUI (HTTP to /prompt or ws)
+    # 3) poll or wait for webhook; when images ready, persist to storage
+    # 4) write metadata/thumbnails; DB: SUCCESS; return artifact ids
     return {"job_id": job_id, "artifacts": []}
 ```
 
 ---
 
-## 5) Running Workers Per Environment
-
-You can run a worker per environment by switching `APP_ENV` before launching.
-
-**Dev**
-
-```bash
-export APP_ENV=dev
-celery -A app.worker.celery_app.celery worker --loglevel=INFO -Q genonaut_dev:queue:default -n worker-dev@%h
-```
-
-**Test**
-
-```bash
-export APP_ENV=test
-celery -A app.worker.celery_app.celery worker --loglevel=INFO -Q genonaut_test:queue:default -n worker-test@%h
-```
-
-**Demo**
-
-```bash
-export APP_ENV=demo
-celery -A app.worker.celery_app.celery worker --loglevel=INFO -Q genonaut_demo:queue:default -n worker-demo@%h
-```
-
-> You can also run multiple workers simultaneously if you want, each with different `APP_ENV` values (they’ll connect to different logical DBs).
-
----
-
-## 6) Using the Right URL from FastAPI
-
-Example endpoint that enqueues a job and records which env it went to:
+## FastAPI endpoints
+We already have endpoints around this. So use the existing generation jobs endpoints, but ensure that they are updated 
+to use celery. If we don't have an endpoint for getting job status, then we need to make one for that.
 
 ```python
-from fastapi import APIRouter
-from app.core.settings import settings
-from app.worker.tasks import run_comfy_job
+from fastapi import FastAPI
+from genonaut.worker.tasks import run_comfy_job
 
-router = APIRouter()
 
-@router.post("/jobs")
+@app.post("/jobs")
 def create_job(payload: dict):
-    job_id = "uuid-here"   # insert DB row as PENDING
-    # Enqueue in the env-specific queue
-    run_comfy_job.apply_async(args=[job_id, payload], queue=f"{settings.redis_ns}:queue:default")
-    return {
-        "job_id": job_id,
-        "env": settings.app_env,
-        "broker": settings.celery_broker_url,
-        "backend": settings.celery_result_backend,
-        "status": "queued",
-    }
+    job_id = "generate-uuid-and-insert-row"  # write PENDING row in DB
+    run_comfy_job.delay(job_id, payload)     # enqueue
+    return {"job_id": job_id, "status": "queued"}
+
+@app.get("/jobs/{job_id}")
+def get_status(job_id: str):
+    # read status from your DB (preferred)
+    # or: from celery if you stored AsyncResult id
+    return {"job_id": job_id, "status": "STARTED/SUCCESS/FAILURE"}
 ```
 
 ---
 
-## 7) Safety & Workflow Tips
+## Running the backend with celery
+We already have makefile commands for running the API. The first line in the demo below is for the `api-demo` command.
 
+We'll need to ensure that the celery workers are also running, whenever starting the API.
+
+I think it will make sense at this time to create makefile functions for this, to reduce verbosity. And the makefile 
+commands that we currently have for running the variations of the backend can be wrappers that pass params into this 
+function.
+
+As for the flower dashboard, perhaps we can have a `FLOWER_ACTIVE=true` variable in the makefile, so that this will be 
+on by default. It should be able to be overridden by the user passing the environment variable when running the make 
+command. 
+
+Example:
+```bash
+# Start FastAPI
+APP_ENV=demo uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
+
+# Start Celery worker
+celery -A app.worker.celery_app.celery worker --loglevel=INFO -Q default -n worker@%h
+
+# Optional: Flower dashboard
+celery -A app.worker.celery_app.celery flower
+```
+
+## DB
+Use DB as the **source of truth** for job state; store Celery `task_id` on your job row. The table for this will be
+`generation_jobs`.
+
+### Table Merge (COMPLETED)
+The `comfyui_generation_requests` and `generation_jobs` tables have been merged into `generation_jobs`. Key decisions:
+
+**Field Naming:**
+- `parameters` → `params` (JSONB type) - consolidated all generation parameters including sampler settings
+- `result_content_id` → `content_id` - simpler, reflects 1:1 relationship with ContentItem
+- Removed `sampler_params`, `output_paths`, `thumbnail_paths` - consolidated into params or handled via ContentItem
+
+**Schema Updates:**
+- `params`: JSONB field containing all generation parameters (sampler settings, dimensions, etc.)
+- `content_id`: Foreign key to content_items table (1 job = 1 ContentItem)
+- `celery_task_id`: String field for tracking async task (indexed)
+- ComfyUI fields: `negative_prompt`, `checkpoint_model`, `lora_models` (JSONB), `width`, `height`, `batch_size`, `comfyui_prompt_id`
+
+**Migration Status:**
+- Migration `9872ef1e50c3_merge_generation_tables_celery_integration` applied to demo database ✓
+- Data migrated from `comfyui_generation_requests` to `generation_jobs`
+- Old table dropped after migration 
+
+## Safety & Workflow Tips
 - **Never run `FLUSHALL`** on a shared Redis; use `FLUSHDB` if you must, and only inside the env DB (`redis-cli -n 4 FLUSHDB` for _dev).
 - **Key prefixing**: always prefix with `settings.redis_ns:`. This keeps keys readable and safer.
 - **Optional split**: You can keep broker and result backend in different DBs per env (e.g., `broker -> DB 4`, `result -> DB 14`) if you want even cleaner separation.
-- **Flower**: monitor tasks per env by running Flower separately with different `APP_ENV` values:
-  ```bash
-  export APP_ENV=dev && celery -A app.worker.celery_app.celery flower --port=5555
-  export APP_ENV=test && celery -A app.worker.celery_app.celery flower --port=5556
-  ```
 
----
+For instant UI updates, such as displaying the image in the "image generation" page, have the worker push progress to 
+Redis Pub/Sub and your FastAPI WebSocket relays it.
 
-## 8) Quick Sanity Checks
+We're considering of also notifying the user when the image is complete, but mark this down as a last phase / future 
+task.
 
+## Webhooks
+If ComfyUI supports webhooks, expose `/webhooks/comfyui` to mark jobs done without polling (still keep Celery to 
+orchestrate and post-process).
+
+## Reference info
+**Quick Sanity Checks**  
 - Show current DB: `redis-cli -n 4 INFO keyspace` (for _dev).
 - List keys for the env: `redis-cli -n 4 KEYS 'genonaut_dev:*'` (dev), `-n 3` for test, `-n 2` for demo.
 - Flush just one env: `redis-cli -n 4 FLUSHDB` (dev only).
 
----
+## Imagination & Creativity
+If there's anywhere else in the app that you think would benefit from celery other than the "Image Generation" page, 
+make some optional later phase tasks. 
 
-## 9) Summary
+## Documentation
+Update the `README.md` in regards to any setup that is necessary for Redis (or celery, if applicable).
 
-- One Redis server is enough for local dev.
-- Use **different logical DBs + key namespaces** to isolate environments.
-- Switch environments via `APP_ENV` and pick URLs automatically with your settings class.
-- Optional: separate queues per env, run multiple workers side-by-side, and monitor with Flower.

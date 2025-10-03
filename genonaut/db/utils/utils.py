@@ -55,7 +55,7 @@ def _normalize_environment(environment: Optional[str]) -> str:
         if candidate in {"dev", "demo", "test"}:
             return candidate
 
-    explicit = os.getenv("GENONAUT_DB_ENVIRONMENT") or os.getenv("API_ENVIRONMENT")
+    explicit = os.getenv("GENONAUT_DB_ENVIRONMENT") or os.getenv("APP_ENV")
     if explicit:
         lowered = explicit.strip().lower()
         if lowered in {"dev", "demo", "test"}:

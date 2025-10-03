@@ -1,4 +1,4 @@
-celery
+celery[redis]
 email-validator
 fastapi
 flower
@@ -10,6 +10,7 @@ pydantic
 pydantic-settings
 python-dotenv
 python-multipart
+redis
 sqlalchemy
 uvicorn
 

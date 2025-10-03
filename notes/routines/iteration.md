@@ -18,9 +18,13 @@ now, put an annotation at the end of the sentence on the checkbox, like: `@skipp
 for a broader description of what is being held up.
 3. Explain tags: There is or should be a "Tags" section somewhere in the document. If there are any `@skipped-until-TAG`
 annotations, explain what the tags mean, in `- TAG: DESCRIPTION` format.
-4. If you ran into anything unclear and need questions asked, add a "Questions" section somewhere in the document, which 
-will include questions for me to answer. When writing a question, make note of which specific tasks and subsections are 
-relevant to the question. You can refer to them like "task 3 in subsection (5.1)".
+4. If you ran into anything unclear and need questions asked, you should update some markdown with these questions and 
+prompt me to answer them when giving me my report after you are done with your batch of work. You can (a) add a 
+"Questions" section somewhere in the document that lists the tasks that you are working on, or (b) you can use a 
+document specifically for questions for me. E.g. let's say you have a setup where the spec document describing the work 
+to be done is called `db-updates.md`, then usually it will come with a tasks document called `db-updates-tasks.md`, and 
+you could put your questions in `db-updates-questions.md`.  When writing a question, make note of which specific tasks 
+and subsections are  relevant to the question. You can refer to them like "task 3 in subsection (5.1)".
 5. If anything needs my attention--if I am the hold up--put `@dev` on the checkbox or other spot in the markdown to call
 my attention to it. 
 6. Ensure that the associated `README.md` is updated with anything relevant based on these updates, if applicable.

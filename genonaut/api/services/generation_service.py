@@ -10,6 +10,7 @@ from genonaut.api.repositories.user_repository import UserRepository
 from genonaut.api.repositories.content_repository import ContentRepository
 from genonaut.api.exceptions import ValidationError, EntityNotFoundError
 from genonaut.api.models.enums import JobType
+from genonaut.worker.tasks import run_comfy_job
 
 
 class GenerationService:
@@ -99,22 +100,22 @@ class GenerationService:
         user_id_or_data = None,
         job_type: Union[JobType, str] = None,
         prompt: str = None,
-        parameters: Optional[Dict[str, Any]] = None,
+        params: Optional[Dict[str, Any]] = None,
         *,
         user_id: UUID = None
     ) -> GenerationJob:
         """Create a new generation job.
-        
+
         Args:
             user_id_or_data: Either user_id UUID OR complete job data dict
             job_type: Type of generation job (if user_id_or_data is user_id)
             prompt: Generation prompt (if user_id_or_data is user_id)
-            parameters: Optional generation parameters (if user_id_or_data is user_id)
+            params: Optional generation parameters (if user_id_or_data is user_id)
             user_id: User ID (keyword-only for API calls)
-            
+
         Returns:
             Created generation job
-            
+
         Raises:
             ValidationError: If validation fails
             EntityNotFoundError: If user not found
@@ -126,19 +127,19 @@ class GenerationService:
             final_user_id = job_data.get('user_id')
             final_job_type = job_data.get('job_type')
             final_prompt = job_data.get('prompt')
-            final_parameters = job_data.get('parameters')
+            final_params = job_data.get('params') or job_data.get('parameters')  # Support both for backward compat
         elif user_id is not None:
             # Keyword arguments case (from API routes)
             final_user_id = user_id
             final_job_type = job_type
             final_prompt = prompt
-            final_parameters = parameters
+            final_params = params
         else:
-            # Individual parameters case (from API - old style)
+            # Individual params case (from API - old style)
             final_user_id = user_id_or_data
             final_job_type = job_type
             final_prompt = prompt
-            final_parameters = parameters
+            final_params = params
         
         # Validate required fields
         if final_user_id is None or final_job_type is None or final_prompt is None:
@@ -162,16 +163,37 @@ class GenerationService:
         if len(str(final_prompt)) > 10000:  # Reasonable limit for prompts
             raise ValidationError("Prompt cannot exceed 10,000 characters")
         
-        # Validate parameters
-        if final_parameters is not None and not isinstance(final_parameters, dict):
-            raise ValidationError("Parameters must be a dictionary")
-        
-        return self.repository.create_generation_job(
+        # Validate params
+        if final_params is not None and not isinstance(final_params, dict):
+            raise ValidationError("params must be a dictionary")
+
+        # Create the job in the database with pending status
+        job = self.repository.create_generation_job(
             user_id=final_user_id,
             job_type=job_type_value,
             prompt=str(final_prompt).strip(),
-            parameters=final_parameters,
+            params=final_params or {},
         )
+
+        # Queue the job for async processing via Celery
+        # Build workflow params from job data
+        workflow_params = {
+            'prompt': job.prompt,
+            'negative_prompt': getattr(job, 'negative_prompt', None),
+            'checkpoint_model': getattr(job, 'checkpoint_model', None),
+            'lora_models': getattr(job, 'lora_models', []),
+            'width': getattr(job, 'width', 512),
+            'height': getattr(job, 'height', 512),
+            'batch_size': getattr(job, 'batch_size', 1),
+            **final_params,  # Include any additional parameters from params field
+        }
+
+        # Queue the Celery task and store task ID
+        task = run_comfy_job.delay(job.id, workflow_params)
+        job.celery_task_id = task.id
+        self.repository.db.commit()
+
+        return job
     
     def update_job_status(
         self, 
@@ -303,36 +325,36 @@ class GenerationService:
     def update_job(
         self,
         job_id: int,
-        parameters: Optional[Dict[str, Any]] = None
+        params: Optional[Dict[str, Any]] = None
     ) -> GenerationJob:
-        """Update generation job parameters.
-        
+        """Update generation job params.
+
         Args:
             job_id: Job ID
-            parameters: New parameters (optional)
-            
+            params: New params (optional)
+
         Returns:
             Updated generation job
-            
+
         Raises:
             EntityNotFoundError: If job not found
             ValidationError: If job cannot be updated
         """
         # Get the job to check its status
         job = self.repository.get_or_404(job_id)
-        
+
         # Only allow updates for pending jobs
         if job.status != 'pending':
             raise ValidationError("Can only update pending jobs")
-        
+
         update_data = {}
-        
-        # Validate and set parameters if provided
-        if parameters is not None:
-            if not isinstance(parameters, dict):
-                raise ValidationError("Parameters must be a dictionary")
-            update_data['parameters'] = parameters
-        
+
+        # Validate and set params if provided
+        if params is not None:
+            if not isinstance(params, dict):
+                raise ValidationError("params must be a dictionary")
+            update_data['params'] = params
+
         return self.repository.update(job_id, update_data)
     
     def delete_job(self, job_id: int) -> bool:
@@ -396,40 +418,40 @@ class GenerationService:
         
         return self.repository.update(job_id, update_data)
     
-    def complete_job(self, job_id: int, result_content_id: int) -> GenerationJob:
+    def complete_job(self, job_id: int, content_id: int) -> GenerationJob:
         """Complete a generation job with the resulting content.
-        
+
         Args:
             job_id: Job ID to complete
-            result_content_id: ID of the content item that was generated
-            
+            content_id: ID of the content item that was generated
+
         Returns:
             Updated generation job with completed status
-            
+
         Raises:
             EntityNotFoundError: If job or content not found
             ValidationError: If job cannot be completed
         """
         # Get the job and verify it exists
         job = self.repository.get_or_404(job_id)
-        
+
         # Only allow completing running jobs
         if job.status != 'running':
             raise ValidationError(f"Cannot complete job with status '{job.status}'. Only running jobs can be completed.")
-        
+
         # Verify the result content exists
-        self.content_repository.get_or_404(result_content_id)
-        
+        self.content_repository.get_or_404(content_id)
+
         # Update job status to completed and set timestamps and result
         from datetime import datetime
-        
+
         update_data = {
             'status': 'completed',
-            'result_content_id': result_content_id,
+            'content_id': content_id,
             'completed_at': datetime.utcnow(),
             'updated_at': datetime.utcnow()
         }
-        
+
         return self.repository.update(job_id, update_data)
     
     def fail_job(self, job_id: int, error_message: str) -> GenerationJob:
@@ -483,12 +505,28 @@ class GenerationService:
             EntityNotFoundError: If job not found
             ValidationError: If job cannot be cancelled
         """
+        from celery import current_app as celery_app
+
         # Get the job and verify it exists
         job = self.repository.get_or_404(job_id)
 
         # Only allow cancelling pending or running jobs
         if job.status not in ['pending', 'running']:
             raise ValidationError(f"Cannot cancel job with status '{job.status}'. Only pending or running jobs can be cancelled.")
+
+        # Revoke the Celery task if it exists
+        if job.celery_task_id:
+            try:
+                celery_app.control.revoke(
+                    job.celery_task_id,
+                    terminate=True,  # Terminate if already running
+                    signal='SIGKILL'  # Force kill the task
+                )
+            except Exception as e:
+                # Log but don't fail if task revocation fails
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to revoke Celery task {job.celery_task_id}: {str(e)}")
 
         # Update job status to cancelled and set timestamp
         from datetime import datetime

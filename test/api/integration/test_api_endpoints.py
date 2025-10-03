@@ -42,7 +42,7 @@ def api_server():
 
         # Set environment variables for test configuration
         env = os.environ.copy()
-        env["API_ENVIRONMENT"] = "test"
+        env["APP_ENV"] = "test"
 
         # Start the server process
         server_process = subprocess.Popen(

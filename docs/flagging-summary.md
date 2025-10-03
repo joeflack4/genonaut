@@ -552,7 +552,7 @@ curl -X POST "http://localhost:8001/api/v1/admin/flagged-content/bulk-delete" \
 - [ ] Configure PostgreSQL connection
 - [ ] Run migrations: `make migrate`
 - [ ] Create `flag-words.txt` with production words
-- [ ] Set `API_ENVIRONMENT=production`
+- [ ] Set `APP_ENV=production`
 - [ ] Configure CORS for frontend domain
 - [ ] Set up SSL/TLS
 - [ ] Configure logging

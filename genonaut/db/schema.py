@@ -303,38 +303,64 @@ class Recommendation(Base):
 
 class GenerationJob(Base):
     """Generation job model for tracking content generation requests.
-    
+
+    Merged model combining general generation jobs and ComfyUI-specific requests.
+
     Attributes:
         id: Primary key
         user_id: Foreign key to the user who requested the generation
         job_type: Type of generation job (text, image, video, audio)
         prompt: The prompt used for generation
-        parameters: Generation parameters (model, temperature, etc.)
+        params: Generation parameters (JSONB - model, temperature, sampler settings, etc.)
         status: Job status (pending, running, completed, failed, cancelled)
-        result_content_id: Foreign key to the generated content item
+        content_id: Foreign key to the generated content item (1 job = 1 ContentItem)
         created_at: Timestamp when job was created
         started_at: Timestamp when job processing started
         completed_at: Timestamp when job was completed
         error_message: Error message if job failed
+
+        # Celery integration fields
+        celery_task_id: Celery task ID for async job processing
+
+        # ComfyUI-specific fields
+        negative_prompt: Negative prompt for ComfyUI generation
+        checkpoint_model: Checkpoint model name for ComfyUI
+        lora_models: JSON array of LoRA models with strengths
+        width: Image width for ComfyUI generation
+        height: Image height for ComfyUI generation
+        batch_size: Number of images to generate (typically 1)
+        comfyui_prompt_id: ComfyUI workflow prompt ID
     """
     __tablename__ = 'generation_jobs'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
     job_type = Column(String(50), nullable=False, index=True)  # text, image, video, audio
     prompt = Column(String(20000), nullable=False)  # Generation prompt (immutable via trigger)
-    parameters = Column(JSONColumn, default=dict)
+    params = Column(JSONB, default=dict)  # All generation parameters including sampler settings
     status = Column(String(20), default='pending', nullable=False, index=True)  # pending, running, completed, failed, cancelled
-    result_content_id = Column(Integer, ForeignKey('content_items.id'), nullable=True)
+    content_id = Column(Integer, ForeignKey('content_items.id'), nullable=True)  # 1 job = 1 ContentItem
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     error_message = Column(Text, nullable=True)
-    
+
+    # Celery integration
+    celery_task_id = Column(String(255), nullable=True, index=True)
+
+    # ComfyUI-specific fields
+    negative_prompt = Column(Text, nullable=True)
+    checkpoint_model = Column(String(255), nullable=True)
+    lora_models = Column(JSONB, default=list)  # [{"name": str, "strength_model": float, "strength_clip": float}]
+    width = Column(Integer, nullable=True)
+    height = Column(Integer, nullable=True)
+    batch_size = Column(Integer, nullable=True, default=1)
+    comfyui_prompt_id = Column(String(255), nullable=True, index=True)
+
     # Relationships
     user = relationship("User", foreign_keys=[user_id])
-    result_content = relationship("ContentItem", foreign_keys=[result_content_id])
+    content = relationship("ContentItem", foreign_keys=[content_id])
     
     # Full-text search configuration and pagination optimization indexes for PostgreSQL
     __table_args__ = (
@@ -367,6 +393,10 @@ class GenerationJob(Base):
         Index("idx_generation_jobs_status_created_priority", status, created_at.asc(), postgresql_where=status.in_(['pending', 'running'])),
         # Index for completed job analytics
         Index("idx_generation_jobs_completed_at_desc", completed_at.desc(), postgresql_where=completed_at.is_not(None)),
+        # Celery task lookup index
+        Index("idx_generation_jobs_celery_task_id", celery_task_id, postgresql_where=celery_task_id.is_not(None)),
+        # ComfyUI integration indexes
+        Index("idx_generation_jobs_comfyui_prompt_id", comfyui_prompt_id, postgresql_where=comfyui_prompt_id.is_not(None)),
     )
 
 
