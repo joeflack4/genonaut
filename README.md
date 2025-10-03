@@ -58,7 +58,7 @@ Prerequisites
   - Python 3.10+
 
 Installation steps:
-1. Create virtual environment: `virtualenv env`, and activate it.  
+1. Create virtual environment: `virtualenv env/python_venv`, and activate it.
 2. `pip install -r requirements.txt`
 3. Create Postgres DB
   - Create your `.env` file (see "Environment variables" below)

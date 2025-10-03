@@ -8,7 +8,7 @@ image, video, audio) based on user preferences.
 ## Environment Setup
 **IMPORTANT**: Before starting any work, activate the virtual environment:
 ```bash
-source env/bin/activate
+source env/python_venv/bin/activate
 ```
 This must be done at the beginning of every session before running any Python commands, tests, or other project operations.
 

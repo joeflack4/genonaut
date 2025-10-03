@@ -1,5 +1,7 @@
+celery
 email-validator
 fastapi
+flower
 httpx
 jinja2
 pandas
@@ -13,6 +15,8 @@ uvicorn
 
 # dev dependencies
 alembic  # data migrations
+celery-types
 faker  # seed data
+pandas-stubs
 pytest  # test
 psutil  # performance assessments

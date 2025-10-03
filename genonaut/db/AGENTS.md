@@ -5,7 +5,7 @@ This file provides guidance to Claude Code when working with database code in th
 ## Environment Setup
 **CRITICAL**: Always activate the virtual environment before any database work:
 ```bash
-source env/bin/activate
+source env/python_venv/bin/activate
 ```
 
 ## Database Schema Changes

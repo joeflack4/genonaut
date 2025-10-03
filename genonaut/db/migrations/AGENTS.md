@@ -8,7 +8,7 @@ This file provides guidance to Claude Code when working with database migrations
 ## Environment Setup
 **IMPORTANT**: Always activate virtual environment first:
 ```bash
-source env/bin/activate
+source env/python_venv/bin/activate
 ```
 
 ## Migration Workflow (SOP)

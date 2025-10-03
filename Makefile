@@ -651,3 +651,13 @@ md-github-sync:
 	fi
 	cd libs/md_manager && source env/bin/activate && python -m md_manager.cli --config-path ../../notes/md-manager.json sync-bidirectional || (echo "Error: Bidirectional sync failed"; exit 1)
 	@echo "✅ Bidirectional sync completed successfully"
+
+# Redis
+REDIS_STORAGE_PATH=env/redis/storage/
+REDIS_CONFIG_PATH=redis.conf
+
+$(REDIS_STORAGE_PATH):
+	mkdir -p $@
+
+redis-start: | $(REDIS_STORAGE_PATH)
+	redis-server $(REDIS_CONFIG_PATH)
