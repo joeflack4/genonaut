@@ -71,3 +71,4 @@ yarn-error.log*
 playwright-report/
 test-results/
 test_output/
+test_genonaut_api.sqlite3

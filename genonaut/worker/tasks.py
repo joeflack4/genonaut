@@ -4,15 +4,33 @@ This module defines Celery tasks for generation jobs, primarily ComfyUI image ge
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 
-from celery import Task
+try:  # pragma: no cover - exercised indirectly
+    from celery import Task
+except ModuleNotFoundError:  # pragma: no cover
+    class Task:  # minimal stand-in when Celery isn't installed
+        abstract = True
 from sqlalchemy.orm import Session
 
 from genonaut.worker.queue_app import celery_app
 from genonaut.api.dependencies import get_database_session
 from genonaut.api.config import get_settings
+from genonaut.worker.comfyui_client import (
+    ComfyUIWorkerClient,
+    ComfyUIConnectionError,
+    ComfyUIWorkflowError,
+)
+from genonaut.api.services.workflow_builder import (
+    WorkflowBuilder,
+    GenerationRequest,
+    SamplerParams,
+    LoRAModel,
+)
+from genonaut.api.services.file_storage_service import FileStorageService
+from genonaut.api.services.thumbnail_service import ThumbnailService
+from genonaut.api.services.content_service import ContentService
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -37,111 +55,211 @@ class DatabaseTask(Task):
         return self._db_session
 
 
+def process_comfy_job(
+    db: Session,
+    job_id: int,
+    override_params: Optional[Dict[str, Any]] = None,
+    *,
+    workflow_builder: Optional[WorkflowBuilder] = None,
+    comfy_client: Optional[ComfyUIWorkerClient] = None,
+    file_service: Optional[FileStorageService] = None,
+    thumbnail_service: Optional[ThumbnailService] = None,
+    content_service: Optional[ContentService] = None,
+) -> Dict[str, Any]:
+    """Core job processing logic extracted for testability."""
+
+    from genonaut.db.schema import GenerationJob
+
+    workflow_builder = workflow_builder or WorkflowBuilder()
+    comfy_client = comfy_client or ComfyUIWorkerClient()
+    file_service = file_service or FileStorageService()
+    thumbnail_service = thumbnail_service or ThumbnailService()
+    content_service = content_service or ContentService(db)
+
+    logger.info("Starting ComfyUI job %s", job_id)
+
+    job = db.query(GenerationJob).filter(GenerationJob.id == job_id).first()
+    if job is None:
+        raise ValueError(f"Job {job_id} not found")
+
+    try:
+        job.status = "running"
+        job.started_at = datetime.utcnow()
+        job.error_message = None
+        db.commit()
+        logger.info("Job %s status updated to 'running'", job_id)
+
+        job_params: Dict[str, Any] = dict(job.params or {})
+        if override_params:
+            job_params.update(override_params)
+
+        sampler_defaults = SamplerParams()
+        sampler_payload = job_params.get('sampler_params') or {}
+        sampler = SamplerParams(
+            seed=int(sampler_payload.get('seed', sampler_defaults.seed)),
+            steps=int(sampler_payload.get('steps', sampler_defaults.steps)),
+            cfg=float(sampler_payload.get('cfg', sampler_defaults.cfg)),
+            sampler_name=sampler_payload.get('sampler_name', sampler_defaults.sampler_name),
+            scheduler=sampler_payload.get('scheduler', sampler_defaults.scheduler),
+            denoise=float(sampler_payload.get('denoise', sampler_defaults.denoise)),
+        )
+
+        lora_models_payload: List[Dict[str, Any]] = (
+            job.lora_models or job_params.get('lora_models') or []
+        )
+        lora_models: List[LoRAModel] = []
+        for item in lora_models_payload:
+            if not isinstance(item, dict):
+                continue
+            name = item.get('name')
+            if not name:
+                continue
+            lora_models.append(
+                LoRAModel(
+                    name=name,
+                    strength_model=float(item.get('strength_model', 0.8)),
+                    strength_clip=float(item.get('strength_clip', 0.8)),
+                )
+            )
+
+        generation_request = GenerationRequest(
+            prompt=job.prompt,
+            negative_prompt=job.negative_prompt or job_params.get('negative_prompt', ""),
+            checkpoint_model=job.checkpoint_model or job_params.get('checkpoint_model', settings.comfyui_default_checkpoint),
+            lora_models=lora_models,
+            width=job.width or job_params.get('width', settings.comfyui_default_width),
+            height=job.height or job_params.get('height', settings.comfyui_default_height),
+            batch_size=job.batch_size or job_params.get('batch_size', settings.comfyui_default_batch_size),
+            sampler_params=sampler,
+            filename_prefix=f"gen_job_{job.id}",
+        )
+
+        workflow = workflow_builder.build_workflow(generation_request)
+
+        prompt_id = comfy_client.submit_generation(workflow, client_id=str(job.id))
+        job.comfyui_prompt_id = prompt_id
+        db.commit()
+        logger.info("Job %s submitted to ComfyUI (prompt_id=%s)", job_id, prompt_id)
+
+        workflow_status = comfy_client.wait_for_outputs(
+            prompt_id, max_wait_time=settings.comfyui_max_wait_time
+        )
+
+        status_value = workflow_status.get('status', 'unknown')
+        if status_value != 'completed':
+            messages = workflow_status.get('messages') or []
+            raise ComfyUIWorkflowError(
+                f"ComfyUI reported status '{status_value}' for job {job_id}: {messages}"
+            )
+
+        outputs = workflow_status.get('outputs') or {}
+        output_paths = comfy_client.collect_output_paths(outputs)
+        if not output_paths:
+            raise ComfyUIWorkflowError(f"No output files produced for job {job_id}")
+
+        organized_paths = file_service.organize_generation_files(
+            job.id,
+            job.user_id,
+            output_paths,
+        )
+
+        thumbnail_summary: Dict[str, Any] = {}
+        if organized_paths:
+            try:
+                thumbnail_summary = thumbnail_service.generate_thumbnail_for_generation(
+                    organized_paths,
+                    job.id,
+                )
+            except Exception as thumb_err:  # pragma: no cover - defensive
+                logger.warning(
+                    "Thumbnail generation failed for job %s: %s", job_id, thumb_err
+                )
+
+        metadata = dict(job_params)
+        metadata.update(
+            {
+                'output_paths': organized_paths,
+                'thumbnails': thumbnail_summary,
+                'comfyui_prompt_id': prompt_id,
+                'workflow_messages': workflow_status.get('messages', []),
+            }
+        )
+
+        primary_image = organized_paths[0] if organized_paths else None
+        if not primary_image:
+            raise ComfyUIWorkflowError(f"Unable to determine primary image path for job {job_id}")
+
+        content_title = metadata.get('title') or job.prompt[:255]
+        content_item = content_service.create_content(
+            title=content_title,
+            content_type='image',
+            content_data=primary_image,
+            prompt=job.prompt,
+            creator_id=job.user_id,
+            item_metadata=metadata,
+        )
+
+        job.content_id = content_item.id
+        job.status = 'completed'
+        job.completed_at = datetime.utcnow()
+        job.updated_at = datetime.utcnow()
+        job.params = metadata
+        job.error_message = None
+
+        db.commit()
+        db.refresh(job)
+        logger.info("Job %s completed successfully", job_id)
+
+        return {
+            "job_id": job_id,
+            "status": job.status,
+            "content_id": job.content_id,
+            "output_paths": organized_paths,
+            "prompt_id": prompt_id,
+        }
+
+    except Exception as exc:
+        logger.error("Job %s failed: %s", job_id, exc, exc_info=True)
+
+        try:
+            db.rollback()
+        except Exception:
+            pass
+
+        try:
+            job = db.query(GenerationJob).filter(GenerationJob.id == job_id).first()
+            if job:
+                job.status = 'failed'
+                job.error_message = str(exc)
+                job.completed_at = datetime.utcnow()
+                job.updated_at = datetime.utcnow()
+                db.commit()
+        except Exception as update_error:  # pragma: no cover - defensive
+            logger.error(
+                "Failed to persist failure state for job %s: %s", job_id, update_error
+            )
+
+        raise
+
+
 @celery_app.task(
     bind=True,
     base=DatabaseTask,
     name="genonaut.worker.tasks.run_comfy_job",
-    autoretry_for=(Exception,),
+    autoretry_for=(ComfyUIConnectionError, ComfyUIWorkflowError, Exception),
     retry_backoff=True,
-    retry_backoff_max=600,  # Max 10 minutes between retries
+    retry_backoff_max=600,
     max_retries=3,
 )
-def run_comfy_job(self, job_id: int, workflow_params: Dict[str, Any]) -> Dict[str, Any]:
-    """Execute a ComfyUI generation job asynchronously.
-
-    This task:
-    1. Updates job status to 'running'
-    2. Submits workflow to ComfyUI
-    3. Polls for completion or handles webhook
-    4. Downloads and processes generated images
-    5. Creates thumbnails
-    6. Updates job with results
-
-    Args:
-        job_id: The generation job ID
-        workflow_params: Parameters for the ComfyUI workflow
-
-    Returns:
-        Dict containing job_id, status, and artifact information
-
-    Raises:
-        Exception: If job processing fails
-    """
-    from genonaut.db.schema import GenerationJob
+def run_comfy_job(self, job_id: int, override_params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Celery task wrapper for :func:`process_comfy_job`."""
 
     db = self.db_session
-    logger.info(f"Starting ComfyUI job {job_id}")
-
-    try:
-        # Step 1: Get job and update status to 'running'
-        job = db.query(GenerationJob).filter(GenerationJob.id == job_id).first()
-        if not job:
-            raise ValueError(f"Job {job_id} not found")
-
-        job.status = "running"
-        job.started_at = datetime.utcnow()
-        db.commit()
-        logger.info(f"Job {job_id} status updated to 'running'")
-
-        # Step 2: Submit to ComfyUI (placeholder - will be implemented in Phase 5)
-        # TODO: Implement ComfyUI client integration
-        # comfyui_client = ComfyUIClient(settings.comfyui_url)
-        # prompt_id = comfyui_client.submit_workflow(workflow_params)
-        # job.comfyui_prompt_id = prompt_id
-        # db.commit()
-
-        logger.warning(f"ComfyUI integration not yet implemented for job {job_id}")
-
-        # Step 3: Poll for completion or handle webhook (placeholder)
-        # TODO: Implement polling or webhook handling
-        # while not comfyui_client.is_complete(prompt_id):
-        #     time.sleep(settings.comfyui_poll_interval)
-
-        # Step 4: Download generated images (placeholder)
-        # TODO: Implement image download and storage
-        # images = comfyui_client.download_images(prompt_id)
-        # output_paths = []
-        # for img in images:
-        #     path = save_image(img)
-        #     output_paths.append(path)
-
-        # Step 5: Create thumbnails (placeholder)
-        # TODO: Implement thumbnail generation
-        # thumbnail_paths = []
-        # for img_path in output_paths:
-        #     thumb_path = create_thumbnail(img_path)
-        #     thumbnail_paths.append(thumb_path)
-
-        # Step 6: Update job with results
-        # TODO: When ComfyUI integration is complete, link to created ContentItem
-        # job.content_id = created_content_item.id
-        job.status = "completed"
-        job.completed_at = datetime.utcnow()
-        db.commit()
-
-        logger.info(f"Job {job_id} completed successfully")
-
-        return {
-            "job_id": job_id,
-            "status": "completed",
-            "content_id": job.content_id,
-        }
-
-    except Exception as e:
-        logger.error(f"Job {job_id} failed: {str(e)}", exc_info=True)
-
-        # Update job status to failed
-        try:
-            job = db.query(GenerationJob).filter(GenerationJob.id == job_id).first()
-            if job:
-                job.status = "failed"
-                job.error_message = str(e)
-                job.completed_at = datetime.utcnow()
-                db.commit()
-        except Exception as update_error:
-            logger.error(f"Failed to update job {job_id} status: {str(update_error)}")
-
-        raise
+    return process_comfy_job(
+        db,
+        job_id,
+        override_params=override_params,
+    )
 
 
 @celery_app.task(name="genonaut.worker.tasks.cancel_job")

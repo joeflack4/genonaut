@@ -1,4 +1,4 @@
-id	user_id	job_type	prompt	parameters	status	created_at	updated_at	started_at	completed_at	result_content_id	error_message
+id	user_id	job_type	prompt	params	status	created_at	updated_at	started_at	completed_at	content_id	error_message
 1087812	ff5cd536-1116-4b3a-9286-126981734bbc	image	rainbow, clown, knight hero, cheerful faces, moon with face, train set, fairy tale	{}	completed	2025-06-25T06:09:15.310274	2025-06-25T06:09:15.310274		2025-06-25T06:09:15.310274	14046	
 1091729	dfb215f8-2de5-4a0f-a750-bfa94ade0dd3	image	dramatic shadows, aquarium, wall art, kitchen island, potted plant	{}	completed	2025-09-07T12:46:19.622499	2025-09-07T12:46:19.622499		2025-09-07T12:46:19.622499	18835	
 1093518	a04237b8-f14e-4fed-9427-576c780d6e2a	image	close-up, ultra realistic, digital painting, symmetrical, hollow body, levitating objects, portals, alternate reality, whimsical creatures	{}	completed	2025-05-27T08:57:46.767268	2025-05-27T08:57:46.767268		2025-05-27T08:57:46.767268	10356	

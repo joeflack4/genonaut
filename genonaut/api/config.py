@@ -41,11 +41,16 @@ class Settings(BaseSettings):
     app_env: str = "dev"  # dev, demo, or test
 
     # ComfyUI integration settings
-    comfyui_url: str = "http://localhost:8000"
+    comfyui_url: str = "http://localhost:8188"
     comfyui_timeout: int = 30
     comfyui_poll_interval: float = 2.0  # seconds between status polls
+    comfyui_max_wait_time: int = 900  # maximum seconds to wait for a workflow to complete
     comfyui_output_dir: str = "/Users/joeflack4/Documents/ComfyUI/output"
     comfyui_models_dir: str = "/tmp/comfyui_models"  # @dev: configure actual ComfyUI models directory
+    comfyui_default_checkpoint: str = "illustriousXL_v01.safetensors"
+    comfyui_default_width: int = 832
+    comfyui_default_height: int = 1216
+    comfyui_default_batch_size: int = 1
 
     # Redis settings
     redis_url_demo: str = "redis://localhost:6379/2"

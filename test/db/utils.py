@@ -502,19 +502,21 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
                     f"Row data: {job_row}"
                 )
 
-            # Handle result content if specified
-            result_content_id = None
+            # Handle result content if specified (support both old and new field names)
+            content_id_value = None
             if job_row.get('result_content_title'):
                 result_content = title_to_content.get(job_row['result_content_title'])
                 if result_content:
-                    result_content_id = result_content.id
-            elif job_row.get('result_content_id'):
-                content = content_id_map.get(str(job_row['result_content_id']))
+                    content_id_value = result_content.id
+            elif job_row.get('content_id') or job_row.get('result_content_id'):
+                # Support both new (content_id) and old (result_content_id) field names
+                content_id_str = job_row.get('content_id') or job_row.get('result_content_id')
+                content = content_id_map.get(str(content_id_str))
                 if content:
-                    result_content_id = content.id
+                    content_id_value = content.id
                 else:
-                    result_content_id = int(job_row['result_content_id'])
-            
+                    content_id_value = int(content_id_str)
+
             # Set timestamps for completed jobs
             started_at = job_row.get('started_at')
             if isinstance(started_at, str) and started_at:
@@ -527,14 +529,17 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
                 completed_at = datetime.fromisoformat(completed_at)
             else:
                 completed_at = None
-            
+
+            # Support both new (params) and old (parameters) field names
+            params_value = job_row.get('params') or job_row.get('parameters', {})
+
             job = GenerationJob(
                 user_id=user.id,
                 job_type=job_row['job_type'],
                 prompt=job_row['prompt'],
-                parameters=job_row.get('parameters', {}),
+                params=params_value,
                 status=job_row['status'],
-                result_content_id=result_content_id,
+                content_id=content_id_value,
                 started_at=started_at,
                 completed_at=completed_at,
                 error_message=job_row.get('error_message')
@@ -906,7 +911,7 @@ def export_demo_data_to_test_tsvs(output_dir: str = None, max_content_items: int
             ])
 
         write_tsv('generation_jobs.tsv', job_data, [
-            'id', 'user_id', 'job_type', 'prompt', 'parameters', 'status', 'created_at', 'updated_at', 'started_at', 'completed_at', 'result_content_id', 'error_message'
+            'id', 'user_id', 'job_type', 'prompt', 'params', 'status', 'created_at', 'updated_at', 'started_at', 'completed_at', 'content_id', 'error_message'
         ])
 
         print(f"\nData export completed successfully!")

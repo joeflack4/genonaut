@@ -554,15 +554,23 @@ class TestGenerationService:
             "user_id": sample_user.id,
             "job_type": "text_generation",
             "prompt": "Generate a story",
-            "parameters": {"max_length": 1000}
+            "params": {"max_length": 1000}
         }
-        
-        job = service.create_generation_job(job_data)
+
+        async_result = MagicMock()
+        async_result.id = "task-123"
+
+        with patch("genonaut.worker.tasks.run_comfy_job.delay", return_value=async_result) as mock_delay:
+            job = service.create_generation_job(job_data)
+
+        mock_delay.assert_called_once()
         assert job.id is not None
         assert job.user_id == sample_user.id
         assert job.job_type == "text_generation"
         assert job.status == "pending"
         assert job.created_at is not None
+        assert job.celery_task_id == "task-123"
+        assert job.params == {"max_length": 1000}
     
     def test_start_job_processing(self, test_db_session, sample_user):
         """Test starting job processing."""

@@ -4,7 +4,7 @@ This module contains SQLAlchemy models for the PostgreSQL database.
 """
 
 from datetime import datetime
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, Dict, Any
 from sqlalchemy import (
     Column, Integer, String, Text, DateTime, Float, Boolean,
     ForeignKey, JSON, UniqueConstraint, Index, event, func, literal_column, DDL,
@@ -361,6 +361,36 @@ class GenerationJob(Base):
     # Relationships
     user = relationship("User", foreign_keys=[user_id])
     content = relationship("ContentItem", foreign_keys=[content_id])
+
+    @property
+    def parameters(self) -> Dict[str, Any]:
+        """Backward-compatible alias for ``params``."""
+
+        return self.params or {}
+
+    @parameters.setter
+    def parameters(self, value: Dict[str, Any]) -> None:
+        self.params = value
+
+    @property
+    def result_content_id(self) -> Optional[int]:
+        """Backward-compatible alias for ``content_id``."""
+
+        return self.content_id
+
+    @result_content_id.setter
+    def result_content_id(self, value: Optional[int]) -> None:
+        self.content_id = value
+
+    @property
+    def result_content(self) -> Optional["ContentItem"]:
+        """Backward-compatible alias for the ``content`` relationship."""
+
+        return self.content
+
+    @result_content.setter
+    def result_content(self, value: Optional["ContentItem"]) -> None:
+        self.content = value
     
     # Full-text search configuration and pagination optimization indexes for PostgreSQL
     __table_args__ = (

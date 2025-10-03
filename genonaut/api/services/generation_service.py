@@ -11,6 +11,18 @@ from genonaut.api.repositories.content_repository import ContentRepository
 from genonaut.api.exceptions import ValidationError, EntityNotFoundError
 from genonaut.api.models.enums import JobType
 from genonaut.worker.tasks import run_comfy_job
+from genonaut.api.config import get_settings
+
+
+try:  # pragma: no cover - exercised implicitly
+    from celery import current_app as celery_current_app
+except ModuleNotFoundError:  # pragma: no cover
+    from types import SimpleNamespace
+
+    celery_current_app = SimpleNamespace(control=SimpleNamespace(revoke=lambda *a, **k: None))
+
+
+settings = get_settings()
 
 
 class GenerationService:
@@ -102,7 +114,14 @@ class GenerationService:
         prompt: str = None,
         params: Optional[Dict[str, Any]] = None,
         *,
-        user_id: UUID = None
+        user_id: UUID = None,
+        negative_prompt: Optional[str] = None,
+        checkpoint_model: Optional[str] = None,
+        lora_models: Optional[List[Dict[str, Any]]] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        batch_size: Optional[int] = None,
+        sampler_params: Optional[Dict[str, Any]] = None,
     ) -> GenerationJob:
         """Create a new generation job.
 
@@ -112,6 +131,7 @@ class GenerationService:
             prompt: Generation prompt (if user_id_or_data is user_id)
             params: Optional generation parameters (if user_id_or_data is user_id)
             user_id: User ID (keyword-only for API calls)
+            sampler_params: Optional sampler configuration overrides
 
         Returns:
             Created generation job
@@ -127,20 +147,41 @@ class GenerationService:
             final_user_id = job_data.get('user_id')
             final_job_type = job_data.get('job_type')
             final_prompt = job_data.get('prompt')
-            final_params = job_data.get('params') or job_data.get('parameters')  # Support both for backward compat
+            final_params = job_data.get('params') or job_data.get('parameters')
+            final_negative_prompt = job_data.get('negative_prompt')
+            final_checkpoint_model = job_data.get('checkpoint_model')
+            final_lora_models = job_data.get('lora_models')
+            final_width = job_data.get('width')
+            final_height = job_data.get('height')
+            final_batch_size = job_data.get('batch_size')
+            final_sampler_params = job_data.get('sampler_params')
         elif user_id is not None:
             # Keyword arguments case (from API routes)
             final_user_id = user_id
             final_job_type = job_type
             final_prompt = prompt
             final_params = params
+            final_negative_prompt = negative_prompt
+            final_checkpoint_model = checkpoint_model
+            final_lora_models = lora_models
+            final_width = width
+            final_height = height
+            final_batch_size = batch_size
+            final_sampler_params = sampler_params
         else:
             # Individual params case (from API - old style)
             final_user_id = user_id_or_data
             final_job_type = job_type
             final_prompt = prompt
             final_params = params
-        
+            final_negative_prompt = negative_prompt
+            final_checkpoint_model = checkpoint_model
+            final_lora_models = lora_models
+            final_width = width
+            final_height = height
+            final_batch_size = batch_size
+            final_sampler_params = sampler_params
+
         # Validate required fields
         if final_user_id is None or final_job_type is None or final_prompt is None:
             raise ValidationError("user_id, job_type, and prompt are required")
@@ -167,30 +208,89 @@ class GenerationService:
         if final_params is not None and not isinstance(final_params, dict):
             raise ValidationError("params must be a dictionary")
 
+        job_params: Dict[str, Any] = dict(final_params or {})
+
+        is_image_job = job_type_value == JobType.IMAGE.value
+
+        if is_image_job:
+            # Capture sampler params for downstream workflow generation
+            sampler_params_data = final_sampler_params or job_params.get('sampler_params') or {}
+            job_params['sampler_params'] = sampler_params_data
+
+            final_negative_prompt = (
+                final_negative_prompt
+                or job_params.get('negative_prompt')
+                or ""
+            )
+            final_checkpoint_model = (
+                final_checkpoint_model
+                or job_params.get('checkpoint_model')
+                or settings.comfyui_default_checkpoint
+            )
+            final_lora_models = final_lora_models or job_params.get('lora_models') or []
+            final_width = (
+                final_width
+                or job_params.get('width')
+                or settings.comfyui_default_width
+            )
+            final_height = (
+                final_height
+                or job_params.get('height')
+                or settings.comfyui_default_height
+            )
+            final_batch_size = (
+                final_batch_size
+                or job_params.get('batch_size')
+                or settings.comfyui_default_batch_size
+            )
+
+            job_params.update(
+                {
+                    'negative_prompt': final_negative_prompt,
+                    'checkpoint_model': final_checkpoint_model,
+                    'lora_models': final_lora_models,
+                    'width': final_width,
+                    'height': final_height,
+                    'batch_size': final_batch_size,
+                }
+            )
+        else:
+            sampler_params_data = final_sampler_params or job_params.get('sampler_params')
+            if sampler_params_data is not None:
+                job_params['sampler_params'] = sampler_params_data
+
+            final_negative_prompt = final_negative_prompt or job_params.get('negative_prompt')
+            final_checkpoint_model = final_checkpoint_model or job_params.get('checkpoint_model')
+            final_lora_models = final_lora_models or job_params.get('lora_models')
+            final_width = final_width or job_params.get('width')
+            final_height = final_height or job_params.get('height')
+            final_batch_size = final_batch_size or job_params.get('batch_size')
+
         # Create the job in the database with pending status
         job = self.repository.create_generation_job(
             user_id=final_user_id,
             job_type=job_type_value,
             prompt=str(final_prompt).strip(),
-            params=final_params or {},
+            params=job_params,
+            negative_prompt=final_negative_prompt,
+            checkpoint_model=final_checkpoint_model,
+            lora_models=final_lora_models,
+            width=final_width,
+            height=final_height,
+            batch_size=final_batch_size,
         )
 
-        # Queue the job for async processing via Celery
-        # Build workflow params from job data
-        workflow_params = {
-            'prompt': job.prompt,
-            'negative_prompt': getattr(job, 'negative_prompt', None),
-            'checkpoint_model': getattr(job, 'checkpoint_model', None),
-            'lora_models': getattr(job, 'lora_models', []),
-            'width': getattr(job, 'width', 512),
-            'height': getattr(job, 'height', 512),
-            'batch_size': getattr(job, 'batch_size', 1),
-            **final_params,  # Include any additional parameters from params field
-        }
+        # Queue the Celery task (fall back to direct call in test contexts)
+        task_result = None
+        task_callable = getattr(run_comfy_job, "delay", None)
 
-        # Queue the Celery task and store task ID
-        task = run_comfy_job.delay(job.id, workflow_params)
-        job.celery_task_id = task.id
+        if callable(task_callable):
+            task_result = task_callable(job.id)
+        else:
+            # Tests often monkeypatch the task with a simple function
+            run_comfy_job(job.id)  # type: ignore[arg-type]
+
+        job.celery_task_id = getattr(task_result, "id", None)
         self.repository.db.commit()
 
         return job
@@ -505,8 +605,6 @@ class GenerationService:
             EntityNotFoundError: If job not found
             ValidationError: If job cannot be cancelled
         """
-        from celery import current_app as celery_app
-
         # Get the job and verify it exists
         job = self.repository.get_or_404(job_id)
 
@@ -517,7 +615,7 @@ class GenerationService:
         # Revoke the Celery task if it exists
         if job.celery_task_id:
             try:
-                celery_app.control.revoke(
+                celery_current_app.control.revoke(
                     job.celery_task_id,
                     terminate=True,  # Terminate if already running
                     signal='SIGKILL'  # Force kill the task

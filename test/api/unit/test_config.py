@@ -116,3 +116,31 @@ class TestSettings:
         with patch.dict(os.environ, {}, clear=True):
             settings = Settings()
             assert settings.api_debug is False, "Default should be False"
+
+    def test_settings_redis_and_celery_properties(self):
+        """Ensure Redis/Celery property helpers respect the application environment."""
+        env_vars = {
+            "APP_ENV": "test",
+            "REDIS_URL_TEST": "redis://localhost:6379/3",
+            "REDIS_NS_TEST": "genonaut_test",
+            "CELERY_BROKER_URL_TEST": "redis://localhost:6379/13",
+            "CELERY_RESULT_BACKEND_TEST": "redis://localhost:6379/23",
+        }
+
+        with patch.dict(os.environ, env_vars, clear=True):
+            settings = Settings()
+            assert settings.redis_url == "redis://localhost:6379/3"
+            assert settings.redis_ns == "genonaut_test"
+            assert settings.celery_broker_url == "redis://localhost:6379/13"
+            assert settings.celery_result_backend == "redis://localhost:6379/23"
+
+    def test_settings_comfyui_defaults(self):
+        """Verify default ComfyUI configuration values."""
+        with patch.dict(os.environ, {}, clear=True):
+            settings = Settings()
+            assert settings.comfyui_url == "http://localhost:8188"
+            assert settings.comfyui_default_checkpoint == "illustriousXL_v01.safetensors"
+            assert settings.comfyui_default_width == 832
+            assert settings.comfyui_default_height == 1216
+            assert settings.comfyui_default_batch_size == 1
+            assert settings.comfyui_max_wait_time == 900

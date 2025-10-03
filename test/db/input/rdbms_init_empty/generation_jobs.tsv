@@ -1,1 +1,1 @@
-id	user_id	job_type	prompt	parameters	status	created_at	updated_at	started_at	completed_at	result_content_id	error_message
+id	user_id	job_type	prompt	params	status	created_at	updated_at	started_at	completed_at	content_id	error_message

@@ -3,7 +3,9 @@
 import json
 import time
 import uuid
+from pathlib import Path
 from typing import Dict, Any, Optional, List
+
 import requests
 from requests.exceptions import RequestException, ConnectionError, Timeout
 
@@ -305,3 +307,26 @@ class ComfyUIClient:
                         file_paths.append(file_path)
 
         return file_paths
+
+    def read_output_file(self, filename: str, *, subfolder: str = "") -> bytes:
+        """Read a generated image file from the ComfyUI output directory.
+
+        Args:
+            filename: Name of the file produced by ComfyUI.
+            subfolder: Optional subfolder reported by ComfyUI.
+
+        Returns:
+            Raw file bytes.
+
+        Raises:
+            FileNotFoundError: If the composed path does not exist.
+            OSError: If reading the file fails.
+        """
+
+        base_path = Path(self.settings.comfyui_output_dir)
+        target_path = base_path / subfolder / filename if subfolder else base_path / filename
+
+        if not target_path.exists():
+            raise FileNotFoundError(f"ComfyUI output file not found: {target_path}")
+
+        return target_path.read_bytes()

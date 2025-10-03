@@ -280,7 +280,7 @@ class TestSchemaModels:
             user_id=self.test_user1.id,
             job_type="text",
             prompt="Generate a story about robots",
-            parameters={"model": "gpt-4", "temperature": 0.7},
+            params={"model": "gpt-4", "temperature": 0.7},
             status="pending"
         )
         
@@ -290,8 +290,8 @@ class TestSchemaModels:
         assert job.job_type == "text"
         assert job.prompt == "Generate a story about robots"
         assert job.status == "pending"
-        assert job.parameters["model"] == "gpt-4"
-        assert job.result_content_id is None
+        assert job.params["model"] == "gpt-4"
+        assert job.content_id is None
         assert job.started_at is None
         assert job.completed_at is None
     
@@ -315,7 +315,7 @@ class TestSchemaModels:
             job_type="text",
             prompt="Generate a story",
             status="completed",
-            result_content_id=result_content.id,
+            content_id=result_content.id,
             started_at=completed_time,
             completed_at=completed_time
         )
@@ -340,3 +340,50 @@ class TestSchemaModels:
         # Check that created_at and updated_at are close to now
         time_diff = datetime.utcnow() - user.created_at
         assert time_diff.total_seconds() < 5  # Within 5 seconds
+
+    def test_generation_job_backward_compatibility_aliases(self):
+        """Test backward-compatible aliases for renamed GenerationJob fields."""
+        # Create a job with new field names
+        job = GenerationJob(
+            user_id=self.test_user1.id,
+            job_type="image",
+            prompt="Test prompt",
+            params={"model": "test-model", "temperature": 0.7},
+            status="pending"
+        )
+        self.session.add(job)
+        self.session.commit()
+
+        # Test that 'parameters' alias works for reading
+        assert job.parameters == job.params
+        assert job.parameters["model"] == "test-model"
+
+        # Test that 'parameters' alias works for writing
+        job.parameters = {"new_model": "updated", "temp": 0.9}
+        assert job.params == {"new_model": "updated", "temp": 0.9}
+        assert job.parameters == {"new_model": "updated", "temp": 0.9}
+
+        # Test result_content_id alias (reading)
+        assert job.result_content_id is None
+        assert job.result_content_id == job.content_id
+
+        # Create a content item
+        result_content = ContentItem(
+            title="Generated Image",
+            content_type="image",
+            content_data="/path/to/image.png",
+            prompt="Test prompt for alias test",
+            creator_id=self.test_user1.id
+        )
+        self.session.add(result_content)
+        self.session.commit()
+
+        # Test result_content_id alias (writing)
+        job.result_content_id = result_content.id
+        assert job.content_id == result_content.id
+        assert job.result_content_id == result_content.id
+
+        # Test result_content relationship alias
+        assert job.result_content is not None
+        assert job.result_content.id == result_content.id
+        assert job.result_content == job.content

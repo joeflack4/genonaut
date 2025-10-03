@@ -143,6 +143,10 @@ class GenerationJobCreateRequest(BaseModel):
     width: Optional[int] = Field(None, ge=64, le=2048, description="Image width for ComfyUI")
     height: Optional[int] = Field(None, ge=64, le=2048, description="Image height for ComfyUI")
     batch_size: Optional[int] = Field(None, ge=1, le=8, description="Number of images to generate for ComfyUI")
+    sampler_params: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Sampler configuration overrides for ComfyUI (seed, steps, cfg, etc.)",
+    )
 
     @validator('job_type', pre=True)
     def normalize_job_type(cls, value):
@@ -175,6 +179,12 @@ class GenerationJobCreateRequest(BaseModel):
                 if not isinstance(lora, dict) or 'name' not in lora:
                     raise ValueError("LoRA models must contain 'name' field")
         return v
+
+    @validator('sampler_params')
+    def validate_sampler_params(cls, value):
+        if value is not None and not isinstance(value, dict):
+            raise ValueError("sampler_params must be a dictionary when provided")
+        return value
 
 
 class GenerationJobUpdateRequest(BaseModel):

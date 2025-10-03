@@ -1,7 +1,7 @@
 # Celery + Redis Integration - Progress Report
 
 ## Executive Summary
-Major progress complete! Celery and Redis infrastructure is fully integrated into the Genonaut backend. Database migration applied to demo environment. Core async task processing operational. Remaining work: ComfyUI client implementation, WebSocket/Pub-Sub for real-time updates, and comprehensive testing.
+Major progress complete! Celery and Redis infrastructure is fully integrated into the Genonaut backend. Database migration applied to demo environment. Core async task processing and ComfyUI workflow orchestration are operational. Remaining work: WebSocket/Pub-Sub for real-time updates and comprehensive testing.
 
 ---
 
@@ -65,15 +65,16 @@ Major progress complete! Celery and Redis infrastructure is fully integrated int
   - Removed `sampler_params`, `output_paths`, `thumbnail_paths`
   - Includes `celery_task_id` and all ComfyUI fields
 
-### Phase 5: ComfyUI Integration (PLACEHOLDER ⚠️)
-- ✅ Added placeholder TODO comments in `tasks.py` for:
-  - ComfyUI client integration
-  - Workflow submission
-  - Status polling/webhook handling
-  - Image download and storage
-  - Thumbnail generation
-- ✅ Updated `run_comfy_job` return value to use `content_id`
-- ⚠️ Actual ComfyUI client implementation deferred to future work
+### Phase 5: ComfyUI Integration (COMPLETE ✓)
+- ✅ Implemented full ComfyUI client stack:
+  - `ComfyUIClient` now handles workflow submission, status polling, output parsing, and file reads
+  - `ComfyUIWorkerClient` exposes worker-friendly helpers including image download support
+- ✅ Added `WorkflowBuilder` service to construct dynamic workflows from generation parameters and LoRA models
+- ✅ Updated Celery task `process_comfy_job` to:
+  - Build workflows, submit to ComfyUI, and poll for completion
+  - Organize generated files, generate thumbnails, and persist metadata
+  - Create associated `ContentItem` records and mark jobs completed
+- ✅ Expanded unit test coverage for worker client helpers and task happy-path execution
 
 ---
 
@@ -206,16 +207,15 @@ curl -X POST http://localhost:8001/api/v1/generation-jobs/ \
 
 ### Overall Progress: ~85% Complete
 
-**Completed Phases:** 1, 2, 3, 4, 5 (placeholder), 6, 9
+**Completed Phases:** 1, 2, 3, 4, 5, 6, 9
 **In Progress:** None
 **Remaining:** Phases 7 (WebSocket), 8 (Testing)
 
 **Estimated Remaining Work:**
 - WebSocket/Pub-Sub: 2-3 hours
 - Testing: 3-4 hours
-- ComfyUI client implementation: 4-6 hours (separate epic, optional)
 
-**Total Estimated Remaining:** 5-7 hours core work (excluding ComfyUI client)
+**Total Estimated Remaining:** 5-7 hours core work
 
 ---
 
@@ -225,7 +225,6 @@ curl -X POST http://localhost:8001/api/v1/generation-jobs/ \
 2. **Update test input TSVs** - Update `test/db/input/generation_jobs.tsv` with new field names
 3. **Write and run tests** (Phase 8) - Test new fields, Celery integration, job workflows
 4. **Implement WebSocket/Pub-Sub** (Phase 7) - For real-time job progress updates (optional)
-5. **Implement ComfyUI client** (Optional/Future - Phase 5 full implementation)
 
 ---
 
@@ -233,9 +232,8 @@ curl -X POST http://localhost:8001/api/v1/generation-jobs/ \
 
 1. **Migration not applied to dev:** Dev database still needs migration
 2. **Limited testing:** Need comprehensive tests for new fields and Celery integration
-3. **ComfyUI integration deferred:** Image generation won't actually work until client is implemented (placeholder only)
-4. **No WebSocket yet:** No real-time updates for job progress (nice-to-have feature)
-5. **Test fixtures need updating:** TSV files in `test/db/input/` need schema updates
+3. **No WebSocket yet:** No real-time updates for job progress (nice-to-have feature)
+4. **Test fixtures need updating:** TSV files in `test/db/input/` need schema updates
 
 ---
 
@@ -257,10 +255,16 @@ curl -X POST http://localhost:8001/api/v1/generation-jobs/ \
 - `genonaut/api/repositories/generation_job_repository.py` - Updated for new field names
 - `genonaut/api/models/requests.py` - Updated `GenerationJobCreateRequest` (params field)
 - `genonaut/api/models/responses.py` - Updated `GenerationJobResponse` (params, content_id)
+- `genonaut/api/services/comfyui_client.py` - Implemented workflow submission, polling, and file helpers
+- `genonaut/api/services/workflow_builder.py` - Added workflow construction utilities
+- `genonaut/worker/comfyui_client.py` - Worker wrapper for ComfyUI client interactions
 - `requirements-unlocked.txt` - Added `redis` package
 - `Makefile` - Added Celery/Redis commands
 - `README.md` - Added comprehensive Celery + Redis documentation
 - `notes/celery.md` - Updated with field naming decisions and migration status
+- `test/worker/test_comfyui_client.py` - Added worker client coverage
+- `test/worker/test_tasks.py` - Added happy-path task coverage
+- `test/unit/test_generation_requests_model.py` - Added Pydantic validation coverage
 
 ### Files to Modify Next:
 - `test/db/input/generation_jobs.tsv` - Update for new schema

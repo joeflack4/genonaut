@@ -38,7 +38,14 @@ async def create_generation_job(
             user_id=job_data.user_id,
             job_type=job_data.job_type,
             prompt=job_data.prompt,
-            parameters=job_data.parameters
+            params=job_data.params,
+            negative_prompt=job_data.negative_prompt,
+            checkpoint_model=job_data.checkpoint_model,
+            lora_models=job_data.lora_models,
+            width=job_data.width,
+            height=job_data.height,
+            batch_size=job_data.batch_size,
+            sampler_params=job_data.sampler_params,
         )
         return GenerationJobResponse.model_validate(job)
     except ValidationError as e:
@@ -72,7 +79,7 @@ async def update_generation_job(
     try:
         job = service.update_job(
             job_id=job_id,
-            parameters=job_data.parameters
+            params=job_data.parameters
         )
         return GenerationJobResponse.model_validate(job)
     except EntityNotFoundError as e:

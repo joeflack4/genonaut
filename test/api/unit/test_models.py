@@ -301,13 +301,39 @@ class TestGenerationJobModels:
             "user_id": TEST_USER_ID,
             "job_type": JobType.TEXT,
             "prompt": "Generate a story about space exploration",
-            "parameters": {"max_length": 1000, "temperature": 0.7}
+            "params": {"max_length": 1000, "temperature": 0.7},
         }
         job = GenerationJobCreateRequest(**data)
         assert job.user_id == TEST_USER_ID
         assert job.job_type == JobType.TEXT
         assert job.prompt == "Generate a story about space exploration"
-        assert job.parameters == {"max_length": 1000, "temperature": 0.7}
+        assert job.params == {"max_length": 1000, "temperature": 0.7}
+
+    def test_generation_job_create_request_comfyui_fields(self):
+        """Test image generation creation request with ComfyUI-specific fields."""
+        data = {
+            "user_id": TEST_USER_ID,
+            "job_type": JobType.IMAGE,
+            "prompt": "A serene lakeside at sunrise",
+            "params": {"sampler_params": {"steps": 20}},
+            "negative_prompt": "low quality, blurry",
+            "checkpoint_model": "test_model.safetensors",
+            "lora_models": [{"name": "detailer", "strength_model": 0.6, "strength_clip": 0.5}],
+            "width": 640,
+            "height": 768,
+            "batch_size": 2,
+            "sampler_params": {"seed": 42, "steps": 20, "cfg": 7.5},
+        }
+        job = GenerationJobCreateRequest(**data)
+
+        assert job.job_type == JobType.IMAGE
+        assert job.negative_prompt == "low quality, blurry"
+        assert job.checkpoint_model == "test_model.safetensors"
+        assert job.lora_models == [{"name": "detailer", "strength_model": 0.6, "strength_clip": 0.5}]
+        assert job.width == 640
+        assert job.height == 768
+        assert job.batch_size == 2
+        assert job.sampler_params == {"seed": 42, "steps": 20, "cfg": 7.5}
     
     def test_generation_job_create_request_long_prompt(self):
         """Test generation job creation with too long prompt."""

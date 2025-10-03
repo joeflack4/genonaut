@@ -357,7 +357,14 @@ class GenerationJobRepository(BaseRepository[GenerationJob, Dict[str, Any], Dict
         user_id: UUID,
         job_type: str,
         prompt: str,
-        params: Optional[Dict[str, Any]] = None
+        params: Optional[Dict[str, Any]] = None,
+        *,
+        negative_prompt: Optional[str] = None,
+        checkpoint_model: Optional[str] = None,
+        lora_models: Optional[List[Dict[str, Any]]] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        batch_size: Optional[int] = None,
     ) -> GenerationJob:
         """Create a new generation job.
 
@@ -374,13 +381,26 @@ class GenerationJobRepository(BaseRepository[GenerationJob, Dict[str, Any], Dict
             DatabaseError: If database operation fails
         """
         try:
-            job_data = {
+            job_data: Dict[str, Any] = {
                 'user_id': user_id,
                 'job_type': job_type,
                 'prompt': prompt,
                 'params': params or {},
                 'status': 'pending'
             }
+
+            if negative_prompt is not None:
+                job_data['negative_prompt'] = negative_prompt
+            if checkpoint_model is not None:
+                job_data['checkpoint_model'] = checkpoint_model
+            if lora_models is not None:
+                job_data['lora_models'] = lora_models
+            if width is not None:
+                job_data['width'] = width
+            if height is not None:
+                job_data['height'] = height
+            if batch_size is not None:
+                job_data['batch_size'] = batch_size
 
             return self.create(job_data)
         except SQLAlchemyError as e:
