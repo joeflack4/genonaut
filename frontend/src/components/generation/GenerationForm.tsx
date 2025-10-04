@@ -21,17 +21,17 @@ import {
 } from '@mui/material'
 import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
 import { ModelSelector } from './ModelSelector'
-import { useComfyUIService } from '../../hooks/useComfyUIService'
+import { useGenerationJobService } from '../../hooks/useGenerationJobService'
 import type {
-  ComfyUIGenerationCreateRequest,
-  ComfyUIGenerationResponse,
+  GenerationJobCreateRequest,
+  GenerationJobResponse,
   LoraModel,
   SamplerParams,
-} from '../../services/comfyui-service'
+} from '../../services/generation-job-service'
 import { ApiError } from '../../services/api-client'
 
 interface GenerationFormProps {
-  onGenerationStart: (generation: ComfyUIGenerationResponse) => void
+  onGenerationStart: (generation: GenerationJobResponse) => void
 }
 
 const defaultSamplerParams: SamplerParams = {
@@ -93,7 +93,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
   const abortControllerRef = useRef<AbortController | null>(null)
   const timeoutTimerRef = useRef<number | null>(null)
 
-  const { createGeneration } = useComfyUIService()
+  const { createGenerationJob } = useGenerationJobService()
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -146,8 +146,9 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
     try {
       const selectedCheckpoint = checkpointModel || 'default-checkpoint'
 
-      const request: ComfyUIGenerationCreateRequest = {
+      const request: GenerationJobCreateRequest = {
         user_id: 'demo-user', // TODO: Get from auth context
+        job_type: 'image',
         prompt: sanitizedPrompt,
         negative_prompt: negativePrompt.trim() || undefined,
         checkpoint_model: selectedCheckpoint,
@@ -158,7 +159,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
         sampler_params: samplerParams,
       }
 
-      const generation = await createGeneration(request, { signal: abortController.signal })
+      const generation = await createGenerationJob(request, { signal: abortController.signal })
       onGenerationStart(generation)
 
       // Reset form

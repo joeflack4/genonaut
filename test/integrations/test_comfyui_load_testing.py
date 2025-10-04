@@ -14,9 +14,9 @@ from unittest.mock import Mock, patch
 from sqlalchemy.orm import Session
 
 from genonaut.api.services.comfyui_generation_service import ComfyUIGenerationService
-from genonaut.api.repositories.comfyui_generation_repository import ComfyUIGenerationRepository
+from genonaut.api.repositories.generation_job_repository import GenerationJobRepository
 from genonaut.api.models.requests import ComfyUIGenerationCreateRequest
-from genonaut.db.schema import User, ComfyUIGenerationRequest, AvailableModel
+from genonaut.db.schema import User, GenerationJob, AvailableModel
 
 
 class TestComfyUILoadTesting:
@@ -332,7 +332,7 @@ class TestComfyUILoadTesting:
 
         def create_generation_record(i):
             try:
-                generation = ComfyUIGenerationRequest(
+                generation = GenerationJob(
                     user_id=test_user.id,
                     prompt=f"Database performance test {i}",
                     negative_prompt="test",

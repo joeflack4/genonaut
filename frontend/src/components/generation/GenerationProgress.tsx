@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -9,6 +10,9 @@ import {
   Stack,
   Paper,
   CircularProgress,
+  Card,
+  CardMedia,
+  CardActionArea,
 } from '@mui/material'
 import {
   Cancel as CancelIcon,
@@ -16,11 +20,12 @@ import {
   Error as ErrorIcon,
   HourglassEmpty as HourglassIcon,
 } from '@mui/icons-material'
-import { useGenerationPolling, useCachedComfyUIService } from '../../hooks/useCachedComfyUIService'
-import type { ComfyUIGenerationResponse } from '../../services/comfyui-service'
+import { useJobWebSocket } from '../../hooks/useJobWebSocket'
+import { useGenerationJobService } from '../../hooks/useGenerationJobService'
+import type { GenerationJobResponse } from '../../services/generation-job-service'
 
 interface GenerationProgressProps {
-  generation: ComfyUIGenerationResponse
+  generation: GenerationJobResponse
   onComplete: () => void
 }
 
@@ -29,6 +34,11 @@ const STATUS_CONFIG = {
     label: 'Pending',
     color: 'default' as const,
     icon: <HourglassIcon />,
+  },
+  running: {
+    label: 'Running',
+    color: 'primary' as const,
+    icon: <CircularProgress size={16} />,
   },
   processing: {
     label: 'Processing',
@@ -54,31 +64,72 @@ const STATUS_CONFIG = {
 
 export function GenerationProgress({ generation: initialGeneration, onComplete }: GenerationProgressProps) {
   const [isCancelling, setIsCancelling] = useState(false)
+  const [currentGeneration, setCurrentGeneration] = useState(initialGeneration)
+  const navigate = useNavigate()
 
-  const { cancelGeneration } = useCachedComfyUIService()
+  const { cancelGenerationJob, getGenerationJob } = useGenerationJobService()
 
-  // Use the polling hook for efficient status updates
-  const {
-    generation,
-    error,
-    isActive,
-  } = useGenerationPolling(initialGeneration.id, true)
+  // Use WebSocket for real-time updates
+  const { connect, disconnect, lastUpdate } = useJobWebSocket(initialGeneration.id, {
+    onStatusUpdate: (update) => {
+      console.log('WebSocket update received:', update)
+      // Update current generation with WebSocket data
+      setCurrentGeneration(prev => ({
+        ...prev,
+        status: update.status,
+        ...(update.content_id && { content_id: update.content_id }),
+        ...(update.output_paths && { output_paths: update.output_paths }),
+        ...(update.error && { error_message: update.error })
+      }))
+    }
+  })
+
+  // Connect to WebSocket on mount
+  useEffect(() => {
+    connect()
+    return () => disconnect()
+  }, [connect, disconnect])
+
+  // Fallback to polling for status updates (if WebSocket fails)
+  const [error, setError] = useState<string | null>(null)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    // Only poll if WebSocket isn't providing updates
+    if (lastUpdate) return
+
+    const isActive = currentGeneration.status === 'pending' || currentGeneration.status === 'running'
+    if (!isActive) return
+
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const updated = await getGenerationJob(initialGeneration.id)
+        setCurrentGeneration(updated)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch generation status')
+      }
+    }, 2000)
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+      }
+    }
+  }, [getGenerationJob, initialGeneration.id, lastUpdate, currentGeneration.status])
 
   // Call onComplete when generation finishes
   useEffect(() => {
-    if (generation && !isActive && generation.status !== initialGeneration.status) {
-      setTimeout(onComplete, 1000) // Give user time to see final status
+    const isFinished = currentGeneration.status === 'completed' || currentGeneration.status === 'failed'
+    if (isFinished && currentGeneration.status !== initialGeneration.status) {
+      setTimeout(onComplete, 2000) // Give user time to see final status
     }
-  }, [generation, isActive, onComplete, initialGeneration.status])
-
-  // Use the latest generation data or fall back to initial
-  const currentGeneration = generation || initialGeneration
+  }, [currentGeneration.status, onComplete, initialGeneration.status])
 
   const handleCancel = async () => {
     setIsCancelling(true)
 
     try {
-      await cancelGeneration(currentGeneration.id)
+      await cancelGenerationJob(currentGeneration.id)
     } catch (err) {
       console.error('Failed to cancel generation:', err)
     } finally {
@@ -90,6 +141,7 @@ export function GenerationProgress({ generation: initialGeneration, onComplete }
     switch (currentGeneration.status) {
       case 'pending':
         return 10
+      case 'running':
       case 'processing':
         return 50
       case 'completed':
@@ -103,7 +155,7 @@ export function GenerationProgress({ generation: initialGeneration, onComplete }
   }
 
   const statusConfig = STATUS_CONFIG[currentGeneration.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending
-  const canCancel = currentGeneration.status === 'pending' || currentGeneration.status === 'processing'
+  const canCancel = currentGeneration.status === 'pending' || currentGeneration.status === 'running' || currentGeneration.status === 'processing'
 
   const handleApplySuggestions = () => {
     if (!currentGeneration.recovery_suggestions?.length) return
@@ -163,9 +215,9 @@ export function GenerationProgress({ generation: initialGeneration, onComplete }
       </Box>
 
       {/* Progress Bar */}
-      {(currentGeneration.status === 'pending' || currentGeneration.status === 'processing') && (
+      {(currentGeneration.status === 'pending' || currentGeneration.status === 'running' || currentGeneration.status === 'processing') && (
         <LinearProgress
-          variant={currentGeneration.status === 'processing' ? 'indeterminate' : 'determinate'}
+          variant={currentGeneration.status === 'running' || currentGeneration.status === 'processing' ? 'indeterminate' : 'determinate'}
           value={getProgressValue()}
           sx={{ mb: 2, height: 8, borderRadius: 4 }}
         />
@@ -251,13 +303,37 @@ export function GenerationProgress({ generation: initialGeneration, onComplete }
         </Paper>
       )}
 
-      {/* Success Message */}
-      {currentGeneration.status === 'completed' && currentGeneration.output_paths.length > 0 && (
-        <Alert severity="success">
-          <Typography variant="body2">
-            Generation completed successfully! {currentGeneration.output_paths.length} image(s) generated.
-          </Typography>
-        </Alert>
+      {/* Success Message and Generated Images */}
+      {currentGeneration.status === 'completed' && (
+        <>
+          <Alert severity="success" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              Generation completed successfully!
+            </Typography>
+          </Alert>
+
+          {/* Display generated image */}
+          {currentGeneration.content_id && (
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>
+                Generated Image:
+              </Typography>
+              <Card sx={{ maxWidth: 400 }}>
+                <CardActionArea onClick={() => navigate(`/content/${currentGeneration.content_id}`)}>
+                  <CardMedia
+                    component="img"
+                    image={`/api/v1/images/${currentGeneration.content_id}`}
+                    alt={currentGeneration.prompt}
+                    sx={{ maxHeight: 400, objectFit: 'contain' }}
+                  />
+                </CardActionArea>
+              </Card>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Click image to view full details
+              </Typography>
+            </Box>
+          )}
+        </>
       )}
     </Box>
   )

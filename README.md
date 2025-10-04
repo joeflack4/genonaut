@@ -247,6 +247,129 @@ curl -X POST http://localhost:8001/api/v1/generation-jobs/{job_id}/cancel
 make redis-flush-dev         # Clear all Redis data for dev
 ```
 
+## WebSocket Real-Time Updates
+
+Genonaut provides WebSocket endpoints for real-time job status updates. Clients can connect to monitor generation job progress and receive instant notifications when jobs complete.
+
+### WebSocket Endpoints
+
+**Monitor a single job:**
+```
+ws://localhost:8001/ws/jobs/{job_id}
+```
+
+**Monitor multiple jobs:**
+```
+ws://localhost:8001/ws/jobs?job_ids=123,456,789
+```
+
+### Message Format
+
+The WebSocket server sends JSON messages for job status updates:
+
+```json
+{
+  "job_id": 123,
+  "status": "started|processing|completed|failed",
+  "timestamp": "2025-10-03T12:00:00Z"
+}
+```
+
+**Status-specific fields:**
+
+- `processing`: May include `"progress": 50` (percentage)
+- `completed`: Includes `"content_id": 456` and `"output_paths": [...]`
+- `failed`: Includes `"error": "error message"`
+
+### Example Client Usage
+
+**JavaScript/Browser:**
+```javascript
+const ws = new WebSocket('ws://localhost:8001/ws/jobs/123');
+
+ws.onopen = () => {
+  console.log('Connected to job 123');
+};
+
+ws.onmessage = (event) => {
+  const update = JSON.parse(event.data);
+
+  switch (update.status) {
+    case 'started':
+      console.log('Job started!');
+      break;
+    case 'processing':
+      console.log(`Processing... ${update.progress || 0}%`);
+      break;
+    case 'completed':
+      console.log('Completed! Content ID:', update.content_id);
+      console.log('Image paths:', update.output_paths);
+      break;
+    case 'failed':
+      console.error('Failed:', update.error);
+      break;
+  }
+};
+
+ws.onerror = (error) => {
+  console.error('WebSocket error:', error);
+};
+
+ws.onclose = () => {
+  console.log('Connection closed');
+};
+
+// Keep connection alive with ping/pong
+setInterval(() => {
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'ping' }));
+  }
+}, 30000);
+```
+
+**Python:**
+```python
+import asyncio
+import websockets
+import json
+
+async def monitor_job(job_id):
+    uri = f"ws://localhost:8001/ws/jobs/{job_id}"
+
+    async with websockets.connect(uri) as websocket:
+        async for message in websocket:
+            data = json.loads(message)
+            print(f"Job {data['job_id']}: {data['status']}")
+
+            if data['status'] == 'completed':
+                print(f"Content ID: {data['content_id']}")
+                break
+            elif data['status'] == 'failed':
+                print(f"Error: {data['error']}")
+                break
+
+# Run the monitor
+asyncio.run(monitor_job(123))
+```
+
+### Connection Health
+
+The WebSocket server supports ping/pong messages to keep connections alive:
+
+```javascript
+// Send ping
+ws.send(JSON.stringify({ type: 'ping' }));
+
+// Server responds with pong
+// { "type": "pong" }
+```
+
+### Requirements
+
+- Redis must be running for pub/sub messaging
+- Celery worker must be running to publish job updates
+- WebSocket connections are stateful - reconnect if disconnected
+
 ## Testing
 
 Genonaut uses a three-tier testing approach: unit tests (no dependencies), database tests (requires DB), and API integration tests (requires web server).

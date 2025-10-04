@@ -17,9 +17,9 @@ from genonaut.api.services.comfyui_generation_service import ComfyUIGenerationSe
 from genonaut.api.services.comfyui_client import ComfyUIClient, ComfyUIConnectionError
 from genonaut.api.services.error_service import ErrorService, ErrorCategory, ErrorSeverity
 from genonaut.api.services.retry_service import RetryService, RetryableError, NonRetryableError
-from genonaut.api.repositories.comfyui_generation_repository import ComfyUIGenerationRepository
+from genonaut.api.repositories.generation_job_repository import GenerationJobRepository
 from genonaut.api.models.requests import ComfyUIGenerationCreateRequest
-from genonaut.db.schema import User, ComfyUIGenerationRequest, AvailableModel
+from genonaut.db.schema import User, GenerationJob, AvailableModel
 
 
 class TestErrorScenarios:
@@ -271,7 +271,7 @@ class TestErrorScenarios:
 
         # Create service and replace the session
         service = ComfyUIGenerationService(mock_session)
-        service.repository = ComfyUIGenerationRepository(mock_session)
+        service.repository = GenerationJobRepository(mock_session)
 
         # Attempt to create generation
         with pytest.raises(Exception) as exc_info:

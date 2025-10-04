@@ -241,6 +241,37 @@ class GenerationJobStatsResponse(BaseModel):
     average_processing_time_seconds: Optional[float] = Field(..., description="Average processing time")
 
 
+class NotificationResponse(BaseModel):
+    """Response model for notification data."""
+    id: int = Field(..., description="Notification ID")
+    user_id: UUID = Field(..., description="User ID")
+    title: str = Field(..., description="Notification title")
+    message: str = Field(..., description="Notification message")
+    notification_type: str = Field(..., description="Notification type")
+    read_status: bool = Field(..., description="Read status")
+    related_job_id: Optional[int] = Field(None, description="Related generation job ID")
+    related_content_id: Optional[int] = Field(None, description="Related content item ID")
+    created_at: datetime = Field(..., description="Creation timestamp")
+    read_at: Optional[datetime] = Field(None, description="Read timestamp")
+
+    model_config = {"from_attributes": True}
+
+
+class NotificationListResponse(BaseModel):
+    """Response model for list of notifications."""
+    items: List[NotificationResponse] = Field(..., description="List of notifications")
+    total: int = Field(..., description="Total number of notifications")
+    skip: int = Field(..., description="Number of records skipped")
+    limit: int = Field(..., description="Maximum number of records returned")
+
+    model_config = {"from_attributes": True}
+
+
+class UnreadCountResponse(BaseModel):
+    """Response model for unread notification count."""
+    unread_count: int = Field(..., description="Number of unread notifications")
+
+
 # Common response models
 class SuccessResponse(BaseModel):
     """Generic success response."""

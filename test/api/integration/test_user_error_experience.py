@@ -17,7 +17,7 @@ from genonaut.api.services.comfyui_generation_service import ComfyUIGenerationSe
 from genonaut.api.services.comfyui_client import ComfyUIConnectionError
 from genonaut.api.services.error_service import ErrorService
 from genonaut.api.models.requests import ComfyUIGenerationCreateRequest
-from genonaut.db.schema import User, ComfyUIGenerationRequest, AvailableModel
+from genonaut.db.schema import User, GenerationJob, AvailableModel
 
 
 class TestUserErrorExperience:
@@ -231,7 +231,7 @@ class TestUserErrorExperience:
     def test_generation_status_error_communication(self, client: TestClient, db_session: Session, test_user: User, test_model: AvailableModel):
         """Test how generation errors are communicated through status endpoints."""
         # Create a failed generation
-        failed_generation = ComfyUIGenerationRequest(
+        failed_generation = GenerationJob(
             user_id=test_user.id,
             prompt="Test failed generation",
             checkpoint_model=test_model.name,

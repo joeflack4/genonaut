@@ -23,24 +23,29 @@ import {
 import { GenerationCard } from './GenerationCard'
 import { ImageViewer } from './ImageViewer'
 import { VirtualScrollList } from '../common/VirtualScrollList'
-import { useGenerationsList } from '../../hooks/useCachedComfyUIService'
-import type { ComfyUIGenerationResponse, ComfyUIGenerationListParams } from '../../services/comfyui-service'
+import { useGenerationJobService } from '../../hooks/useGenerationJobService'
+import type { GenerationJobResponse, GenerationJobListParams } from '../../services/generation-job-service'
 
 export function GenerationHistory() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedGeneration, setSelectedGeneration] = useState<ComfyUIGenerationResponse | null>(null)
+  const [selectedGeneration, setSelectedGeneration] = useState<GenerationJobResponse | null>(null)
   const [viewerOpen, setViewerOpen] = useState(false)
   const [useVirtualScrolling, setUseVirtualScrolling] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [generationsResponse, setGenerationsResponse] = useState<{ items: GenerationJobResponse[]; total: number } | null>(null)
+
+  const { listGenerationJobs } = useGenerationJobService()
 
   const pageSize = useVirtualScrolling ? 100 : 12 // Load more items when using virtual scrolling
 
   // Build query parameters
-  const queryParams = useMemo((): ComfyUIGenerationListParams => {
-    const params: ComfyUIGenerationListParams = {
-      page,
-      page_size: pageSize,
+  const queryParams = useMemo((): GenerationJobListParams => {
+    const params: GenerationJobListParams = {
+      skip: (page - 1) * pageSize,
+      limit: pageSize,
       user_id: 'demo-user', // TODO: Get from auth context
     }
 
@@ -51,24 +56,35 @@ export function GenerationHistory() {
     return params
   }, [page, pageSize, statusFilter])
 
-  // Use cached generations list
-  const {
-    data: generationsResponse,
-    loading,
-    error,
-    refetch,
-  } = useGenerationsList(queryParams)
+  // Fetch generations list
+  const fetchGenerations = useMemo(() => async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await listGenerationJobs(queryParams)
+      setGenerationsResponse(response)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch generations')
+    } finally {
+      setLoading(false)
+    }
+  }, [listGenerationJobs, queryParams])
+
+  // Fetch on mount and when query params change
+  useMemo(() => {
+    fetchGenerations()
+  }, [fetchGenerations])
 
   // Derived state - wrap generations in useMemo to prevent re-renders
   const generations = useMemo(() => {
     return generationsResponse?.items || []
   }, [generationsResponse?.items])
 
-  const totalPages = generationsResponse ? Math.ceil(generationsResponse.pagination.total_count / pageSize) : 1
+  const totalPages = generationsResponse ? Math.ceil(generationsResponse.total / pageSize) : 1
 
   const handleRefresh = () => {
     setPage(1)
-    refetch()
+    fetchGenerations()
   }
 
   const handleStatusFilterChange = (status: string) => {
@@ -76,7 +92,7 @@ export function GenerationHistory() {
     setPage(1)
   }
 
-  const handleViewGeneration = (generation: ComfyUIGenerationResponse) => {
+  const handleViewGeneration = (generation: GenerationJobResponse) => {
     setSelectedGeneration(generation)
     setViewerOpen(true)
   }
@@ -95,7 +111,7 @@ export function GenerationHistory() {
   }, [generations, searchTerm])
 
   // Render generation card for virtual scrolling
-  const renderGenerationCard = (generation: ComfyUIGenerationResponse) => (
+  const renderGenerationCard = (generation: GenerationJobResponse) => (
     <Box sx={{ p: 1 }}>
       <GenerationCard
         generation={generation}
@@ -148,7 +164,7 @@ export function GenerationHistory() {
           >
             <MenuItem value="">All</MenuItem>
             <MenuItem value="pending">Pending</MenuItem>
-            <MenuItem value="processing">Processing</MenuItem>
+            <MenuItem value="running">Running</MenuItem>
             <MenuItem value="completed">Completed</MenuItem>
             <MenuItem value="failed">Failed</MenuItem>
             <MenuItem value="cancelled">Cancelled</MenuItem>

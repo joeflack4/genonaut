@@ -18,16 +18,17 @@ import {
   Image as ImageIcon,
 } from '@mui/icons-material'
 import { LazyImage } from '../common/LazyImage'
-import type { ComfyUIGenerationResponse } from '../../services/comfyui-service'
+import type { GenerationJobResponse } from '../../services/generation-job-service'
 
 interface GenerationCardProps {
-  generation: ComfyUIGenerationResponse
+  generation: GenerationJobResponse
   onView: () => void
   onDelete: () => void
 }
 
 const STATUS_COLORS = {
   pending: 'default' as const,
+  running: 'primary' as const,
   processing: 'primary' as const,
   completed: 'success' as const,
   failed: 'error' as const,
@@ -36,8 +37,9 @@ const STATUS_COLORS = {
 
 export function GenerationCard({ generation, onView, onDelete }: GenerationCardProps) {
   const statusColor = STATUS_COLORS[generation.status as keyof typeof STATUS_COLORS] || 'default'
-  const hasImages = generation.output_paths && generation.output_paths.length > 0
-  const thumbnailPath = generation.thumbnail_paths?.[0]
+  // Use content_id to construct image URL, fallback to output_paths for backward compatibility
+  const hasImages = (generation.content_id !== null && generation.content_id !== undefined) || (generation.output_paths && generation.output_paths.length > 0)
+  const thumbnailPath = generation.content_id ? `/api/v1/images/${generation.content_id}` : generation.thumbnail_paths?.[0]
   const [imageError, setImageError] = useState(false)
   const [imageReloadCount, setImageReloadCount] = useState(0)
 
@@ -190,7 +192,7 @@ export function GenerationCard({ generation, onView, onDelete }: GenerationCardP
         </Box>
 
         <Box>
-          {generation.batch_size > 1 && (
+          {generation.batch_size && generation.batch_size > 1 && generation.output_paths && (
             <Chip
               label={`${generation.output_paths.length}/${generation.batch_size}`}
               size="small"

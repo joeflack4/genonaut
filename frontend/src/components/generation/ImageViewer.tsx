@@ -24,16 +24,17 @@ import {
   ZoomOut as ZoomOutIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material'
-import type { ComfyUIGenerationResponse } from '../../services/comfyui-service'
+import type { GenerationJobResponse } from '../../services/generation-job-service'
 
 interface ImageViewerProps {
-  generation: ComfyUIGenerationResponse
+  generation: GenerationJobResponse
   open: boolean
   onClose: () => void
 }
 
 const STATUS_COLORS = {
   pending: 'default' as const,
+  running: 'primary' as const,
   processing: 'primary' as const,
   completed: 'success' as const,
   failed: 'error' as const,
@@ -44,10 +45,13 @@ export function ImageViewer({ generation, open, onClose }: ImageViewerProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [zoomLevel, setZoomLevel] = useState(1)
 
-  const hasImages = generation.output_paths && generation.output_paths.length > 0
+  // Use content_id to construct image URL, fallback to output_paths for backward compatibility
+  const imageUrl = generation.content_id ? `/api/v1/images/${generation.content_id}` : generation.output_paths?.[0]
+  const hasImages = imageUrl !== undefined || (generation.output_paths && generation.output_paths.length > 0)
   const statusColor = STATUS_COLORS[generation.status as keyof typeof STATUS_COLORS] || 'default'
 
   const handlePreviousImage = () => {
+    if (!generation.output_paths) return
     setCurrentImageIndex((prev) =>
       prev > 0 ? prev - 1 : generation.output_paths.length - 1
     )
@@ -55,6 +59,7 @@ export function ImageViewer({ generation, open, onClose }: ImageViewerProps) {
   }
 
   const handleNextImage = () => {
+    if (!generation.output_paths) return
     setCurrentImageIndex((prev) =>
       prev < generation.output_paths.length - 1 ? prev + 1 : 0
     )
@@ -79,6 +84,7 @@ export function ImageViewer({ generation, open, onClose }: ImageViewerProps) {
   }
 
   const handleDownloadAll = () => {
+    if (!generation.output_paths) return
     generation.output_paths.forEach((path, index) => {
       handleDownload(path, index)
     })
@@ -132,7 +138,7 @@ export function ImageViewer({ generation, open, onClose }: ImageViewerProps) {
               >
                 <Box
                   component="img"
-                  src={generation.output_paths[currentImageIndex]}
+                  src={imageUrl || generation.output_paths?.[currentImageIndex]}
                   alt={`Generated image ${currentImageIndex + 1}`}
                   sx={{
                     maxWidth: '100%',
@@ -145,7 +151,7 @@ export function ImageViewer({ generation, open, onClose }: ImageViewerProps) {
                 />
 
                 {/* Image Navigation */}
-                {generation.output_paths.length > 1 && (
+                {generation.output_paths && generation.output_paths.length > 1 && (
                   <>
                     <IconButton
                       onClick={handlePreviousImage}
@@ -190,7 +196,7 @@ export function ImageViewer({ generation, open, onClose }: ImageViewerProps) {
                       }}
                     >
                       <Typography variant="body2">
-                        {currentImageIndex + 1} / {generation.output_paths.length}
+                        {currentImageIndex + 1} / {generation.output_paths?.length || 1}
                       </Typography>
                     </Box>
                   </>
@@ -320,29 +326,41 @@ export function ImageViewer({ generation, open, onClose }: ImageViewerProps) {
                   <Typography variant="subtitle2" gutterBottom>
                     Generation Settings
                   </Typography>
-                  <Typography variant="body2">
-                    <strong>Dimensions:</strong> {generation.width} × {generation.height}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Batch Size:</strong> {generation.batch_size}
-                  </Typography>
-                  {generation.sampler_params && (
+                  {generation.width && generation.height && (
+                    <Typography variant="body2">
+                      <strong>Dimensions:</strong> {generation.width} × {generation.height}
+                    </Typography>
+                  )}
+                  {generation.batch_size && (
+                    <Typography variant="body2">
+                      <strong>Batch Size:</strong> {generation.batch_size}
+                    </Typography>
+                  )}
+                  {generation.params?.sampler_params && (
                     <>
-                      <Typography variant="body2">
-                        <strong>Steps:</strong> {generation.sampler_params.steps}
-                      </Typography>
-                      <Typography variant="body2">
-                        <strong>CFG Scale:</strong> {generation.sampler_params.cfg}
-                      </Typography>
-                      <Typography variant="body2">
-                        <strong>Sampler:</strong> {generation.sampler_params.sampler_name}
-                      </Typography>
-                      <Typography variant="body2">
-                        <strong>Scheduler:</strong> {generation.sampler_params.scheduler}
-                      </Typography>
-                      {generation.sampler_params.seed !== undefined && generation.sampler_params.seed !== -1 && (
+                      {generation.params.sampler_params.steps && (
                         <Typography variant="body2">
-                          <strong>Seed:</strong> {generation.sampler_params.seed}
+                          <strong>Steps:</strong> {generation.params.sampler_params.steps}
+                        </Typography>
+                      )}
+                      {generation.params.sampler_params.cfg && (
+                        <Typography variant="body2">
+                          <strong>CFG Scale:</strong> {generation.params.sampler_params.cfg}
+                        </Typography>
+                      )}
+                      {generation.params.sampler_params.sampler_name && (
+                        <Typography variant="body2">
+                          <strong>Sampler:</strong> {generation.params.sampler_params.sampler_name}
+                        </Typography>
+                      )}
+                      {generation.params.sampler_params.scheduler && (
+                        <Typography variant="body2">
+                          <strong>Scheduler:</strong> {generation.params.sampler_params.scheduler}
+                        </Typography>
+                      )}
+                      {generation.params.sampler_params.seed !== undefined && generation.params.sampler_params.seed !== -1 && (
+                        <Typography variant="body2">
+                          <strong>Seed:</strong> {generation.params.sampler_params.seed}
                         </Typography>
                       )}
                     </>
@@ -389,7 +407,7 @@ export function ImageViewer({ generation, open, onClose }: ImageViewerProps) {
         </Grid>
 
         {/* Thumbnail Strip */}
-        {hasImages && generation.output_paths.length > 1 && (
+        {hasImages && generation.output_paths && generation.output_paths.length > 1 && (
           <Box
             sx={{
               position: 'absolute',
@@ -441,11 +459,11 @@ export function ImageViewer({ generation, open, onClose }: ImageViewerProps) {
       </DialogContent>
 
       <DialogActions>
-        {hasImages && (
+        {hasImages && generation.output_paths && generation.output_paths.length > 0 && (
           <>
             <Button
               startIcon={<DownloadIcon />}
-              onClick={() => handleDownload(generation.output_paths[currentImageIndex], currentImageIndex)}
+              onClick={() => handleDownload(generation.output_paths![currentImageIndex], currentImageIndex)}
             >
               Download Current
             </Button>

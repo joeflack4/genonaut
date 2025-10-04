@@ -31,6 +31,13 @@ from genonaut.api.services.workflow_builder import (
 from genonaut.api.services.file_storage_service import FileStorageService
 from genonaut.api.services.thumbnail_service import ThumbnailService
 from genonaut.api.services.content_service import ContentService
+from genonaut.api.services.notification_service import NotificationService
+from genonaut.worker.pubsub import (
+    publish_job_started,
+    publish_job_processing,
+    publish_job_completed,
+    publish_job_failed,
+)
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -89,6 +96,9 @@ def process_comfy_job(
         db.commit()
         logger.info("Job %s status updated to 'running'", job_id)
 
+        # Publish "started" status update
+        publish_job_started(job_id)
+
         job_params: Dict[str, Any] = dict(job.params or {})
         if override_params:
             job_params.update(override_params)
@@ -140,6 +150,9 @@ def process_comfy_job(
         job.comfyui_prompt_id = prompt_id
         db.commit()
         logger.info("Job %s submitted to ComfyUI (prompt_id=%s)", job_id, prompt_id)
+
+        # Publish "processing" status update
+        publish_job_processing(job_id)
 
         workflow_status = comfy_client.wait_for_outputs(
             prompt_id, max_wait_time=settings.comfyui_max_wait_time
@@ -210,6 +223,20 @@ def process_comfy_job(
         db.refresh(job)
         logger.info("Job %s completed successfully", job_id)
 
+        # Publish "completed" status update
+        publish_job_completed(job_id, content_id=content_item.id, output_paths=organized_paths)
+
+        # Create notification for job completion
+        try:
+            notification_service = NotificationService(db)
+            notification_service.create_job_completion_notification(
+                user_id=job.user_id,
+                job_id=job_id,
+                content_id=content_item.id
+            )
+        except Exception as notif_error:
+            logger.warning("Failed to create completion notification for job %s: %s", job_id, notif_error)
+
         return {
             "job_id": job_id,
             "status": job.status,
@@ -234,6 +261,21 @@ def process_comfy_job(
                 job.completed_at = datetime.utcnow()
                 job.updated_at = datetime.utcnow()
                 db.commit()
+
+                # Publish "failed" status update
+                publish_job_failed(job_id, error=str(exc))
+
+                # Create notification for job failure
+                try:
+                    notification_service = NotificationService(db)
+                    notification_service.create_job_failure_notification(
+                        user_id=job.user_id,
+                        job_id=job_id,
+                        error_message=str(exc)[:500]  # Truncate long error messages
+                    )
+                except Exception as notif_error:
+                    logger.warning("Failed to create failure notification for job %s: %s", job_id, notif_error)
+
         except Exception as update_error:  # pragma: no cover - defensive
             logger.error(
                 "Failed to persist failure state for job %s: %s", job_id, update_error

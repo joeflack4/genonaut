@@ -8,8 +8,8 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from genonaut.db.schema import ComfyUIGenerationRequest
-from genonaut.api.repositories.comfyui_generation_repository import ComfyUIGenerationRepository
+from genonaut.db.schema import GenerationJob
+from genonaut.api.repositories.generation_job_repository import GenerationJobRepository
 from genonaut.api.repositories.user_repository import UserRepository
 from genonaut.api.services.comfyui_client import (
     ComfyUIClient, ComfyUIConnectionError, ComfyUIWorkflowError
@@ -39,7 +39,7 @@ class ComfyUIGenerationService:
             db: Database session
         """
         self.db = db
-        self.repository = ComfyUIGenerationRepository(db)
+        self.repository = GenerationJobRepository(db)
         self.user_repository = UserRepository(db)
         self.comfyui_client = ComfyUIClient()
         self.workflow_builder = WorkflowBuilder()
@@ -63,7 +63,7 @@ class ComfyUIGenerationService:
         height: int = 1216,
         batch_size: int = 1,
         sampler_params: Optional[Dict[str, Any]] = None
-    ) -> ComfyUIGenerationRequest:
+    ) -> GenerationJob:
         """Create a new generation request.
 
         Args:
@@ -78,7 +78,7 @@ class ComfyUIGenerationService:
             sampler_params: KSampler parameters
 
         Returns:
-            Created generation request
+            Created generation job
 
         Raises:
             ValidationError: If parameters are invalid
@@ -94,27 +94,30 @@ class ComfyUIGenerationService:
         if sampler_params is None:
             sampler_params = {}
 
-        # Create generation request record
+        # Create generation job record (use new unified GenerationJob model)
         try:
-            generation_request = self.repository.create_generation_request(
+            # Store sampler_params in the params field
+            params = {'sampler_params': sampler_params} if sampler_params else {}
+
+            generation_job = self.repository.create_generation_job(
                 user_id=user_id,
+                job_type='image',  # ComfyUI generates images
                 prompt=prompt,
+                params=params,
                 negative_prompt=negative_prompt,
                 checkpoint_model=checkpoint_model,
                 lora_models=lora_models,
                 width=width,
                 height=height,
                 batch_size=batch_size,
-                sampler_params=sampler_params,
-                status='pending'
             )
             self.db.commit()
 
             # Track metrics
             self.metrics_service.record_generation_request(str(user_id), "comfyui")
 
-            logger.info(f"Created generation request {generation_request.id} for user {user_id}")
-            return generation_request
+            logger.info(f"Created generation job {generation_job.id} for user {user_id}")
+            return generation_job
 
         except Exception as e:
             self.db.rollback()
@@ -133,7 +136,7 @@ class ComfyUIGenerationService:
             logger.error(f"Failed to create generation request for user {user_id}: {error_info['user_message']}")
             raise
 
-    def submit_to_comfyui(self, generation_request: ComfyUIGenerationRequest) -> str:
+    def submit_to_comfyui(self, generation_request: GenerationJob) -> str:
         """Submit generation request to ComfyUI.
 
         Args:
@@ -158,7 +161,7 @@ class ComfyUIGenerationService:
                     "width": generation_request.width,
                     "height": generation_request.height,
                     "batch_size": generation_request.batch_size,
-                    "sampler_params": generation_request.sampler_params,
+                    "sampler_params": generation_request.params.get('sampler_params', {}),
                     "filename_prefix": f"gen_{generation_request.id}"
                 }
 
@@ -225,7 +228,7 @@ class ComfyUIGenerationService:
                 logger.error(f"Failed to submit generation request {generation_request.id}: {error_info.get('user_message', str(e))}")
                 raise
 
-    def check_generation_status(self, generation_request: ComfyUIGenerationRequest) -> Dict[str, Any]:
+    def check_generation_status(self, generation_request: GenerationJob) -> Dict[str, Any]:
         """Check the status of a generation request in ComfyUI.
 
         Args:
@@ -280,11 +283,11 @@ class ComfyUIGenerationService:
                         logger.error(f"Failed to generate thumbnails for generation {generation_request.id}: {e}")
                         # Don't fail the entire generation if thumbnails fail
 
+                # Note: output_paths are now stored in ContentItem, not directly on GenerationJob
+                # The Celery worker (run_comfy_job) handles creating the ContentItem
                 self.repository.update_status(
                     generation_request.id,
-                    new_status,
-                    output_paths=organized_paths,
-                    completed_at=datetime.utcnow()
+                    new_status
                 )
 
             elif comfyui_status["status"] == "failed":
@@ -295,8 +298,7 @@ class ComfyUIGenerationService:
                 self.repository.update_status(
                     generation_request.id,
                     new_status,
-                    error_message=error_message,
-                    completed_at=datetime.utcnow()
+                    error_message=error_message
                 )
 
             elif comfyui_status["status"] in ["queued", "running"]:
@@ -319,18 +321,21 @@ class ComfyUIGenerationService:
             logger.error(f"Failed to check generation status for request {generation_request.id}: {str(e)}")
             raise
 
-    def cancel_generation(self, generation_request: ComfyUIGenerationRequest) -> bool:
+    def cancel_generation(self, generation_id: int) -> bool:
         """Cancel a generation request.
 
         Args:
-            generation_request: Generation request to cancel
+            generation_id: Generation request ID to cancel
 
         Returns:
             True if cancellation was successful
 
         Raises:
             ValidationError: If request cannot be cancelled
+            EntityNotFoundError: If request not found
         """
+        generation_request = self.repository.get_or_404(generation_id)
+
         if generation_request.status in ['completed', 'failed', 'cancelled']:
             raise ValidationError(f"Cannot cancel generation with status: {generation_request.status}")
 
@@ -349,8 +354,7 @@ class ComfyUIGenerationService:
             # Update status in database regardless of ComfyUI cancellation result
             self.repository.update_status(
                 generation_request.id,
-                'cancelled',
-                completed_at=datetime.utcnow()
+                'cancelled'
             )
             self.db.commit()
 
@@ -362,8 +366,22 @@ class ComfyUIGenerationService:
             self.db.rollback()
             raise
 
-    def get_generation_request(self, request_id: int) -> ComfyUIGenerationRequest:
+    def get_generation_by_id(self, request_id: int) -> GenerationJob:
         """Get generation request by ID.
+
+        Args:
+            request_id: Generation request ID
+
+        Returns:
+            Generation job
+
+        Raises:
+            EntityNotFoundError: If request not found
+        """
+        return self.repository.get_or_404(request_id)
+
+    def get_generation_request(self, request_id: int) -> GenerationJob:
+        """Get generation request by ID (alias for backward compatibility).
 
         Args:
             request_id: Generation request ID
@@ -374,9 +392,9 @@ class ComfyUIGenerationService:
         Raises:
             EntityNotFoundError: If request not found
         """
-        return self.repository.get_or_404(request_id)
+        return self.get_generation_by_id(request_id)
 
-    def delete_generation(self, generation_request: ComfyUIGenerationRequest) -> bool:
+    def delete_generation(self, generation_request: GenerationJob) -> bool:
         """Delete a generation request and its associated files.
 
         Args:
@@ -422,6 +440,56 @@ class ComfyUIGenerationService:
         """
         return self.repository.get_by_user(user_id, pagination, status)
 
+    def list_generations(self, request) -> "ComfyUIGenerationListResponse":
+        """List generation requests with filtering.
+
+        Args:
+            request: ComfyUIGenerationListRequest with filter parameters
+
+        Returns:
+            ComfyUIGenerationListResponse with paginated results
+        """
+        from genonaut.api.models.responses import ComfyUIGenerationListResponse, ComfyUIGenerationResponse
+
+        # Build query filters
+        query = self.db.query(GenerationJob).filter(GenerationJob.job_type == 'image')
+
+        if request.user_id:
+            query = query.filter(GenerationJob.user_id == request.user_id)
+
+        if request.status:
+            query = query.filter(GenerationJob.status == request.status)
+
+        if request.created_after:
+            from datetime import datetime
+            created_after = datetime.fromisoformat(request.created_after)
+            query = query.filter(GenerationJob.created_at >= created_after)
+
+        if request.created_before:
+            from datetime import datetime
+            created_before = datetime.fromisoformat(request.created_before)
+            query = query.filter(GenerationJob.created_at <= created_before)
+
+        # Count total
+        total_count = query.count()
+
+        # Apply pagination
+        offset = (request.page - 1) * request.page_size
+        items = query.order_by(GenerationJob.created_at.desc()).offset(offset).limit(request.page_size).all()
+
+        # Convert to response models
+        response_items = [ComfyUIGenerationResponse.model_validate(item) for item in items]
+
+        return ComfyUIGenerationListResponse(
+            items=response_items,
+            pagination={
+                'page': request.page,
+                'page_size': request.page_size,
+                'total_count': total_count,
+                'total_pages': (total_count + request.page_size - 1) // request.page_size
+            }
+        )
+
     def process_pending_requests(self, max_concurrent: int = 5) -> int:
         """Process pending generation requests.
 
@@ -440,7 +508,7 @@ class ComfyUIGenerationService:
             raise ComfyUIConnectionError("ComfyUI server is not accessible")
 
         # Get currently processing requests
-        processing_requests = self.repository.get_processing_requests()
+        processing_requests = self.repository.get_running_jobs()
         current_count = len(processing_requests)
 
         if current_count >= max_concurrent:
@@ -449,7 +517,7 @@ class ComfyUIGenerationService:
 
         # Get pending requests
         available_slots = max_concurrent - current_count
-        pending_requests = self.repository.get_pending_requests(available_slots)
+        pending_requests = self.repository.get_pending_jobs(limit=available_slots)
 
         processed_count = 0
         for request in pending_requests:
@@ -473,7 +541,7 @@ class ComfyUIGenerationService:
         Raises:
             ComfyUIConnectionError: If ComfyUI connection fails
         """
-        processing_requests = self.repository.get_processing_requests()
+        processing_requests = self.repository.get_running_jobs()
         updated_count = 0
 
         for request in processing_requests:

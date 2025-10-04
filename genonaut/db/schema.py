@@ -4,7 +4,7 @@ This module contains SQLAlchemy models for the PostgreSQL database.
 """
 
 from datetime import datetime
-from typing import Optional, Union, Tuple, Dict, Any
+from typing import Optional, Union, Tuple, Dict, Any, List
 from sqlalchemy import (
     Column, Integer, String, Text, DateTime, Float, Boolean,
     ForeignKey, JSON, UniqueConstraint, Index, event, func, literal_column, DDL,
@@ -89,6 +89,47 @@ class User(Base):
         Index("idx_users_active_created", is_active, created_at.desc()),
         Index("idx_users_username_lower", func.lower(username)),  # For case-insensitive username searches
         Index("idx_users_email_lower", func.lower(email)),      # For case-insensitive email searches
+    )
+
+
+class UserNotification(Base):
+    """User notification model for storing notification messages.
+
+    Attributes:
+        id: Primary key
+        user_id: Foreign key to users
+        title: Short notification title
+        message: Notification message text
+        notification_type: Type of notification (job_completed, job_failed, system, etc.)
+        read_status: Whether notification has been read
+        related_job_id: Optional FK to generation_jobs for job-related notifications
+        related_content_id: Optional FK to content_items for content-related notifications
+        created_at: Timestamp when notification was created
+        read_at: Timestamp when notification was marked as read
+    """
+    __tablename__ = 'user_notifications'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    notification_type = Column(String(50), nullable=False, index=True)  # job_completed, job_failed, system, etc.
+    read_status = Column(Boolean, default=False, nullable=False, index=True)
+    related_job_id = Column(Integer, ForeignKey('generation_jobs.id'), nullable=True)
+    related_content_id = Column(Integer, ForeignKey('content_items.id'), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    read_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    user = relationship("User", backref="notifications")
+    related_job = relationship("GenerationJob", foreign_keys=[related_job_id])
+    related_content = relationship("ContentItem", foreign_keys=[related_content_id])
+
+    # Indexes for efficient queries
+    __table_args__ = (
+        Index("idx_notifications_user_created", user_id, created_at.desc()),
+        Index("idx_notifications_user_unread", user_id, read_status),
+        Index("idx_notifications_type", notification_type),
     )
 
 
@@ -391,7 +432,41 @@ class GenerationJob(Base):
     @result_content.setter
     def result_content(self, value: Optional["ContentItem"]) -> None:
         self.content = value
-    
+
+    @property
+    def sampler_params(self) -> Dict[str, Any]:
+        """Backward-compatible accessor for sampler_params from params dict."""
+        return (self.params or {}).get('sampler_params', {})
+
+    @property
+    def output_paths(self) -> List[str]:
+        """Backward-compatible accessor for output_paths.
+
+        Note: With the 1:1 GenerationJob-ContentItem relationship,
+        output paths are now stored in params['output_paths'] or can be
+        inferred from the ContentItem.
+        """
+        # First check params
+        if self.params and 'output_paths' in self.params:
+            return self.params['output_paths']
+        # Could also get from ContentItem.content_data if needed
+        return []
+
+    @property
+    def thumbnail_paths(self) -> List[str]:
+        """Backward-compatible accessor for thumbnail_paths.
+
+        Note: Thumbnail paths are now stored in params['thumbnails'] or
+        in the ContentItem metadata.
+        """
+        if self.params and 'thumbnails' in self.params:
+            thumbnails = self.params['thumbnails']
+            if isinstance(thumbnails, dict) and 'paths' in thumbnails:
+                return thumbnails['paths']
+            elif isinstance(thumbnails, list):
+                return thumbnails
+        return []
+
     # Full-text search configuration and pagination optimization indexes for PostgreSQL
     __table_args__ = (
         # Full-text search index
@@ -517,97 +592,6 @@ class AvailableModel(Base):
         Index("idx_available_models_type_active", type, is_active),
         Index("idx_available_models_active_name", is_active, name),
         UniqueConstraint('name', 'type', name='uq_model_name_type'),
-    )
-
-
-class ComfyUIGenerationRequest(Base):
-    """ComfyUI-specific generation requests.
-
-    Attributes:
-        id: Primary key
-        user_id: Foreign key to the user who requested the generation
-        prompt: Positive prompt for generation
-        negative_prompt: Negative prompt for generation (optional)
-        checkpoint_model: Name of the checkpoint model to use
-        lora_models: JSON array of LoRA models with their strengths
-        width: Image width
-        height: Image height
-        batch_size: Number of images to generate
-        sampler_params: JSON object with KSampler parameters
-        status: Generation status
-        comfyui_prompt_id: ComfyUI workflow prompt ID
-        output_paths: JSON array of generated image file paths
-        thumbnail_paths: JSON array of thumbnail file paths
-        created_at: Timestamp when request was created
-        updated_at: Timestamp when request was last updated
-        started_at: Timestamp when generation started
-        completed_at: Timestamp when generation completed
-        error_message: Error message if generation failed
-    """
-    __tablename__ = 'comfyui_generation_requests'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
-    prompt = Column(Text, nullable=False)
-    negative_prompt = Column(Text, nullable=True)
-    checkpoint_model = Column(String(255), nullable=False)
-    lora_models = Column(JSONColumn, default=list)  # [{"name": str, "strength_model": float, "strength_clip": float}]
-    width = Column(Integer, nullable=False, default=512)
-    height = Column(Integer, nullable=False, default=512)
-    batch_size = Column(Integer, nullable=False, default=1)
-    sampler_params = Column(JSONColumn, default=dict)  # {seed, steps, cfg, sampler_name, scheduler, denoise}
-    status = Column(String(20), default='pending', nullable=False, index=True)  # pending, processing, completed, failed, cancelled
-    comfyui_prompt_id = Column(String(255), nullable=True, unique=True, index=True)
-    output_paths = Column(JSONColumn, default=list)  # Array of generated image file paths
-    thumbnail_paths = Column(JSONColumn, default=list)  # Array of thumbnail file paths
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    started_at = Column(DateTime, nullable=True)
-    completed_at = Column(DateTime, nullable=True)
-    error_message = Column(Text, nullable=True)
-
-    # Relationships
-    user = relationship("User", foreign_keys=[user_id])
-
-    # Full-text search and optimization indexes
-    __table_args__ = (
-        # Full-text search index for prompts
-        Index(
-            "cgr_prompt_fts_idx",
-            func.to_tsvector(
-                _fts_language_literal(),
-                func.coalesce(prompt, "") + ' ' + func.coalesce(negative_prompt, ""),
-            ),
-            postgresql_using="gin",
-            info={"postgres_only": True},
-        ),
-        # GiST trigram index for prompt similarity searches (CRITICAL - billions of rows expected)
-        Index(
-            "idx_comfyui_gen_prompt_gist",
-            prompt,
-            postgresql_using="gist",
-            postgresql_ops={"prompt": "gist_trgm_ops"},
-            info={"postgres_only": True},
-        ),
-        # GiST trigram index for negative prompt similarity searches
-        Index(
-            "idx_comfyui_gen_negative_prompt_gist",
-            negative_prompt,
-            postgresql_using="gist",
-            postgresql_ops={"negative_prompt": "gist_trgm_ops"},
-            info={"postgres_only": True},
-        ),
-        # Pagination optimization indexes
-        Index("idx_comfyui_gen_created_at_desc", created_at.desc()),
-        Index("idx_comfyui_gen_user_created", user_id, created_at.desc()),
-        Index("idx_comfyui_gen_status_created", status, created_at.desc()),
-        Index("idx_comfyui_gen_user_status_created", user_id, status, created_at.desc()),
-        # Index for queue management
-        Index("idx_comfyui_gen_status_created_priority", status, created_at.asc(),
-              postgresql_where=status.in_(['pending', 'processing'])),
-        # Index for completed generation analytics
-        Index("idx_comfyui_gen_completed_at_desc", completed_at.desc(),
-              postgresql_where=completed_at.is_not(None)),
     )
 
 

@@ -20,9 +20,9 @@ from genonaut.api.services.retry_service import (
     RetryService, RetryConfig, RetryStrategy, get_retry_service, with_retry
 )
 from genonaut.api.services.error_service import ErrorService, get_error_service
-from genonaut.api.repositories.comfyui_generation_repository import ComfyUIGenerationRepository
+from genonaut.api.repositories.generation_job_repository import GenerationJobRepository
 from genonaut.api.models.requests import ComfyUIGenerationCreateRequest
-from genonaut.db.schema import User, ComfyUIGenerationRequest, AvailableModel
+from genonaut.db.schema import User, GenerationJob, AvailableModel
 
 
 class TestErrorRecovery:

@@ -43,3 +43,12 @@ class DatabaseEnvironment(str, Enum):
     """Database environment enumeration."""
     DEV = "dev"
     DEMO = "demo"
+
+
+class NotificationType(str, Enum):
+    """Notification type enumeration."""
+    JOB_COMPLETED = "job_completed"
+    JOB_FAILED = "job_failed"
+    JOB_CANCELLED = "job_cancelled"
+    SYSTEM = "system"
+    RECOMMENDATION = "recommendation"

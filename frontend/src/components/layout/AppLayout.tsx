@@ -36,6 +36,7 @@ import FlagIcon from '@mui/icons-material/Flag'
 import { useCurrentUser } from '../../hooks'
 import { useThemeMode } from '../../app/providers/theme'
 import { useUiSettings } from '../../app/providers/ui'
+import { NotificationBell } from '../notifications/NotificationBell'
 
 const navItems = [
   { label: 'Dashboard', to: '/dashboard', icon: DashboardIcon },
@@ -195,6 +196,7 @@ export function AppLayout() {
                 {showButtonLabels && (mode === 'dark' ? 'Light mode' : 'Dark mode')}
               </Button>
             </Tooltip>
+            <NotificationBell />
             {isUserLoading ? (
               <Skeleton variant="text" width={120} data-testid="app-layout-user-loading" />
             ) : (

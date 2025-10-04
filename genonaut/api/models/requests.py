@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Any
 from uuid import UUID
 from pydantic import BaseModel, Field, validator, EmailStr
 
-from genonaut.api.models.enums import ContentType, InteractionType, JobType
+from genonaut.api.models.enums import ContentType, InteractionType, JobType, NotificationType
 
 
 class UserCreateRequest(BaseModel):
@@ -350,3 +350,20 @@ class ComfyUIGenerationListRequest(PaginationRequest):
     status: Optional[str] = Field(None, description="Filter by generation status")
     created_after: Optional[str] = Field(None, description="Filter generations created after this date")
     created_before: Optional[str] = Field(None, description="Filter generations created before this date")
+
+
+class NotificationCreateRequest(BaseModel):
+    """Request model for creating a notification."""
+    user_id: UUID = Field(..., description="User ID to create notification for")
+    title: str = Field(..., min_length=1, max_length=255, description="Notification title")
+    message: str = Field(..., min_length=1, description="Notification message")
+    notification_type: NotificationType = Field(..., description="Type of notification")
+    related_job_id: Optional[int] = Field(None, description="Related generation job ID")
+    related_content_id: Optional[int] = Field(None, description="Related content item ID")
+
+
+class NotificationListRequest(BaseModel):
+    """Request model for listing notifications."""
+    skip: int = Field(0, ge=0, description="Number of records to skip")
+    limit: int = Field(10, ge=1, le=100, description="Maximum number of records to return")
+    unread_only: bool = Field(False, description="Only return unread notifications")

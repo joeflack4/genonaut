@@ -16,8 +16,8 @@ import tempfile
 from genonaut.api.config import get_settings
 from genonaut.api.services.comfyui_client import ComfyUIClient
 from genonaut.api.services.comfyui_generation_service import ComfyUIGenerationService
-from genonaut.api.repositories.comfyui_generation_repository import ComfyUIGenerationRepository
-from genonaut.db.schema import User, ComfyUIGenerationRequest, AvailableModel
+from genonaut.api.repositories.generation_job_repository import GenerationJobRepository
+from genonaut.db.schema import User, GenerationJob, AvailableModel
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from genonaut.db.schema import Base
@@ -68,8 +68,8 @@ class TestComfyUIIntegration:
         self.test_user = test_user
 
         # Clean up old test generations
-        old_generations = self.db.query(ComfyUIGenerationRequest).filter(
-            ComfyUIGenerationRequest.user_id == test_user.id
+        old_generations = self.db.query(GenerationJob).filter(
+            GenerationJob.user_id == test_user.id
         ).all()
         for gen in old_generations:
             # Clean up files
@@ -81,8 +81,8 @@ class TestComfyUIIntegration:
                     os.remove(path)
 
         # Delete old generation records
-        self.db.query(ComfyUIGenerationRequest).filter(
-            ComfyUIGenerationRequest.user_id == test_user.id
+        self.db.query(GenerationJob).filter(
+            GenerationJob.user_id == test_user.id
         ).delete()
         self.db.commit()
 
