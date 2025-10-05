@@ -1,5 +1,5 @@
 import { useState, MouseEvent } from 'react'
-import { IconButton, Menu, MenuItem, ListItemText, Tooltip } from '@mui/material'
+import { IconButton, Menu, MenuItem, ListItemText, ListSubheader, Tooltip } from '@mui/material'
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown'
 import type { ThumbnailResolution, ThumbnailResolutionId } from '../../types/domain'
 import { THUMBNAIL_RESOLUTION_OPTIONS } from '../../constants/gallery'
@@ -61,6 +61,15 @@ export function ResolutionDropdown({
         onClose={handleClose}
         MenuListProps={{
           'aria-labelledby': 'resolution-button',
+          subheader: (
+            <ListSubheader
+              component="div"
+              id="resolution-subheader"
+              sx={{ bgcolor: 'transparent' }}
+            >
+              Thumb Sizes
+            </ListSubheader>
+          ),
         }}
         data-testid={`${dataTestId}-menu`}
       >

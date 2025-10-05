@@ -1,6 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Box, ButtonBase, Typography } from '@mui/material'
 import ImageNotSupportedIcon from '@mui/icons-material/ImageNotSupported'
+import InsertPhotoIcon from '@mui/icons-material/InsertPhoto'
 import type { GalleryItem, ThumbnailResolution } from '../../types/domain'
 
 export interface ImageGridCellProps {
@@ -11,6 +12,8 @@ export interface ImageGridCellProps {
 }
 
 export function ImageGridCell({ item, resolution, onClick, dataTestId = `gallery-grid-item-${item.id}` }: ImageGridCellProps) {
+  const [imageError, setImageError] = useState(false)
+
   // Priority: resolution-specific thumbnail > default thumbnail > full image > imageUrl fallback
   const mediaSource = useMemo(() => {
     // Try to find resolution-specific thumbnail
@@ -27,6 +30,10 @@ export function ImageGridCell({ item, resolution, onClick, dataTestId = `gallery
     if (onClick) {
       onClick(item)
     }
+  }
+
+  const handleImageError = () => {
+    setImageError(true)
   }
 
   return (
@@ -69,11 +76,12 @@ export function ImageGridCell({ item, resolution, onClick, dataTestId = `gallery
         }}
         data-testid={`${dataTestId}-media`}
       >
-        {mediaSource ? (
+        {mediaSource && !imageError ? (
           <Box
             component="img"
             src={mediaSource}
             alt={item.title}
+            onError={handleImageError}
             sx={{
               position: 'absolute',
               inset: 0,
@@ -97,14 +105,14 @@ export function ImageGridCell({ item, resolution, onClick, dataTestId = `gallery
             }}
             data-testid={`${dataTestId}-placeholder`}
           >
-            <ImageNotSupportedIcon fontSize="large" />
+            <InsertPhotoIcon fontSize="large" />
           </Box>
         )}
       </Box>
       <Box sx={{ px: 2, py: 1.5 }} data-testid={`${dataTestId}-meta`}>
         <Typography
-          variant="subtitle1"
-          component="h3"
+          variant="caption"
+          display="block"
           noWrap
           title={item.title}
           data-testid={`${dataTestId}-title`}
@@ -116,10 +124,9 @@ export function ImageGridCell({ item, resolution, onClick, dataTestId = `gallery
             variant="caption"
             color="text.secondary"
             display="block"
-            mt={0.5}
             data-testid={`${dataTestId}-createdAt`}
           >
-            {new Date(item.createdAt).toLocaleString()}
+            {new Date(item.createdAt).toLocaleDateString()}
           </Typography>
         )}
       </Box>

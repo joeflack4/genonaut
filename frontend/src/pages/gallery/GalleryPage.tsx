@@ -256,26 +256,6 @@ export function GalleryPage() {
       sx={{ position: 'relative', display: 'flex', flexDirection: 'column' }}
       data-testid="gallery-page-root"
     >
-      {!optionsOpen && (
-        <Tooltip title="Options" enterDelay={300} arrow>
-          <IconButton
-            aria-label="Options"
-            onClick={() => setOptionsOpen(true)}
-            sx={{
-              position: 'fixed',
-              top: (theme) => theme.spacing(10), // Increased from 2 to 10 to be below navbar
-              right: (theme) => theme.spacing(2),
-              zIndex: (theme) => theme.zIndex.drawer + 1,
-              bgcolor: 'background.paper',
-              boxShadow: 1,
-            }}
-            data-testid="gallery-options-open-button"
-          >
-            <SettingsOutlinedIcon />
-          </IconButton>
-        </Tooltip>
-      )}
-
       <Box
         sx={{
           display: 'flex',
