@@ -420,7 +420,7 @@ Genonaut includes an automatic content flagging system that detects potentially 
 - **Full Guide**: [Content Flagging Documentation](docs/flagging.md) - Complete API reference and examples
 - **Testing**: [Testing Guide](docs/flagging-testing.md) - Test suites and manual testing checklist
 - **API Reference**: See `/api/v1/admin/flagged-content` endpoints in API docs (http://localhost:8001/docs)
-- **Implementation Spec**: [Technical Details](notes/flagging.md) - Phase-by-phase implementation notes
+- **Implementation Spec**: [Technical Details](notes/issues/by_priority/low/flagging.md) - Phase-by-phase implementation notes
 
 ## Developer docs
 Running tests:

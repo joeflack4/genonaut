@@ -642,7 +642,7 @@ curl -X POST "http://localhost:8001/api/v1/admin/flagged-content/bulk-delete" \
 - [Quick Start Guide](./flagging-quickstart.md)
 - [Full Documentation](./flagging.md)
 - [Testing Guide](./flagging-testing.md)
-- [Implementation Spec](../notes/flagging.md)
+- [Implementation Spec](../notes/issues/by_priority/low/flagging.md)
 
 ### Getting Help
 1. Check documentation first

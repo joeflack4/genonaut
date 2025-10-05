@@ -305,7 +305,7 @@ make init-dev
 - **Full Documentation**: [docs/flagging.md](./flagging.md)
 - **API Reference**: http://localhost:8001/docs (when server running)
 - **Testing Guide**: [docs/flagging-testing.md](./flagging-testing.md)
-- **Implementation Spec**: [notes/flagging.md](../notes/flagging.md)
+- **Implementation Spec**: [notes/flagging.md](../notes/issues/by_priority/low/flagging.md)
 
 ## Quick Reference
 

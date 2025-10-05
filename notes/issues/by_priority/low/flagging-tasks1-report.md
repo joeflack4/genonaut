@@ -62,14 +62,14 @@ Navigate to: **http://localhost:5173/admin/flagged-content**
 ## 📚 Documentation
 
 ### For Quick Setup
-**[Quick Start Guide](docs/flagging-quickstart.md)**
+**[Quick Start Guide](../../../../docs/flagging-quickstart.md)**
 - 5-minute setup
 - Key features overview
 - Common tasks
 - Troubleshooting
 
 ### For Complete Reference
-**[Full Documentation](docs/flagging.md)**
+**[Full Documentation](../../../../docs/flagging.md)**
 - API endpoints (all 7)
 - Risk calculation details
 - Usage examples (Python & cURL)
@@ -77,7 +77,7 @@ Navigate to: **http://localhost:5173/admin/flagged-content**
 - Configuration options
 
 ### For Testing
-**[Testing Guide](docs/flagging-testing.md)**
+**[Testing Guide](../../../../docs/flagging-testing.md)**
 - Automated test suites
 - Manual testing checklist
 - Edge cases to test
@@ -85,14 +85,14 @@ Navigate to: **http://localhost:5173/admin/flagged-content**
 - Troubleshooting
 
 ### For Technical Details
-**[Implementation Summary](docs/flagging-summary.md)**
+**[Implementation Summary](../../../../docs/flagging-summary.md)**
 - Complete architecture
 - File-by-file breakdown
 - Component details
 - Test coverage
 - Deployment checklist
 
-**[Implementation Spec](notes/flagging.md)**
+**[Implementation Spec](flagging.md)**
 - Phase-by-phase progress
 - Technical decisions
 - Files created/modified
@@ -232,7 +232,7 @@ Complete UI at `/admin/flagged-content` with:
 
 ### Immediate (Today)
 1. ✅ Review this file
-2. ✅ Read [Quick Start Guide](docs/flagging-quickstart.md)
+2. ✅ Read [Quick Start Guide](../../../../docs/flagging-quickstart.md)
 3. ✅ Test the UI (`cd frontend && npm run dev`)
 4. ✅ Try creating flagged content
 5. ✅ Test filtering and review workflow
@@ -312,17 +312,17 @@ cd frontend && npm run dev
 make init-test
 ```
 
-For more troubleshooting, see [Testing Guide](docs/flagging-testing.md#troubleshooting)
+For more troubleshooting, see [Testing Guide](../../../../docs/flagging-testing.md#troubleshooting)
 
 ---
 
 ## 📞 Support
 
 ### Documentation
-1. **[Quick Start](docs/flagging-quickstart.md)** - Get started fast
-2. **[Full Guide](docs/flagging.md)** - Complete reference
-3. **[Testing](docs/flagging-testing.md)** - Test procedures
-4. **[Summary](docs/flagging-summary.md)** - Technical details
+1. **[Quick Start](../../../../docs/flagging-quickstart.md)** - Get started fast
+2. **[Full Guide](../../../../docs/flagging.md)** - Complete reference
+3. **[Testing](../../../../docs/flagging-testing.md)** - Test procedures
+4. **[Summary](../../../../docs/flagging-summary.md)** - Technical details
 
 ### Examples
 - All documentation includes working examples
@@ -361,9 +361,9 @@ curl -X POST http://localhost:8001/api/v1/content \
 - 📈 Watch risk scores
 
 ### Read Documentation
-- Start with [Quick Start](docs/flagging-quickstart.md)
-- Reference [Full Guide](docs/flagging.md) for details
-- Use [Testing Guide](docs/flagging-testing.md) for validation
+- Start with [Quick Start](../../../../docs/flagging-quickstart.md)
+- Reference [Full Guide](../../../../docs/flagging.md) for details
+- Use [Testing Guide](../../../../docs/flagging-testing.md) for validation
 
 ---
 
