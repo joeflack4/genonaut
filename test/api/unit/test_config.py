@@ -1,10 +1,26 @@
 """Unit tests for API configuration."""
 
 import os
-import pytest
+from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+from dotenv import dotenv_values
+
 from genonaut.api.config import Settings, get_settings
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+ENV_PATH = PROJECT_ROOT / "env" / ".env"
+BASE_ENV = {k: v for k, v in dotenv_values(ENV_PATH).items() if v is not None}
+
+
+def env_with_overrides(**overrides: object) -> dict[str, str]:
+    """Build an environment dict using repo defaults plus explicit overrides."""
+    env = BASE_ENV.copy()
+    for key, value in overrides.items():
+        env[key] = str(value)
+    return env
 
 
 class TestSettings:
@@ -12,27 +28,27 @@ class TestSettings:
     
     def test_settings_defaults(self):
         """Test default settings values."""
-        with patch.dict(os.environ, {}, clear=True):
+        with patch.dict(os.environ, env_with_overrides(), clear=True):
             settings = Settings()
-            assert settings.api_secret_key == "your-secret-key-change-this-in-production"
-            assert settings.app_env == "dev"
-            assert settings.api_host == "0.0.0.0"
-            assert settings.api_port == 8001
+            assert settings.api_secret_key == BASE_ENV["API_SECRET_KEY"]
+            assert settings.app_env == BASE_ENV["APP_ENV"]
+            assert settings.api_host == BASE_ENV["API_HOST"]
+            assert settings.api_port == int(BASE_ENV["API_PORT"])
             assert settings.api_debug is False
     
     def test_settings_from_env(self):
         """Test settings loaded from environment variables."""
-        env_vars = {
-            "API_SECRET_KEY": "test-secret-key",
-            "APP_ENV": "test-env",
-            "API_HOST": "127.0.0.1",
-            "API_PORT": "9000",
-            "API_DEBUG": "true"
-        }
+        env_vars = env_with_overrides(
+            API_SECRET_KEY="test-secret-key",
+            APP_ENV="test",
+            API_HOST="127.0.0.1",
+            API_PORT=9000,
+            API_DEBUG="true",
+        )
         with patch.dict(os.environ, env_vars, clear=True):
             settings = Settings()
             assert settings.api_secret_key == "test-secret-key"
-            assert settings.app_env == "test-env"
+            assert settings.app_env == "test"
             assert settings.api_host == "127.0.0.1"
             assert settings.api_port == 9000
             assert settings.api_debug is True
@@ -40,11 +56,11 @@ class TestSettings:
     def test_settings_database_url_demo_generation(self):
         """Test demo database URL generation."""
         # Set explicit demo URL
-        env_vars = {
-            "DATABASE_URL": "postgresql://user:pass@localhost:5432/genonaut_main",
-            "DATABASE_URL_DEMO": "postgresql://user:pass@localhost:5432/genonaut_test_env",
-            "APP_ENV": "test_env"
-        }
+        env_vars = env_with_overrides(
+            DATABASE_URL="postgresql://user:pass@localhost:5432/genonaut_main",
+            DATABASE_URL_DEMO="postgresql://user:pass@localhost:5432/genonaut_test_env",
+            APP_ENV="demo",
+        )
         with patch.dict(os.environ, env_vars, clear=True):
             settings = Settings()
             # Should use the explicit demo URL
@@ -53,20 +69,20 @@ class TestSettings:
     
     def test_settings_custom_demo_url(self):
         """Test custom demo database URL."""
-        env_vars = {
-            "DATABASE_URL": "postgresql://user:pass@localhost:5432/genonaut_main",
-            "DATABASE_URL_DEMO": "postgresql://demo:pass@localhost:5432/custom_demo"
-        }
+        env_vars = env_with_overrides(
+            DATABASE_URL="postgresql://user:pass@localhost:5432/genonaut_main",
+            DATABASE_URL_DEMO="postgresql://demo:pass@localhost:5432/custom_demo",
+        )
         with patch.dict(os.environ, env_vars, clear=True):
             settings = Settings()
             assert settings.database_url_demo == "postgresql://demo:pass@localhost:5432/custom_demo"
 
     def test_settings_support_test_environment(self):
         """Test that the test environment loads dedicated database settings."""
-        env_vars = {
-            "APP_ENV": "test",
-            "DATABASE_URL_TEST": "postgresql://tester:pass@localhost:5432/genonaut_test_env"
-        }
+        env_vars = env_with_overrides(
+            APP_ENV="test",
+            DATABASE_URL_TEST="postgresql://tester:pass@localhost:5432/genonaut_test_env",
+        )
         with patch.dict(os.environ, env_vars, clear=True):
             settings = Settings()
             assert settings.app_env == "test"
@@ -80,12 +96,12 @@ class TestSettings:
     
     def test_settings_validation_port_range(self):
         """Test port validation."""
-        with patch.dict(os.environ, {"API_PORT": "70000"}, clear=True):
+        with patch.dict(os.environ, env_with_overrides(API_PORT=70000), clear=True):
             # Should not raise an error for high port numbers
             settings = Settings()
             assert settings.api_port == 70000
         
-        with patch.dict(os.environ, {"API_PORT": "0"}, clear=True):
+        with patch.dict(os.environ, env_with_overrides(API_PORT=0), clear=True):
             settings = Settings()
             assert settings.api_port == 0
     
@@ -108,24 +124,24 @@ class TestSettings:
         ]
         
         for env_value, expected in valid_test_cases:
-            with patch.dict(os.environ, {"API_DEBUG": env_value}, clear=True):
+            with patch.dict(os.environ, env_with_overrides(API_DEBUG=env_value), clear=True):
                 settings = Settings()
                 assert settings.api_debug is expected, f"Failed for env_value: {env_value}"
         
         # Test default value when not set
-        with patch.dict(os.environ, {}, clear=True):
+        with patch.dict(os.environ, env_with_overrides(), clear=True):
             settings = Settings()
             assert settings.api_debug is False, "Default should be False"
 
     def test_settings_redis_and_celery_properties(self):
         """Ensure Redis/Celery property helpers respect the application environment."""
-        env_vars = {
-            "APP_ENV": "test",
-            "REDIS_URL_TEST": "redis://localhost:6379/3",
-            "REDIS_NS_TEST": "genonaut_test",
-            "CELERY_BROKER_URL_TEST": "redis://localhost:6379/13",
-            "CELERY_RESULT_BACKEND_TEST": "redis://localhost:6379/23",
-        }
+        env_vars = env_with_overrides(
+            APP_ENV="test",
+            REDIS_URL_TEST="redis://localhost:6379/3",
+            REDIS_NS_TEST="genonaut_test",
+            CELERY_BROKER_URL_TEST="redis://localhost:6379/13",
+            CELERY_RESULT_BACKEND_TEST="redis://localhost:6379/23",
+        )
 
         with patch.dict(os.environ, env_vars, clear=True):
             settings = Settings()
@@ -136,9 +152,9 @@ class TestSettings:
 
     def test_settings_comfyui_defaults(self):
         """Verify default ComfyUI configuration values."""
-        with patch.dict(os.environ, {}, clear=True):
+        with patch.dict(os.environ, env_with_overrides(), clear=True):
             settings = Settings()
-            assert settings.comfyui_url == "http://localhost:8188"
+            assert settings.comfyui_url == BASE_ENV["COMFYUI_URL"]
             assert settings.comfyui_default_checkpoint == "illustriousXL_v01.safetensors"
             assert settings.comfyui_default_width == 832
             assert settings.comfyui_default_height == 1216

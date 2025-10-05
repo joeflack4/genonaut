@@ -7,9 +7,13 @@ receiving real-time updates about generation job progress.
 import json
 import logging
 import asyncio
-from typing import Optional
+from typing import Any, Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
-import redis.asyncio as aioredis
+
+try:
+    import redis.asyncio as aioredis  # type: ignore
+except ImportError:  # pragma: no cover - optional dependency for real-time features
+    aioredis = None  # type: ignore
 
 from genonaut.api.config import get_settings
 from genonaut.worker.pubsub import get_job_channel
@@ -20,12 +24,15 @@ settings = get_settings()
 router = APIRouter(prefix="/ws", tags=["websocket"])
 
 
-async def get_async_redis_client() -> aioredis.Redis:
+async def get_async_redis_client() -> Any:
     """Get an async Redis client instance.
 
     Returns:
         Async Redis client configured with the current environment's URL
     """
+    if aioredis is None:
+        raise RuntimeError("redis package with asyncio support is required for WebSocket pubsub functionality.")
+
     return await aioredis.from_url(settings.redis_url, decode_responses=True)
 
 
@@ -63,8 +70,8 @@ async def job_status_websocket(
     await websocket.accept()
     logger.info(f"WebSocket client connected for job {job_id}")
 
-    redis_client: Optional[aioredis.Redis] = None
-    pubsub: Optional[aioredis.client.PubSub] = None
+    redis_client: Optional[Any] = None
+    pubsub: Optional[Any] = None
 
     try:
         # Connect to Redis and subscribe to job channel

@@ -908,7 +908,7 @@ def initialize_database(
 
     if seed_data_path is not None:
         candidate_path = Path(seed_data_path)
-    elif schema_name is None:
+    elif schema_name is None and not is_sqlite:
         candidate_path = resolve_seed_path(
             load_project_config(),
             initializer.environment,

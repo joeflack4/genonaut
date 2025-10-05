@@ -6,8 +6,12 @@ enabling real-time notifications via WebSocket connections.
 
 import json
 import logging
-from typing import Dict, Any, Optional
-import redis
+from typing import Any, Dict, Optional
+
+try:
+    import redis  # type: ignore
+except ImportError:  # pragma: no cover - optional dependency in some test environments
+    redis = None  # type: ignore
 
 from genonaut.api.config import get_settings
 
@@ -15,12 +19,15 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
-def get_redis_client() -> redis.Redis:
+def get_redis_client() -> Any:
     """Get a Redis client instance.
 
     Returns:
         Redis client configured with the current environment's URL
     """
+    if redis is None:
+        raise RuntimeError("redis package is required to use pubsub functionality. Install the 'redis' extra.")
+
     return redis.Redis.from_url(settings.redis_url, decode_responses=True)
 
 

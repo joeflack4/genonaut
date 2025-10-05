@@ -84,6 +84,42 @@ If at any point you need a service to be running (e.g. database, backend web API
 
 Always prioritize using project-specific service management commands when available, as they are likely configured with the correct parameters and dependencies.
 
+### File Writing and Character Encoding
+
+When using the `Write` tool to create or update files:
+
+1. **Use plain ASCII characters whenever possible**: Stick to standard alphanumeric characters, basic punctuation, and common symbols
+2. **Avoid special Unicode characters**: Do not use:
+   - Arrow symbols: `→` `←` `↑` `↓` `⇒` `⇐` (use `-` or `->` instead)
+   - Checkmarks and X marks: `✓` `✗` `✅` `❌` (use `[YES]`/`[NO]` or `[X]` instead)
+   - Fancy bullets: `•` `◦` `▪` (use `-` or `*` instead)
+   - Emoji or decorative Unicode characters
+3. **Stick to markdown-safe characters**: Use standard markdown formatting:
+   - Lists: `-` or `*` for bullets
+   - Code blocks: triple backticks
+   - Emphasis: `*` or `_`
+   - Bold: `**` or `__`
+
+**Why this matters**: The Write tool can sometimes corrupt special Unicode characters during file creation, leading to:
+- Mojibake (garbled text like `�` appearing in place of arrows)
+- Control characters appearing in files (like `ENQ` / `\005`)
+- IDE encoding detection issues (file not recognized as UTF-8)
+- Rendering problems in terminals and editors
+
+**Example - Good**:
+```markdown
+- [YES] Feature implemented
+- [NO] Not yet completed
+- Step 1 -> Step 2 -> Step 3
+```
+
+**Example - Avoid**:
+```markdown
+- ✅ Feature implemented
+- ❌ Not yet completed
+- Step 1 → Step 2 → Step 3
+```
+
 ### Web Requests
 When making web requests:
 
