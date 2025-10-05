@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     comfyui_default_height: int = 1216
     comfyui_default_batch_size: int = 1
 
+    # ComfyUI Mock Server settings (for testing)
+    comfyui_mock_url: str = "http://localhost:8189"
+    comfyui_mock_port: int = 8189
+
     # Redis settings
     redis_url_demo: str
     redis_url_test: str

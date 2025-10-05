@@ -734,3 +734,166 @@ npm run test:e2e:ui         # Use Playwright's debug UI
 - **E2E Tests:** Cover critical user journeys and workflows
 
 **Overall:** > 85% combined coverage across frontend and backend
+---
+
+## ComfyUI Mock Server
+
+### Overview
+
+For testing image generation workflows without requiring a real ComfyUI instance, Genonaut includes a mock ComfyUI server that simulates the ComfyUI API.
+
+**Location:** `test/_infra/mock_services/comfyui/`
+
+**Purpose:**
+- Test generation workflows in isolation
+- Avoid dependency on external ComfyUI installation
+- Enable fast, deterministic tests
+- Simulate edge cases and error conditions
+
+### Architecture
+
+The mock server is a FastAPI application that mimics ComfyUI's REST API:
+
+```
+test/_infra/mock_services/comfyui/
+├── server.py           # Mock ComfyUI server implementation
+├── conftest.py         # Pytest fixtures for server lifecycle
+├── input/              # Test images (used as mock generation output)
+│   └── kernie_512x768.jpg
+└── output/             # Generated "mock" images (copied from input/)
+```
+
+**How It Works:**
+1. When a job is submitted via `POST /prompt`, the server generates a unique `prompt_id`
+2. The server copies `input/kernie_512x768.jpg` to `output/` with a unique filename
+3. When polled via `GET /history/{prompt_id}`, returns completion status with output file info
+4. File naming follows ComfyUI pattern: `{prefix}_{counter}_.png`
+
+### Running Tests with Mock Server
+
+**Basic Usage:**
+
+```python
+def test_my_feature(mock_comfyui_config: dict):
+    """Test uses mock ComfyUI server automatically."""
+    # Settings are already configured to use mock server
+    # - comfyui_url: http://localhost:8189
+    # - comfyui_output_dir: test/_infra/mock_services/comfyui/output/
+    
+    # Your test code here
+    job = generation_service.create_generation_job(...)
+    process_comfy_job(db_session, job.id)
+    # Job will use mock server
+```
+
+**Available Fixtures:**
+
+- `mock_comfyui_server` (session-scoped): Starts/stops mock server
+- `mock_comfyui_url` (function-scoped): Returns server URL, resets state
+- `mock_comfyui_client` (function-scoped): ComfyUIClient configured for mock
+- `mock_comfyui_config` (function-scoped): Full configuration (URL + output_dir)
+
+### Environment Variables
+
+Add these to your `.env` file for mock server configuration:
+
+```bash
+# ComfyUI Mock Server (for testing)
+COMFYUI_MOCK_URL=http://localhost:8189
+COMFYUI_MOCK_PORT=8189
+```
+
+These are already configured in `env/.env` and `env/env.example`.
+
+### Test Layers
+
+The mock server supports three layers of testing:
+
+1. **Layer 1: Unit Tests (No Server)**
+   - Use `unittest.mock` to patch ComfyUIClient
+   - Fastest, no network calls
+   - Example: `test/api/integration/test_error_scenarios.py`
+
+2. **Layer 2: Mock Server (No Celery/Redis)**
+   - Use mock HTTP server for realistic API testing
+   - Tests ComfyUIClient integration
+   - Example: `test/integrations/comfyui/test_comfyui_mock_server_client.py`
+
+3. **Layer 3: End-to-End (Mock Server + Celery Simulation)**
+   - Full workflow testing with `process_comfy_job()`
+   - Tests complete generation pipeline
+   - Example: `test/integrations/comfyui/test_comfyui_mock_server_e2e.py`
+
+### Mock Server API Endpoints
+
+The mock server implements these ComfyUI-compatible endpoints:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/system_stats` | GET | Health check |
+| `/prompt` | POST | Submit workflow, returns `prompt_id` |
+| `/history/{prompt_id}` | GET | Get workflow status and outputs |
+| `/queue` | GET | Get queue status |
+| `/object_info` | GET | Get available models |
+| `/interrupt` | POST | Cancel workflow |
+
+### Running Mock Server Tests
+
+```bash
+# Run all mock server tests
+pytest test/integrations/comfyui/
+
+# Run specific test layer
+pytest test/integrations/comfyui/test_comfyui_mock_server_basic.py      # Layer 2: Basic
+pytest test/integrations/comfyui/test_comfyui_mock_server_client.py     # Layer 2: Client
+pytest test/integrations/comfyui/test_comfyui_mock_server_files.py      # Layer 2: Files
+pytest test/integrations/comfyui/test_comfyui_mock_server_errors.py     # Layer 2: Errors
+pytest test/integrations/comfyui/test_comfyui_mock_server_e2e.py        # Layer 3: E2E
+```
+
+### Troubleshooting
+
+**Issue: Mock server fails to start**
+- **Cause:** Port 8189 already in use
+- **Solution:** Kill existing process: `lsof -ti:8189 | xargs kill -9`
+
+**Issue: Tests can't find output files**
+- **Cause:** `comfyui_output_dir` not set correctly
+- **Solution:** Use `mock_comfyui_config` fixture instead of manual configuration
+
+**Issue: Server state persists between tests**
+- **Cause:** Using session-scoped fixture without reset
+- **Solution:** Use `mock_comfyui_url` fixture which auto-resets state
+
+**Issue: Tests fail with "prompt_id not found"**
+- **Cause:** Job was submitted but not processed
+- **Solution:** Call `process_comfy_job()` or ensure mock server had time to process
+
+**Issue: Output files have wrong names**
+- **Cause:** Filename prefix not set in workflow
+- **Solution:** Set `filename_prefix` in SaveImage node of workflow
+
+### Adding New Mock Endpoints
+
+To extend the mock server with new endpoints:
+
+1. Add endpoint to `test/_infra/mock_services/comfyui/server.py`:
+
+```python
+@app.get("/new_endpoint")
+async def new_endpoint():
+    return {"status": "ok"}
+```
+
+2. Update `MockComfyUIServer` class if state management needed
+
+3. Add corresponding test in `test/integrations/comfyui/`
+
+### Performance
+
+- **Mock server startup:** ~100ms
+- **Job submission:** <10ms
+- **File generation:** <50ms (simple copy)
+- **Full E2E test:** ~200-500ms
+
+Much faster than real ComfyUI (which takes 5-30 seconds per generation).
