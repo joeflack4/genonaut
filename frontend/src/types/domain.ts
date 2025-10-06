@@ -155,14 +155,16 @@ export interface FlaggedContentStats {
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
 
 export type ThumbnailResolutionId =
-  | '576x768'
-  | '520x698'
-  | '480x644'
-  | '440x590'
-  | '400x537'
-  | '360x484'
-  | '320x430'
-  | '300x403'
+  | '512x768'
+  | '460x691'
+  | '410x614'
+  | '358x538'
+  | '307x461'
+  | '256x384'
+  | '232x344'
+  | '200x304'
+  | '184x272'
+  | '152x232'
 
 export type ViewMode = 'list' | `grid-${ThumbnailResolutionId}`
 

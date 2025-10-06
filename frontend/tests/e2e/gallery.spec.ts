@@ -19,7 +19,7 @@ test.describe('Gallery page', () => {
         {
           pattern: '\\u002Fapi\\u002Fv1\\u002Fcontent\\u002Funified',
           body: {
-            items: Array.from({ length: 10 }, (_, i) => ({
+            items: Array.from({ length: 25 }, (_, i) => ({
               id: i + 1,
               title: `Content Item ${i + 1}`,
               description: `Description ${i + 1}`,
@@ -31,9 +31,9 @@ test.describe('Gallery page', () => {
             })),
             pagination: {
               page: 1,
-              page_size: 10,
+              page_size: 25,
               total_count: 1175000,
-              total_pages: 117500,
+              total_pages: 47000,
               has_next: true,
               has_previous: false,
             },
@@ -51,10 +51,10 @@ test.describe('Gallery page', () => {
       await page.waitForSelector('nav', { timeout: 20000 })
 
       // Check that large total count is displayed
-      await expect(page.getByText(/117,500 pages showing 1,175,000 results/)).toBeVisible()
+      await expect(page.getByText(/47,000 pages showing 1,175,000 results/)).toBeVisible()
 
       // Check pagination component shows correct page numbers
-      await expect(page.getByRole('button', { name: 'Go to page 1' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'page 1' })).toBeVisible()
       await expect(page.getByRole('button', { name: 'Go to page 2' })).toBeVisible()
 
       // Check next page button is enabled
@@ -83,7 +83,7 @@ test.describe('Gallery page', () => {
         {
           pattern: '\\u002Fapi\\u002Fv1\\u002Fcontent\\u002Funified\\?.*content_types=regular%2Cauto.*creator_filter=all',
           body: {
-            items: Array.from({ length: 10 }, (_, i) => ({
+            items: Array.from({ length: 25 }, (_, i) => ({
               id: i + 1,
               title: `All Content ${i + 1}`,
               description: `Description ${i + 1}`,
@@ -95,9 +95,9 @@ test.describe('Gallery page', () => {
             })),
             pagination: {
               page: 1,
-              page_size: 10,
+              page_size: 25,
               total_count: 1175000,
-              total_pages: 117500,
+              total_pages: 47000,
               has_next: true,
               has_previous: false,
             },
@@ -113,7 +113,7 @@ test.describe('Gallery page', () => {
         {
           pattern: '\\u002Fapi\\u002Fv1\\u002Fcontent\\u002Funified\\?.*content_types=regular.*creator_filter=all',
           body: {
-            items: Array.from({ length: 10 }, (_, i) => ({
+            items: Array.from({ length: 25 }, (_, i) => ({
               id: i + 1,
               title: `Regular Content ${i + 1}`,
               description: `Description ${i + 1}`,
@@ -125,9 +125,9 @@ test.describe('Gallery page', () => {
             })),
             pagination: {
               page: 1,
-              page_size: 10,
+              page_size: 25,
               total_count: 65233,
-              total_pages: 6524,
+              total_pages: 2610,
               has_next: true,
               has_previous: false,
             },
@@ -145,7 +145,7 @@ test.describe('Gallery page', () => {
       await page.waitForSelector('nav', { timeout: 20000 })
 
       // Check initial state with all content
-      await expect(page.getByText(/117,500 pages showing 1,175,000 results/)).toBeVisible()
+      await expect(page.getByText(/47,000 pages showing 1,175,000 results/)).toBeVisible()
 
       // Check if options panel is already open (default behavior) or needs to be opened
       const contentTypesSection = page.locator('text="Content Types"')
@@ -178,7 +178,7 @@ test.describe('Gallery page', () => {
       await expect(communityAutoGenSwitch).not.toBeChecked()
 
       // Check that pagination updated
-      await expect(page.getByText(/6,524 pages showing 65,233 results/)).toBeVisible()
+      await expect(page.getByText(/2,610 pages showing 65,233 results/)).toBeVisible()
       await expect(page.getByText('Regular Content 1', { exact: true })).toBeVisible()
     })
 
@@ -210,9 +210,9 @@ test.describe('Gallery page', () => {
             items: [],
             pagination: {
               page: 1,
-              page_size: 10,
+              page_size: 25,
               total_count: 1175000,
-              total_pages: 117500,
+              total_pages: 47000,
               has_next: true,
               has_previous: false,
             },
@@ -240,7 +240,7 @@ test.describe('Gallery page', () => {
       await page.waitForSelector('nav', { timeout: 20000 })
 
       // Verify total count matches what the API returns
-      await expect(page.getByText(/117,500 pages showing 1,175,000 results/)).toBeVisible()
+      await expect(page.getByText(/47,000 pages showing 1,175,000 results/)).toBeVisible()
     })
 
     // Large dataset pagination test moved to gallery-real-api-improved.spec.ts

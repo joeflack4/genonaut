@@ -52,7 +52,7 @@ const mockGalleryResponse = {
   ],
   pagination: {
     page: 1,
-    page_size: 10,
+    page_size: 25,
     total_count: 1,
     total_pages: 1,
     has_next: false,

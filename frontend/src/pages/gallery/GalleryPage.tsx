@@ -46,7 +46,7 @@ import {
 import { loadViewMode, persistViewMode } from '../../utils/viewModeStorage'
 import { GridView as GalleryGridView, ResolutionDropdown } from '../../components/gallery'
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 25
 const PANEL_WIDTH = 360
 const DEFAULT_USER_ID = ADMIN_USER_ID
 const GALLERY_OPTIONS_OPEN_KEY = 'gallery-options-open'

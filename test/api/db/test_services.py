@@ -323,11 +323,11 @@ class TestContentService:
             content_data="/images/full.png",
             creator_id=sample_user.id,
             prompt="Test prompt",
-            path_thumb="/thumbs/480x644.png",
+            path_thumb="/thumbs/410x614.png",
             path_thumbs_alt_res={
-                "320x430": "/thumbs/320x430.png",
-                "400x537": "/thumbs/400x537.png",
-                "576x768": "/thumbs/576x768.png"
+                "256x384": "/thumbs/256x384.png",
+                "358x538": "/thumbs/358x538.png",
+                "512x768": "/thumbs/512x768.png"
             },
             item_metadata={},
             tags=[],
@@ -347,9 +347,9 @@ class TestContentService:
         item = matching_items[0]
 
         assert item["path_thumbs_alt_res"] is not None
-        assert item["path_thumbs_alt_res"]["320x430"] == "/thumbs/320x430.png"
-        assert item["path_thumbs_alt_res"]["400x537"] == "/thumbs/400x537.png"
-        assert item["path_thumbs_alt_res"]["576x768"] == "/thumbs/576x768.png"
+        assert item["path_thumbs_alt_res"]["256x384"] == "/thumbs/256x384.png"
+        assert item["path_thumbs_alt_res"]["358x538"] == "/thumbs/358x538.png"
+        assert item["path_thumbs_alt_res"]["512x768"] == "/thumbs/512x768.png"
 
 
 class TestContentAutoService:

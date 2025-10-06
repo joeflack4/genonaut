@@ -31,14 +31,8 @@ export function GridView({
   )
 
   const gridTemplateColumns = useMemo(
-    () => ({
-      xs: `repeat(${GRID_COLUMN_BREAKPOINTS.xs}, minmax(0, 1fr))`,
-      sm: `repeat(${GRID_COLUMN_BREAKPOINTS.sm}, minmax(0, 1fr))`,
-      md: `repeat(${GRID_COLUMN_BREAKPOINTS.md}, minmax(0, 1fr))`,
-      lg: `repeat(${GRID_COLUMN_BREAKPOINTS.lg}, minmax(0, 1fr))`,
-      xl: `repeat(${GRID_COLUMN_BREAKPOINTS.xl}, minmax(0, 1fr))`,
-    }),
-    []
+    () => `repeat(auto-fill, minmax(${resolution.width}px, 1fr))`,
+    [resolution.width]
   )
 
   return (

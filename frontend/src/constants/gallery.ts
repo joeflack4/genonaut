@@ -5,7 +5,7 @@ export const DASHBOARD_VIEW_MODE_STORAGE_KEY = 'dashboard-view-mode'
 
 export const DEFAULT_VIEW_MODE: ViewMode = 'list'
 
-export const DEFAULT_THUMBNAIL_RESOLUTION_ID: ThumbnailResolutionId = '480x644'
+export const DEFAULT_THUMBNAIL_RESOLUTION_ID: ThumbnailResolutionId = '256x384'
 
 export const GRID_COLUMN_BREAKPOINTS = {
   xs: 1,
@@ -16,14 +16,16 @@ export const GRID_COLUMN_BREAKPOINTS = {
 } as const
 
 export const THUMBNAIL_RESOLUTION_OPTIONS: ThumbnailResolution[] = [
-  { id: '576x768', width: 576, height: 768, label: '576x768', scale: 1 },
-  { id: '520x698', width: 520, height: 698, label: '520x698', scale: 0.91 },
-  { id: '480x644', width: 480, height: 644, label: '480x644', scale: 0.84 },
-  { id: '440x590', width: 440, height: 590, label: '440x590', scale: 0.77 },
-  { id: '400x537', width: 400, height: 537, label: '400x537', scale: 0.7 },
-  { id: '360x484', width: 360, height: 484, label: '360x484', scale: 0.63 },
-  { id: '320x430', width: 320, height: 430, label: '320x430', scale: 0.56 },
-  { id: '300x403', width: 300, height: 403, label: '300x403', scale: 0.53 },
+  { id: '512x768', width: 512, height: 768, label: '512x768', scale: 1 },
+  { id: '460x691', width: 460, height: 691, label: '460x691', scale: 0.9 },
+  { id: '410x614', width: 410, height: 614, label: '410x614', scale: 0.8 },
+  { id: '358x538', width: 358, height: 538, label: '358x538', scale: 0.7 },
+  { id: '307x461', width: 307, height: 461, label: '307x461', scale: 0.6 },
+  { id: '256x384', width: 256, height: 384, label: '256x384', scale: 0.5 },
+  { id: '232x344', width: 232, height: 344, label: '232x344', scale: 0.45 },
+  { id: '200x304', width: 200, height: 304, label: '200x304', scale: 0.39 },
+  { id: '184x272', width: 184, height: 272, label: '184x272', scale: 0.36 },
+  { id: '152x232', width: 152, height: 232, label: '152x232', scale: 0.3 },
 ]
 
 export const DEFAULT_THUMBNAIL_RESOLUTION: ThumbnailResolution =

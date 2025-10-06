@@ -26,7 +26,7 @@ test.describe('Dashboard Page Interactions', () => {
     await expect(listView).toHaveCount(0)
 
     const storedGridMode = await page.evaluate(() => window.localStorage.getItem('dashboard-view-mode'))
-    expect(storedGridMode).toBe('grid-480x644')
+    expect(storedGridMode).toBe('grid-256x384')
 
     await listToggle.click()
     await expect(listView).toBeVisible()
@@ -44,7 +44,7 @@ test.describe('Dashboard Page Interactions', () => {
     await page.waitForSelector('[data-testid="dashboard-user-recent-grid"]', { timeout: 10000 })
 
     const storedMode = await page.evaluate(() => window.localStorage.getItem('dashboard-view-mode'))
-    expect(storedMode).toBe('grid-480x644')
+    expect(storedMode).toBe('grid-256x384')
     await expect(page.locator('[data-testid="dashboard-user-recent-grid"]')).toBeVisible()
     await expect(page.locator('[data-testid="dashboard-user-recent-list"]')).toHaveCount(0)
   })
@@ -217,5 +217,72 @@ test.describe('Dashboard Page Interactions', () => {
       expect(text).toBeTruthy()
       expect(text.length).toBeGreaterThan(0)
     }
+  })
+
+  test('should update grid cell dimensions when resolution changes', async ({ page }) => {
+    // Switch to grid view
+    await page.locator('[data-testid="dashboard-view-toggle-grid"]').click()
+    await page.waitForTimeout(300)
+
+    const gridView = page.locator('[data-testid="dashboard-user-recent-grid"]')
+    await expect(gridView).toBeVisible()
+
+    // Helper function to get grid info including column count
+    const getGridInfo = async () => {
+      return await gridView.evaluate(el => {
+        const style = window.getComputedStyle(el)
+        const gridTemplate = style.gridTemplateColumns
+        const columns = gridTemplate.split(' ').filter(c => c.trim())
+
+        return {
+          template: gridTemplate,
+          columnCount: columns.length,
+          computedMinWidth: columns.length > 0 ? Math.min(...columns.map(c => parseFloat(c))) : 0
+        }
+      })
+    }
+
+    // Test sequence: small -> medium -> large
+    const resolutionDropdown = page.locator('[data-testid="dashboard-resolution-dropdown"]')
+
+    // Select smallest (152x232) - should fit most columns
+    await resolutionDropdown.click()
+    await page.waitForTimeout(200)
+    await page.locator('[data-testid="dashboard-resolution-dropdown-option-152x232"]').click()
+    await page.waitForTimeout(300)
+
+    const smallInfo = await getGridInfo()
+    expect(smallInfo.computedMinWidth).toBeGreaterThanOrEqual(152)
+
+    // Select medium (256x384 - the default) - should fit fewer columns than small
+    await resolutionDropdown.click()
+    await page.waitForTimeout(200)
+    await page.locator('[data-testid="dashboard-resolution-dropdown-option-256x384"]').click()
+    await page.waitForTimeout(300)
+
+    const mediumInfo = await getGridInfo()
+    expect(mediumInfo.computedMinWidth).toBeGreaterThanOrEqual(256)
+    expect(mediumInfo.columnCount).toBeLessThanOrEqual(smallInfo.columnCount)
+
+    // Select largest (512x768) - should fit fewest columns
+    await resolutionDropdown.click()
+    await page.waitForTimeout(200)
+    await page.locator('[data-testid="dashboard-resolution-dropdown-option-512x768"]').click()
+    await page.waitForTimeout(300)
+
+    const largeInfo = await getGridInfo()
+    expect(largeInfo.computedMinWidth).toBeGreaterThanOrEqual(512)
+    expect(largeInfo.columnCount).toBeLessThanOrEqual(mediumInfo.columnCount)
+
+    // Verify grid layout changed across the different sizes
+    const columnCountsChanged = (
+      smallInfo.columnCount !== mediumInfo.columnCount ||
+      mediumInfo.columnCount !== largeInfo.columnCount
+    )
+    const widthsIncreasing = (
+      smallInfo.computedMinWidth < mediumInfo.computedMinWidth ||
+      mediumInfo.computedMinWidth < largeInfo.computedMinWidth
+    )
+    expect(columnCountsChanged || widthsIncreasing).toBe(true)
   })
 })

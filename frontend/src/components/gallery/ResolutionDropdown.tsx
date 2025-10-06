@@ -74,14 +74,27 @@ export function ResolutionDropdown({
         data-testid={`${dataTestId}-menu`}
       >
         {THUMBNAIL_RESOLUTION_OPTIONS.map((resolution: ThumbnailResolution) => (
-          <MenuItem
+          <Tooltip
             key={resolution.id}
-            selected={resolution.id === currentResolution}
-            onClick={() => handleResolutionSelect(resolution.id)}
-            data-testid={`${dataTestId}-option-${resolution.id}`}
+            title={
+              <>
+                Width: {resolution.width}
+                <br />
+                Height: {resolution.height}
+              </>
+            }
+            placement="right"
+            enterDelay={1000}
+            enterNextDelay={1000}
           >
-            <ListItemText primary={resolution.label} />
-          </MenuItem>
+            <MenuItem
+              selected={resolution.id === currentResolution}
+              onClick={() => handleResolutionSelect(resolution.id)}
+              data-testid={`${dataTestId}-option-${resolution.id}`}
+            >
+              <ListItemText primary={resolution.label} />
+            </MenuItem>
+          </Tooltip>
         ))}
       </Menu>
     </>

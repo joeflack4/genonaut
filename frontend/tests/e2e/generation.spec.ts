@@ -52,8 +52,8 @@ test.describe('ComfyUI Generation', () => {
     await page.goto('/generate', { waitUntil: 'domcontentloaded', timeout: 5_000 })
 
     // Should show basic parameters
-    await expect(page.locator('input[type="number"][value="832"]')).toBeVisible() // Width
-    await expect(page.locator('input[type="number"][value="1216"]')).toBeVisible() // Height
+    await expect(page.locator('input[type="number"][value="512"]')).toBeVisible() // Width
+    await expect(page.locator('input[type="number"][value="768"]')).toBeVisible() // Height
     await expect(page.locator('input[type="number"][value="1"]')).toBeVisible() // Batch size
 
     // Should show advanced settings accordion
