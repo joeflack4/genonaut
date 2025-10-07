@@ -165,3 +165,57 @@ export interface ApiFlaggedContentStats {
     auto: number
   }
 }
+
+export interface ApiCheckpointModel {
+  id: string  // UUID
+  path: string
+  filename: string | null
+  name: string | null
+  version: string | null
+  architecture: string | null
+  family: string | null
+  description: string | null
+  rating: number | null
+  tags: string[]
+  model_metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface ApiCheckpointModelListResponse {
+  items: ApiCheckpointModel[]
+  total: number
+}
+
+export interface ApiLoraModel {
+  id: string  // UUID
+  path: string
+  filename: string | null
+  name: string | null
+  version: string | null
+  compatible_architectures: string | null
+  family: string | null
+  description: string | null
+  rating: number | null
+  tags: string[]
+  trigger_words: string[]
+  optimal_checkpoints: string[]
+  model_metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+  is_compatible?: boolean | null
+  is_optimal?: boolean | null
+}
+
+export interface ApiLoraModelPaginationMeta {
+  page: number
+  page_size: number
+  total: number
+  total_pages: number
+}
+
+export interface ApiLoraModelListResponse {
+  items: ApiLoraModel[]
+  total: number
+  pagination?: ApiLoraModelPaginationMeta
+}

@@ -121,8 +121,7 @@ export function ImageViewer({ generation, open, onClose }: ImageViewerProps) {
       <DialogContent dividers sx={{ p: 0, overflow: 'hidden' }}>
         <Grid container sx={{ height: '100%' }}>
           {/* Image Display */}
-          {/* @ts-ignore */}
-          <Grid item xs={12} md={8} sx={{ position: 'relative', height: '100%' }}>
+          <Grid size={{ xs: 12, md: 8 }} sx={{ position: 'relative', height: '100%' }}>
             {hasImages ? (
               <Box
                 sx={{
@@ -269,8 +268,7 @@ export function ImageViewer({ generation, open, onClose }: ImageViewerProps) {
           </Grid>
 
           {/* Details Panel */}
-          {/* @ts-ignore */}
-          <Grid item xs={12} md={4} sx={{ borderLeft: 1, borderColor: 'divider' }}>
+          <Grid size={{ xs: 12, md: 4 }} sx={{ borderLeft: 1, borderColor: 'divider' }}>
             <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
               <Typography variant="h6" gutterBottom>
                 Generation Details

@@ -1,7 +1,7 @@
 # Common development tasks and utilities
 .PHONY: help init-all init-dev init-demo init-test reset-db-1-data--demo reset-db-1-data--test reset-db-2-schema--demo \
 reset-db-2-schema--test reset-db-3-schema-and-history--demo reset-db-3-schema-and-history--test re-seed-demo \
-re-seed-demo-force seed-from-gen-demo seed-from-gen-test export-demo-data test test-quick test-verbose test-specific test-unit test-db \
+re-seed-demo-force seed-from-gen-demo seed-from-gen-test seed-static-demo seed-static-test export-demo-data test test-quick test-verbose test-specific test-unit test-db \
 test-db-unit test-db-integration test-api test-all clear-excess-test-schemas install install-dev \
 lint format clean migrate-all migrate-prep migrate-dev migrate-demo migrate-test backup backup-dev backup-demo \
 backup-test api-dev api-demo api-test celery-dev celery-demo celery-test flower-dev flower-demo flower-test \
@@ -59,6 +59,8 @@ help:
 	@echo "  re-seed-demo-force       Re-seed demo database (no confirmation prompt)"
 	@echo "  seed-from-gen-demo       Generate synthetic data for demo database"
 	@echo "  seed-from-gen-test       Generate synthetic data for test database"
+	@echo "  seed-static-demo         Load static seed data from CSV files (demo)"
+	@echo "  seed-static-test         Load static seed data from CSV files (test)"
 	@echo "  export-demo-data         Export demo database data to test TSV files"
 	@echo ""
 	@echo "Database Migration:"
@@ -248,6 +250,20 @@ seed-from-gen-demo:
 seed-from-gen-test:
 	@echo "Generating synthetic data for test database..."
 	$(call seed-from-gen-helper,${DATABASE_URL_TEST})
+
+# Static data seeding
+# Helper function for seeding static data from CSV files
+define seed-static-helper
+	@python -m genonaut.db.demo.seed_data_gen seed-static --database-url "$(1)"
+endef
+
+seed-static-demo:
+	@echo "Loading static seed data into demo database..."
+	$(call seed-static-helper,${DATABASE_URL_DEMO})
+
+seed-static-test:
+	@echo "Loading static seed data into test database..."
+	$(call seed-static-helper,${DATABASE_URL_TEST})
 
 export-demo-data:
 	@echo "Exporting demo database data to test TSV files..."

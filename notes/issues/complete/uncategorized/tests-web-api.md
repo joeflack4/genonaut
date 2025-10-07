@@ -9,7 +9,7 @@
 ## Current Test Configuration
 - Test file: `test/api/integration/test_api_endpoints.py`
 - API Base URL: `TEST_API_BASE_URL = os.getenv("API_BASE_URL", "http://0.0.0.0:8099")`
-- Expected server port: 8099 (different from dev port 8001)
+- Expected server port: 8099 (different from dev port 8000)
 - Test timeout: 30 seconds
 - Uses pytest framework
 
@@ -86,7 +86,7 @@
 
 ### Key features:
 - **Zero manual intervention** - Server starts/stops automatically when running API tests
-- **Port 8099** - Uses dedicated test port separate from dev server (port 8001)
+- **Port 8099** - Uses dedicated test port separate from dev server (port 8000)
 - **Test database environment** - Server uses `API_ENVIRONMENT=test` configuration
 - **Robust error handling** - Handles startup failures, port conflicts, and cleanup errors
 - **Session lifecycle** - One server instance serves all tests in the session for efficiency

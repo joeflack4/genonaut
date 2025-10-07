@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from genonaut.api.config import get_settings
-from genonaut.api.routes import content, content_auto, generation, interactions, recommendations, system, users, comfyui, images, tags, admin_flagged_content, websocket, notifications
+from genonaut.api.routes import content, content_auto, generation, interactions, recommendations, system, users, comfyui, images, tags, admin_flagged_content, websocket, notifications, checkpoint_models, lora_models
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
@@ -38,6 +38,8 @@ def create_app() -> FastAPI:
     app.include_router(tags.router)
     app.include_router(admin_flagged_content.router)
     app.include_router(notifications.router)
+    app.include_router(checkpoint_models.router)
+    app.include_router(lora_models.router)
     app.include_router(system.router)
     app.include_router(websocket.router)
     

@@ -22,6 +22,7 @@ import {
 import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
 import { ModelSelector } from './ModelSelector'
 import { useGenerationJobService } from '../../hooks/useGenerationJobService'
+import { usePersistedState } from '../../hooks/usePersistedState'
 import type {
   GenerationJobCreateRequest,
   GenerationJobResponse,
@@ -76,14 +77,17 @@ type ErrorState =
     }
 
 export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
-  const [prompt, setPrompt] = useState('')
-  const [negativePrompt, setNegativePrompt] = useState('')
-  const [checkpointModel, setCheckpointModel] = useState('')
-  const [loraModels, setLoraModels] = useState<LoraModel[]>([])
-  const [width, setWidth] = useState(512)
-  const [height, setHeight] = useState(768)
-  const [batchSize, setBatchSize] = useState(1)
-  const [samplerParams, setSamplerParams] = useState<SamplerParams>(defaultSamplerParams)
+  // Persisted state - survives page navigation
+  const [prompt, setPrompt] = usePersistedState('generation-form-prompt', '')
+  const [negativePrompt, setNegativePrompt] = usePersistedState('generation-form-negative-prompt', '')
+  const [checkpointModel, setCheckpointModel] = usePersistedState('generation-form-checkpoint', '')
+  const [loraModels, setLoraModels] = usePersistedState<LoraModel[]>('generation-form-loras', [])
+  const [width, setWidth] = usePersistedState('generation-form-width', 512)
+  const [height, setHeight] = usePersistedState('generation-form-height', 768)
+  const [batchSize, setBatchSize] = usePersistedState('generation-form-batch-size', 1)
+  const [samplerParams, setSamplerParams] = usePersistedState<SamplerParams>('generation-form-sampler-params', defaultSamplerParams)
+
+  // Non-persisted state - resets on page navigation
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorState, setErrorState] = useState<ErrorState>({ type: 'none' })
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
@@ -147,7 +151,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
       const selectedCheckpoint = checkpointModel || 'default-checkpoint'
 
       const request: GenerationJobCreateRequest = {
-        user_id: 'demo-user', // TODO: Get from auth context
+        user_id: '121e194b-4caa-4b81-ad4f-86ca3919d5b9', // TODO: Get from auth context
         job_type: 'image',
         prompt: sanitizedPrompt,
         negative_prompt: negativePrompt.trim() || undefined,
@@ -332,8 +336,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
       {/* Basic Parameters */}
       <Box sx={{ mb: 3 }}>
         <Grid container spacing={2}>
-          {/* @ts-ignore */}
-          <Grid item xs={6}>
+          <Grid size={{ xs: 6 }}>
             <TextField
               fullWidth
               type="number"
@@ -349,8 +352,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
         </Typography>
       )}
           </Grid>
-          {/* @ts-ignore */}
-          <Grid item xs={6}>
+          <Grid size={{ xs: 6 }}>
             <TextField
               fullWidth
               type="number"
@@ -360,8 +362,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
               inputProps={{ min: 64, max: 2048, step: 64, 'data-testid': 'height-input' }}
             />
           </Grid>
-          {/* @ts-ignore */}
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <TextField
               fullWidth
               type="number"
@@ -382,8 +383,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
         </AccordionSummary>
         <AccordionDetails>
           <Grid container spacing={2}>
-            {/* @ts-ignore */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 fullWidth
                 type="number"
@@ -394,8 +394,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
                 inputProps={{ 'data-testid': 'seed-input' }}
               />
             </Grid>
-            {/* @ts-ignore */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 fullWidth
                 type="number"
@@ -411,8 +410,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
         </Typography>
       )}
             </Grid>
-            {/* @ts-ignore */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 fullWidth
                 type="number"
@@ -422,8 +420,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
                 inputProps={{ min: 1, max: 20, step: 0.5, 'data-testid': 'cfg-scale-input' }}
               />
             </Grid>
-            {/* @ts-ignore */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography gutterBottom>Denoise: {samplerParams.denoise}</Typography>
               <Slider
                 value={samplerParams.denoise}
@@ -436,8 +433,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
                 data-testid="denoise-slider"
               />
             </Grid>
-            {/* @ts-ignore */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <FormControl fullWidth>
                 <InputLabel>Sampler</InputLabel>
                 <Select
@@ -452,8 +448,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
                 </Select>
               </FormControl>
             </Grid>
-            {/* @ts-ignore */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <FormControl fullWidth>
                 <InputLabel>Scheduler</InputLabel>
                 <Select

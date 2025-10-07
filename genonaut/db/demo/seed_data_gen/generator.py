@@ -2,6 +2,7 @@
 
 import logging
 import time
+from pathlib import Path
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
 
@@ -9,6 +10,7 @@ from genonaut.db.schema import User, ContentItem, ContentItemAuto, GenerationJob
 from .config import SeedDataConfig, ConfigManager
 from .generators import UserGenerator, ContentGenerator, GenerationJobGenerator
 from .bulk_inserter import BulkInserter, ProgressReporter, StatisticsCollector
+from .static_data_loader import seed_static_data
 
 
 logger = logging.getLogger(__name__)
@@ -33,6 +35,10 @@ class SyntheticDataGenerator:
         try:
             logger.info("Starting synthetic data generation")
             print("Starting synthetic data generation...")
+
+            # Load static seed data first (before synthetic data)
+            project_root = Path(__file__).parent.parent.parent.parent.parent
+            seed_static_data(self.session, project_root)
 
             # Check if we should pause for PostgreSQL restart on large datasets
             total_content_items = self.config.target_rows_content_items + self.config.target_rows_content_items_auto

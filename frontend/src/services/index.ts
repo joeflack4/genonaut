@@ -8,6 +8,8 @@ import { ComfyUIService } from './comfyui-service'
 import { GenerationJobService } from './generation-job-service'
 import { NotificationService } from './notification-service'
 import { FlaggedContentService } from './flagged-content-service'
+import { CheckpointModelService } from './checkpoint-model-service'
+import { LoraModelService } from './lora-model-service'
 
 const apiClient = new ApiClient()
 
@@ -20,6 +22,8 @@ export const comfyUIService = new ComfyUIService(apiClient)
 export const generationJobService = new GenerationJobService(apiClient)
 export const notificationService = new NotificationService(apiClient)
 export const flaggedContentService = new FlaggedContentService(apiClient)
+export const checkpointModelService = new CheckpointModelService(apiClient)
+export const loraModelService = new LoraModelService(apiClient)
 
 export type { GalleryListParams } from './gallery-service'
 export type { GalleryAutoListParams } from './gallery-auto-service'

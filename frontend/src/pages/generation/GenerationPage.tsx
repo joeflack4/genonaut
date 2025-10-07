@@ -21,7 +21,7 @@ export function GenerationPage() {
   }
 
   return (
-    <Box component="section" sx={{ pt: 0, pb: 4 }} data-testid="generation-page">
+    <Box component="section" sx={{ pt: 0, pb: 4, width: '100%' }} data-testid="generation-page">
       <Typography variant="h4" component="h1" gutterBottom data-testid="generation-page-title">
         Image Generation
       </Typography>
@@ -49,8 +49,7 @@ export function GenerationPage() {
       {activeTab === 'create' ? (
         <Grid container spacing={3} data-testid="generation-create-layout">
           {/* Generation Form */}
-          {/* @ts-ignore */}
-          <Grid item xs={12} md={6} data-testid="generation-form-column">
+          <Grid size={{ xs: 12, md: 8, lg: 9, xl: 10 }} data-testid="generation-form-column">
             <Paper sx={{ p: 3 }} data-testid="generation-form-card">
               <Typography variant="h6" gutterBottom data-testid="generation-form-title">
                 Create New Generation
@@ -60,8 +59,7 @@ export function GenerationPage() {
           </Grid>
 
           {/* Generation Progress */}
-          {/* @ts-ignore */}
-          <Grid item xs={12} md={6} data-testid="generation-progress-column">
+          <Grid size={{ xs: 12, md: 4, lg: 3, xl: 2 }} data-testid="generation-progress-column">
             <Paper sx={{ p: 3 }} data-testid="generation-progress-card">
               <Typography variant="h6" gutterBottom data-testid="generation-progress-title">
                 Generation Status

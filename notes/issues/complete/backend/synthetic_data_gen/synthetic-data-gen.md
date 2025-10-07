@@ -1,7 +1,7 @@
 # Agent Prompt: Synthetic Data Generator Plan and Implementation
 
 **Goal:** Propose libraries and design, then implement a fast, FK-aware synthetic data generator for our Postgres 
-schema. Based on this spec `notes/synthetic-data-gen.md`, create a list of tasks `notes/synthetic-data-gen-tasks.md`. 
+schema. Based on this spec `scratchpads/synthetic-data-gen.md`, create a list of tasks `scratchpads/synthetic-data-gen-tasks.md`. 
 It can be a smple check list, or you can break it up into sections or a hierarchy of tasks. Implement code under
 under `genonaut/db/demo/seed_data_gen/` with a CLI (`python -m genonaut.db.demo.seed_data_gen ...`) that reads 
 `config.json`, which contains key "seed_data", with config options under it, and supports overriding any of these via 
@@ -22,7 +22,7 @@ only write paths like `{images_dir}/{uuid}.png` into the appropriate DB column(s
 
 ## Your First Deliverable
 
-Fully read this spect, and create an implementation plan in **`notes/synthetic-data-gen-tasks.md`** with:
+Fully read this spect, and create an implementation plan in **`scratchpads/synthetic-data-gen-tasks.md`** with:
 - A short **library landscape** and **recommendation** for each concern, if you think that utilizing existing packages 
 / libraries would be good to do for this task (ORM-aware FK-safe generation, ultra-fast bulk insertion, field-level 
 faker, large-scale prompt templating/grammar). Include trade-offs.
@@ -246,7 +246,7 @@ If schema mismatches occur during testing (e.g., integer vs UUID primary keys):
 
 ## Acceptance criteria summary
 
-- Action plan written to `notes/synthetic-data-gen-tasks.md` covering the sections above.
+- Action plan written to `scratchpads/synthetic-data-gen-tasks.md` covering the sections above.
 - Code implements FK-safe generation, adheres to field rules, status distributions, and date ranges.
 - Exactly **50 admin-owned rows** exist in **each** of `content_items` and `content_items_auto`.
 - For every item, a corresponding **completed** `generation_jobs` row exists.

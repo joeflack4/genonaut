@@ -290,10 +290,17 @@ test.describe('Frontend Performance Tests', () => {
 
   test('generation form interaction performance', async ({ page }) => {
     page.setDefaultNavigationTimeout(5_000)
-    await page.goto('/generation', { waitUntil: 'domcontentloaded', timeout: 5_000 })
+    await page.goto('/generation', { waitUntil: 'networkidle', timeout: 10_000 })
 
     // Wait for form to be visible
     await expect(page.locator('[data-testid="generation-form"]')).toBeVisible()
+
+    // Wait for checkpoint models to load (API call)
+    const modelSelector = page.locator('[data-testid="model-selector"]').locator('[role="combobox"]')
+    await expect(modelSelector).toBeVisible()
+
+    // Wait a moment to ensure initial data has loaded
+    await page.waitForLoadState('networkidle')
 
     // Test prompt input responsiveness
     const promptInput = page.locator('[data-testid="prompt-input"]')
@@ -309,15 +316,18 @@ test.describe('Frontend Performance Tests', () => {
       console.log(`Prompt input response time: ${inputTime}ms`)
     }
 
-    // Test model selector performance
-    const modelSelector = page.locator('[data-testid="model-selector"]').locator('[role="combobox"]')
+    // Test model selector performance (after data is already loaded)
     if (await modelSelector.isVisible()) {
+      // Start timer JUST before clicking
       const startTime = Date.now()
 
       await modelSelector.click()
 
-      // Wait a moment for dropdown to potentially appear
-      await page.waitForTimeout(500)
+      // Wait for dropdown options to appear
+      await expect(page.locator('[role="option"]').first()).toBeVisible({ timeout: 2000 })
+
+      // Stop timer AFTER dropdown appears
+      const dropdownTime = Date.now() - startTime
 
       // Check if dropdown options are available
       const optionCount = await page.locator('[role="option"]').count()
@@ -326,11 +336,6 @@ test.describe('Frontend Performance Tests', () => {
         console.log('No model options available for performance testing')
         return
       }
-
-      // Wait for dropdown options to appear
-      await expect(page.locator('[role="option"]').first()).toBeVisible()
-
-      const dropdownTime = Date.now() - startTime
 
       expect(dropdownTime).toBeLessThan(PERFORMANCE_THRESHOLDS.userInteractionTime)
 

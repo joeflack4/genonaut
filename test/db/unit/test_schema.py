@@ -17,6 +17,8 @@ from genonaut.db.schema import (
     UserInteraction,
     Recommendation,
     GenerationJob,
+    CheckpointModel,
+    LoraModel,
 )
 
 
@@ -387,3 +389,47 @@ class TestSchemaModels:
         assert job.result_content is not None
         assert job.result_content.id == result_content.id
         assert job.result_content == job.content
+
+    def test_checkpoint_model_path_unique_constraint(self):
+        """Test that CheckpointModel enforces unique constraint on path field."""
+        # Create first checkpoint model
+        checkpoint1 = CheckpointModel(
+            path="/models/checkpoint1.safetensors",
+            filename="checkpoint1.safetensors",
+            name="Checkpoint Model 1"
+        )
+        self.session.add(checkpoint1)
+        self.session.commit()
+
+        # Try to create another checkpoint with the same path
+        checkpoint2 = CheckpointModel(
+            path="/models/checkpoint1.safetensors",  # Duplicate path
+            filename="checkpoint_duplicate.safetensors",
+            name="Checkpoint Model Duplicate"
+        )
+        self.session.add(checkpoint2)
+
+        with pytest.raises(IntegrityError):
+            self.session.commit()
+
+    def test_lora_model_path_unique_constraint(self):
+        """Test that LoraModel enforces unique constraint on path field."""
+        # Create first lora model
+        lora1 = LoraModel(
+            path="/models/lora1.safetensors",
+            filename="lora1.safetensors",
+            name="LoRA Model 1"
+        )
+        self.session.add(lora1)
+        self.session.commit()
+
+        # Try to create another lora with the same path
+        lora2 = LoraModel(
+            path="/models/lora1.safetensors",  # Duplicate path
+            filename="lora_duplicate.safetensors",
+            name="LoRA Model Duplicate"
+        )
+        self.session.add(lora2)
+
+        with pytest.raises(IntegrityError):
+            self.session.commit()

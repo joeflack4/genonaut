@@ -175,3 +175,52 @@ export interface ThumbnailResolution {
   label: string
   scale?: number
 }
+
+export interface CheckpointModel {
+  id: string  // UUID
+  path: string
+  filename: string | null
+  name: string | null
+  version: string | null
+  architecture: string | null
+  family: string | null
+  description: string | null
+  rating: number | null
+  tags: string[]
+  modelMetadata: Record<string, unknown>
+  createdAt: string
+  updatedAt: string
+}
+
+export interface LoraModel {
+  id: string  // UUID
+  path: string
+  filename: string | null
+  name: string | null
+  version: string | null
+  compatibleArchitectures: string | null
+  family: string | null
+  description: string | null
+  rating: number | null
+  tags: string[]
+  triggerWords: string[]
+  optimalCheckpoints: string[]
+  modelMetadata: Record<string, unknown>
+  createdAt: string
+  updatedAt: string
+  isCompatible?: boolean | null
+  isOptimal?: boolean | null
+}
+
+export interface LoraModelPaginationMeta {
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+}
+
+export interface PaginatedLoraModels {
+  items: LoraModel[]
+  total: number
+  pagination: LoraModelPaginationMeta
+}

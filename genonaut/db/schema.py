@@ -661,6 +661,112 @@ class FlaggedContent(Base):
     )
 
 
+class CheckpointModel(Base):
+    """Checkpoint model information for image generation.
+
+    Stores metadata about Stable Diffusion checkpoint models including
+    paths, versions, architectures, and ratings.
+
+    Attributes:
+        id: Primary key (UUID)
+        path: File path to the checkpoint model (unique, required)
+        filename: Filename extracted from path (unique, auto-populated)
+        name: Display name derived from filename (unique, auto-populated)
+        version: Model version string
+        architecture: Model architecture (e.g., 'sd1', 'sdxl', 'flux')
+        family: Model family/series name
+        description: Detailed description of the model
+        rating: Quality rating from 0.0 to 1.0
+        tags: Array of tags for categorization
+        metadata: Additional metadata in JSON format
+        created_at: Timestamp when record was created
+        updated_at: Timestamp when record was last updated
+    """
+    __tablename__ = 'models_checkpoints'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    path = Column(String(500), unique=True, nullable=False, index=True)
+    filename = Column(String(255), unique=True, nullable=True)
+    name = Column(String(255), unique=True, nullable=True)
+    version = Column(String(50), nullable=True)
+    architecture = Column(String(100), nullable=True, index=True)
+    family = Column(String(100), nullable=True, index=True)
+    description = Column(Text, nullable=True)
+    rating = Column(Float, nullable=True, index=True)
+    tags = Column(JSONColumn, default=list, nullable=True)
+    model_metadata = Column(JSONColumn, default=dict, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Indexes for efficient querying
+    __table_args__ = (
+        # Standard indexes
+        Index("idx_checkpoint_rating_desc", rating.desc()),
+        Index("idx_checkpoint_name_lower", func.lower(name)),
+        # GIN indexes for array and JSONB fields
+        Index("idx_checkpoint_tags_gin", tags, postgresql_using="gin", info={"postgres_only": True}),
+        Index("idx_checkpoint_model_metadata_gin", model_metadata, postgresql_using="gin", postgresql_ops={"model_metadata": "jsonb_path_ops"}, info={"postgres_only": True}),
+        # GiST index for full-text search on description
+        Index("idx_checkpoint_description_gist", func.to_tsvector(_fts_language_literal(), description), postgresql_using="gist", info={"postgres_only": True}),
+    )
+
+
+class LoraModel(Base):
+    """LoRA model information for image generation.
+
+    Stores metadata about LoRA (Low-Rank Adaptation) models including
+    paths, versions, compatible checkpoints, and trigger words.
+
+    Attributes:
+        id: Primary key (UUID)
+        path: File path to the LoRA model (unique, required)
+        filename: Filename extracted from path (unique, auto-populated)
+        name: Display name derived from filename (unique, auto-populated)
+        version: Model version string
+        compatible_architectures: Compatible architecture (e.g., 'sd1', 'sdxl', 'flux')
+        family: Model family/series name
+        description: Detailed description of the model
+        rating: Quality rating from 0.0 to 1.0
+        tags: Array of tags for categorization
+        trigger_words: Array of trigger words to activate the LoRA
+        optimal_checkpoints: Array of recommended checkpoint model names
+        metadata: Additional metadata in JSON format
+        created_at: Timestamp when record was created
+        updated_at: Timestamp when record was last updated
+    """
+    __tablename__ = 'models_loras'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    path = Column(String(500), unique=True, nullable=False, index=True)
+    filename = Column(String(255), unique=True, nullable=True)
+    name = Column(String(255), unique=True, nullable=True)
+    version = Column(String(50), nullable=True)
+    compatible_architectures = Column(String(255), nullable=True, index=True)
+    family = Column(String(100), nullable=True, index=True)
+    description = Column(Text, nullable=True)
+    rating = Column(Float, nullable=True, index=True)
+    tags = Column(JSONColumn, default=list, nullable=True)
+    trigger_words = Column(JSONColumn, default=list, nullable=True)
+    optimal_checkpoints = Column(JSONColumn, default=list, nullable=True)
+    model_metadata = Column(JSONColumn, default=dict, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Indexes for efficient querying
+    __table_args__ = (
+        # Standard indexes
+        Index("idx_lora_rating_desc", rating.desc()),
+        Index("idx_lora_name_lower", func.lower(name)),
+        # GIN indexes for array and JSONB fields
+        Index("idx_lora_tags_gin", tags, postgresql_using="gin", info={"postgres_only": True}),
+        Index("idx_lora_trigger_words_gin", trigger_words, postgresql_using="gin", info={"postgres_only": True}),
+        Index("idx_lora_optimal_checkpoints_gin", optimal_checkpoints, postgresql_using="gin", info={"postgres_only": True}),
+        Index("idx_lora_model_metadata_gin", model_metadata, postgresql_using="gin", postgresql_ops={"model_metadata": "jsonb_path_ops"}, info={"postgres_only": True}),
+        # GiST index for full-text search on description
+        Index("idx_lora_description_gist", func.to_tsvector(_fts_language_literal(), description), postgresql_using="gist", info={"postgres_only": True}),
+    )
+
+
 # Event listeners for PostgreSQL-specific functionality
 event.listen(Base.metadata, "before_create", _strip_non_postgres_indexes)
 event.listen(Base.metadata, "after_create", _restore_non_postgres_indexes)

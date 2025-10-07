@@ -5,7 +5,6 @@ import {
   AppBar,
   Box,
   Button,
-  Container,
   Drawer,
   IconButton,
   InputBase,
@@ -230,7 +229,7 @@ export function AppLayout() {
         </Toolbar>
       </AppBar>
       <Box sx={{ display: 'flex', minHeight: 'calc(100vh - 64px)' }} data-testid="app-layout-body">
-        <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }} data-testid="app-layout-nav">
+        <Box component="nav" sx={{ width: { md: sidebarOpen ? drawerWidth : 0 }, flexShrink: { md: 0 } }} data-testid="app-layout-nav">
           <Drawer
             variant={isMobile ? 'temporary' : 'persistent'}
             open={sidebarOpen}
@@ -280,24 +279,25 @@ export function AppLayout() {
             </List>
           </Drawer>
         </Box>
-        <Container
+        <Box
           component="main"
-          maxWidth={false}
-          disableGutters
           sx={{
             flexGrow: 1,
             py: 2,
-            px: { xs: 2, lg: 3 },
+            px: { xs: 1, lg: 2 },
             ml: { md: sidebarOpen ? 0 : `-${drawerWidth}px` },
             transition: theme.transitions.create(['margin'], {
               easing: theme.transitions.easing.sharp,
               duration: theme.transitions.duration.leavingScreen,
             }),
+            width: '100%',
+            maxWidth: '100%',
+            minWidth: 0,
           }}
           data-testid="app-layout-content"
         >
           <Outlet />
-        </Container>
+        </Box>
       </Box>
     </Box>
   )

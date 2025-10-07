@@ -46,7 +46,7 @@ export function GenerationHistory() {
     const params: GenerationJobListParams = {
       skip: (page - 1) * pageSize,
       limit: pageSize,
-      user_id: 'demo-user', // TODO: Get from auth context
+      user_id: '121e194b-4caa-4b81-ad4f-86ca3919d5b9', // TODO: Get from auth context
     }
 
     if (statusFilter) {

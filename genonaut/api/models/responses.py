@@ -458,3 +458,72 @@ class TagHierarchyResponse(BaseModel):
     metadata: TagHierarchyMetadata = Field(..., description="Hierarchy metadata and statistics")
 
     model_config = {"from_attributes": True}
+
+
+class CheckpointModelResponse(BaseModel):
+    """Response model for checkpoint model data."""
+    id: UUID = Field(..., description="Checkpoint model ID")
+    path: str = Field(..., description="File path to checkpoint model")
+    filename: Optional[str] = Field(None, description="Filename of checkpoint model")
+    name: Optional[str] = Field(None, description="Display name of checkpoint model")
+    version: Optional[str] = Field(None, description="Version of checkpoint model")
+    architecture: Optional[str] = Field(None, description="Model architecture (e.g., sd1, sdxl)")
+    family: Optional[str] = Field(None, description="Model family")
+    description: Optional[str] = Field(None, description="Description of checkpoint model")
+    rating: Optional[float] = Field(None, description="Quality rating (0-1)")
+    tags: List[str] = Field(..., description="Tags associated with checkpoint model")
+    model_metadata: Dict[str, Any] = Field(..., description="Additional model metadata")
+    created_at: datetime = Field(..., description="Creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
+
+    model_config = {"from_attributes": True}
+
+
+class CheckpointModelListResponse(BaseModel):
+    """Response model for list of checkpoint models."""
+    items: List[CheckpointModelResponse] = Field(..., description="List of checkpoint models")
+    total: int = Field(..., description="Total number of checkpoint models")
+
+    model_config = {"from_attributes": True}
+
+
+class LoraModelResponse(BaseModel):
+    """Response model for LoRA model data."""
+    id: UUID = Field(..., description="LoRA model ID")
+    path: str = Field(..., description="File path to LoRA model")
+    filename: Optional[str] = Field(None, description="Filename of LoRA model")
+    name: Optional[str] = Field(None, description="Display name of LoRA model")
+    version: Optional[str] = Field(None, description="Version of LoRA model")
+    compatible_architectures: Optional[str] = Field(None, description="Compatible architectures")
+    family: Optional[str] = Field(None, description="Model family")
+    description: Optional[str] = Field(None, description="Description of LoRA model")
+    rating: Optional[float] = Field(None, description="Quality rating (0-1)")
+    tags: List[str] = Field(..., description="Tags associated with LoRA model")
+    trigger_words: List[str] = Field(..., description="Trigger words for LoRA model")
+    optimal_checkpoints: List[str] = Field(..., description="Optimal checkpoint models to use with this LoRA")
+    model_metadata: Dict[str, Any] = Field(..., description="Additional model metadata")
+    created_at: datetime = Field(..., description="Creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
+    is_compatible: Optional[bool] = Field(None, description="Whether LoRA is compatible with selected checkpoint")
+    is_optimal: Optional[bool] = Field(None, description="Whether LoRA is optimal for selected checkpoint")
+
+    model_config = {"from_attributes": True}
+
+
+class LoraModelPaginationMeta(BaseModel):
+    """Pagination metadata for LoRA model list."""
+    page: int = Field(..., description="Current page number")
+    page_size: int = Field(..., description="Number of items per page")
+    total: int = Field(..., description="Total number of items")
+    total_pages: int = Field(..., description="Total number of pages")
+
+    model_config = {"from_attributes": True}
+
+
+class LoraModelListResponse(BaseModel):
+    """Response model for list of LoRA models."""
+    items: List[LoraModelResponse] = Field(..., description="List of LoRA models")
+    total: int = Field(..., description="Total number of LoRA models")
+    pagination: Optional[LoraModelPaginationMeta] = Field(None, description="Pagination metadata")
+
+    model_config = {"from_attributes": True}

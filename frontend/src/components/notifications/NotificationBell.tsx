@@ -33,7 +33,7 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(false)
 
-  const userId = 'demo-user' // TODO: Get from auth context
+  const userId = '121e194b-4caa-4b81-ad4f-86ca3919d5b9' // TODO: Get from auth context
 
   const open = Boolean(anchorEl)
 

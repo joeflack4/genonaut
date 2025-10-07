@@ -27,6 +27,7 @@ else:
 from genonaut.db.utils import get_database_session
 from genonaut.db.demo.seed_data_gen.config import ConfigManager
 from genonaut.db.demo.seed_data_gen.generator import SyntheticDataGenerator
+from genonaut.db.demo.seed_data_gen.static_data_loader import seed_static_data
 
 
 def setup_logging(log_dir: Path):
@@ -61,6 +62,11 @@ Examples:
 
     # Generate command
     gen_parser = subparsers.add_parser('generate', help='Generate synthetic data')
+
+    # Seed static data command
+    static_parser = subparsers.add_parser('seed-static', help='Load static seed data from CSV files only')
+    static_parser.add_argument('--database-url', type=str, required=True,
+                              help='Database URL (must end with _demo or _test for safety)')
 
     # Configuration overrides
     # OLD: Individual batch size flags (commented out in favor of unified --batch-size)
@@ -137,19 +143,43 @@ def main():
     parser = create_cli_parser()
     args = parser.parse_args()
 
-    if args.command != 'generate':
+    if args.command not in ('generate', 'seed-static'):
         parser.print_help()
         sys.exit(1)
 
     # Set up logging
     logs_dir = project_root / 'logs'
     setup_logging(logs_dir)
-    if args.verbose:
+    if hasattr(args, 'verbose') and args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
     logger = logging.getLogger(__name__)
 
     try:
+        # Handle seed-static command
+        if args.command == 'seed-static':
+            logger.info("Starting static data seeding")
+
+            # Validate database URL for safety
+            validated_database_url = validate_database_url(args.database_url)
+            logger.info(f"Using validated database URL: {validated_database_url}")
+
+            # Get database session using provided URL
+            from sqlalchemy import create_engine
+            from sqlalchemy.orm import sessionmaker
+            engine = create_engine(validated_database_url, echo=False)
+            session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+            session = session_factory()
+            logger.info("Database session established")
+
+            # Load static seed data
+            seed_static_data(session, project_root)
+
+            print("\nStatic data seeding completed successfully!")
+            logger.info("Static data seeding completed successfully")
+            return
+
+        # Handle generate command
         logger.info("Starting synthetic data generation CLI")
 
         # Validate database URL for safety

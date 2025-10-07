@@ -1,0 +1,6 @@
+path,version,compatible_architectures,family,description,rating,tags,trigger_words,optimal_checkpoints,model_metadata
+models/loras/add_detail.safetensors,1,Sd1.5,enhancement,Adds fine details and texture to generated images,0.93,"detail,enhancement,quality",,"sd_v1-5-pruned-emaonly,realisticVisionV51,deliberate_v2","{""recommended_weight"": 0.7}"
+models/loras/cinematic_lighting.safetensors,2.1,sd1,style,Professional cinematic lighting and color grading,0.91,"cinematic,lighting,film","cinematic lighting,film look","sd_v1-5-pruned-emaonly,dreamshaper_8","{""recommended_weight"": 0.8}"
+models/loras/portrait_enhancer.safetensors,1.5,sd1,portrait,Enhances facial features and portrait quality,0.89,"portrait,face,enhancement","detailed face,perfect eyes","realisticVisionV51,deliberate_v2","{""recommended_weight"": 0.6}"
+models/loras/anime_style.safetensors,3,flux,style,Anime and manga art style,0.87,"anime,manga,style","anime style,manga","sd_v1-5-pruned-emaonly,dreamshaper_8","{""recommended_weight"": 0.75}"
+models/loras/watercolor_effect.safetensors,1.2,sd1,artistic,Watercolor painting effect,0.85,"watercolor,artistic,painting","watercolor,traditional art","dreamshaper_8,deliberate_v2","{""recommended_weight"": 0.65}"
