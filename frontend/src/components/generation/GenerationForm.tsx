@@ -17,7 +17,6 @@ import {
   Slider,
   Link,
   Stack,
-  Paper,
 } from '@mui/material'
 import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
 import { ModelSelector } from './ModelSelector'
@@ -33,6 +32,9 @@ import { ApiError } from '../../services/api-client'
 
 interface GenerationFormProps {
   onGenerationStart: (generation: GenerationJobResponse) => void
+  onTimeoutChange: (active: boolean) => void
+  onCancelRequest: () => void
+  onContinueWaitingCallback?: (callback: () => void) => void
 }
 
 const defaultSamplerParams: SamplerParams = {
@@ -76,7 +78,7 @@ type ErrorState =
       message: string
     }
 
-export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
+export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelRequest, onContinueWaitingCallback }: GenerationFormProps) {
   // Persisted state - survives page navigation
   const [prompt, setPrompt] = usePersistedState('generation-form-prompt', '')
   const [negativePrompt, setNegativePrompt] = usePersistedState('generation-form-negative-prompt', '')
@@ -91,13 +93,26 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorState, setErrorState] = useState<ErrorState>({ type: 'none' })
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
-  const [timeoutActive, setTimeoutActive] = useState(false)
 
   const formRef = useRef<HTMLFormElement | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const timeoutTimerRef = useRef<number | null>(null)
 
   const { createGenerationJob } = useGenerationJobService()
+
+  // Expose continue waiting callback to parent
+  useEffect(() => {
+    if (onContinueWaitingCallback) {
+      const callback = () => {
+        onTimeoutChange(false)
+        setErrorState({ type: 'none' })
+        startTimeoutWatcher(CONTINUE_WAITING_MS)
+      }
+      onContinueWaitingCallback(callback)
+    }
+    // Only run once on mount or when callback reference changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onContinueWaitingCallback])
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -190,7 +205,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
   const resetErrors = () => {
     setErrorState({ type: 'none' })
     setFieldErrors({})
-    setTimeoutActive(false)
+    onTimeoutChange(false)
   }
 
   const handleRetry = () => {
@@ -206,19 +221,14 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
     window.location.reload()
   }
 
-  const handleContinueWaiting = () => {
-    setTimeoutActive(false)
-    setErrorState({ type: 'none' })
-    startTimeoutWatcher(CONTINUE_WAITING_MS)
-  }
-
-  const handleCancelRequest = () => {
+  const handleCancelRequestInternal = () => {
     abortControllerRef.current?.abort()
-    setTimeoutActive(false)
+    onTimeoutChange(false)
     setErrorState({
       type: 'generic',
       message: 'Generation cancelled. Adjust your settings and try again.',
     })
+    onCancelRequest()
   }
 
   const handleSubmissionError = (error: unknown) => {
@@ -268,7 +278,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
   const startTimeoutWatcher = (duration: number = REQUEST_TIMEOUT_MS) => {
     clearTimeoutWatcher()
     timeoutTimerRef.current = window.setTimeout(() => {
-      setTimeoutActive(true)
+      onTimeoutChange(true)
     }, duration)
   }
 
@@ -508,35 +518,6 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
         onRetry: handleRetry,
         onRefresh: handleRefreshPage,
       })}
-
-      {timeoutActive && (
-        <Paper sx={{ mt: 2, p: 2 }} data-testid="timeout-error">
-          <Typography variant="subtitle1" gutterBottom>
-            This request is taking longer than expected.
-          </Typography>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            The image generation service might be busy. You can continue waiting or cancel the request.
-          </Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            <Button
-              variant="contained"
-              color="primary"
-              data-testid="continue-waiting-button"
-              onClick={handleContinueWaiting}
-            >
-              Continue Waiting
-            </Button>
-            <Button
-              variant="outlined"
-              color="secondary"
-              data-testid="cancel-request-button"
-              onClick={handleCancelRequest}
-            >
-              Cancel Request
-            </Button>
-          </Stack>
-        </Paper>
-      )}
     </Box>
   )
 }

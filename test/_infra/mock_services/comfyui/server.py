@@ -31,11 +31,18 @@ class PromptResponse(BaseModel):
 
 # Mock Server State
 class MockComfyUIServer:
-    """State management for mock ComfyUI server."""
+    """State management for mock ComfyUI server.
 
-    def __init__(self, input_dir: Path, output_dir: Path):
+    Args:
+        input_dir: Directory containing input files for mock generation
+        output_dir: Directory to write generated output files
+        processing_delay: Minimum time in seconds before job completion (default 0.5)
+    """
+
+    def __init__(self, input_dir: Path, output_dir: Path, processing_delay: float = 0.5):
         self.input_dir = input_dir
         self.output_dir = output_dir
+        self.processing_delay = processing_delay
         self.jobs: Dict[str, Dict[str, Any]] = {}
         self.queue_running: List[tuple] = []
         self.queue_pending: List[tuple] = []
@@ -60,6 +67,7 @@ class MockComfyUIServer:
             "filename_prefix": filename_prefix,
             "output_files": [],
             "created_at": datetime.utcnow().isoformat(),
+            "submitted_at": time.time(),
             "completed": False,
             "messages": []
         }
@@ -111,13 +119,29 @@ class MockComfyUIServer:
         self.queue_running = [item for item in self.queue_running if item[1] != prompt_id]
 
     def get_history(self, prompt_id: str) -> Optional[Dict[str, Any]]:
-        """Get job history."""
+        """Get job history.
+
+        Returns empty dict if job is still processing (hasn't reached processing_delay).
+        Returns full history with status and outputs once processing is complete.
+
+        Response structure matches real ComfyUI:
+        - prompt: [number, prompt_id, workflow, extra_data, output_nodes]
+        - outputs: {node_id: {images: [{filename, subfolder, type}]}}
+        - status: {status_str, completed, messages}
+        - meta: {node_id: {node metadata}}
+        """
         if prompt_id not in self.jobs:
             return None
 
         job = self.jobs[prompt_id]
 
-        # Auto-process if still queued
+        # Check if enough time has elapsed
+        elapsed_time = time.time() - job["submitted_at"]
+        if elapsed_time < self.processing_delay:
+            # Job is still "running" - return empty response like real ComfyUI
+            return {}
+
+        # Auto-process if still queued and enough time has passed
         if job["status"] == "queued":
             self.process_job(prompt_id)
 
@@ -128,12 +152,37 @@ class MockComfyUIServer:
                 "images": job["output_files"]
             }
 
+        # Build prompt structure (matches real ComfyUI format)
+        prompt_data = [
+            0,  # number
+            prompt_id,
+            job["workflow"],
+            {"client_id": job["client_id"] or "mock-client"},
+            ["9"]  # output nodes
+        ]
+
+        # Build status with status_str field
+        status_str = "success" if job["completed"] and job["status"] == "completed" else "failed"
+
+        # Build meta structure
+        meta = {}
+        if job["output_files"]:
+            meta["9"] = {
+                "node_id": "9",
+                "display_node": "9",
+                "parent_node": None,
+                "real_node_id": "9"
+            }
+
         return {
+            "prompt": prompt_data,
+            "outputs": outputs,
             "status": {
+                "status_str": status_str,
                 "completed": job["completed"],
                 "messages": job["messages"]
             },
-            "outputs": outputs
+            "meta": meta
         }
 
     def get_queue(self) -> Dict[str, List]:
@@ -188,18 +237,27 @@ async def submit_prompt(request: PromptRequest):
     """Submit a workflow for execution."""
     try:
         prompt_id = mock_server.submit_job(request.prompt, request.client_id)
-        return {"prompt_id": prompt_id}
+        return {
+            "prompt_id": prompt_id,
+            "number": 0,
+            "node_errors": {}
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/history/{prompt_id}")
 async def get_history(prompt_id: str):
-    """Get workflow execution history."""
+    """Get workflow execution history.
+
+    Returns:
+        - {} if job not found or still processing
+        - {prompt_id: {...}} if job is completed with full history
+    """
     history = mock_server.get_history(prompt_id)
 
-    if history is None:
-        # Return empty history if not found
+    if history is None or history == {}:
+        # Return empty history if not found or still processing
         return {}
 
     return {prompt_id: history}

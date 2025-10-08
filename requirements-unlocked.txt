@@ -13,7 +13,7 @@ python-multipart
 redis
 sqlalchemy
 typer
-uvicorn
+uvicorn[standard]
 
 # dev dependencies
 alembic  # data migrations

@@ -25,6 +25,43 @@ except ModuleNotFoundError:  # pragma: no cover
 settings = get_settings()
 
 
+def check_celery_workers_available() -> bool:
+    """Check if Celery workers are available and responding.
+
+    Returns:
+        True if workers are available, False otherwise
+    """
+    try:
+        # Check if we're using the test stub (SimpleNamespace)
+        # In test environments, we don't have real Celery, so assume workers are available
+        if not hasattr(celery_current_app.control, 'inspect'):
+            # This is the test stub, assume workers are available for testing
+            return True
+
+        # Try to inspect active workers with a short timeout
+        inspect = celery_current_app.control.inspect(timeout=1.0)
+
+        # Try to get stats from workers - this is more reliable than active()
+        # stats() returns None if no workers are available
+        stats = inspect.stats()
+
+        # If stats is None or empty dict, no workers are available
+        if stats is None or not stats:
+            return False
+
+        # Double-check with ping to ensure workers are actually responsive
+        ping_response = inspect.ping()
+        if ping_response is None or not ping_response:
+            return False
+
+        return True
+    except Exception as e:
+        # If any error occurs (connection issues, timeout, etc.), workers are not available
+        import logging
+        logging.getLogger(__name__).debug(f"Celery worker check failed: {e}")
+        return False
+
+
 class GenerationService:
     """Service class for generation job business logic."""
     

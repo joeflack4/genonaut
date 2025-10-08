@@ -16,6 +16,7 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import ImageNotSupportedIcon from '@mui/icons-material/ImageNotSupported'
 import { useGalleryItem } from '../../hooks'
+import { getImageUrl, getImageUrlFromPath } from '../../utils/image-url'
 
 interface LocationState {
   sourceType?: 'regular' | 'auto'
@@ -93,7 +94,28 @@ export function DashboardImageView() {
     return null
   }
 
-  const imageSource = data.pathThumb || data.contentData || data.imageUrl || null
+  const imageSource = useMemo(() => {
+    const altResPath = data.pathThumbsAltRes
+      ? Object.values(data.pathThumbsAltRes).find((value) => Boolean(value)) ?? null
+      : null
+
+    const candidates = [altResPath, data.pathThumb, data.imageUrl, data.contentData].filter(
+      (value): value is string => Boolean(value)
+    )
+
+    if (candidates.length === 0) {
+      return null
+    }
+
+    for (const candidate of candidates) {
+      const resolved = getImageUrlFromPath(candidate)
+      if (resolved.startsWith('http://') || resolved.startsWith('https://')) {
+        return resolved
+      }
+    }
+
+    return getImageUrl(data.id)
+  }, [data.contentData, data.id, data.imageUrl, data.pathThumb, data.pathThumbsAltRes])
   const createdAt = new Date(data.createdAt)
   const qualityLabel = data.qualityScore !== null && data.qualityScore !== undefined
     ? `${Math.round(data.qualityScore * 100)}%`

@@ -6,7 +6,7 @@ test-db-unit test-db-integration test-api test-all clear-excess-test-schemas ins
 lint format clean migrate-all migrate-prep migrate-dev migrate-demo migrate-test backup backup-dev backup-demo \
 backup-test api-dev api-demo api-test celery-dev celery-demo celery-test flower-dev flower-demo flower-test \
 redis-flush-dev redis-flush-demo redis-flush-test redis-keys-dev redis-keys-demo redis-keys-test \
-redis-info-dev redis-info-demo redis-info-test \
+redis-info-dev redis-info-demo redis-info-test redis-start celery-check-running-workers \
 frontend-install frontend-dev frontend-build frontend-preview frontend-test \
 frontend-test-unit frontend-test-watch frontend-test-coverage frontend-test-e2e frontend-test-e2e-headed \
 frontend-test-e2e-ui frontend-test-e2e-real-api frontend-test-e2e-real-api-headed frontend-test-e2e-real-api-ui \
@@ -19,6 +19,11 @@ ontology-refresh ontology-generate ontology-validate ontology-stats ontology-tes
 md-collate md-export-tsv md-test md-github-sync-down md-github-sync-up md-github-sync
 
 # Load environment variables
+ifneq (,$(wildcard ./env/.env.shared))
+include ./env/.env.shared
+export  # export included vars to child processes
+endif
+
 ifneq (,$(wildcard ./env/.env))
 include ./env/.env
 export  # export included vars to child processes
@@ -120,6 +125,7 @@ help:
 	@echo "  flower-test              Start Flower dashboard for test (port 5555)"
 	@echo ""
 	@echo "Redis Management:"
+	@echo "  redis-start          	  Run redis server"
 	@echo "  redis-flush-dev          Flush development Redis DB (DB 4)"
 	@echo "  redis-flush-demo         Flush demo Redis DB (DB 2)"
 	@echo "  redis-flush-test         Flush test Redis DB (DB 3)"
@@ -166,6 +172,9 @@ help:
 	@echo ""
 	@echo "Documentation:"
 	@echo "  docs                     Generate documentation"
+	@echo ""
+	@echo "Mock Services:"
+	@echo "  comfyui-mock             Start mock ComfyUI server (port 8189)"
 	@echo ""
 	@echo "Ontology:"
 	@echo "  ontology-refresh         Extract tags from database and update analysis"
@@ -585,6 +594,10 @@ celery-test:
 	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-test ] && . env/.env.local-test && set +a && \
 	ENV_TARGET=local-test APP_CONFIG_PATH=config/local-test.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation
 
+# alt: python -c "from genonaut.api.services.generation_service import check_celery_workers_available; print('Workers available:', check_celery_workers_available())"
+celery-check-running-workers:
+	ps aux | grep celery | grep -v grep
+
 # Flower monitoring dashboard
 flower-dev:
 	@echo "Starting Flower dashboard for development environment..."
@@ -601,45 +614,54 @@ flower-test:
 	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-test ] && . env/.env.local-test && set +a && \
 	ENV_TARGET=local-test APP_CONFIG_PATH=config/local-test.json celery -A genonaut.worker.queue_app:celery_app flower --port=5555
 
-# Redis management commands
+# Redis
+REDIS_STORAGE_PATH=env/redis/storage/
+REDIS_CONFIG_PATH=env/redis.conf
+
+$(REDIS_STORAGE_PATH):
+	mkdir -p $@
+
+redis-start: | $(REDIS_STORAGE_PATH)
+	redis-server $(REDIS_CONFIG_PATH)
+
 redis-flush-dev:
 	@echo "Flushing Redis DB 4 (dev)..."
-	@redis-cli -n 4 FLUSHDB
+	@redis-cli -a ${REDIS_PASSWORD} -n 4 FLUSHDB
 	@echo "✅ Dev Redis DB flushed"
 
 redis-flush-demo:
 	@echo "Flushing Redis DB 2 (demo)..."
-	@redis-cli -n 2 FLUSHDB
+	@redis-cli -a ${REDIS_PASSWORD} -n 2 FLUSHDB
 	@echo "✅ Demo Redis DB flushed"
 
 redis-flush-test:
 	@echo "Flushing Redis DB 3 (test)..."
-	@redis-cli -n 3 FLUSHDB
+	@redis-cli -a ${REDIS_PASSWORD} -n 3 FLUSHDB
 	@echo "✅ Test Redis DB flushed"
 
 redis-keys-dev:
 	@echo "Listing keys in Redis DB 4 (dev)..."
-	@redis-cli -n 4 KEYS '*'
+	@redis-cli -a ${REDIS_PASSWORD} -n 4 KEYS '*'
 
 redis-keys-demo:
 	@echo "Listing keys in Redis DB 2 (demo)..."
-	@redis-cli -n 2 KEYS '*'
+	@redis-cli -a ${REDIS_PASSWORD} -n 2 KEYS '*'
 
 redis-keys-test:
 	@echo "Listing keys in Redis DB 3 (test)..."
-	@redis-cli -n 3 KEYS '*'
+	@redis-cli -a ${REDIS_PASSWORD} -n 3 KEYS '*'
 
 redis-info-dev:
 	@echo "Redis info for dev (DB 4)..."
-	@redis-cli -n 4 DBSIZE
+	@redis-cli -a ${REDIS_PASSWORD} -n 4 DBSIZE
 
 redis-info-demo:
 	@echo "Redis info for demo (DB 2)..."
-	@redis-cli -n 2 DBSIZE
+	@redis-cli -a ${REDIS_PASSWORD} -n 2 DBSIZE
 
 redis-info-test:
 	@echo "Redis info for test (DB 3)..."
-	@redis-cli -n 3 DBSIZE
+	@redis-cli -a ${REDIS_PASSWORD} -n 3 DBSIZE
 
 # Frontend helpers
 frontend-install:
@@ -731,7 +753,11 @@ test-frontend-e2e-real-api-ui: frontend-test-e2e-real-api-ui
 ## ComfyUI
 COMFY_EXAMPLE_FILE=test/integrations/comfy_ui/input/1.json
 COMFY_HOST=127.0.0.1
-COMFY_PORT=8000  # Manual/portable (python main.py): defaults to 8188 unless you set --port. Desktop app (macOS build): commonly ships with 8000 as the baked-in default.
+COMFY_PORT=8000  # Manual/portable (python main.py): defaults to 8000 unless you set --port. Desktop app (macOS build): commonly ships with 8000 as the baked-in default.
+
+comfyui-mock:
+	@echo "Starting mock ComfyUI server on port 8189..."
+	python test/_infra/mock_services/comfyui/server.py
 
 check-comfyui-create-img:
 	curl -X POST http://localhost:8000/prompt \
@@ -792,13 +818,3 @@ md-github-sync:
 	fi
 	cd libs/md_manager && source env/bin/activate && python -m md_manager.cli --config-path ../../notes/md-manager.json sync-bidirectional || (echo "Error: Bidirectional sync failed"; exit 1)
 	@echo "✅ Bidirectional sync completed successfully"
-
-# Redis
-REDIS_STORAGE_PATH=env/redis/storage/
-REDIS_CONFIG_PATH=env/redis.conf
-
-$(REDIS_STORAGE_PATH):
-	mkdir -p $@
-
-redis-start: | $(REDIS_STORAGE_PATH)
-	redis-server $(REDIS_CONFIG_PATH)

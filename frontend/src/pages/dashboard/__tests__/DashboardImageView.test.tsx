@@ -28,7 +28,8 @@ const baseItem = {
   title: 'Dashboard Item',
   description: 'Recent dashboard content.',
   imageUrl: null,
-  pathThumb: '/thumb.png',
+  pathThumb: '/api/v1/images/1?thumbnail=small',
+  pathThumbsAltRes: null,
   contentData: '/image.png',
   contentType: 'image',
   qualityScore: 0.76,
@@ -62,7 +63,7 @@ describe('DashboardImageView', () => {
 
   it('shows placeholder when no image sources are available', () => {
     mockedUseGalleryItem.mockReturnValue({
-      data: { ...baseItem, pathThumb: null, contentData: null, imageUrl: null },
+      data: { ...baseItem, pathThumb: null, pathThumbsAltRes: null, contentData: null, imageUrl: null },
       isLoading: false,
       error: null,
     } as any)
@@ -70,6 +71,26 @@ describe('DashboardImageView', () => {
     renderWithRouter()
 
     expect(screen.getByTestId('dashboard-detail-placeholder')).toBeInTheDocument()
+  })
+
+  it('falls back to content ID image URL when paths are file system locations', () => {
+    mockedUseGalleryItem.mockReturnValue({
+      data: {
+        ...baseItem,
+        pathThumb: '/Users/test/thumb.png',
+        contentData: '/Users/test/image.png',
+        imageUrl: null,
+        pathThumbsAltRes: null,
+      },
+      isLoading: false,
+      error: null,
+    } as any)
+
+    renderWithRouter()
+
+    const image = screen.getByTestId('dashboard-detail-image') as HTMLImageElement
+    expect(image).toBeInTheDocument()
+    expect(image.getAttribute('src')).toBe('http://localhost:8001/api/v1/images/1')
   })
 
   it('displays loading state while fetching data', () => {

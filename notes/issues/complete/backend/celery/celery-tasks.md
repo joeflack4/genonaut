@@ -126,7 +126,7 @@ This document contains a comprehensive, phased task list for integrating Celery 
 ---
 
 ## Phase 5: ComfyUI Integration
-Ready for implementation. ComfyUI is running on port 8188. If you run into difficulties when working with it, update 
+Ready for implementation. ComfyUI is running on port 8000. If you run into difficulties when working with it, update 
 `celery-questions.md` and prompt me / the user / dev.
 
 ### 5.1 Create ComfyUI Client

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -20,13 +20,17 @@ import {
   Error as ErrorIcon,
   HourglassEmpty as HourglassIcon,
 } from '@mui/icons-material'
-import { useJobWebSocket } from '../../hooks/useJobWebSocket'
+import { useJobWebSocket, type JobStatusUpdate } from '../../hooks/useJobWebSocket'
 import { useGenerationJobService } from '../../hooks/useGenerationJobService'
 import type { GenerationJobResponse } from '../../services/generation-job-service'
+import { getImageUrl } from '../../utils/image-url'
+
+type TerminalStatus = 'completed' | 'failed' | 'cancelled'
 
 interface GenerationProgressProps {
   generation: GenerationJobResponse
   onComplete: () => void
+  onStatusFinalized?: (status: TerminalStatus) => void
 }
 
 const STATUS_CONFIG = {
@@ -62,26 +66,29 @@ const STATUS_CONFIG = {
   },
 }
 
-export function GenerationProgress({ generation: initialGeneration, onComplete }: GenerationProgressProps) {
+export function GenerationProgress({ generation: initialGeneration, onComplete, onStatusFinalized }: GenerationProgressProps) {
   const [isCancelling, setIsCancelling] = useState(false)
   const [currentGeneration, setCurrentGeneration] = useState(initialGeneration)
   const navigate = useNavigate()
 
   const { cancelGenerationJob, getGenerationJob } = useGenerationJobService()
 
+  // Memoize the status update callback to prevent WebSocket reconnections
+  const handleStatusUpdate = useCallback((update: JobStatusUpdate) => {
+    console.log('WebSocket update received:', update)
+    // Update current generation with WebSocket data
+    setCurrentGeneration(prev => ({
+      ...prev,
+      status: update.status,
+      ...(update.content_id && { content_id: update.content_id }),
+      ...(update.output_paths && { output_paths: update.output_paths }),
+      ...(update.error && { error_message: update.error })
+    }))
+  }, [])
+
   // Use WebSocket for real-time updates
   const { connect, disconnect, lastUpdate } = useJobWebSocket(initialGeneration.id, {
-    onStatusUpdate: (update) => {
-      console.log('WebSocket update received:', update)
-      // Update current generation with WebSocket data
-      setCurrentGeneration(prev => ({
-        ...prev,
-        status: update.status,
-        ...(update.content_id && { content_id: update.content_id }),
-        ...(update.output_paths && { output_paths: update.output_paths }),
-        ...(update.error && { error_message: update.error })
-      }))
-    }
+    onStatusUpdate: handleStatusUpdate
   })
 
   // Connect to WebSocket on mount
@@ -93,6 +100,9 @@ export function GenerationProgress({ generation: initialGeneration, onComplete }
   // Fallback to polling for status updates (if WebSocket fails)
   const [error, setError] = useState<string | null>(null)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const startTimeRef = useRef<number>(Date.now())
+  const previousStatusRef = useRef(initialGeneration.status)
 
   useEffect(() => {
     // Only poll if WebSocket isn't providing updates
@@ -117,13 +127,80 @@ export function GenerationProgress({ generation: initialGeneration, onComplete }
     }
   }, [getGenerationJob, initialGeneration.id, lastUpdate, currentGeneration.status])
 
-  // Call onComplete when generation finishes
+  // Timeout after 5 minutes if still pending/running
   useEffect(() => {
-    const isFinished = currentGeneration.status === 'completed' || currentGeneration.status === 'failed'
-    if (isFinished && currentGeneration.status !== initialGeneration.status) {
-      setTimeout(onComplete, 2000) // Give user time to see final status
+    const TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
+
+    const isActive = currentGeneration.status === 'pending' || currentGeneration.status === 'running' || currentGeneration.status === 'processing'
+    if (!isActive) {
+      // Clear timeout if job finished
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
+      return
     }
-  }, [currentGeneration.status, onComplete, initialGeneration.status])
+
+    // Calculate remaining time
+    const elapsed = Date.now() - startTimeRef.current
+    const remaining = TIMEOUT_MS - elapsed
+
+    if (remaining <= 0) {
+      // Already timed out
+      setError('Generation timed out after 5 minutes. The job may still be processing in the background.')
+      disconnect()
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
+      return
+    }
+
+    // Set timeout for remaining time
+    timeoutRef.current = setTimeout(() => {
+      const stillActive = currentGeneration.status === 'pending' || currentGeneration.status === 'running' || currentGeneration.status === 'processing'
+      if (stillActive) {
+        setError('Generation timed out after 5 minutes. The job may still be processing in the background.')
+        disconnect()
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current)
+          pollingIntervalRef.current = null
+        }
+      }
+    }, remaining)
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
+    }
+  }, [currentGeneration.status, disconnect])
+
+  // Call parent callbacks when generation finishes
+  useEffect(() => {
+    const previousStatus = previousStatusRef.current
+    const statusChanged = currentGeneration.status !== previousStatus
+
+    if (!statusChanged) {
+      return
+    }
+
+    previousStatusRef.current = currentGeneration.status
+
+    const terminalStatuses: TerminalStatus[] = ['completed', 'failed', 'cancelled']
+    if (terminalStatuses.includes(currentGeneration.status as TerminalStatus)) {
+      onStatusFinalized?.(currentGeneration.status as TerminalStatus)
+    }
+
+    if (currentGeneration.status !== 'completed') {
+      // Keep failure/cancelled states visible until the user takes action.
+      return
+    }
+
+    const timeout = setTimeout(onComplete, 2000)
+    return () => clearTimeout(timeout)
+  }, [currentGeneration.status, onComplete, onStatusFinalized])
 
   const handleCancel = async () => {
     setIsCancelling(true)
@@ -322,7 +399,7 @@ export function GenerationProgress({ generation: initialGeneration, onComplete }
                 <CardActionArea onClick={() => navigate(`/content/${currentGeneration.content_id}`)}>
                   <CardMedia
                     component="img"
-                    image={`/api/v1/images/${currentGeneration.content_id}`}
+                    image={getImageUrl(currentGeneration.content_id)}
                     alt={currentGeneration.prompt}
                     sx={{ maxHeight: 400, objectFit: 'contain' }}
                   />

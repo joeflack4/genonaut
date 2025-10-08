@@ -398,3 +398,207 @@ class TestSettings:
         settings1 = get_settings()
         settings2 = get_settings()
         assert settings1 is settings2
+
+
+class TestConfigLoadOrderPrecedence:
+    """Test the complete configuration load order precedence.
+
+    Expected load order (lowest to highest precedence):
+    1. config/base.json
+    2. config/{ENV_TARGET}.json
+    3. env/.env.shared
+    4. env/.env.{ENV_TARGET}
+    5. process env (CI, shell)
+    6. local env/.env (developer overrides, optional)
+    """
+
+    def test_complete_precedence_order(self):
+        """Test that all config sources follow the correct precedence order."""
+        test_input_dir = Path(__file__).parent / "input" / "config_precedence"
+
+        with patch("genonaut.config_loader.PROJECT_ROOT", test_input_dir):
+            # Set a process env var that should override env files (but not .env)
+            old_env = os.environ.copy()
+            try:
+                os.environ.clear()
+                os.environ["TEST_VAR_5"] = "from-process-env"
+
+                result = load_config(
+                    "config/test-env.json",
+                    "env/.env.test-env",
+                    apply_overrides=True
+                )
+
+                # test-var-1: Only in base.json
+                assert result["test-var-1"] == "from-base"
+
+                # test-var-2: In base.json, overridden by env-specific config
+                assert result["test-var-2"] == "from-env-config"
+
+                # test-var-3: In configs, overridden by .env.shared
+                assert result["test-var-3"] == "from-shared-env"
+
+                # test-var-4: In configs and .env.shared, overridden by .env.test-env
+                assert result["test-var-4"] == "from-env-specific"
+
+                # test-var-5: In configs and env files, overridden by process env
+                assert result["test-var-5"] == "from-process-env"
+
+                # test-var-6: In everything, .env has highest precedence
+                assert result["test-var-6"] == "from-local-env"
+
+            finally:
+                os.environ.clear()
+                os.environ.update(old_env)
+
+    def test_process_env_overrides_env_files_but_not_local_env(self):
+        """Test that process env overrides .env.shared and .env.{ENV_TARGET} but not .env."""
+        test_input_dir = Path(__file__).parent / "input" / "config_precedence"
+
+        with patch("genonaut.config_loader.PROJECT_ROOT", test_input_dir):
+            old_env = os.environ.copy()
+            try:
+                os.environ.clear()
+                # Set process env vars
+                os.environ["TEST_VAR_3"] = "from-process-env-3"
+                os.environ["TEST_VAR_4"] = "from-process-env-4"
+                os.environ["TEST_VAR_5"] = "from-process-env-5"
+                os.environ["TEST_VAR_6"] = "from-process-env-6"
+
+                result = load_config(
+                    "config/test-env.json",
+                    "env/.env.test-env",
+                    apply_overrides=True
+                )
+
+                # Process env should override .env.shared
+                assert result["test-var-3"] == "from-process-env-3"
+
+                # Process env should override .env.test-env
+                assert result["test-var-4"] == "from-process-env-4"
+                assert result["test-var-5"] == "from-process-env-5"
+
+                # But .env should override process env
+                assert result["test-var-6"] == "from-local-env"
+
+            finally:
+                os.environ.clear()
+                os.environ.update(old_env)
+
+    def test_env_specific_overrides_shared(self):
+        """Test that .env.{ENV_TARGET} overrides .env.shared."""
+        test_input_dir = Path(__file__).parent / "input" / "config_precedence"
+
+        with patch("genonaut.config_loader.PROJECT_ROOT", test_input_dir):
+            old_env = os.environ.copy()
+            try:
+                os.environ.clear()
+
+                result = load_config(
+                    "config/test-env.json",
+                    "env/.env.test-env",
+                    apply_overrides=True
+                )
+
+                # test-var-3 is only in .env.shared
+                assert result["test-var-3"] == "from-shared-env"
+
+                # test-var-4 is in both, .env.test-env should win
+                assert result["test-var-4"] == "from-env-specific"
+
+            finally:
+                os.environ.clear()
+                os.environ.update(old_env)
+
+    def test_env_vars_override_config_files(self):
+        """Test that environment variables override JSON config values."""
+        test_input_dir = Path(__file__).parent / "input" / "config_precedence"
+
+        with patch("genonaut.config_loader.PROJECT_ROOT", test_input_dir):
+            old_env = os.environ.copy()
+            try:
+                os.environ.clear()
+
+                result = load_config(
+                    "config/test-env.json",
+                    "env/.env.test-env",
+                    apply_overrides=True
+                )
+
+                # test-var-1 has no env override, should use base.json value
+                assert result["test-var-1"] == "from-base"
+
+                # test-var-3 has .env.shared override
+                assert result["test-var-3"] == "from-shared-env"
+
+                # test-var-4 has .env.test-env override
+                assert result["test-var-4"] == "from-env-specific"
+
+            finally:
+                os.environ.clear()
+                os.environ.update(old_env)
+
+    def test_type_conversion_in_precedence(self):
+        """Test that type conversion works correctly with precedence."""
+        test_input_dir = Path(__file__).parent / "input" / "config_precedence"
+
+        with patch("genonaut.config_loader.PROJECT_ROOT", test_input_dir):
+            old_env = os.environ.copy()
+            try:
+                os.environ.clear()
+                os.environ["TEST_PORT"] = "9000"
+                os.environ["TEST_FLAG"] = "true"
+
+                result = load_config(
+                    "config/test-env.json",
+                    "env/.env.test-env",
+                    apply_overrides=True
+                )
+
+                # Should convert string "9000" to int 9000
+                assert result["test-port"] == 9000
+                assert isinstance(result["test-port"], int)
+
+                # Should convert string "true" to boolean True
+                assert result["test-flag"] is True
+                assert isinstance(result["test-flag"], bool)
+
+            finally:
+                os.environ.clear()
+                os.environ.update(old_env)
+
+    def test_without_local_env_file(self):
+        """Test precedence when .env file doesn't exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Setup without .env file
+            config_dir = Path(tmpdir) / "config"
+            config_dir.mkdir()
+            env_dir = Path(tmpdir) / "env"
+            env_dir.mkdir()
+
+            base_config = {"test-var": "from-base"}
+            (config_dir / "base.json").write_text(json.dumps(base_config))
+            (config_dir / "test.json").write_text(json.dumps({}))
+
+            (env_dir / ".env.shared").write_text("TEST_VAR=from-shared\n")
+            (env_dir / ".env.test").write_text("TEST_VAR=from-test\n")
+            # Note: No .env file created
+
+            with patch("genonaut.config_loader.PROJECT_ROOT", Path(tmpdir)):
+                old_env = os.environ.copy()
+                try:
+                    os.environ.clear()
+                    os.environ["TEST_VAR"] = "from-process"
+
+                    result = load_config(
+                        "config/test.json",
+                        "env/.env.test",
+                        apply_overrides=True
+                    )
+
+                    # Without .env, process env should have highest precedence
+                    assert result["test-var"] == "from-process"
+
+                finally:
+                    os.environ.clear()
+                    os.environ.update(old_env)

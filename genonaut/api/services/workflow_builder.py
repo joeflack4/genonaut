@@ -81,10 +81,14 @@ class WorkflowBuilder:
             raise ValidationError("CFG must be between 0 and 20")
 
         for lora in request.lora_models:
-            if lora.strength_model < 0 or lora.strength_model > 2:
-                raise ValidationError(f"LoRA model strength must be between 0 and 2, got {lora.strength_model}")
-            if lora.strength_clip < 0 or lora.strength_clip > 2:
-                raise ValidationError(f"LoRA clip strength must be between 0 and 2, got {lora.strength_clip}")
+            if lora.strength_model < 0 or lora.strength_model > 3:
+                raise ValidationError(
+                    f"LoRA model strength must be between 0 and 3, got {lora.strength_model}"
+                )
+            if lora.strength_clip < 0 or lora.strength_clip > 3:
+                raise ValidationError(
+                    f"LoRA clip strength must be between 0 and 3, got {lora.strength_clip}"
+                )
 
     def build_workflow(self, request: GenerationRequest, client_id: Optional[str] = None) -> Dict[str, Any]:
         """Build ComfyUI workflow from generation request.

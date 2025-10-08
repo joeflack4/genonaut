@@ -13,10 +13,10 @@
   "api-debug": false,
   "test-api-base-url": "http://0.0.0.0:8099",
   "redis-ns": "genonaut_test",
-  "comfyui-url": "http://localhost:8188",
-  "comfyui-output-dir": "/Users/joeflack4/Documents/ComfyUI/output",
+  "comfyui-url": "http://localhost:8000",
+  "comfyui-output-dir": "~/Documents/ComfyUI/output",
   "comfyui-models-dir": "/tmp/comfyui_models",
   "comfyui-mock-url": "http://localhost:8189",
   "comfyui-mock-port": 8189,
-  "celery-result-backend": "redis://localhost:6379/3"
+  "celery-result-backend-template-string": "redis://:${REDIS_PASSWORD}@localhost:6379/3"
 }

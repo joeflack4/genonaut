@@ -276,7 +276,7 @@ class TestUserErrorExperience:
 
         test_cases = [
             # (Technical Error, Expected User-Friendly Elements based on actual error service messages)
-            (ComfyUIConnectionError("Failed to connect to 127.0.0.1:8188"),
+            (ComfyUIConnectionError("Failed to connect to 127.0.0.1:8000"),
              ["service", "temporarily", "unavailable", "try again", "minutes"]),
 
             (ConnectionError("Connection refused"),
@@ -304,7 +304,7 @@ class TestUserErrorExperience:
                 assert element in message, f"Expected '{element}' in message for {technical_error.__class__.__name__}"
 
             # Should not contain technical jargon
-            technical_terms = ["127.0.0.1", "8188", "connection refused", "vram error", "file path"]
+            technical_terms = ["127.0.0.1", "8000", "connection refused", "vram error", "file path"]
             for term in technical_terms:
                 assert term not in message, f"Message should not contain technical term '{term}'"
 

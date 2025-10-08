@@ -1,0 +1,10 @@
+{
+  "test-var-1": "from-base",
+  "test-var-2": "from-base",
+  "test-var-3": "from-base",
+  "test-var-4": "from-base",
+  "test-var-5": "from-base",
+  "test-var-6": "from-base",
+  "test-port": 8000,
+  "test-flag": false
+}

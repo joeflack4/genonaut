@@ -48,10 +48,10 @@ def load_env_for_runtime(env_file: Optional[str] = None) -> None:
     """Load environment variables with proper precedence.
 
     Load order (lowest to highest precedence):
-    1. env/.env.shared (always attempt to load if present)
-    2. --env-file (passed path) - the per-environment env file
-    3. env/.env (developer local overrides, optional)
-    4. process environment (highest precedence, already present)
+    1. env/.env.shared
+    2. env/.env.{ENV_TARGET} (passed as env_file)
+    3. process environment (existing env vars from shell/CI)
+    4. env/.env (developer local overrides, highest precedence)
 
     Args:
         env_file: Optional path to environment-specific .env file
@@ -59,9 +59,14 @@ def load_env_for_runtime(env_file: Optional[str] = None) -> None:
     shared = PROJECT_ROOT / "env" / ".env.shared"
     local_default = PROJECT_ROOT / "env" / ".env"
 
-    # 1) shared (base, do NOT override anything already set)
+    # Capture the current process environment before loading any files
+    # These should have higher precedence than .env.shared and env_file
+    # but lower precedence than .env
+    original_process_env = os.environ.copy()
+
+    # 1) shared (base layer)
     if shared.exists():
-        load_dotenv(shared, override=False)
+        load_dotenv(shared, override=True)
 
     # 2) explicit env file (override values from shared)
     if env_file:
@@ -72,7 +77,12 @@ def load_env_for_runtime(env_file: Optional[str] = None) -> None:
         if env_path.exists():
             load_dotenv(env_path, override=True)
 
-    # 3) developer .env (allow opt-in overrides)
+    # 3) restore original process env vars (they should override env files)
+    # Only restore vars that were present before we started loading files
+    for key, value in original_process_env.items():
+        os.environ[key] = value
+
+    # 4) developer .env (override EVERYTHING including process env)
     if local_default.exists():
         load_dotenv(local_default, override=True)
 

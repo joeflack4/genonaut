@@ -36,6 +36,14 @@ import { useLoraModels as useLoraModelsList } from '../../hooks/useLoraModels'
 import type { LoraModel } from '../../services/comfyui-service'
 import type { CheckpointModel, LoraModel as LoraModelData } from '../../types/domain'
 
+const clampStrength = (value: number | undefined) => {
+  const numeric = typeof value === 'number' ? value : 1.0
+  if (Number.isNaN(numeric)) {
+    return 1.0
+  }
+  return Math.min(3, Math.max(0, numeric))
+}
+
 interface ModelSelectorProps {
   checkpointModel: string
   onCheckpointChange: (model: string) => void
@@ -75,6 +83,23 @@ export function ModelSelector({
 
   const loading = checkpointsLoading || lorasLoading
   const error = checkpointsError || lorasError
+
+  useEffect(() => {
+    let needsUpdate = false
+    const normalized = loraModels.map(lora => {
+      const modelStrength = clampStrength(lora.strength_model)
+      const clipStrength = clampStrength(lora.strength_clip)
+      if (modelStrength !== lora.strength_model || clipStrength !== lora.strength_clip) {
+        needsUpdate = true
+        return { ...lora, strength_model: modelStrength, strength_clip: clipStrength }
+      }
+      return lora
+    })
+
+    if (needsUpdate) {
+      onLoraModelsChange(normalized)
+    }
+  }, [loraModels, onLoraModelsChange])
 
   useEffect(() => {
     // Auto-select first checkpoint if none selected
@@ -130,7 +155,7 @@ export function ModelSelector({
 
   const updateLoraStrength = (index: number, field: 'strength_model' | 'strength_clip', value: number) => {
     const newModels = loraModels.map((lora, i) =>
-      i === index ? { ...lora, [field]: value } : lora
+      i === index ? { ...lora, [field]: clampStrength(value) } : lora
     )
     onLoraModelsChange(newModels)
   }
@@ -287,8 +312,8 @@ export function ModelSelector({
                     <Slider
                       value={lora.strength_model}
                       onChange={(_, value) => updateLoraStrength(index, 'strength_model', value as number)}
-                      min={-2}
-                      max={2}
+                      min={0}
+                      max={3}
                       step={0.05}
                       size="small"
                     />
@@ -300,8 +325,8 @@ export function ModelSelector({
                     <Slider
                       value={lora.strength_clip}
                       onChange={(_, value) => updateLoraStrength(index, 'strength_clip', value as number)}
-                      min={-2}
-                      max={2}
+                      min={0}
+                      max={3}
                       step={0.05}
                       size="small"
                     />

@@ -46,15 +46,15 @@ class TestMockServerErrorScenarios:
     def test_workflow_timeout(self, mock_comfyui_client: ComfyUIClient):
         """Test workflow timeout handling."""
         # This test verifies the timeout mechanism exists
-        # Our mock server completes instantly, so we can't trigger a real timeout
-        # But we can verify the wait_for_completion has a timeout parameter
+        # Mock server has a 0.5 second processing delay
+        # Default poll_interval is 2.0 seconds, so we need timeout > 2s + 0.5s delay
 
         workflow = {"1": {"class_type": "SaveImage", "inputs": {"filename_prefix": "timeout_test"}}}
 
         prompt_id = mock_comfyui_client.submit_workflow(workflow)
 
-        # Should complete before timeout
-        result = mock_comfyui_client.wait_for_completion(prompt_id, max_wait_time=1)
+        # Should complete before timeout (mock delay is 0.5s, poll interval is 2s, timeout is 5s)
+        result = mock_comfyui_client.wait_for_completion(prompt_id, max_wait_time=5)
         assert result["status"] == "completed"
 
     def test_malformed_workflow_structure(self, mock_comfyui_url: str):

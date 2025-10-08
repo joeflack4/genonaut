@@ -25,6 +25,7 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material'
 import type { GenerationJobResponse } from '../../services/generation-job-service'
+import { getImageUrl } from '../../utils/image-url'
 
 interface ImageViewerProps {
   generation: GenerationJobResponse
@@ -46,7 +47,7 @@ export function ImageViewer({ generation, open, onClose }: ImageViewerProps) {
   const [zoomLevel, setZoomLevel] = useState(1)
 
   // Use content_id to construct image URL, fallback to output_paths for backward compatibility
-  const imageUrl = generation.content_id ? `/api/v1/images/${generation.content_id}` : generation.output_paths?.[0]
+  const imageUrl = generation.content_id ? getImageUrl(generation.content_id) : generation.output_paths?.[0]
   const hasImages = imageUrl !== undefined || (generation.output_paths && generation.output_paths.length > 0)
   const statusColor = STATUS_COLORS[generation.status as keyof typeof STATUS_COLORS] || 'default'
 

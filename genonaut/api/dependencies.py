@@ -94,6 +94,12 @@ def get_test_session() -> Generator[Session, None, None]:
 
 def get_database_session(settings: Settings = Depends(get_settings)) -> Generator[Session, None, None]:
     """Dependency to get database session based on environment setting."""
+    # When invoked outside FastAPI's dependency system (e.g., Celery workers),
+    # the default value is still the ``Depends`` sentinel. Fallback to loading
+    # settings manually so standalone callers work as expected.
+    if not isinstance(settings, Settings):
+        settings = get_settings()
+
     environment = settings.environment_type or "dev"
     if environment not in SUPPORTED_ENVIRONMENTS:
         environment = "dev"

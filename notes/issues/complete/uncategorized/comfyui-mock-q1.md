@@ -170,7 +170,7 @@ The tests mock these key methods:
 
 **We do NOT have:**
 - A standalone mock HTTP server that behaves like ComfyUI
-- A test harness that accepts real HTTP requests at `http://localhost:8188`
+- A test harness that accepts real HTTP requests at `http://localhost:8189`
 - Integration tests that exercise the full HTTP request/response cycle
 
 ### Files Using ComfyUI Mocks

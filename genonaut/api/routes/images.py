@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from genonaut.api.dependencies import get_database_session
 from genonaut.api.services.thumbnail_service import ThumbnailService
 from genonaut.api.config import get_settings
+from genonaut.db.schema import ContentItem, ContentItemAuto
 
 router = APIRouter(prefix="/api/v1/images", tags=["images"])
 
@@ -23,7 +24,9 @@ async def serve_image(
     """Serve images and thumbnails with proper caching headers.
 
     Args:
-        file_path: Relative path to the image file within the ComfyUI output directory
+        file_path: Can be either:
+            - A content_id (numeric) to look up the image path from the database
+            - A relative path to the image file within the ComfyUI output directory
         thumbnail: Optional thumbnail size ('small', 'medium', 'large')
         db: Database session
 
@@ -36,18 +39,48 @@ async def serve_image(
     settings = get_settings()
     thumbnail_service = ThumbnailService()
 
-    # Build absolute path to the image
-    base_path = Path(settings.comfyui_output_dir)
-    full_path = base_path / file_path
+    # Check if file_path is a content_id (numeric)
+    use_db_lookup = file_path.isdigit()
+    if use_db_lookup:
+        content_id = int(file_path)
 
-    # Security check: ensure path is within the allowed directory
-    try:
-        full_path.resolve().relative_to(base_path.resolve())
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied: Invalid file path"
-        )
+        # Try to find content in both tables
+        content = db.query(ContentItem).filter(ContentItem.id == content_id).first()
+        if not content:
+            content = db.query(ContentItemAuto).filter(ContentItemAuto.id == content_id).first()
+
+        if not content:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Image not found"
+            )
+
+        # Get the content_data field which contains the file path
+        image_path = content.content_data
+
+        # Check if it's an absolute path
+        if Path(image_path).is_absolute():
+            # Use the path as-is (trust database content)
+            full_path = Path(image_path)
+            base_path = Path(settings.comfyui_output_dir)  # For thumbnail operations
+        else:
+            # Relative path - prepend comfyui_output_dir
+            base_path = Path(settings.comfyui_output_dir)
+            full_path = base_path / image_path
+    else:
+        # Build absolute path to the image (legacy behavior)
+        base_path = Path(settings.comfyui_output_dir)
+        full_path = base_path / file_path
+
+    # Security check: ensure path is within the allowed directory (only for non-DB lookups)
+    if not use_db_lookup:
+        try:
+            full_path.resolve().relative_to(base_path.resolve())
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: Invalid file path"
+            )
 
     # Check if this is a thumbnail request
     if thumbnail:
@@ -144,7 +177,9 @@ async def get_image_info(
     """Get information about an image file.
 
     Args:
-        file_path: Relative path to the image file within the ComfyUI output directory
+        file_path: Can be either:
+            - A content_id (numeric) to look up the image path from the database
+            - A relative path to the image file within the ComfyUI output directory
         db: Database session
 
     Returns:
@@ -156,18 +191,48 @@ async def get_image_info(
     settings = get_settings()
     thumbnail_service = ThumbnailService()
 
-    # Build absolute path to the image
-    base_path = Path(settings.comfyui_output_dir)
-    full_path = base_path / file_path
+    # Check if file_path is a content_id (numeric)
+    use_db_lookup = file_path.isdigit()
+    if use_db_lookup:
+        content_id = int(file_path)
 
-    # Security check: ensure path is within the allowed directory
-    try:
-        full_path.resolve().relative_to(base_path.resolve())
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied: Invalid file path"
-        )
+        # Try to find content in both tables
+        content = db.query(ContentItem).filter(ContentItem.id == content_id).first()
+        if not content:
+            content = db.query(ContentItemAuto).filter(ContentItemAuto.id == content_id).first()
+
+        if not content:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Image not found"
+            )
+
+        # Get the content_data field which contains the file path
+        image_path = content.content_data
+
+        # Check if it's an absolute path
+        if Path(image_path).is_absolute():
+            # Use the path as-is (trust database content)
+            full_path = Path(image_path)
+            base_path = Path(settings.comfyui_output_dir)
+        else:
+            # Relative path - prepend comfyui_output_dir
+            base_path = Path(settings.comfyui_output_dir)
+            full_path = base_path / image_path
+    else:
+        # Build absolute path to the image (legacy behavior)
+        base_path = Path(settings.comfyui_output_dir)
+        full_path = base_path / file_path
+
+    # Security check: ensure path is within the allowed directory (only for non-DB lookups)
+    if not use_db_lookup:
+        try:
+            full_path.resolve().relative_to(base_path.resolve())
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: Invalid file path"
+            )
 
     # Check if file exists
     if not full_path.exists():
@@ -196,7 +261,9 @@ async def delete_thumbnails(
     """Delete all thumbnails for a specific image.
 
     Args:
-        file_path: Relative path to the source image file
+        file_path: Can be either:
+            - A content_id (numeric) to look up the image path from the database
+            - A relative path to the source image file
         db: Database session
 
     Returns:
@@ -208,18 +275,48 @@ async def delete_thumbnails(
     settings = get_settings()
     thumbnail_service = ThumbnailService()
 
-    # Build absolute path to the image
-    base_path = Path(settings.comfyui_output_dir)
-    full_path = base_path / file_path
+    # Check if file_path is a content_id (numeric)
+    use_db_lookup = file_path.isdigit()
+    if use_db_lookup:
+        content_id = int(file_path)
 
-    # Security check: ensure path is within the allowed directory
-    try:
-        full_path.resolve().relative_to(base_path.resolve())
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied: Invalid file path"
-        )
+        # Try to find content in both tables
+        content = db.query(ContentItem).filter(ContentItem.id == content_id).first()
+        if not content:
+            content = db.query(ContentItemAuto).filter(ContentItemAuto.id == content_id).first()
+
+        if not content:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Image not found"
+            )
+
+        # Get the content_data field which contains the file path
+        image_path = content.content_data
+
+        # Check if it's an absolute path
+        if Path(image_path).is_absolute():
+            # Use the path as-is (trust database content)
+            full_path = Path(image_path)
+            base_path = Path(settings.comfyui_output_dir)
+        else:
+            # Relative path - prepend comfyui_output_dir
+            base_path = Path(settings.comfyui_output_dir)
+            full_path = base_path / image_path
+    else:
+        # Build absolute path to the image (legacy behavior)
+        base_path = Path(settings.comfyui_output_dir)
+        full_path = base_path / file_path
+
+    # Security check: ensure path is within the allowed directory (only for non-DB lookups)
+    if not use_db_lookup:
+        try:
+            full_path.resolve().relative_to(base_path.resolve())
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: Invalid file path"
+            )
 
     # Find all thumbnails for this image
     source_stem = full_path.stem

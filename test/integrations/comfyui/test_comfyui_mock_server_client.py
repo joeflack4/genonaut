@@ -33,6 +33,11 @@ class TestComfyUIClientIntegration:
         }
 
         prompt_id = mock_comfyui_client.submit_workflow(workflow)
+
+        # Wait for completion since mock server now has processing delay
+        result = mock_comfyui_client.wait_for_completion(prompt_id, max_wait_time=10)
+
+        # Now get status to verify it shows completed
         status = mock_comfyui_client.get_workflow_status(prompt_id)
 
         assert status["status"] == "completed"
@@ -89,6 +94,11 @@ class TestComfyUIClientIntegration:
         prompt_id = mock_comfyui_client.submit_workflow(workflow, client_id="custom-client-123")
 
         assert prompt_id is not None
+
+        # Wait for completion since mock server now has processing delay
+        result = mock_comfyui_client.wait_for_completion(prompt_id, max_wait_time=10)
+
+        # Verify status is completed
         status = mock_comfyui_client.get_workflow_status(prompt_id)
         assert status["status"] == "completed"
 

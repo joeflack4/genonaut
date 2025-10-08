@@ -34,6 +34,11 @@ from genonaut.api.config import get_settings
 # Get settings instance
 settings = get_settings()
 
+# Print configuration info on startup
+print(f"[Celery Worker] Environment: {settings.env_target or 'unknown'}")
+print(f"[Celery Worker] ComfyUI URL: {settings.comfyui_url}")
+print(f"[Celery Worker] Redis Namespace: {settings.redis_ns}")
+
 # Initialize Celery app
 celery_app = Celery(
     "genonaut",

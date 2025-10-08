@@ -32,6 +32,24 @@ async def create_generation_job(
     db: Session = Depends(get_database_session)
 ):
     """Create a new generation job."""
+    from genonaut.api.services.generation_service import check_celery_workers_available
+
+    # Check if Celery workers are available before creating the job
+    if not check_celery_workers_available():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": {
+                    "message": "The image queuing service is not currently running. Image generation jobs cannot be created at this time.",
+                    "service": "celery_worker",
+                    "status": "unavailable",
+                    "support_info": {
+                        "details": "The background worker that processes image generation requests is offline. Please contact your system administrator or start the Celery worker service."
+                    }
+                }
+            }
+        )
+
     service = GenerationService(db)
     try:
         job = service.create_generation_job(

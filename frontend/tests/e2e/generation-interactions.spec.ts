@@ -45,7 +45,7 @@ test.describe('Generation Page Interactions', () => {
 
   test('should display generation status area when no generation is active', async ({ page }) => {
     // Should show placeholder text when no generation is active
-    const placeholderText = page.locator('text=Start a generation to see progress here')
+    const placeholderText = page.locator('text=Progress will display after generation starts.')
     await expect(placeholderText).toBeVisible()
   })
 
@@ -75,7 +75,7 @@ test.describe('Generation Page Interactions', () => {
     const progressSection = page.locator('text=Generation Status')
     await expect(progressSection).toBeVisible()
 
-    const progressArea = page.locator('text=Start a generation to see progress here')
+    const progressArea = page.locator('text=Progress will display after generation starts.')
     await expect(progressArea).toBeVisible()
   })
 })

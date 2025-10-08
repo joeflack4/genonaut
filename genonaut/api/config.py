@@ -67,7 +67,7 @@ class Settings(BaseModel):
     redis_url: Optional[str] = None
 
     # ComfyUI integration settings
-    comfyui_url: str = "http://localhost:8188"
+    comfyui_url: str = "http://localhost:8000"
     comfyui_timeout: int = 30
     comfyui_poll_interval: float = 2.0
     comfyui_max_wait_time: int = 900

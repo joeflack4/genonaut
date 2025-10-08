@@ -478,12 +478,12 @@ class TestErrorScenarios:
         error_service = ErrorService()
 
         # Test technical error gets user-friendly message
-        technical_error = ComfyUIConnectionError("Failed to establish connection to 127.0.0.1:8188")
+        technical_error = ComfyUIConnectionError("Failed to establish connection to 127.0.0.1:8000")
         error_info = error_service.handle_error(technical_error)
 
         # Should not contain technical details like IP addresses
         assert "127.0.0.1" not in error_info["user_message"]
-        assert "8188" not in error_info["user_message"]
+        assert "8000" not in error_info["user_message"]
         # Should contain user-friendly language
         assert "service" in error_info["user_message"].lower()
         assert "try again" in error_info["user_message"].lower()

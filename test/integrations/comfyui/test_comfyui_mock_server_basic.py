@@ -26,7 +26,7 @@ class TestMockServerBasics:
         assert "Mock ComfyUI Server" in data["server"]
 
     def test_submit_workflow(self, mock_comfyui_url: str):
-        """Test workflow submission returns prompt_id."""
+        """Test workflow submission returns prompt_id, number, and node_errors."""
         workflow = {
             "1": {
                 "class_type": "SaveImage",
@@ -45,9 +45,15 @@ class TestMockServerBasics:
         data = response.json()
         assert "prompt_id" in data
         assert len(data["prompt_id"]) > 0
+        assert "number" in data
+        assert data["number"] == 0
+        assert "node_errors" in data
+        assert data["node_errors"] == {}
 
     def test_get_history_pending(self, mock_comfyui_url: str):
-        """Test getting history for pending job."""
+        """Test getting history for pending job returns empty dict while processing."""
+        import time
+
         # Submit a job
         workflow = {"1": {"class_type": "SaveImage", "inputs": {"filename_prefix": "test"}}}
         submit_response = requests.post(
@@ -56,15 +62,28 @@ class TestMockServerBasics:
         )
         prompt_id = submit_response.json()["prompt_id"]
 
-        # Get history (should auto-complete in mock)
+        # Get history immediately (should return {} while processing)
         history_response = requests.get(f"{mock_comfyui_url}/history/{prompt_id}")
         assert history_response.status_code == 200
 
         history_data = history_response.json()
-        assert prompt_id in history_data
+        assert history_data == {}, "Should return empty dict while job is still processing"
+
+        # Wait for processing to complete (default delay is 0.5 seconds)
+        time.sleep(0.6)
+
+        # Get history again (should now have results)
+        history_response2 = requests.get(f"{mock_comfyui_url}/history/{prompt_id}")
+        assert history_response2.status_code == 200
+
+        history_data2 = history_response2.json()
+        assert prompt_id in history_data2, "Should return full history after processing delay"
+        assert history_data2[prompt_id]["status"]["completed"] is True
 
     def test_get_history_completed(self, mock_comfyui_url: str):
         """Test getting history for completed job with outputs."""
+        import time
+
         # Submit a job
         workflow = {"1": {"class_type": "SaveImage", "inputs": {"filename_prefix": "completed_job"}}}
         submit_response = requests.post(
@@ -72,6 +91,9 @@ class TestMockServerBasics:
             json={"prompt": workflow}
         )
         prompt_id = submit_response.json()["prompt_id"]
+
+        # Wait for processing to complete
+        time.sleep(0.6)
 
         # Get history
         history_response = requests.get(f"{mock_comfyui_url}/history/{prompt_id}")
@@ -120,6 +142,8 @@ class TestMockServerBasics:
 
     def test_output_file_generation(self, mock_comfyui_url: str):
         """Test that mock server generates output files."""
+        import time
+
         # Get output directory
         output_dir = Path(__file__).parent.parent.parent / "_infra/mock_services/comfyui/output"
 
@@ -130,6 +154,9 @@ class TestMockServerBasics:
             json={"prompt": workflow}
         )
         prompt_id = submit_response.json()["prompt_id"]
+
+        # Wait for processing to complete
+        time.sleep(0.6)
 
         # Get history to trigger file generation
         history_response = requests.get(f"{mock_comfyui_url}/history/{prompt_id}")
@@ -144,6 +171,8 @@ class TestMockServerBasics:
 
     def test_multiple_jobs_unique_files(self, mock_comfyui_url: str):
         """Test that multiple jobs create unique output files."""
+        import time
+
         filenames = []
 
         for i in range(3):
@@ -153,6 +182,9 @@ class TestMockServerBasics:
                 json={"prompt": workflow}
             )
             prompt_id = submit_response.json()["prompt_id"]
+
+            # Wait for processing to complete
+            time.sleep(0.6)
 
             history_response = requests.get(f"{mock_comfyui_url}/history/{prompt_id}")
             history_data = history_response.json()
