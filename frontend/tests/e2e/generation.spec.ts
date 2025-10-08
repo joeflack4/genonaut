@@ -28,7 +28,7 @@ test.describe('ComfyUI Generation', () => {
     ).toBeVisible()
 
     // Should show generate button
-    await expect(page.locator('button:has-text("Generate Images")')).toBeVisible()
+    await expect(page.locator('button:has-text("Generate")')).toBeVisible()
   })
 
   test.skip('should validate required form fields', async ({ page }) => {
@@ -38,7 +38,7 @@ test.describe('ComfyUI Generation', () => {
     await page.waitForSelector('form', { timeout: 10000 })
 
     // Try to submit without prompt (button should be disabled)
-    const generateButton = page.locator('button:has-text("Generate Images")')
+    const generateButton = page.locator('button:has-text("Generate")')
     await expect(generateButton).toBeDisabled()
 
     // Fill in prompt to enable the button

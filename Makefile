@@ -188,17 +188,16 @@ help:
 init-all: init-dev init-demo init-test
 
 init-dev:
-	@echo "Initializing database..."
-	python -m genonaut.db.init
+	@echo "Initializing development database..."
+	python -m genonaut.cli_main init-db --env-target local-dev
 
 init-demo:
 	@echo "Initializing demo database..."
-	GENONAUT_DB_ENVIRONMENT=demo python -c "from genonaut.db.init import initialize_database; initialize_database(drop_existing=True)"
+	python -m genonaut.cli_main init-db --env-target local-demo --drop-existing
 
 init-test:
 	@echo "Initializing test database..."
-	@TEST_URL=$${DATABASE_URL_TEST:-$${DATABASE_URL}}; \
-	GENONAUT_DB_ENVIRONMENT=test TEST=1 DATABASE_URL=$$TEST_URL DATABASE_URL_TEST=$$TEST_URL python -m genonaut.db.init
+	python -m genonaut.cli_main init-db --env-target local-test
 
 reset-db-1-data--demo:
 	@echo "Resetting demo database..."
@@ -420,11 +419,11 @@ clean:
 # Database initialization
 init-db:
 	@echo "Initializing database..."
-	python -m genonaut.db.init
+	python -m genonaut.cli_main init-db --env-target local-dev
 
 init-db-drop:
 	@echo "Initializing database (dropping existing tables)..."
-	python -c "from genonaut.db.init import initialize_database; initialize_database(drop_existing=True)"
+	python -m genonaut.cli_main init-db --env-target local-dev --drop-existing
 
 # DB migration
 # migrate-*: Create auto-generted revision based on SQLAlchemy model changes. Pass with a message, like: `make migrate-all m="my changes`
@@ -507,64 +506,100 @@ backup: backup-dev backup-demo backup-test
 	@echo "✅ All database backups completed!"
 
 # FastAPI server
+# Legacy targets (use new targets below for explicit env control)
 api-dev:
 	@echo "Starting FastAPI server for development database..."
-	APP_ENV=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
+	python -m genonaut.cli_main run-api --env-target local-dev
 
 api-demo:
 	@echo "Starting FastAPI server for demo database..."
-	APP_ENV=demo uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
+	python -m genonaut.cli_main run-api --env-target local-demo
 
 api-test:
 	@echo "Starting FastAPI server for test database..."
-	APP_ENV=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
+	python -m genonaut.cli_main run-api --env-target local-test
+
+# New environment-specific API targets
+api-local-dev:
+	@echo "Starting API server for local-dev environment..."
+	python -m genonaut.cli_main run-api --env-target local-dev
+
+api-local-demo:
+	@echo "Starting API server for local-demo environment..."
+	python -m genonaut.cli_main run-api --env-target local-demo
+
+api-local-test:
+	@echo "Starting API server for local-test environment..."
+	python -m genonaut.cli_main run-api --env-target local-test
+
+api-cloud-dev:
+	@echo "Starting API server for cloud-dev environment..."
+	python -m genonaut.cli_main run-api --env-target cloud-dev
+
+api-cloud-demo:
+	@echo "Starting API server for cloud-demo environment..."
+	python -m genonaut.cli_main run-api --env-target cloud-demo
+
+api-cloud-test:
+	@echo "Starting API server for cloud-test environment..."
+	python -m genonaut.cli_main run-api --env-target cloud-test
+
+api-cloud-prod:
+	@echo "Starting API server for cloud-prod environment..."
+	python -m genonaut.cli_main run-api --env-target cloud-prod --reload=false
 
 # FastAPI server variants for performance testing
 api-dev-profile:
 	@echo "Starting FastAPI server for development with profiling (single worker, no reload)..."
-	APP_ENV=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 1
+	python -m genonaut.cli_main run-api --env-target local-dev --workers 1 --reload=false
 
 api-dev-load-test:
 	@echo "Starting FastAPI server for load testing (4 workers)..."
-	APP_ENV=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 4
+	python -m genonaut.cli_main run-api --env-target local-dev --workers 4
 
 api-production-sim:
 	@echo "Starting FastAPI server simulating production (8 workers)..."
-	APP_ENV=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 8
+	python -m genonaut.cli_main run-api --env-target local-dev --workers 8
 
 api-demo-load-test:
 	@echo "Starting FastAPI server for demo load testing (4 workers)..."
-	APP_ENV=demo uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 4
+	python -m genonaut.cli_main run-api --env-target local-demo --workers 4
 
 api-test-load-test:
 	@echo "Starting FastAPI server for test load testing (4 workers)..."
-	APP_ENV=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --workers 4
+	python -m genonaut.cli_main run-api --env-target local-test --workers 4
 
 # Celery worker commands
 celery-dev:
 	@echo "Starting Celery worker for development environment..."
-	APP_ENV=dev celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation
+	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-dev ] && . env/.env.local-dev && set +a && \
+	ENV_TARGET=local-dev APP_CONFIG_PATH=config/local-dev.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation
 
 celery-demo:
 	@echo "Starting Celery worker for demo environment..."
-	APP_ENV=demo celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation
+	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-demo ] && . env/.env.local-demo && set +a && \
+	ENV_TARGET=local-demo APP_CONFIG_PATH=config/local-demo.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation
 
 celery-test:
 	@echo "Starting Celery worker for test environment..."
-	APP_ENV=test celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation
+	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-test ] && . env/.env.local-test && set +a && \
+	ENV_TARGET=local-test APP_CONFIG_PATH=config/local-test.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation
 
 # Flower monitoring dashboard
 flower-dev:
 	@echo "Starting Flower dashboard for development environment..."
-	APP_ENV=dev celery -A genonaut.worker.queue_app:celery_app flower --port=5555
+	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-dev ] && . env/.env.local-dev && set +a && \
+	ENV_TARGET=local-dev APP_CONFIG_PATH=config/local-dev.json celery -A genonaut.worker.queue_app:celery_app flower --port=5555
 
 flower-demo:
 	@echo "Starting Flower dashboard for demo environment..."
-	APP_ENV=demo celery -A genonaut.worker.queue_app:celery_app flower --port=5555
+	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-demo ] && . env/.env.local-demo && set +a && \
+	ENV_TARGET=local-demo APP_CONFIG_PATH=config/local-demo.json celery -A genonaut.worker.queue_app:celery_app flower --port=5555
 
 flower-test:
 	@echo "Starting Flower dashboard for test environment..."
-	APP_ENV=test celery -A genonaut.worker.queue_app:celery_app flower --port=5555
+	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-test ] && . env/.env.local-test && set +a && \
+	ENV_TARGET=local-test APP_CONFIG_PATH=config/local-test.json celery -A genonaut.worker.queue_app:celery_app flower --port=5555
 
 # Redis management commands
 redis-flush-dev:
@@ -760,7 +795,7 @@ md-github-sync:
 
 # Redis
 REDIS_STORAGE_PATH=env/redis/storage/
-REDIS_CONFIG_PATH=redis.conf
+REDIS_CONFIG_PATH=env/redis.conf
 
 $(REDIS_STORAGE_PATH):
 	mkdir -p $@

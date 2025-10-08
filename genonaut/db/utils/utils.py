@@ -55,10 +55,20 @@ def _normalize_environment(environment: Optional[str]) -> str:
         if candidate in {"dev", "demo", "test"}:
             return candidate
 
-    explicit = os.getenv("GENONAUT_DB_ENVIRONMENT") or os.getenv("APP_ENV")
+    # Try GENONAUT_DB_ENVIRONMENT first, then extract from ENV_TARGET
+    explicit = os.getenv("GENONAUT_DB_ENVIRONMENT")
+    if not explicit:
+        env_target = os.getenv("ENV_TARGET")
+        if env_target:
+            # Extract environment type from ENV_TARGET (e.g., 'local-dev' -> 'dev')
+            if "-" in env_target:
+                explicit = env_target.split("-")[-1]
+            else:
+                explicit = env_target
+
     if explicit:
         lowered = explicit.strip().lower()
-        if lowered in {"dev", "demo", "test"}:
+        if lowered in {"dev", "demo", "test", "prod"}:
             return lowered
 
     if _coerce_bool(os.getenv("TEST", "0")):
@@ -127,8 +137,8 @@ def get_database_url(environment: Optional[str] = None) -> str:
         )
 
     # Fall back to legacy credentials for backward compatibility
-    username = os.getenv("DB_USER", "postgres")
-    password = os.getenv("DB_PASSWORD")
+    username = os.getenv("DB_USER_FOR_INIT", "postgres")
+    password = os.getenv("DB_PASSWORD_FOR_INIT")
 
     if not password:
         raise ValueError(

@@ -500,7 +500,7 @@ export function GenerationForm({ onGenerationStart }: GenerationFormProps) {
         }}
       >
         {isSubmitting && <CircularProgress size={20} data-testid="loading-spinner" color="inherit" />}
-        {isSubmitting ? 'Generating...' : 'Generate Images'}
+        {isSubmitting ? 'Generating...' : 'Generate'}
       </Box>
 
       {renderErrorContent({
@@ -682,7 +682,7 @@ function extractValidationErrors(body: unknown): {
     })
 
     if (details.length > 0) {
-      generalMessage = 'Some of your settings need attention before we can generate images.'
+      generalMessage = 'Some of your settings need attention before we can Generate.'
     }
   }
 

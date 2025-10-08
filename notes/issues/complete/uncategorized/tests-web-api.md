@@ -50,7 +50,7 @@
 
 #### Key Implementation Points
 - Use `subprocess.Popen()` for better process isolation
-- Server command: `API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8099`
+- Server command: `APP_ENV=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8099`
 - Health check endpoint: `GET /api/v1/health`
 - Startup wait: Poll health endpoint with exponential backoff
 - Cleanup: Store PID and use `process.terminate()` then `process.kill()` if needed
@@ -79,7 +79,7 @@
 
 ### What was implemented:
 - **Session-scoped pytest fixture** (`api_server()`) that automatically starts/stops the API server
-- **Automatic server startup** using uvicorn subprocess with `API_ENVIRONMENT=test`
+- **Automatic server startup** using uvicorn subprocess with `APP_ENV=test`
 - **Health check polling** with retry logic to ensure server is ready before tests run
 - **Graceful shutdown** with proper process cleanup and fallback to force-kill if needed
 - **Cross-platform compatibility** with proper signal handling for macOS/Linux
@@ -87,7 +87,7 @@
 ### Key features:
 - **Zero manual intervention** - Server starts/stops automatically when running API tests
 - **Port 8099** - Uses dedicated test port separate from dev server (port 8000)
-- **Test database environment** - Server uses `API_ENVIRONMENT=test` configuration
+- **Test database environment** - Server uses `APP_ENV=test` configuration
 - **Robust error handling** - Handles startup failures, port conflicts, and cleanup errors
 - **Session lifecycle** - One server instance serves all tests in the session for efficiency
 

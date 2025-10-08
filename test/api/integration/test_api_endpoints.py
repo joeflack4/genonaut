@@ -42,7 +42,8 @@ def api_server():
 
         # Set environment variables for test configuration
         env = os.environ.copy()
-        env["APP_ENV"] = "test"
+        env["ENV_TARGET"] = "local-test"
+        env["APP_CONFIG_PATH"] = "config/local-test.json"
 
         # Start the server process
         server_process = subprocess.Popen(

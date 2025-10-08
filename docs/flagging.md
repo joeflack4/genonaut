@@ -14,6 +14,25 @@ The Genonaut Content Flagging System automatically detects and flags content con
 - **Statistics**: Real-time statistics about flagged content
 - **Flexible Configuration**: Configurable danger word list via text file
 
+## Documentation overview
+
+- **Quick Start**: [5-Minute Setup Guide](docs/flagging-quickstart.md) - Get started fast!
+- **Full Guide**: [Content Flagging Documentation](docs/flagging.md) - Complete API reference and examples
+- **Testing**: [Testing Guide](docs/flagging-testing.md) - Test suites and manual testing checklist
+- **API Reference**: See `/api/v1/admin/flagged-content` endpoints in API docs (http://localhost:8001/docs)
+- **Implementation Spec**: [Technical Details](notes/issues/by_priority/low/flagging.md) - Phase-by-phase implementation notes
+
+## Quick Setup
+
+1. Create your flag words configuration:
+   ```bash
+   cp docs/flag-words.txt.example flag-words.txt
+   ```
+
+2. Edit `flag-words.txt` to add words that should trigger flagging
+
+3. Content is automatically flagged during creation - no additional setup needed!
+
 ## Configuration
 
 ### Flag Words File

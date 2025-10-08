@@ -1,0 +1,21 @@
+{
+  "seed-data": {
+    "main": "io/input/init/rdbms",
+    "demo": "io/input/init/demo_rdbms",
+    "test": "test/db/input/rdbms_init_empty"
+  },
+  "seed-data-premade": {
+    "main": "io/input/init/rdbms",
+    "demo": "io/input/init/demo_rdbms",
+    "test": "test/db/input/rdbms_init_v1"
+  },
+  "seed-data-generator": {
+    "batch-size": 2000,
+    "target-rows-users": 500,
+    "target-rows-content-items": 20000,
+    "target-rows-content-items-auto": 100000
+  },
+  "backup-dir": "_archive/backups/db/",
+  "storage-dir": "io/storage/",
+  "images-dir": "io/storage/images/"
+}

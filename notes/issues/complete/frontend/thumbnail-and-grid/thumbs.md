@@ -695,22 +695,7 @@ pytest test/ -v --tb=short
   - [x] All frontend unit tests passing (100 passed, 11 skipped)
   - [x] Backend test passing for path_thumbs_alt_res field
 
-### On pause
-#### Until ComfyUI integration compeltion
-- [ ] Add thumbnail generation service/pipeline
 
-#### Until actual images are stored
-- [ ] Add image caching/lazy loading optimizations
-
-### Tasks for @dev
-#### Manual Testing & Polish @dev
-- [ ] Test responsive grid layout on different screen sizes
-- [ ] Test image scaling/fitting in grid cells
-- [ ] Test placeholder icon appearance
-- [ ] Test hover effects on grid cells
-- [ ] Verify all data-testid attributes are in place
-- [ ] Check accessibility (keyboard navigation, screen reader support)
-- [ ] Polish styling (spacing, colors, typography)
 
 ### Tags
 - skipped-until-api-server: Full `make test-api` run needs a running uvicorn instance; the harness times out trying to start the API server during pytest session setup.

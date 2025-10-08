@@ -12,6 +12,7 @@ python-dotenv
 python-multipart
 redis
 sqlalchemy
+typer
 uvicorn
 
 # dev dependencies

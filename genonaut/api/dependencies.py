@@ -94,7 +94,7 @@ def get_test_session() -> Generator[Session, None, None]:
 
 def get_database_session(settings: Settings = Depends(get_settings)) -> Generator[Session, None, None]:
     """Dependency to get database session based on environment setting."""
-    environment = settings.app_env or "dev"
+    environment = settings.environment_type or "dev"
     if environment not in SUPPORTED_ENVIRONMENTS:
         environment = "dev"
 

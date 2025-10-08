@@ -37,7 +37,7 @@ test.describe('Form UX Tests', () => {
     await page.waitForSelector('form', { timeout: 10000 })
 
     // Generate button should be disabled without prompt
-    const generateButton = page.locator('button:has-text("Generate Images"), button:has-text("Generate")')
+    const generateButton = page.locator('button:has-text("Generate"), button:has-text("Generate")')
 
     if (await generateButton.isVisible()) {
       await expect(generateButton).toBeDisabled()

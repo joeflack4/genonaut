@@ -9,6 +9,7 @@ This directory contains comprehensive documentation for Genonaut development.
 - [API Documentation](./api.md) - FastAPI endpoints, configuration, and integration
 - [Testing Documentation](./testing.md) - Testing strategy, commands, and best practices
 - [Frontend Documentation](../notes/frontend.md) - Frontend development guide and recommendations
+- [Queuing system](./queuing.md) - Queuing system for processing tasks
 
 ### Specialized Documentation
 - [Database Migrations](./db_migrations.md) - Alembic migration procedures and troubleshooting

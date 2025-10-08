@@ -1,12 +1,8 @@
-# Manual Testing Checklist - Thumbnail Features
+# Gallery page thumbnails, etc - e2e playwirght testing
+Create e2e playwright tests to check many things on the gallery page.
 
-## Test Environment Setup
-- [ ] Ensure backend is running (`make dev` or equivalent)
-- [ ] Ensure frontend is running (`npm --prefix frontend run dev`)
-- [ ] Browser console open (F12) to check for errors
-- [ ] Test in multiple browsers (Chrome, Firefox, Safari)
-
----
+If you think that some of these are out of the scope for playwright tests, skip them with @skipped-TAG. And add a list 
+and explanation of such tags in a section in this markdown document. 
 
 ## 1. Gallery Page - View Toggle & Grid Layout
 
@@ -250,52 +246,3 @@
 - [ ] Images load from correct paths
 - [ ] No duplicate image requests when switching resolutions
 - [ ] Proper caching (images don't reload unnecessarily)
-
----
-
-## 9. Styling and Polish
-
-### Visual Consistency
-- [ ] Grid spacing is even and consistent
-- [ ] Hover effects are smooth and consistent
-- [ ] Colors match design system
-- [ ] Typography is consistent (font sizes, weights, line heights)
-
-### Grid Cell Styling
-- [ ] Border radius applied consistently
-- [ ] Shadow depth appropriate (not too harsh)
-- [ ] Padding inside cells is consistent
-- [ ] Background colors are correct
-
-### Button/Icon Styling
-- [ ] View toggle icons are clear and recognizable
-- [ ] Active state color is prominent but not garish
-- [ ] Resolution dropdown icon is intuitive
-- [ ] Tooltips are styled consistently
-
----
-
-## Issues Found
-
-**Template for reporting issues:**
-```
-- **Issue**: [Brief description]
-- **Steps to Reproduce**: [1, 2, 3...]
-- **Expected**: [What should happen]
-- **Actual**: [What actually happened]
-- **Browser**: [Chrome/Firefox/Safari + version]
-- **Screenshot**: [If applicable]
-- **Priority**: [High/Medium/Low]
-```
-
----
-
-## Sign-Off
-
-- [ ] All tests passed
-- [ ] All issues documented above
-- [ ] Ready for production deployment
-
-**Tested by**: ___________________
-**Date**: ___________________
-**Notes**: ___________________

@@ -1,5 +1,7 @@
 # redis.conf
 dir env/redis/storage/
 dbfilename dump.rdb
+requirepass <set-in-local-copy>
+
 # optionally disable persistence if you don’t want it:
 # save ""

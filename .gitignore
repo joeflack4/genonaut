@@ -18,14 +18,10 @@ MANIFEST
 output/
 bak/
 /*.json
-!config.json
+!config/
 */cache/*
 !*/cache/.keep
 flag-words.txt
-# Environment files
-.env
-.env.*
-!/env/env.example
 .ipynb_checkpoints/
 *.parquet*
 env/*
@@ -40,7 +36,11 @@ backup/
 *.code-workspace
 *.dmp
 .log
-#notes/  # actually; commit these; when done, can put the files in _archive/.
+
+# Environment files
+.env
+.env.*
+!/env/*.example
 
 # Frontend
 # - JS: CreateReactApp

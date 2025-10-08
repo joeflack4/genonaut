@@ -133,7 +133,7 @@ In regards to these questions:
 
 i. Yes! The title of the page is called: "Image Generation"
 ii. You'll have to figure that out for yourself, sorry. Look at the page with that title "Image Generation", and look 
-at what happens when the "Generate Images" button is clicked. It calls ComfyUI and generates an image--successfully. 
+at what happens when the "Generate" button is clicked. It calls ComfyUI and generates an image--successfully. 
 However, the output directory doesn't lie within our repo. It exists at: /Users/joeflack4/Documents/ComfyUI/output. If 
 you have difficulty working with that directory due to permissions, let me know. We can try to set up a different dir, 
 or I can set up a symlink (unless you can create one yoruself!). But other than the job being submitted, there is 

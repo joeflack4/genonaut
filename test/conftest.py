@@ -14,7 +14,8 @@ from starlette.testclient import TestClient
 os.environ["GENONAUT_TEST_UVICORN"] = "1"
 os.environ["DATABASE_URL_TEST"] = "sqlite:///./test/_infra/test_genonaut_api.sqlite3"
 os.environ["DATABASE_URL"] = "sqlite:///./test/_infra/test_genonaut_api.sqlite3"
-os.environ["APP_ENV"] = "test"
+os.environ["ENV_TARGET"] = "local-test"
+os.environ["APP_CONFIG_PATH"] = "config/local-test.json"
 os.environ["GENONAUT_DB_ENVIRONMENT"] = "test"
 
 from genonaut.api.config import get_settings

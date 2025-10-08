@@ -168,7 +168,7 @@ class TestDatabaseEndToEnd:
             session.close()
             engine.dispose()
     
-    @patch.dict(os.environ, {'DB_PASSWORD': 'test_password'}, clear=True)
+    @patch.dict(os.environ, {'DB_PASSWORD_FOR_INIT': 'test_password'}, clear=True)
     @patch('builtins.print')  # Suppress print output during tests
     def test_database_initialization_with_environment_variables(self, mock_print):
         """Test database initialization using environment variables."""

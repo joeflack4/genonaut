@@ -445,7 +445,7 @@ test.describe('Frontend Error Handling', () => {
     await page.fill('[data-testid="seed-input"]', formData.seed)
 
     // Mock error response
-    await page.route('**/api/v1/comfyui/generate*', async route => {
+    await page.route('**/api/v1/generation-jobs/**', async route => {
       await route.fulfill({ status: 500, body: 'Internal Server Error' })
     })
 
@@ -471,7 +471,7 @@ test.describe('Frontend Error Handling', () => {
 
   test('provides accessible error messages', async ({ page }) => {
     // Mock error response
-    await page.route('**/api/v1/comfyui/generate*', async route => {
+    await page.route('**/api/v1/generation-jobs/**', async route => {
       await route.fulfill({
         status: 503,
         contentType: 'application/json',

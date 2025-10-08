@@ -53,7 +53,7 @@ async def get_database_info():
     
     # Derive available databases from configuration if possible, else include all supported environments
     available_databases = getattr(settings, "available_environments", ["dev", "demo", "test"])
-    current_database = settings.app_env
+    current_database = settings.environment_type
     
     return DatabaseInfoResponse(
         available_databases=available_databases,

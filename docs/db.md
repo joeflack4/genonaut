@@ -32,20 +32,20 @@ Genonaut uses a three-tier database user system for security:
 
 ### Optional Variables
 
-| Variable       | Description                                                     | Example                                                          | Default     |
-|----------------|-----------------------------------------------------------------|------------------------------------------------------------------|-------------|
-| `DATABASE_URL` | Complete PostgreSQL connection URL (recommended for production) | `postgresql://genonaut_admin:admin_pass@localhost:5432/genonaut` | None        |
-| `DATABASE_URL_TEST` | Dedicated connection string for the test database        | `postgresql://genonaut_admin:admin@localhost:5432/genonaut_test` | None        |
-| `DATABASE_URL_DEMO` | Demo database connection URL                     | `postgresql://user:pass@localhost:5432/genonaut_demo` | Uses `DATABASE_URL` with demo DB name |
-| `DB_HOST`      | Database host                                                   | `localhost`                                                      | `localhost` |
-| `DB_PORT`      | Database port                                                   | `5432`                                                           | `5432`      |
-| `DB_NAME`      | Database name                                                   | `genonaut`                                                       | `genonaut`  |
-| `DB_NAME_DEMO` | Demo database name                                              | `genonaut_demo`                                                  | `genonaut_demo` |
-| `DB_NAME_TEST` | Test database name                                              | `genonaut_test`                                                  | `genonaut_test` |
-| `DB_USER`      | Legacy database username                                        | `postgres`                                                       | `postgres`  |
-| `DB_PASSWORD`  | Legacy database password                                        | `your_secure_password`                                           | None        |
-| `DB_ECHO`      | Enable SQL query logging                                        | `true`                                                           | `false`     |
-| `DEMO`         | When truthy, operate against the demo database                  | `1`                                                              | `0`         |
+| Variable                  | Description                                                     | Example                                                          | Default     |
+|---------------------------|-----------------------------------------------------------------|------------------------------------------------------------------|-------------|
+| `DATABASE_URL`            | Complete PostgreSQL connection URL (recommended for production) | `postgresql://genonaut_admin:admin_pass@localhost:5432/genonaut` | None        |
+| `DATABASE_URL_TEST`       | Dedicated connection string for the test database        | `postgresql://genonaut_admin:admin@localhost:5432/genonaut_test` | None        |
+| `DATABASE_URL_DEMO`       | Demo database connection URL                     | `postgresql://user:pass@localhost:5432/genonaut_demo` | Uses `DATABASE_URL` with demo DB name |
+| `DB_HOST`                 | Database host                                                   | `localhost`                                                      | `localhost` |
+| `DB_PORT`                 | Database port                                                   | `5432`                                                           | `5432`      |
+| `DB_NAME`                 | Database name                                                   | `genonaut`                                                       | `genonaut`  |
+| `DB_NAME_DEMO`            | Demo database name                                              | `genonaut_demo`                                                  | `genonaut_demo` |
+| `DB_NAME_TEST`            | Test database name                                              | `genonaut_test`                                                  | `genonaut_test` |
+| `DB_USER_FOR_INIT`        | Legacy database username                                        | `postgres`                                                       | `postgres`  |
+| `DB_PASSWORD_FOR_INIT`    | Legacy database password                                        | `your_secure_password`                                           | None        |
+| `DB_ECHO`                 | Enable SQL query logging                                        | `true`                                                           | `false`     |
+| `DEMO`                    | When truthy, operate against the demo database                  | `1`                                                              | `0`         |
 | `GENONAUT_DB_ENVIRONMENT` | Force init/migration helpers to target a specific database (`dev`/`demo`/`test`) | `test` | None |
 
 ### Configuration Behavior

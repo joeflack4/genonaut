@@ -39,8 +39,8 @@ def get_database_url() -> str:
     host = os.getenv('DB_HOST', 'localhost')
     port = os.getenv('DB_PORT', '5432')
     database = os.getenv('DB_NAME', 'genonaut')
-    username = os.getenv('DB_USER', 'postgres')
-    password = os.getenv('DB_PASSWORD')
+    username = os.getenv('DB_USER_FOR_INIT', 'postgres')
+    password = os.getenv('DB_PASSWORD_FOR_INIT')
     
     if not password:
         raise ValueError(
@@ -87,8 +87,8 @@ Environment Variables:
   DB_HOST           Database host (default: localhost)
   DB_PORT           Database port (default: 5432)  
   DB_NAME           Database name (default: genonaut)
-  DB_USER           Database username (default: postgres)
-  DB_PASSWORD       Database password (required)
+  DB_USER_FOR_INIT           Database username (default: postgres)
+  DB_PASSWORD_FOR_INIT       Database password (required)
         """
     )
     

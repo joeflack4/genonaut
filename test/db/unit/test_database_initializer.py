@@ -60,8 +60,8 @@ class TestDatabaseInitializer:
         'DB_HOST': 'testhost',
         'DB_PORT': '5433', 
         'DB_NAME': 'testdb',
-        'DB_USER': 'testuser',
-        'DB_PASSWORD': 'testpass'
+        'DB_USER_FOR_INIT': 'testuser',
+        'DB_PASSWORD_FOR_INIT': 'testpass'
     }, clear=True)
     def test_get_database_url_from_components(self):
         """Test constructing database URL from individual environment variables."""
@@ -72,7 +72,7 @@ class TestDatabaseInitializer:
     
     @patch.dict(os.environ, {
         'DB_HOST': 'localhost',
-        'DB_USER': 'postgres'
+        'DB_USER_FOR_INIT': 'postgres'
     }, clear=True)
     def test_get_database_url_missing_password_raises_error(self):
         """Test that missing password raises ValueError."""
@@ -81,7 +81,7 @@ class TestDatabaseInitializer:
         
         assert "Database password must be provided" in str(exc_info.value)
     
-    @patch.dict(os.environ, {'DB_PASSWORD': 'testpass'}, clear=True) 
+    @patch.dict(os.environ, {'DB_PASSWORD_FOR_INIT': 'testpass'}, clear=True) 
     def test_get_database_url_uses_defaults(self):
         """Test that default values are used when environment variables not set."""
         initializer = DatabaseInitializer()

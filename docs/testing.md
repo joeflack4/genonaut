@@ -296,8 +296,8 @@ make test-api
 | Variable | Description | Default | Required For |
 |----------|-------------|---------|--------------|
 | `API_BASE_URL` | API server URL for integration tests | `http://0.0.0.0:8001` | API tests |
-| `DATABASE_URL` | Database connection for DB tests | From `.env` | DB & API tests |
-| `API_ENVIRONMENT` | Database environment (`dev`/`demo`) | `dev` | API tests |
+| `DATABASE_URL` | Database connection for DB tests | From config/env | DB & API tests |
+| `ENV_TARGET` | Environment target (e.g., `local-test`) | `local-dev` | API tests |
 
 ### Custom Test Configuration
 ```bash
@@ -305,7 +305,7 @@ make test-api
 API_BASE_URL=http://localhost:9000 make test-api
 
 # Test with specific environment
-API_ENVIRONMENT=demo make test-api
+ENV_TARGET=local-demo make test-api
 
 # Run specific test file
 pytest test/api/unit/test_models.py -v

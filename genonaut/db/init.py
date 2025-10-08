@@ -254,8 +254,8 @@ class DatabaseInitializer:
             psql_host = self._url.host or os.getenv('DB_HOST', 'localhost')
             psql_port = str(self._url.port or os.getenv('DB_PORT', '5432'))
         else:
-            fallback_user = os.getenv('DB_USER', 'postgres')
-            fallback_password = os.getenv('DB_PASSWORD')
+            fallback_user = os.getenv('DB_USER_FOR_INIT', 'postgres')
+            fallback_password = os.getenv('DB_PASSWORD_FOR_INIT')
 
             if fallback_password:
                 host = self._url.host if self._url and self._url.host else os.getenv('DB_HOST', 'localhost')
@@ -290,7 +290,7 @@ class DatabaseInitializer:
             
             try:
                 # Extract connection details for psql
-                effective_user = psql_user or os.getenv('DB_USER', 'postgres')
+                effective_user = psql_user or os.getenv('DB_USER_FOR_INIT', 'postgres')
                 host = psql_host or os.getenv('DB_HOST', 'localhost')
                 port = psql_port or os.getenv('DB_PORT', '5432')
 
