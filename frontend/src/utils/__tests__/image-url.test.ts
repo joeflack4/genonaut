@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { getImageUrl, getImageUrlFromPath } from '../image-url'
+import { getImageUrl, getImageUrlFromPath, resolveImageSourceCandidates } from '../image-url'
 
 describe('image-url utilities', () => {
   describe('getImageUrl', () => {
@@ -60,6 +60,41 @@ describe('image-url utilities', () => {
       vi.stubEnv('VITE_API_BASE_URL', 'https://api.production.com')
       const path = '/api/v1/images/12345'
       expect(getImageUrlFromPath(path)).toBe('https://api.production.com/api/v1/images/12345')
+    })
+  })
+
+  describe('resolveImageSourceCandidates', () => {
+    beforeEach(() => {
+      vi.unstubAllEnvs()
+    })
+
+    afterEach(() => {
+      vi.unstubAllEnvs()
+    })
+
+    it('returns data URLs immediately', () => {
+      const result = resolveImageSourceCandidates(10, 'data:image/png;base64,abc')
+      expect(result).toBe('data:image/png;base64,abc')
+    })
+
+    it('returns absolute URLs without modification', () => {
+      const result = resolveImageSourceCandidates(11, 'https://cdn.example.com/image.png')
+      expect(result).toBe('https://cdn.example.com/image.png')
+    })
+
+    it('converts relative API paths using the base URL', () => {
+      const result = resolveImageSourceCandidates(12, '/api/v1/images/12')
+      expect(result).toBe('http://localhost:8001/api/v1/images/12')
+    })
+
+    it('falls back to content ID when only filesystem paths are available', () => {
+      const result = resolveImageSourceCandidates(13, '/Users/test/image.png')
+      expect(result).toBe('http://localhost:8001/api/v1/images/13')
+    })
+
+    it('returns null when no candidates and no content ID', () => {
+      const result = resolveImageSourceCandidates(undefined, null, undefined)
+      expect(result).toBeNull()
     })
   })
 })

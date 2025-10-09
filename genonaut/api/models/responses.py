@@ -63,6 +63,7 @@ class ContentResponse(BaseModel):
     prompt: Optional[str] = Field(None, description="Generation prompt (only included in detail views)")
     item_metadata: Dict[str, Any] = Field(..., description="Content metadata")
     creator_id: UUID = Field(..., description="Creator user ID")
+    creator_username: Optional[str] = Field(None, description="Creator username")
     created_at: datetime = Field(..., description="Content creation timestamp")
     tags: List[str] = Field(..., description="Content tags")
     quality_score: float = Field(..., description="Content quality score")

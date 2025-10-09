@@ -89,7 +89,12 @@ export function NotificationBell() {
 
     // Navigate based on notification type
     if (notification.related_content_id) {
-      navigate(`/gallery/${notification.related_content_id}`)
+      navigate(`/view/${notification.related_content_id}`, {
+        state: {
+          from: 'notifications',
+          fallbackPath: '/gallery',
+        },
+      })
     } else if (notification.related_job_id) {
       navigate('/generate') // Or to a job details page
     }

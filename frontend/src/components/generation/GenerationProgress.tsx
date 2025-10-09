@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -23,14 +23,17 @@ import {
 import { useJobWebSocket, type JobStatusUpdate } from '../../hooks/useJobWebSocket'
 import { useGenerationJobService } from '../../hooks/useGenerationJobService'
 import type { GenerationJobResponse } from '../../services/generation-job-service'
+import type { ComfyUIGenerationResponse } from '../../services/comfyui-service'
 import { getImageUrl } from '../../utils/image-url'
 
 type TerminalStatus = 'completed' | 'failed' | 'cancelled'
 
+type GenerationRun = GenerationJobResponse | ComfyUIGenerationResponse
+
 interface GenerationProgressProps {
-  generation: GenerationJobResponse
-  onComplete: () => void
-  onStatusFinalized?: (status: TerminalStatus) => void
+  generation: GenerationRun
+  onStatusFinalized?: (status: TerminalStatus, generation: GenerationRun) => void
+  onGenerationUpdate?: (generation: GenerationRun) => void
 }
 
 const STATUS_CONFIG = {
@@ -66,10 +69,11 @@ const STATUS_CONFIG = {
   },
 }
 
-export function GenerationProgress({ generation: initialGeneration, onComplete, onStatusFinalized }: GenerationProgressProps) {
+export function GenerationProgress({ generation: initialGeneration, onStatusFinalized, onGenerationUpdate }: GenerationProgressProps) {
   const [isCancelling, setIsCancelling] = useState(false)
   const [currentGeneration, setCurrentGeneration] = useState(initialGeneration)
   const navigate = useNavigate()
+  const location = useLocation()
 
   const { cancelGenerationJob, getGenerationJob } = useGenerationJobService()
 
@@ -90,6 +94,13 @@ export function GenerationProgress({ generation: initialGeneration, onComplete, 
   const { connect, disconnect, lastUpdate } = useJobWebSocket(initialGeneration.id, {
     onStatusUpdate: handleStatusUpdate
   })
+
+  // Reset local state when a new generation id is supplied
+  useEffect(() => {
+    setCurrentGeneration(initialGeneration)
+    startTimeRef.current = Date.now()
+    previousStatusRef.current = initialGeneration.status
+  }, [initialGeneration.id, initialGeneration])
 
   // Connect to WebSocket on mount
   useEffect(() => {
@@ -190,17 +201,13 @@ export function GenerationProgress({ generation: initialGeneration, onComplete, 
 
     const terminalStatuses: TerminalStatus[] = ['completed', 'failed', 'cancelled']
     if (terminalStatuses.includes(currentGeneration.status as TerminalStatus)) {
-      onStatusFinalized?.(currentGeneration.status as TerminalStatus)
+      onStatusFinalized?.(currentGeneration.status as TerminalStatus, currentGeneration)
     }
+  }, [currentGeneration, onStatusFinalized])
 
-    if (currentGeneration.status !== 'completed') {
-      // Keep failure/cancelled states visible until the user takes action.
-      return
-    }
-
-    const timeout = setTimeout(onComplete, 2000)
-    return () => clearTimeout(timeout)
-  }, [currentGeneration.status, onComplete, onStatusFinalized])
+  useEffect(() => {
+    onGenerationUpdate?.(currentGeneration)
+  }, [currentGeneration, onGenerationUpdate])
 
   const handleCancel = async () => {
     setIsCancelling(true)
@@ -396,7 +403,15 @@ export function GenerationProgress({ generation: initialGeneration, onComplete, 
                 Generated Image:
               </Typography>
               <Card sx={{ maxWidth: 400 }}>
-                <CardActionArea onClick={() => navigate(`/content/${currentGeneration.content_id}`)}>
+                <CardActionArea
+                  onClick={() => navigate(`/view/${currentGeneration.content_id}`, {
+                    state: {
+                      from: 'generation',
+                      fallbackPath: location.pathname,
+                      sourceType: 'regular',
+                    },
+                  })}
+                >
                   <CardMedia
                     component="img"
                     image={getImageUrl(currentGeneration.content_id)}

@@ -52,3 +52,34 @@ export function getImageUrlFromPath(path: string): string {
   // Otherwise, it's a file path - this shouldn't happen in production but handle it
   return path
 }
+
+/**
+ * Resolve the best available image source from provided candidates.
+ * Falls back to the API content endpoint when only filesystem paths are available.
+ */
+export function resolveImageSourceCandidates(contentId: number | undefined, ...candidates: Array<string | null | undefined>): string | null {
+  const sanitized = candidates
+    .map((candidate) => candidate?.trim())
+    .filter((candidate): candidate is string => Boolean(candidate && candidate.length > 0))
+
+  for (const candidate of sanitized) {
+    if (candidate.startsWith('data:') || candidate.startsWith('blob:')) {
+      return candidate
+    }
+
+    if (candidate.startsWith('http://') || candidate.startsWith('https://')) {
+      return candidate
+    }
+
+    const resolved = getImageUrlFromPath(candidate)
+    if (resolved.startsWith('http://') || resolved.startsWith('https://')) {
+      return resolved
+    }
+  }
+
+  if (typeof contentId === 'number' && Number.isFinite(contentId)) {
+    return getImageUrl(contentId)
+  }
+
+  return sanitized.length > 0 ? sanitized[0] : null
+}

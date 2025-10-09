@@ -27,6 +27,7 @@ export interface ApiContentItem {
   description?: string | null
   image_url?: string | null
   path_thumb?: string | null
+  path_thumbs_alt_res?: Record<string, string> | null
   quality_score: number | null
   created_at: string
   updated_at?: string
@@ -37,6 +38,7 @@ export interface ApiContentItem {
   tags: string[]
   is_public: boolean
   is_private: boolean
+  prompt?: string | null
 }
 
 export interface ApiRecommendationItem {

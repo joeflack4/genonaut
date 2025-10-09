@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Box, ButtonBase, Typography } from '@mui/material'
-import ImageNotSupportedIcon from '@mui/icons-material/ImageNotSupported'
 import InsertPhotoIcon from '@mui/icons-material/InsertPhoto'
 import type { GalleryItem, ThumbnailResolution } from '../../types/domain'
+import { resolveImageSourceCandidates } from '../../utils/image-url'
 
 export interface ImageGridCellProps {
   item: GalleryItem
@@ -14,15 +14,17 @@ export interface ImageGridCellProps {
 export function ImageGridCell({ item, resolution, onClick, dataTestId = `gallery-grid-item-${item.id}` }: ImageGridCellProps) {
   const [imageError, setImageError] = useState(false)
 
-  // Priority: resolution-specific thumbnail > default thumbnail > full image > imageUrl fallback
   const mediaSource = useMemo(() => {
-    // Try to find resolution-specific thumbnail
-    if (item.pathThumbsAltRes && item.pathThumbsAltRes[resolution.id]) {
-      return item.pathThumbsAltRes[resolution.id]
-    }
-    // Fall back to default thumbnail, then full image, then imageUrl
-    return item.pathThumb || item.contentData || item.imageUrl || null
-  }, [item.pathThumbsAltRes, item.pathThumb, item.contentData, item.imageUrl, resolution.id])
+    const altResPath = item.pathThumbsAltRes ? item.pathThumbsAltRes[resolution.id] ?? null : null
+
+    return resolveImageSourceCandidates(
+      item.id,
+      altResPath,
+      item.pathThumb,
+      item.imageUrl,
+      item.contentData
+    )
+  }, [item.contentData, item.id, item.imageUrl, item.pathThumb, item.pathThumbsAltRes, resolution.id])
 
   const aspectRatioPercentage = useMemo(() => (resolution.height / resolution.width) * 100, [resolution.height, resolution.width])
 

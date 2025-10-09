@@ -5,9 +5,17 @@ import { GenerationProgress } from '../../components/generation/GenerationProgre
 import { GenerationHistory } from '../../components/generation/GenerationHistory'
 import { ErrorBoundary } from '../../components/common/ErrorBoundary'
 import type { ComfyUIGenerationResponse } from '../../services/comfyui-service'
+import type { GenerationJobResponse } from '../../services/generation-job-service'
+import { usePersistedState } from '../../hooks/usePersistedState'
+
+type ActiveGeneration = ComfyUIGenerationResponse | GenerationJobResponse
+type TerminalStatus = 'completed' | 'failed' | 'cancelled'
 
 export function GenerationPage() {
-  const [currentGeneration, setCurrentGeneration] = useState<ComfyUIGenerationResponse | null>(null)
+  const [currentGeneration, setCurrentGeneration] = usePersistedState<ActiveGeneration | null>(
+    'generation:active-job',
+    null
+  )
   const [refreshHistory, setRefreshHistory] = useState(0)
   const [activeTab, setActiveTab] = useState<'create' | 'history'>('create')
   const [timeoutActive, setTimeoutActive] = useState(false)
@@ -18,10 +26,9 @@ export function GenerationPage() {
     setRefreshHistory(prev => prev + 1)
   }
 
-  const handleGenerationComplete = () => {
-    setCurrentGeneration(null)
-    setRefreshHistory(prev => prev + 1)
-  }
+  const handleGenerationUpdate = useCallback((generation: ActiveGeneration) => {
+    setCurrentGeneration(generation)
+  }, [setCurrentGeneration])
 
   const handleContinueWaiting = useCallback(() => {
     if (continueWaitingCallbackRef.current) {
@@ -32,19 +39,21 @@ export function GenerationPage() {
   const handleCancelRequest = useCallback(() => {
     setTimeoutActive(false)
     setCurrentGeneration(null)
-  }, [])
+  }, [setCurrentGeneration])
 
   const handleContinueWaitingCallbackSet = useCallback((callback: () => void) => {
     continueWaitingCallbackRef.current = callback
   }, [])
 
-  const handleGenerationFinalStatus = useCallback((status: 'completed' | 'failed' | 'cancelled') => {
+  const handleGenerationFinalStatus = useCallback((status: TerminalStatus, generation: ActiveGeneration) => {
     setTimeoutActive(false)
+    setCurrentGeneration(generation)
+    setRefreshHistory(prev => prev + 1)
+  }, [setCurrentGeneration])
 
-    if (status === 'cancelled') {
-      setCurrentGeneration(null)
-    }
-  }, [])
+  const handleGenerationReset = useCallback(() => {
+    setCurrentGeneration(null)
+  }, [setCurrentGeneration])
 
   return (
     <Box component="section" sx={{ pt: 0, pb: 4, width: '100%' }} data-testid="generation-page">
@@ -103,11 +112,11 @@ export function GenerationPage() {
               {currentGeneration ? (
                 <ErrorBoundary
                   fallbackMessage="An error occurred while displaying the generation progress. Please try again."
-                  onReset={handleGenerationComplete}
+                  onReset={handleGenerationReset}
                 >
                   <GenerationProgress
                     generation={currentGeneration}
-                    onComplete={handleGenerationComplete}
+                    onGenerationUpdate={handleGenerationUpdate}
                     onStatusFinalized={handleGenerationFinalStatus}
                   />
                 </ErrorBoundary>

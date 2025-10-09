@@ -157,6 +157,7 @@ export class UnifiedGalleryService {
     content_type: string
     content_data: string | null
     path_thumb?: string | null
+    path_thumbs_alt_res?: Record<string, string> | null
     quality_score?: number
     created_at: string
     updated_at: string
@@ -164,6 +165,8 @@ export class UnifiedGalleryService {
     source_type: 'regular' | 'auto'
     tags?: string[]
     item_metadata?: Record<string, unknown>
+    creator_username?: string | null
+    prompt?: string | null
   }): GalleryItem {
     return {
       id: item.id,
@@ -171,12 +174,15 @@ export class UnifiedGalleryService {
       description: item.description ?? null,
       imageUrl: item.image_url ?? null,
       pathThumb: item.path_thumb ?? null,
+      pathThumbsAltRes: item.path_thumbs_alt_res ?? null,
       contentData: item.content_data ?? null,
       contentType: item.content_type,
+      prompt: item.prompt ?? null,
       qualityScore: item.quality_score,
       createdAt: item.created_at,
       updatedAt: item.updated_at,
       creatorId: item.creator_id,
+       creatorUsername: item.creator_username ?? null,
       tags: item.tags ?? [],
       itemMetadata: item.item_metadata ?? null,
       sourceType: item.source_type,

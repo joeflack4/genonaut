@@ -88,7 +88,13 @@ export function DashboardPage() {
   }
 
   const navigateToDetail = (item: GalleryItem) => {
-    navigate(`/dashboard/${item.id}`, { state: { sourceType: item.sourceType } })
+    navigate(`/view/${item.id}`, {
+      state: {
+        sourceType: item.sourceType,
+        from: 'dashboard',
+        fallbackPath: '/dashboard',
+      },
+    })
   }
 
   const { data: galleryStats, isLoading: galleryStatsLoading } = useGalleryStats(userId)

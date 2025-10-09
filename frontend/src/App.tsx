@@ -1,9 +1,10 @@
 import type { RouteObject } from 'react-router-dom'
-import { Navigate, useRoutes } from 'react-router-dom'
+import { Navigate, useParams, useRoutes } from 'react-router-dom'
 import { AppLayout } from './components/layout'
 import { LoginPage, SignupPage } from './pages/auth'
-import { GalleryPage, GalleryImageView } from './pages/gallery'
-import { DashboardPage, DashboardImageView } from './pages/dashboard'
+import { GalleryPage } from './pages/gallery'
+import { DashboardPage } from './pages/dashboard'
+import { ImageViewPage } from './pages/view'
 import { RecommendationsPage } from './pages/recommendations'
 import { SettingsPage } from './pages/settings'
 import { GenerationPage } from './pages/generation'
@@ -17,9 +18,10 @@ const routes: RouteObject[] = [
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard', element: <DashboardPage /> },
-      { path: 'dashboard/:id', element: <DashboardImageView /> },
+      { path: 'dashboard/:id', element: <LegacyViewRedirect /> },
       { path: 'gallery', element: <GalleryPage /> },
-      { path: 'gallery/:id', element: <GalleryImageView /> },
+      { path: 'gallery/:id', element: <LegacyViewRedirect /> },
+      { path: 'view/:id', element: <ImageViewPage /> },
       { path: 'recommendations', element: <RecommendationsPage /> },
       { path: 'generate', element: <GenerationPage /> },
       { path: 'generation', element: <GenerationPage /> },
@@ -35,4 +37,10 @@ const routes: RouteObject[] = [
 
 export default function App() {
   return useRoutes(routes)
+}
+
+function LegacyViewRedirect() {
+  const params = useParams<{ id: string }>()
+  const targetId = params.id ?? ''
+  return <Navigate to={`/view/${targetId}`} replace />
 }

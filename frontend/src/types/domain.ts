@@ -24,10 +24,12 @@ export interface GalleryItem {
   pathThumbsAltRes: Record<string, string> | null  // Alternate resolution thumbnails keyed by resolution
   contentData: string | null
   contentType: string
+  prompt: string | null
   qualityScore: number | null
   createdAt: string
   updatedAt: string
   creatorId: string  // UUID
+  creatorUsername: string | null
   tags: string[]
   itemMetadata: Record<string, unknown> | null
   sourceType: 'regular' | 'auto'

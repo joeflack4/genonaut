@@ -154,7 +154,13 @@ export function GalleryPage() {
   }
 
   const navigateToDetail = (item: GalleryItem) => {
-    navigate(`/gallery/${item.id}`, { state: { sourceType: item.sourceType } })
+    navigate(`/view/${item.id}`, {
+      state: {
+        sourceType: item.sourceType,
+        from: 'gallery',
+        fallbackPath: '/gallery',
+      },
+    })
   }
 
   const { data: currentUser } = useCurrentUser()

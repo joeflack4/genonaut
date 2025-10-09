@@ -172,6 +172,10 @@ class ContentItem(ContentItemColumns, Base):
     creator = relationship("User", back_populates="content_items")
     interactions = relationship("UserInteraction", back_populates="content_item")
     recommendations = relationship("Recommendation", back_populates="content_item")
+
+    @property
+    def creator_username(self) -> Optional[str]:
+        return getattr(self.creator, 'username', None)
     
     # Full-text search configuration and pagination optimization indexes for PostgreSQL
     @declared_attr
@@ -218,6 +222,11 @@ class ContentItemAuto(ContentItemColumns, Base):
     __tablename__ = 'content_items_auto'
 
     # Relationships
+    creator = relationship("User")
+
+    @property
+    def creator_username(self) -> Optional[str]:
+        return getattr(self.creator, 'username', None)
     creator = relationship("User", back_populates="auto_content_items")
 
     # Full-text search configuration and pagination optimization indexes for PostgreSQL

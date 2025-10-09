@@ -11,7 +11,7 @@ from genonaut.api.repositories.content_repository import ContentRepository
 from genonaut.api.repositories.user_repository import UserRepository
 from genonaut.api.models.requests import PaginationRequest
 from genonaut.api.models.responses import PaginatedResponse
-from genonaut.db.schema import ContentItem, ContentItemAuto, UserInteraction
+from genonaut.db.schema import ContentItem, ContentItemAuto, UserInteraction, User
 from genonaut.api.services.flagged_content_service import FlaggedContentService
 
 _VALID_CONTENT_TYPES = {"text", "image", "video", "audio"}
@@ -458,6 +458,7 @@ class ContentService:
                 ContentItem.content_data.label('content_data'),
                 ContentItem.path_thumb.label('path_thumb'),
                 ContentItem.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                ContentItem.prompt.label('prompt'),
                 ContentItem.creator_id.label('creator_id'),
                 ContentItem.item_metadata.label('item_metadata'),
                 ContentItem.tags.label('tags'),
@@ -465,8 +466,9 @@ class ContentService:
                 ContentItem.quality_score.label('quality_score'),
                 ContentItem.created_at.label('created_at'),
                 ContentItem.updated_at.label('updated_at'),
-                literal('regular').label('source_type')
-            )
+                literal('regular').label('source_type'),
+                User.username.label('creator_username')
+            ).join(User, ContentItem.creator)
 
             # Apply filters
             if creator_filter == "user" and user_id:
@@ -495,6 +497,7 @@ class ContentService:
                 ContentItemAuto.content_data.label('content_data'),
                 ContentItemAuto.path_thumb.label('path_thumb'),
                 ContentItemAuto.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                ContentItemAuto.prompt.label('prompt'),
                 ContentItemAuto.creator_id.label('creator_id'),
                 ContentItemAuto.item_metadata.label('item_metadata'),
                 ContentItemAuto.tags.label('tags'),
@@ -502,8 +505,9 @@ class ContentService:
                 ContentItemAuto.quality_score.label('quality_score'),
                 ContentItemAuto.created_at.label('created_at'),
                 ContentItemAuto.updated_at.label('updated_at'),
-                literal('auto').label('source_type')
-            )
+                literal('auto').label('source_type'),
+                User.username.label('creator_username')
+            ).join(User, ContentItemAuto.creator)
 
             # Apply filters
             if creator_filter == "user" and user_id:
@@ -607,7 +611,9 @@ class ContentService:
                 "content_data": row.content_data,
                 "path_thumb": row.path_thumb,
                 "path_thumbs_alt_res": row.path_thumbs_alt_res,
+                "prompt": row.prompt,
                 "creator_id": str(row.creator_id),
+                "creator_username": row.creator_username,
                 "item_metadata": row.item_metadata,
                 "tags": row.tags,
                 "is_private": row.is_private,

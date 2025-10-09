@@ -164,7 +164,7 @@ test.describe('Dashboard Page Interactions', () => {
             // Might navigate to detail view or gallery
             const currentUrl = page.url()
             // Could navigate to gallery or stay on dashboard
-            expect(currentUrl).toMatch(/\/(dashboard|gallery)/)
+            expect(currentUrl).toMatch(/\/(dashboard|gallery|view)/)
             break
           }
         }
@@ -183,10 +183,10 @@ test.describe('Dashboard Page Interactions', () => {
     await expect(gridItem).toBeVisible()
     await gridItem.click()
 
-    await expect(page).toHaveURL(/\/dashboard\/1$/)
-    await expect(page.locator('[data-testid="dashboard-detail-title"]').first()).toHaveText('Mock Artwork')
+    await expect(page).toHaveURL(/\/view\/1$/)
+    await expect(page.locator('[data-testid="image-view-title"]').first()).toHaveText('Mock Artwork')
 
-    await page.locator('[data-testid="dashboard-detail-back-button"]').click()
+    await page.locator('[data-testid="image-view-back-button"]').click()
     await expect(page).toHaveURL(/\/dashboard$/)
   })
 

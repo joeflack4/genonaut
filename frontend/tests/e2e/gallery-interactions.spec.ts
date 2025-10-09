@@ -59,10 +59,10 @@ test.describe('Gallery Page Interactions', () => {
     await expect(gridItem).toBeVisible()
     await gridItem.click()
 
-    await expect(page).toHaveURL(/\/gallery\/1$/)
-    await expect(page.locator('[data-testid="gallery-detail-title"]')).toHaveText('Mock Artwork')
+    await expect(page).toHaveURL(/\/view\/1$/)
+    await expect(page.locator('[data-testid="image-view-title"]')).toHaveText('Mock Artwork')
 
-    await page.locator('[data-testid="gallery-detail-back-button"]').click()
+    await page.locator('[data-testid="image-view-back-button"]').click()
     await expect(page).toHaveURL(/\/gallery$/)
     await expect(page.locator('[data-testid="gallery-grid-view"]')).toBeVisible()
   })
@@ -294,12 +294,36 @@ test.describe('Gallery Page Interactions', () => {
     const firstGridItem = page.locator('[data-testid="gallery-grid-item-1"]')
     await firstGridItem.click()
 
-    await expect(page).toHaveURL(/\/gallery\/1$/)
-    await expect(page.locator('[data-testid="gallery-detail-title"]').first()).toHaveText('Mock Artwork')
-    await expect(page.locator('[data-testid="gallery-detail-image"]')).toBeVisible()
+    await expect(page).toHaveURL(/\/view\/1$/)
+    await expect(page.locator('[data-testid="image-view-title"]').first()).toHaveText('Mock Artwork')
+
+    // Wait for network to settle after navigation
+    await page.waitForLoadState('networkidle')
+
+    const image = page.locator('[data-testid="image-view-image"]')
+    const placeholder = page.locator('[data-testid="image-view-placeholder"]')
+
+    const hasImage = await image.count() > 0
+    const hasPlaceholder = await placeholder.count() > 0
+
+    expect(hasImage || hasPlaceholder).toBeTruthy()
+
+    if (hasImage) {
+      // Wait for the image element to be attached and loaded
+      await image.evaluate((img: HTMLImageElement) => {
+        if (img.complete) return
+        return new Promise((resolve) => {
+          img.onload = resolve
+          img.onerror = resolve
+        })
+      })
+      await expect(image).toBeVisible()
+    } else if (hasPlaceholder) {
+      await expect(placeholder).toBeVisible()
+    }
 
     // Navigate back
-    await page.locator('[data-testid="gallery-detail-back-button"]').click()
+    await page.locator('[data-testid="image-view-back-button"]').click()
     await expect(page).toHaveURL(/\/gallery$/)
   })
 

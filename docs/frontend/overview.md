@@ -35,6 +35,7 @@ frontend/
 - **Pages** –
   - **Dashboard** shows user stats and recent content cards.
   - **Gallery** provides search/sort filters with pagination.
+  - **View** (`/view/:id`) unifies image detail routing across dashboard, gallery, and generation flows.
   - **Recommendations** lists current suggestions with “mark as served”.
   - **Settings** updates profile fields and exposes the theme toggle.
   - **Auth placeholders** (login/signup) guard authenticated users and explain the stubbed state.
