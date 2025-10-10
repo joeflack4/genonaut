@@ -159,9 +159,12 @@ GET /api/v1/content/unified?content_source_types=user-regular&content_source_typ
 # Get all content
 GET /api/v1/content/unified?content_source_types=user-regular&content_source_types=user-auto&content_source_types=community-regular&content_source_types=community-auto&user_id=<uuid>
 
-# Get no content (returns 0 results)
-GET /api/v1/content/unified?user_id=<uuid>
+# Get no content - explicitly select zero types (returns 0 results)
+# Note: Use empty string as sentinel value because HTTP doesn't transmit empty arrays
+GET /api/v1/content/unified?content_source_types=&user_id=<uuid>
 ```
+
+**Important:** To explicitly select "no content types" (return 0 results), send `content_source_types=` (empty string). Omitting the parameter entirely will use legacy defaults and return all content types.
 
 #### Legacy Parameters
 

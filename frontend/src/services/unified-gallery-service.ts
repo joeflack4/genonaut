@@ -46,7 +46,12 @@ export class UnifiedGalleryService {
     // NEW: Use contentSourceTypes if provided (preferred method)
     if (params.contentSourceTypes !== undefined) {
       // Send each content source type as a separate query parameter
-      params.contentSourceTypes.forEach(cst => searchParams.append('content_source_types', cst))
+      // If array is empty, send sentinel value [""] to indicate explicit "no content"
+      if (params.contentSourceTypes.length === 0) {
+        searchParams.append('content_source_types', '')
+      } else {
+        params.contentSourceTypes.forEach(cst => searchParams.append('content_source_types', cst))
+      }
     } else {
       // LEGACY: Use contentTypes and creatorFilter
       // Always set content_types parameter:

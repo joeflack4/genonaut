@@ -647,17 +647,17 @@ class ContentService:
                 elif creator_filter == "community" and user_id:
                     auto_query = auto_query.filter(ContentItemAuto.creator_id != user_id)
 
-            if search_term:
-                auto_query = auto_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
+                if search_term:
+                    auto_query = auto_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
 
-            # Apply tag filtering - match if content has at least 1 of the specified tags
-            if tags:
-                # Use jsonb_exists_any function for PostgreSQL JSON array overlap
-                auto_query = auto_query.filter(
-                    func.jsonb_exists_any(ContentItemAuto.tags, text(':tags'))
-                ).params(tags=tags)
+                # Apply tag filtering - match if content has at least 1 of the specified tags
+                if tags:
+                    # Use jsonb_exists_any function for PostgreSQL JSON array overlap
+                    auto_query = auto_query.filter(
+                        func.jsonb_exists_any(ContentItemAuto.tags, text(':tags'))
+                    ).params(tags=tags)
 
-            queries.append(auto_query)
+                queries.append(auto_query)
 
         if not queries:
             # Return empty result if no content types specified

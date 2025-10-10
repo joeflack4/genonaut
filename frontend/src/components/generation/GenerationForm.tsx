@@ -29,12 +29,12 @@ import type {
   SamplerParams,
 } from '../../services/generation-job-service'
 import { ApiError } from '../../services/api-client'
+import { UI_CONFIG } from '../../config/ui'
 
 interface GenerationFormProps {
   onGenerationStart: (generation: GenerationJobResponse) => void
   onTimeoutChange: (active: boolean) => void
   onCancelRequest: () => void
-  onContinueWaitingCallback?: (callback: () => void) => void
 }
 
 const defaultSamplerParams: SamplerParams = {
@@ -47,9 +47,6 @@ const defaultSamplerParams: SamplerParams = {
 }
 
 const FORM_ID = 'generation-form'
-const MIN_SUBMIT_DURATION_MS = 300
-const REQUEST_TIMEOUT_MS = 2000
-const CONTINUE_WAITING_MS = 2000
 
 type FieldErrors = Partial<Record<'prompt' | 'width' | 'steps', string>>
 
@@ -78,7 +75,7 @@ type ErrorState =
       message: string
     }
 
-export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelRequest, onContinueWaitingCallback }: GenerationFormProps) {
+export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelRequest }: GenerationFormProps) {
   // Persisted state - survives page navigation
   const [prompt, setPrompt] = usePersistedState('generation-form-prompt', '')
   const [negativePrompt, setNegativePrompt] = usePersistedState('generation-form-negative-prompt', '')
@@ -99,20 +96,6 @@ export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelReq
   const timeoutTimerRef = useRef<number | null>(null)
 
   const { createGenerationJob } = useGenerationJobService()
-
-  // Expose continue waiting callback to parent
-  useEffect(() => {
-    if (onContinueWaitingCallback) {
-      const callback = () => {
-        onTimeoutChange(false)
-        setErrorState({ type: 'none' })
-        startTimeoutWatcher(CONTINUE_WAITING_MS)
-      }
-      onContinueWaitingCallback(callback)
-    }
-    // Only run once on mount or when callback reference changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onContinueWaitingCallback])
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -181,18 +164,15 @@ export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelReq
       const generation = await createGenerationJob(request, { signal: abortController.signal })
       onGenerationStart(generation)
 
-      // Reset form
-      setPrompt('')
-      setNegativePrompt('')
-      setSamplerParams(defaultSamplerParams)
+      // Keep form values so users can iterate without losing context
     } catch (err) {
       handleSubmissionError(err)
     } finally {
       clearTimeoutWatcher()
       abortControllerRef.current = null
       const elapsed = Date.now() - submissionStartedAt
-      if (elapsed < MIN_SUBMIT_DURATION_MS) {
-        await new Promise(resolve => setTimeout(resolve, MIN_SUBMIT_DURATION_MS - elapsed))
+      if (elapsed < UI_CONFIG.MIN_SUBMIT_DURATION_MS) {
+        await new Promise(resolve => setTimeout(resolve, UI_CONFIG.MIN_SUBMIT_DURATION_MS - elapsed))
       }
       setIsSubmitting(false)
     }
@@ -229,6 +209,19 @@ export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelReq
       message: 'Generation cancelled. Adjust your settings and try again.',
     })
     onCancelRequest()
+  }
+
+  const handleResetForm = () => {
+    setPrompt('')
+    setNegativePrompt('')
+    setCheckpointModel('')
+    setLoraModels([])
+    setWidth(512)
+    setHeight(768)
+    setBatchSize(1)
+    setSamplerParams(defaultSamplerParams)
+    setFieldErrors({})
+    setErrorState({ type: 'none' })
   }
 
   const handleSubmissionError = (error: unknown) => {
@@ -275,11 +268,11 @@ export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelReq
     })
   }
 
-  const startTimeoutWatcher = (duration: number = REQUEST_TIMEOUT_MS) => {
+  const startTimeoutWatcher = () => {
     clearTimeoutWatcher()
     timeoutTimerRef.current = window.setTimeout(() => {
       onTimeoutChange(true)
-    }, duration)
+    }, UI_CONFIG.GENERATION_TIMEOUT_WARNING_MS)
   }
 
   const clearTimeoutWatcher = () => {
@@ -476,42 +469,53 @@ export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelReq
         </AccordionDetails>
       </Accordion>
 
-      <Box
-        component="button"
-        type="button"
-        data-testid="generate-button"
-        onClick={submitForm}
-        disabled={isSubmitting || !prompt.trim()}
-        aria-busy={isSubmitting ? 'true' : undefined}
-        sx={{
-          width: '100%',
-          py: 1.5,
-          px: 2,
-          mt: 1,
-          border: 'none',
-          borderRadius: 1,
-          bgcolor: isSubmitting ? 'primary.dark' : 'primary.main',
-          color: 'primary.contrastText',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 1,
-          cursor: isSubmitting ? 'default' : 'pointer',
-          opacity: isSubmitting ? 0.8 : 1,
-          transition: 'background-color 0.2s ease',
-          '&:hover': {
-            bgcolor: isSubmitting ? 'primary.dark' : 'primary.light',
-          },
-          '&:disabled': {
-            bgcolor: 'action.disabledBackground',
-            color: 'action.disabled',
-            cursor: 'not-allowed',
-          },
-        }}
-      >
-        {isSubmitting && <CircularProgress size={20} data-testid="loading-spinner" color="inherit" />}
-        {isSubmitting ? 'Generating...' : 'Generate'}
-      </Box>
+      <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+        <Button
+          variant="outlined"
+          color="secondary"
+          onClick={handleResetForm}
+          disabled={isSubmitting}
+          data-testid="reset-form-button"
+          sx={{ width: '20%' }}
+        >
+          Reset
+        </Button>
+        <Box
+          component="button"
+          type="button"
+          data-testid="generate-button"
+          onClick={submitForm}
+          disabled={isSubmitting || !prompt.trim()}
+          aria-busy={isSubmitting ? 'true' : undefined}
+          sx={{
+            width: '80%',
+            py: 1.5,
+            px: 2,
+            border: 'none',
+            borderRadius: 1,
+            bgcolor: isSubmitting ? 'primary.dark' : 'primary.main',
+            color: 'primary.contrastText',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1,
+            cursor: isSubmitting ? 'default' : 'pointer',
+            opacity: isSubmitting ? 0.8 : 1,
+            transition: 'background-color 0.2s ease',
+            '&:hover': {
+              bgcolor: isSubmitting ? 'primary.dark' : 'primary.light',
+            },
+            '&:disabled': {
+              bgcolor: 'action.disabledBackground',
+              color: 'action.disabled',
+              cursor: 'not-allowed',
+            },
+          }}
+        >
+          {isSubmitting && <CircularProgress size={20} data-testid="loading-spinner" color="inherit" />}
+          {isSubmitting ? 'Generating...' : 'Generate'}
+        </Box>
+      </Stack>
 
       {renderErrorContent({
         errorState,

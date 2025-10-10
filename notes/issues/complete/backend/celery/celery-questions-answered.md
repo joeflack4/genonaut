@@ -154,7 +154,7 @@ A: Answered above.
 
 3. Where should images be displayed - inline on the generation form, or redirect to a results page?
 A: Have it display on the same "Image Generation" page. I think there is sufficient space on the right, below 
- "Generation Status".
+ "Status".
 
 ### Q8: Frontend service migration strategy
 #### Question
@@ -195,7 +195,7 @@ open modal with full image viewer.
 Yes, option (1). More detail was answered in Q7, part 3:
 > 3. Where should images be displayed - inline on the generation form, or redirect to a results page?
 > A: Have it display on the same "Image Generation" page. I think there is sufficient space on the right, below 
- > "Generation Status".
+ > "Status".
 
 However, I wouldn't open a modal, actually. For the full image viewer, let's instead use the very same page that we use 
 when a user opens up an image by selecting it from a list or grid in either the "Dashboard" or "Gallery" pages. If you 

@@ -15,6 +15,7 @@ logs/
 MANIFEST
 
 # Custom
+.playwright-mcp/
 output/
 bak/
 /*.json

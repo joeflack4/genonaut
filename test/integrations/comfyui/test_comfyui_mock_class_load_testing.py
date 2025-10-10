@@ -84,7 +84,7 @@ class TestComfyUILoadTesting:
             batch_size=1
         )
 
-    @pytest.mark.slow
+    @pytest.mark.longrunning
     @pytest.mark.skip(reason="Load testing - only run manually for performance analysis")
     def test_concurrent_generation_requests_small_load(self, generation_service: ComfyUIGenerationService,
                                                       test_user: User, test_model: AvailableModel):
@@ -145,7 +145,7 @@ class TestComfyUILoadTesting:
         print(f"Small load test: {num_requests} requests in {total_time:.2f}s "
               f"(avg: {avg_time_per_request:.2f}s per request)")
 
-    @pytest.mark.slow
+    @pytest.mark.longrunning
     @pytest.mark.skip(reason="Load testing - only run manually for performance analysis")
     def test_concurrent_generation_requests_medium_load(self, generation_service: ComfyUIGenerationService,
                                                        test_user: User, test_model: AvailableModel):
@@ -203,7 +203,7 @@ class TestComfyUILoadTesting:
               f"(avg: {avg_time_per_request:.2f}s per request, "
               f"success rate: {success_rate:.1%})")
 
-    @pytest.mark.slow
+    @pytest.mark.longrunning
     @pytest.mark.skip(reason="Load testing - only run manually for performance analysis")
     def test_concurrent_generation_requests_high_load(self, generation_service: ComfyUIGenerationService,
                                                      test_user: User, test_model: AvailableModel):
@@ -263,7 +263,7 @@ class TestComfyUILoadTesting:
               f"(avg: {avg_time_per_request:.2f}s per request, "
               f"success rate: {success_rate:.1%})")
 
-    @pytest.mark.slow
+    @pytest.mark.longrunning
     @pytest.mark.skip(reason="Load testing - only run manually for performance analysis")
     def test_generation_queue_processing_under_load(self, generation_service: ComfyUIGenerationService,
                                                    test_user: User, test_model: AvailableModel):
@@ -323,7 +323,7 @@ class TestComfyUILoadTesting:
               f"submission rate: {submission_rate:.1f} req/s, "
               f"completion rate: {processing_efficiency:.1%}")
 
-    @pytest.mark.slow
+    @pytest.mark.longrunning
     @pytest.mark.skip(reason="Load testing - only run manually for performance analysis")
     def test_database_performance_under_concurrent_writes(self, db_session: Session,
                                                          test_user: User, test_model: AvailableModel):

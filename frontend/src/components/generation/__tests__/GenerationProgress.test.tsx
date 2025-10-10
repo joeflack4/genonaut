@@ -6,9 +6,12 @@ import type { ComfyUIGenerationResponse } from '../../../services/comfyui-servic
 import type { GenerationJobResponse } from '../../../services/generation-job-service'
 import { GenerationProgress } from '../GenerationProgress'
 import { MemoryRouter } from 'react-router-dom'
+import { ApiError } from '../../../services/api-client'
 
 const navigateMock = vi.fn()
 let latestStatusCallback: ((update: JobStatusUpdate) => void) | undefined
+const cancelGenerationJobMock = vi.fn()
+const getGenerationJobMock = vi.fn()
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
@@ -29,6 +32,8 @@ vi.mock('../../../hooks/useJobWebSocket', () => {
         status: 'disconnected',
         lastUpdate: null,
         isConnected: false,
+        reconnectAttempts: 0,
+        reconnectLimitReached: false,
       }
     },
   }
@@ -36,8 +41,8 @@ vi.mock('../../../hooks/useJobWebSocket', () => {
 
 vi.mock('../../../hooks/useGenerationJobService', () => ({
   useGenerationJobService: () => ({
-    cancelGenerationJob: vi.fn(),
-    getGenerationJob: vi.fn(),
+    cancelGenerationJob: cancelGenerationJobMock,
+    getGenerationJob: getGenerationJobMock,
   }),
 }))
 
@@ -85,6 +90,8 @@ describe('GenerationProgress', () => {
   beforeEach(() => {
     navigateMock.mockReset()
     latestStatusCallback = undefined
+    cancelGenerationJobMock.mockReset()
+    getGenerationJobMock.mockReset()
   })
 
   it('invokes onGenerationUpdate with the initial generation data', () => {
@@ -130,6 +137,113 @@ describe('GenerationProgress', () => {
 
     await waitFor(() => {
       expect(onStatusFinalized).toHaveBeenCalledWith('completed', expect.objectContaining({ content_id: 123 }))
+    })
+  })
+
+  it('shows a cancel button when the status is started', () => {
+    renderProgress({ status: 'started' })
+
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument()
+  })
+
+  it('normalizes queued status and renders the cancel button', () => {
+    renderProgress({ status: 'QUEUED' })
+
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument()
+  })
+
+  it('displays a cancelled status after a successful cancellation request', async () => {
+    const user = userEvent.setup()
+    cancelGenerationJobMock.mockResolvedValue({
+      ...baseGeneration,
+      status: 'cancelled',
+      completed_at: '2024-01-01T00:05:00Z',
+    })
+
+    renderProgress({ status: 'started' })
+
+    const cancelButton = screen.getByRole('button', { name: /cancel/i })
+    await user.click(cancelButton)
+
+    await waitFor(() => {
+      expect(cancelGenerationJobMock).toHaveBeenCalledWith(42)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Cancelled')).toBeInTheDocument()
+    })
+  })
+
+  it('refreshes job state when cancellation request fails', async () => {
+    const user = userEvent.setup()
+    cancelGenerationJobMock.mockRejectedValue(new ApiError('failed', 422, { detail: 'Cannot cancel job with status "completed".' }))
+    getGenerationJobMock.mockResolvedValue({
+      ...baseGeneration,
+      status: 'completed',
+      content_id: 321,
+      output_paths: ['out.png'],
+      thumbnail_paths: [],
+      completed_at: '2024-01-01T00:05:00Z',
+    })
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    renderProgress({ status: 'started' })
+
+    const cancelButton = screen.getByRole('button', { name: /cancel/i })
+    await user.click(cancelButton)
+
+    await waitFor(() => {
+      expect(cancelGenerationJobMock).toHaveBeenCalledWith(42)
+    })
+
+    await waitFor(() => {
+      expect(getGenerationJobMock).toHaveBeenCalledWith(42)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Completed')).toBeInTheDocument()
+    })
+
+    consoleErrorSpy.mockRestore()
+    consoleWarnSpy.mockRestore()
+  })
+
+  it('normalizes status updates received via websocket callbacks', async () => {
+    renderProgress({ status: 'running' })
+
+    await waitFor(() => {
+      expect(latestStatusCallback).toBeTypeOf('function')
+    })
+
+    await act(async () => {
+      latestStatusCallback?.({
+        job_id: 42,
+        status: 'CANCELED',
+      } as JobStatusUpdate)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Cancelled')).toBeInTheDocument()
+    })
+  })
+
+  it('ignores websocket downgrades after a terminal status', async () => {
+    renderProgress({ status: 'completed', content_id: 99, completed_at: '2024-01-01T00:05:00Z', updated_at: '2024-01-01T00:05:00Z' })
+
+    await waitFor(() => {
+      expect(latestStatusCallback).toBeTypeOf('function')
+    })
+
+    await act(async () => {
+      latestStatusCallback?.({
+        job_id: 42,
+        status: 'pending',
+      } as JobStatusUpdate)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Completed')).toBeInTheDocument()
     })
   })
 })

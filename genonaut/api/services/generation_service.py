@@ -646,8 +646,12 @@ class GenerationService:
         job = self.repository.get_or_404(job_id)
 
         # Only allow cancelling pending or running jobs
-        if job.status not in ['pending', 'running']:
-            raise ValidationError(f"Cannot cancel job with status '{job.status}'. Only pending or running jobs can be cancelled.")
+        cancellable_statuses = {'pending', 'running', 'processing', 'started'}
+        if job.status not in cancellable_statuses:
+            allowed = ", ".join(sorted(cancellable_statuses))
+            raise ValidationError(
+                f"Cannot cancel job with status '{job.status}'. Only {allowed} jobs can be cancelled."
+            )
 
         # Revoke the Celery task if it exists
         if job.celery_task_id:

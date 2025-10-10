@@ -311,7 +311,7 @@ class TestPaginationPerformance:
         assert len(result.items) == 5
         assert result.pagination.total_count > 5  # But total count should be higher
 
-    @pytest.mark.slow
+    @pytest.mark.longrunning
     @pytest.mark.skip(reason="Data scaling tests - Performance/stress testing (see notes/issues/by_priority/low/data-scaling-tests.md)")
     def test_large_dataset_pagination_performance(self, db_session: Session):
         """Test pagination performance with a larger dataset."""

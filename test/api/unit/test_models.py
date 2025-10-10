@@ -354,7 +354,12 @@ class TestGenerationJobModels:
         status = GenerationJobStatusUpdateRequest(**data)
         assert status.status == "completed"
         assert status.error_message is None
-    
+
+    def test_generation_job_status_update_processing(self):
+        """Processing status should validate for in-flight updates."""
+        status = GenerationJobStatusUpdateRequest(status="processing")
+        assert status.status == "processing"
+
     def test_generation_job_status_update_request_invalid_status(self):
         """Test job status update with invalid status."""
         data = {"status": "invalid_status"}

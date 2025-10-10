@@ -382,7 +382,7 @@ class TestComfyUIQueryPerformance:
 
         print(f"Model usage statistics query: {query_time:.3f}s for {len(model_stats)} models")
 
-    @pytest.mark.slow
+    @pytest.mark.longrunning
     @pytest.mark.skip(reason="Performance stress testing - only run manually")
     def test_large_dataset_query_performance(self, db_session: Session):
         """Test query performance with a larger dataset."""

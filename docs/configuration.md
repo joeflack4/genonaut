@@ -35,6 +35,8 @@ env/
   env.location-type.example # Template for environment-specific files
 ```
 
+Frontend-specific configuration (for example, UI timeouts or feature toggles) now lives under `frontend/src/config/`. Use the root-level `config/` directory only for backend settings.
+
 ## Configuration Load Order
 
 Settings are loaded with the following precedence (lowest to highest):

@@ -2,10 +2,12 @@
 
 import os
 import pytest
+import requests
 import subprocess
 import time
 import signal
 import atexit
+from typing import Dict, Optional
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from genonaut.db.schema import Base
@@ -116,3 +118,37 @@ def db_session():
     yield session
 
     session.close()
+
+
+class APITestClient:
+    """Helper class for making API requests during testing."""
+
+    def __init__(self, base_url: str = TEST_API_BASE_URL):
+        self.base_url = base_url.rstrip("/")
+        self.session = requests.Session()
+
+    def get(self, endpoint: str, params: Optional[Dict] = None) -> requests.Response:
+        """Make GET request to API endpoint."""
+        url = f"{self.base_url}{endpoint}"
+        return self.session.get(url, params=params, timeout=TEST_TIMEOUT)
+
+    def post(self, endpoint: str, json: Optional[Dict] = None) -> requests.Response:
+        """Make POST request to API endpoint."""
+        url = f"{self.base_url}{endpoint}"
+        return self.session.post(url, json=json, timeout=TEST_TIMEOUT)
+
+    def put(self, endpoint: str, json: Optional[Dict] = None) -> requests.Response:
+        """Make PUT request to API endpoint."""
+        url = f"{self.base_url}{endpoint}"
+        return self.session.put(url, json=json, timeout=TEST_TIMEOUT)
+
+    def delete(self, endpoint: str) -> requests.Response:
+        """Make DELETE request to API endpoint."""
+        url = f"{self.base_url}{endpoint}"
+        return self.session.delete(url, timeout=TEST_TIMEOUT)
+
+
+@pytest.fixture
+def api_client():
+    """Provide API test client for making requests."""
+    return APITestClient()

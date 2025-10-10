@@ -15,6 +15,7 @@ export interface UseJobWebSocketOptions {
   onError?: (error: Event) => void
   autoReconnect?: boolean
   reconnectDelay?: number
+  maxReconnectAttempts?: number
 }
 
 /**
@@ -39,17 +40,23 @@ export function useJobWebSocket(
     onStatusUpdate,
     onError,
     autoReconnect = true,
-    reconnectDelay = 3000
+    reconnectDelay = 3000,
+    maxReconnectAttempts = 5
   } = options
 
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected')
   const [lastUpdate, setLastUpdate] = useState<JobStatusUpdate | null>(null)
+  const [reconnectAttempts, setReconnectAttempts] = useState(0)
+  const [reconnectLimitReached, setReconnectLimitReached] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const shouldConnectRef = useRef(false)
+  const reconnectAttemptsRef = useRef(0)
+  const closedIntentionallyRef = useRef(false)
 
   const disconnect = useCallback(() => {
     shouldConnectRef.current = false
+    closedIntentionallyRef.current = true
 
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current)
@@ -57,18 +64,39 @@ export function useJobWebSocket(
     }
 
     if (wsRef.current) {
-      wsRef.current.close()
+      const ws = wsRef.current
       wsRef.current = null
+
+      // Remove event handlers before closing to reduce console noise
+      // This is especially helpful in React Strict Mode where effects run twice
+      ws.onopen = null
+      ws.onmessage = null
+      ws.onerror = null
+      ws.onclose = null
+
+      // Close the connection if it's open or connecting
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close()
+      }
     }
 
     setConnectionStatus('disconnected')
+    reconnectAttemptsRef.current = 0
+    setReconnectAttempts(0)
+    setReconnectLimitReached(false)
   }, [])
 
   const connect = useCallback(() => {
     if (!jobId) return
-    if (wsRef.current?.readyState === WebSocket.OPEN) return
+
+    // Don't create a new connection if one is already open or connecting
+    const currentState = wsRef.current?.readyState
+    if (currentState === WebSocket.OPEN || currentState === WebSocket.CONNECTING) {
+      return
+    }
 
     shouldConnectRef.current = true
+    closedIntentionallyRef.current = false
     setConnectionStatus('connecting')
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -81,6 +109,9 @@ export function useJobWebSocket(
     ws.onopen = () => {
       console.log(`WebSocket connected for job ${jobId}`)
       setConnectionStatus('connected')
+      reconnectAttemptsRef.current = 0
+      setReconnectAttempts(0)
+      setReconnectLimitReached(false)
     }
 
     ws.onmessage = (event) => {
@@ -88,7 +119,11 @@ export function useJobWebSocket(
         const data = JSON.parse(event.data) as JobStatusUpdate
 
         // Ignore connection confirmation messages
-        if ('type' in data && data.type === 'connection') {
+        if ('type' in data && (data.type === 'connection' || data.type === 'ping' || data.type === 'pong')) {
+          return
+        }
+
+        if (typeof data.status !== 'string') {
           return
         }
 
@@ -99,8 +134,9 @@ export function useJobWebSocket(
           onStatusUpdate(data)
         }
 
-        // Auto-disconnect on terminal statuses
+        // Auto-disconnect on terminal statuses and prevent reconnection
         if (data.status === 'completed' || data.status === 'failed') {
+          shouldConnectRef.current = false // Prevent auto-reconnect
           setTimeout(() => disconnect(), 1000)
         }
       } catch (err) {
@@ -109,6 +145,11 @@ export function useJobWebSocket(
     }
 
     ws.onerror = (event) => {
+      // Suppress errors if we intentionally closed the connection
+      if (closedIntentionallyRef.current) {
+        return
+      }
+
       console.error('WebSocket error:', event)
       setConnectionStatus('error')
 
@@ -118,19 +159,32 @@ export function useJobWebSocket(
     }
 
     ws.onclose = () => {
-      console.log(`WebSocket disconnected for job ${jobId}`)
+      // Suppress logs if we intentionally closed the connection
+      if (!closedIntentionallyRef.current) {
+        console.log(`WebSocket disconnected for job ${jobId}`)
+      }
+
       setConnectionStatus('disconnected')
       wsRef.current = null
 
-      // Auto-reconnect if enabled and we should still be connected
-      if (autoReconnect && shouldConnectRef.current) {
-        reconnectTimeoutRef.current = setTimeout(() => {
-          console.log(`Reconnecting WebSocket for job ${jobId}...`)
-          connect()
-        }, reconnectDelay)
+      // Auto-reconnect if enabled and we should still be connected (not intentionally closed)
+      if (autoReconnect && shouldConnectRef.current && !closedIntentionallyRef.current) {
+        const attempts = reconnectAttemptsRef.current + 1
+        reconnectAttemptsRef.current = attempts
+        setReconnectAttempts(attempts)
+
+        if (maxReconnectAttempts < 0 || attempts <= maxReconnectAttempts) {
+          reconnectTimeoutRef.current = setTimeout(() => {
+            console.log(`Reconnecting WebSocket for job ${jobId} (attempt ${attempts})...`)
+            connect()
+          }, reconnectDelay)
+        } else {
+          console.warn(`WebSocket reconnect limit reached for job ${jobId}; falling back to polling only.`)
+          setReconnectLimitReached(true)
+        }
       }
     }
-  }, [jobId, onStatusUpdate, onError, autoReconnect, reconnectDelay, disconnect])
+  }, [jobId, onStatusUpdate, onError, autoReconnect, reconnectDelay, maxReconnectAttempts, disconnect])
 
   // Ping/pong to keep connection alive
   useEffect(() => {
@@ -157,6 +211,8 @@ export function useJobWebSocket(
     disconnect,
     status: connectionStatus,
     lastUpdate,
-    isConnected: connectionStatus === 'connected'
+    isConnected: connectionStatus === 'connected',
+    reconnectAttempts,
+    reconnectLimitReached
   }
 }

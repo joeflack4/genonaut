@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from 'react'
-import { Grid, Paper, Typography, Box, Tabs, Tab, Button, Stack } from '@mui/material'
+import { useState, useCallback } from 'react'
+import { Grid, Paper, Typography, Box, Tabs, Tab, Alert } from '@mui/material'
 import { GenerationForm } from '../../components/generation/GenerationForm'
 import { GenerationProgress } from '../../components/generation/GenerationProgress'
 import { GenerationHistory } from '../../components/generation/GenerationHistory'
@@ -7,6 +7,7 @@ import { ErrorBoundary } from '../../components/common/ErrorBoundary'
 import type { ComfyUIGenerationResponse } from '../../services/comfyui-service'
 import type { GenerationJobResponse } from '../../services/generation-job-service'
 import { usePersistedState } from '../../hooks/usePersistedState'
+import { UI_CONFIG } from '../../config/ui'
 
 type ActiveGeneration = ComfyUIGenerationResponse | GenerationJobResponse
 type TerminalStatus = 'completed' | 'failed' | 'cancelled'
@@ -19,36 +20,32 @@ export function GenerationPage() {
   const [refreshHistory, setRefreshHistory] = useState(0)
   const [activeTab, setActiveTab] = useState<'create' | 'history'>('create')
   const [timeoutActive, setTimeoutActive] = useState(false)
-  const continueWaitingCallbackRef = useRef<(() => void) | null>(null)
 
   const handleGenerationStart = (generation: ComfyUIGenerationResponse) => {
+    // Key prop on GenerationProgress ensures proper cleanup when ID changes
     setCurrentGeneration(generation)
     setRefreshHistory(prev => prev + 1)
   }
 
   const handleGenerationUpdate = useCallback((generation: ActiveGeneration) => {
+    console.log('[GenerationPage] Received update from child', {
+      id: generation.id,
+      status: generation.status,
+      updated_at: generation.updated_at,
+    })
     setCurrentGeneration(generation)
   }, [setCurrentGeneration])
-
-  const handleContinueWaiting = useCallback(() => {
-    if (continueWaitingCallbackRef.current) {
-      continueWaitingCallbackRef.current()
-    }
-  }, [])
 
   const handleCancelRequest = useCallback(() => {
     setTimeoutActive(false)
     setCurrentGeneration(null)
   }, [setCurrentGeneration])
 
-  const handleContinueWaitingCallbackSet = useCallback((callback: () => void) => {
-    continueWaitingCallbackRef.current = callback
-  }, [])
-
   const handleGenerationFinalStatus = useCallback((status: TerminalStatus, generation: ActiveGeneration) => {
     setTimeoutActive(false)
     setCurrentGeneration(generation)
     setRefreshHistory(prev => prev + 1)
+    // State persists until user manually clicks "Clear Details" button
   }, [setCurrentGeneration])
 
   const handleGenerationReset = useCallback(() => {
@@ -84,7 +81,7 @@ export function GenerationPage() {
       {activeTab === 'create' ? (
         <Grid container spacing={3} data-testid="generation-create-layout">
           {/* Generation Form */}
-          <Grid size={{ xs: 12, md: 8, lg: 9, xl: 10 }} data-testid="generation-form-column">
+          <Grid size={{ xs: 12, md: 7, lg: 9, xl: 9 }} data-testid="generation-form-column">
             <Paper sx={{ p: 3 }} data-testid="generation-form-card">
               <Typography variant="h6" gutterBottom data-testid="generation-form-title">
                 Create New Generation
@@ -97,17 +94,16 @@ export function GenerationPage() {
                   onGenerationStart={handleGenerationStart}
                   onTimeoutChange={setTimeoutActive}
                   onCancelRequest={handleCancelRequest}
-                  onContinueWaitingCallback={handleContinueWaitingCallbackSet}
                 />
               </ErrorBoundary>
             </Paper>
           </Grid>
 
           {/* Generation Progress */}
-          <Grid size={{ xs: 12, md: 4, lg: 3, xl: 2 }} data-testid="generation-progress-column">
+          <Grid size={{ xs: 12, md: 5, lg: 3, xl: 3 }} data-testid="generation-progress-column">
             <Paper sx={{ p: 3, mb: 3 }} data-testid="generation-progress-card">
               <Typography variant="h6" gutterBottom data-testid="generation-progress-title">
-                Generation Status
+                Status
               </Typography>
               {currentGeneration ? (
                 <ErrorBoundary
@@ -115,22 +111,20 @@ export function GenerationPage() {
                   onReset={handleGenerationReset}
                 >
                   <GenerationProgress
+                    key={currentGeneration.id}
                     generation={currentGeneration}
                     onGenerationUpdate={handleGenerationUpdate}
                     onStatusFinalized={handleGenerationFinalStatus}
+                    onClear={handleGenerationReset}
                   />
                 </ErrorBoundary>
               ) : (
                 <Box
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  minHeight={300}
                   color="text.secondary"
                   data-testid="generation-progress-empty"
                 >
                   <Typography variant="body1" data-testid="generation-progress-empty-text">
-                    Progress will display after generation starts.
+                    Progress will display once generation starts.
                   </Typography>
                 </Box>
               )}
@@ -138,34 +132,14 @@ export function GenerationPage() {
 
             {/* Timeout Warning */}
             {timeoutActive && (
-              <Paper sx={{ p: 2 }} data-testid="timeout-error">
-                <Typography variant="subtitle1" gutterBottom>
+              <Alert severity="warning" data-testid="timeout-warning">
+                <Typography variant="subtitle2" gutterBottom>
                   This request is taking longer than expected.
                 </Typography>
-                <Typography variant="body2" sx={{ mb: 2 }}>
-                  The image generation service might be busy. You can continue waiting or cancel the request.
+                <Typography variant="body2">
+                  Image generation is expected to be completed within {UI_CONFIG.GENERATION_TIMEOUT_WARNING_MS / 1000} seconds. You might want to cancel the request and try again.
                 </Typography>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    data-testid="continue-waiting-button"
-                    onClick={handleContinueWaiting}
-                    fullWidth
-                  >
-                    Continue Waiting
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="secondary"
-                    data-testid="cancel-request-button"
-                    onClick={handleCancelRequest}
-                    fullWidth
-                  >
-                    Cancel Request
-                  </Button>
-                </Stack>
-              </Paper>
+              </Alert>
             )}
           </Grid>
         </Grid>

@@ -35,7 +35,7 @@ export interface GenerationJobResponse {
   job_type: 'text' | 'image' | 'video' | 'audio'
   prompt: string
   params: Record<string, any>
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+  status: 'pending' | 'running' | 'processing' | 'started' | 'completed' | 'failed' | 'cancelled'
   content_id?: number
   created_at: string
   started_at?: string

@@ -431,7 +431,7 @@ class StressTester:
 
 
 @pytest.mark.stress
-@pytest.mark.slow
+@pytest.mark.longrunning
 class TestPaginationStress:
     """Stress test class for pagination performance validation."""
 
@@ -552,7 +552,7 @@ class TestPaginationStress:
 
 
 @pytest.mark.stress
-@pytest.mark.slow
+@pytest.mark.longrunning
 @pytest.mark.skip(reason="Data scaling tests - Performance/stress testing (see notes/issues/by_priority/low/data-scaling-tests.md)")
 def test_pagination_performance_benchmarks(large_db_session):
     """Comprehensive benchmark test for pagination performance."""

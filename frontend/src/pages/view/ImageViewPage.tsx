@@ -117,7 +117,7 @@ export function ImageViewPage() {
 
   if (!contentId) {
     return (
-      <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }} data-testid="image-view-page">
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }} data-testid="image-view-page">
         <Tooltip title="Back">
           <IconButton onClick={handleBack} aria-label="Back" data-testid="image-view-back-button">
             <ArrowBackIcon />
@@ -146,7 +146,7 @@ export function ImageViewPage() {
 
   if (error) {
     return (
-      <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }} data-testid="image-view-error-state">
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }} data-testid="image-view-error-state">
         <Tooltip title="Back">
           <IconButton onClick={handleBack} aria-label="Back" data-testid="image-view-back-button">
             <ArrowBackIcon />
@@ -180,7 +180,7 @@ export function ImageViewPage() {
   const createdAtLabel = createdAt.toLocaleString()
 
   return (
-    <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3 }} data-testid="image-view-page">
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }} data-testid="image-view-page">
       <Card data-testid="image-view-card">
         <Box
           sx={{
@@ -194,6 +194,25 @@ export function ImageViewPage() {
           }}
           data-testid="image-view-media"
         >
+          <Tooltip title="Back">
+            <IconButton
+              onClick={handleBack}
+              aria-label="Back"
+              data-testid="image-view-back-button"
+              sx={{
+                position: 'absolute',
+                top: 16,
+                left: 16,
+                bgcolor: 'rgba(0, 0, 0, 0.4)',
+                color: 'common.white',
+                '&:hover': {
+                  bgcolor: 'rgba(0, 0, 0, 0.7)',
+                },
+              }}
+            >
+              <ArrowBackIcon />
+            </IconButton>
+          </Tooltip>
           {imageSource ? (
             <Box
               component="img"
@@ -243,11 +262,6 @@ export function ImageViewPage() {
             flexWrap="wrap"
             data-testid="image-view-meta-row"
           >
-            <Tooltip title="Back">
-              <IconButton onClick={handleBack} aria-label="Back" data-testid="image-view-back-button">
-                <ArrowBackIcon />
-              </IconButton>
-            </Tooltip>
             <Chip
               label={ratingLabel}
               color={qualityLabel && data.qualityScore && data.qualityScore > 0.75 ? 'success' : 'default'}

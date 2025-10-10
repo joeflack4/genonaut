@@ -194,7 +194,11 @@ class GenerationJobUpdateRequest(BaseModel):
 
 class GenerationJobStatusUpdateRequest(BaseModel):
     """Request model for updating generation job status."""
-    status: str = Field(..., pattern="^(pending|running|completed|failed|cancelled)$", description="New job status")
+    status: str = Field(
+        ...,
+        pattern="^(pending|running|processing|completed|failed|cancelled|started)$",
+        description="New job status",
+    )
     error_message: Optional[str] = Field(None, description="Error message for failed jobs")
 
 

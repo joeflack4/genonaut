@@ -4,7 +4,7 @@
 
 On the Image Generation page (localhost:5173/generate), when the "Create" tab is selected, there are two columns:
 - Left: "Create New Generation" panel (data-testid="generation-form-card")
-- Right: "Generation Status" panel (data-testid="generation-progress-card")
+- Right: "Status" panel (data-testid="generation-progress-card")
 
 **Issue**: Both columns together don't take up the full available page width. There's significant empty space on the right side of the page (see screenshot: /Users/joeflack4/Desktop/1.png).
 

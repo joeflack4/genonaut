@@ -132,14 +132,14 @@ class TestBackwardCompatibility:
 class TestLargeDatasetPagination:
     """Integration tests with actual large datasets."""
 
-    @pytest.mark.slow
+    @pytest.mark.longrunning
     def test_million_record_pagination_performance(self):
         """Test pagination performance with million+ records."""
         # This will be a slow test that actually tests with large data
         # Test query performance, memory usage, response times
         pass
 
-    @pytest.mark.slow
+    @pytest.mark.longrunning
     def test_cursor_pagination_consistency(self):
         """Test cursor-based pagination maintains consistency."""
         # Test that cursor pagination doesn't miss or duplicate records
