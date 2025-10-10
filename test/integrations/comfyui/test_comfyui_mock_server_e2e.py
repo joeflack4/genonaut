@@ -18,6 +18,8 @@ from genonaut.api.services.generation_service import GenerationService
 from genonaut.worker.tasks import process_comfy_job
 
 
+@pytest.mark.longrunning
+@pytest.mark.comfyui_e2e
 class TestEndToEndWorkflow:
     """Test complete end-to-end workflow with Celery and mock ComfyUI."""
 
@@ -226,6 +228,8 @@ class TestEndToEndWorkflow:
         assert content_item.item_metadata is not None
 
 
+@pytest.mark.longrunning
+@pytest.mark.comfyui_e2e
 class TestConcurrentJobs:
     """Test concurrent job processing."""
 
@@ -314,6 +318,8 @@ class TestConcurrentJobs:
             assert len(output_files) == len(set(output_files))
 
 
+@pytest.mark.longrunning
+@pytest.mark.comfyui_e2e
 class TestErrorRecovery:
     """Test error handling and recovery."""
 

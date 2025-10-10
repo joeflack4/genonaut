@@ -78,7 +78,7 @@ test.describe('Tag Hierarchy Debug', () => {
         text && (text.includes('failed') || text.includes('error') || text.includes('retry'))
       );
     });
-    console.log('React Query error indicators:', reactQueryStates);
+    // console.log('React Query error indicators:', reactQueryStates);  // very verbose
 
     // Get the debug panel content to see the exact data structure (if it exists)
     try {

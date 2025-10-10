@@ -31,7 +31,7 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: process.env.CI ? 180_000 : 60_000,
       env: {
-        API_ENVIRONMENT: 'test',
+        APP_ENV: 'test',
         DATABASE_URL: 'sqlite:///tests/e2e/output/test_playwright.db'
       },
     },

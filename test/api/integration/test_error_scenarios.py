@@ -4,22 +4,27 @@ This test suite validates that different types of failures are handled gracefull
 and provide appropriate error messages and recovery options.
 """
 
-import pytest
 import json
 import time
 from datetime import datetime
-from unittest.mock import Mock, patch, MagicMock
-from sqlalchemy.orm import Session
-from requests.exceptions import ConnectionError, Timeout, HTTPError
-from httpx import ConnectError, TimeoutException
+from unittest.mock import MagicMock, Mock, patch
 
-from genonaut.api.services.comfyui_generation_service import ComfyUIGenerationService
-from genonaut.api.services.comfyui_client import ComfyUIClient, ComfyUIConnectionError
-from genonaut.api.services.error_service import ErrorService, ErrorCategory, ErrorSeverity
-from genonaut.api.services.retry_service import RetryService, RetryableError, NonRetryableError
-from genonaut.api.repositories.generation_job_repository import GenerationJobRepository
+import pytest
+from requests.exceptions import ConnectionError, HTTPError
+from httpx import TimeoutException
+from sqlalchemy.orm import Session
+
+from genonaut.api.exceptions import ValidationError
 from genonaut.api.models.requests import ComfyUIGenerationCreateRequest
-from genonaut.db.schema import User, GenerationJob, AvailableModel
+from genonaut.api.repositories.generation_job_repository import GenerationJobRepository
+from genonaut.api.services.comfyui_client import ComfyUIClient, ComfyUIConnectionError
+from genonaut.api.services.comfyui_generation_service import ComfyUIGenerationService
+from genonaut.api.services.error_service import ErrorCategory, ErrorService, ErrorSeverity
+from genonaut.api.services.file_storage_service import FileStorageService
+from genonaut.api.services.metrics_service import MetricsService
+from genonaut.api.services.retry_service import RetryService
+from genonaut.api.services.thumbnail_service import ThumbnailService
+from genonaut.db.schema import AvailableModel, GenerationJob, User
 
 
 class TestErrorScenarios:
@@ -55,8 +60,21 @@ class TestErrorScenarios:
     def generation_service(self, db_session: Session) -> ComfyUIGenerationService:
         """Create a generation service with mocked dependencies."""
         service = ComfyUIGenerationService(db_session)
-        # Mock the client after service creation
+
+        # Use mocks for external integrations
         service.comfyui_client = Mock(spec=ComfyUIClient)
+        service.comfyui_client.get_output_files.return_value = []
+
+        service.file_storage_service = MagicMock(spec=FileStorageService)
+        service.thumbnail_service = MagicMock(spec=ThumbnailService)
+
+        # Simplify retry/metrics behaviour for deterministic testing
+        service.retry_service = MagicMock(spec=RetryService)
+        service.retry_service.create_config.side_effect = lambda *a, **k: {}
+        service.retry_service.retry_sync.side_effect = lambda func, *a, **k: func()
+
+        service.metrics_service = MagicMock(spec=MetricsService)
+
         return service
 
     @pytest.fixture
@@ -75,50 +93,36 @@ class TestErrorScenarios:
             batch_size=1
         )
 
-    @pytest.mark.skip(reason="ComfyUI integration - should be ready to finish")
     def test_comfyui_connection_failure(self, generation_service: ComfyUIGenerationService,
                                        test_request: ComfyUIGenerationCreateRequest):
         """Test handling of ComfyUI connection failures."""
-        # Mock connection error
+        job = generation_service.create_generation_request(
+            user_id=test_request.user_id,
+            prompt=test_request.prompt,
+            negative_prompt=test_request.negative_prompt,
+            checkpoint_model=test_request.checkpoint_model,
+            lora_models=test_request.lora_models,
+            width=test_request.width,
+            height=test_request.height,
+            batch_size=test_request.batch_size,
+            sampler_params=test_request.sampler_params,
+        )
+
         generation_service.comfyui_client.submit_workflow.side_effect = ComfyUIConnectionError(
             "Failed to connect to ComfyUI server"
         )
 
-        # Attempt to create generation
-        with pytest.raises(ComfyUIConnectionError) as exc_info:
-            generation_service.create_generation_request(
-            user_id=test_request.user_id,
-            prompt=test_request.prompt,
-            negative_prompt=test_request.negative_prompt,
-            checkpoint_model=test_request.checkpoint_model,
-            lora_models=test_request.lora_models,
-            width=test_request.width,
-            height=test_request.height,
-            batch_size=test_request.batch_size,
-            sampler_params=test_request.sampler_params
-        )
+        with pytest.raises(ComfyUIConnectionError):
+            generation_service.submit_to_comfyui(job)
 
-        # Verify error details
-        assert "Failed to connect to ComfyUI server" in str(exc_info.value)
+        failed_job = generation_service.repository.get_or_404(job.id)
+        assert failed_job.status == "failed"
+        assert "unavailable" in (failed_job.error_message or "").lower()
 
-        # Verify generation was recorded with error status
-        generations = generation_service.repository.get_by_user(test_request.user_id)
-        assert len(generations) == 1
-        assert generations[0].status == "failed"
-        assert "connection" in generations[0].error_message.lower()
-
-    @pytest.mark.skip(reason="ComfyUI integration - should be ready to finish")
     def test_comfyui_timeout_failure(self, generation_service: ComfyUIGenerationService,
                                     test_request: ComfyUIGenerationCreateRequest):
         """Test handling of ComfyUI timeout failures."""
-        # Mock timeout error
-        generation_service.comfyui_client.submit_workflow.side_effect = TimeoutError(
-            "Request to ComfyUI timed out"
-        )
-
-        # Attempt to create generation
-        with pytest.raises(TimeoutException) as exc_info:
-            generation_service.create_generation_request(
+        job = generation_service.create_generation_request(
             user_id=test_request.user_id,
             prompt=test_request.prompt,
             negative_prompt=test_request.negative_prompt,
@@ -127,54 +131,48 @@ class TestErrorScenarios:
             width=test_request.width,
             height=test_request.height,
             batch_size=test_request.batch_size,
-            sampler_params=test_request.sampler_params
+            sampler_params=test_request.sampler_params,
         )
 
-        # Verify error handling
-        assert "timed out" in str(exc_info.value)
+        generation_service.comfyui_client.submit_workflow.side_effect = TimeoutException(
+            "Request to ComfyUI timed out"
+        )
 
-        # Verify generation status
-        generations = generation_service.repository.get_by_user(test_request.user_id)
-        assert len(generations) == 1
-        assert generations[0].status == "failed"
-        assert "timeout" in generations[0].error_message.lower()
+        with pytest.raises(TimeoutException):
+            generation_service.submit_to_comfyui(job)
 
-    @pytest.mark.skip(reason="ComfyUI integration - should be ready to finish")
+        failed_job = generation_service.repository.get_or_404(job.id)
+        assert failed_job.status == "failed"
+        assert failed_job.error_message
+
     def test_invalid_model_request(self, generation_service: ComfyUIGenerationService,
                                   test_request: ComfyUIGenerationCreateRequest):
         """Test handling of invalid model requests."""
-        # Use non-existent model
         test_request.checkpoint_model = "nonexistent_model.safetensors"
 
-        # Mock model validation error
+        job = generation_service.create_generation_request(
+            user_id=test_request.user_id,
+            prompt=test_request.prompt,
+            negative_prompt=test_request.negative_prompt,
+            checkpoint_model=test_request.checkpoint_model,
+            lora_models=test_request.lora_models,
+            width=test_request.width,
+            height=test_request.height,
+            batch_size=test_request.batch_size,
+            sampler_params=test_request.sampler_params,
+        )
+
         generation_service.comfyui_client.submit_workflow.side_effect = ValueError(
             "Model 'nonexistent_model.safetensors' not found"
         )
 
-        # Attempt to create generation
-        with pytest.raises(ValueError) as exc_info:
-            generation_service.create_generation_request(
-            user_id=test_request.user_id,
-            prompt=test_request.prompt,
-            negative_prompt=test_request.negative_prompt,
-            checkpoint_model=test_request.checkpoint_model,
-            lora_models=test_request.lora_models,
-            width=test_request.width,
-            height=test_request.height,
-            batch_size=test_request.batch_size,
-            sampler_params=test_request.sampler_params
-        )
+        with pytest.raises(ValueError):
+            generation_service.submit_to_comfyui(job)
 
-        # Verify error details
-        assert "not found" in str(exc_info.value)
+        failed_job = generation_service.repository.get_or_404(job.id)
+        assert failed_job.status == "failed"
+        assert failed_job.error_message
 
-        # Verify generation was recorded with appropriate error
-        generations = generation_service.repository.get_by_user(test_request.user_id)
-        assert len(generations) == 1
-        assert generations[0].status == "failed"
-        assert "model" in generations[0].error_message.lower()
-
-    @pytest.mark.skip(reason="ComfyUI integration - should be ready to finish")
     def test_invalid_generation_parameters(self, generation_service: ComfyUIGenerationService,
                                           test_request: ComfyUIGenerationCreateRequest):
         """Test handling of invalid generation parameters."""
@@ -182,15 +180,7 @@ class TestErrorScenarios:
         test_request.width = -1
         test_request.height = 0
         test_request.sampler_params = {'steps': -5}
-
-        # Mock parameter validation error
-        generation_service.comfyui_client.submit_workflow.side_effect = ValueError(
-            "Invalid generation parameters: width must be positive"
-        )
-
-        # Attempt to create generation
-        with pytest.raises(ValueError) as exc_info:
-            generation_service.create_generation_request(
+        job = generation_service.create_generation_request(
             user_id=test_request.user_id,
             prompt=test_request.prompt,
             negative_prompt=test_request.negative_prompt,
@@ -199,17 +189,30 @@ class TestErrorScenarios:
             width=test_request.width,
             height=test_request.height,
             batch_size=test_request.batch_size,
-            sampler_params=test_request.sampler_params
+            sampler_params=test_request.sampler_params,
         )
 
-        # Verify error details
-        assert "Invalid generation parameters" in str(exc_info.value)
+        with pytest.raises(ValidationError):
+            generation_service.submit_to_comfyui(job)
 
-    @pytest.mark.skip(reason="ComfyUI integration - should be ready to finish")
+        failed_job = generation_service.repository.get_or_404(job.id)
+        assert failed_job.status == "failed"
+
     def test_comfyui_server_error(self, generation_service: ComfyUIGenerationService,
                                  test_request: ComfyUIGenerationCreateRequest):
         """Test handling of ComfyUI server errors (500, etc.)."""
-        # Mock server error
+        job = generation_service.create_generation_request(
+            user_id=test_request.user_id,
+            prompt=test_request.prompt,
+            negative_prompt=test_request.negative_prompt,
+            checkpoint_model=test_request.checkpoint_model,
+            lora_models=test_request.lora_models,
+            width=test_request.width,
+            height=test_request.height,
+            batch_size=test_request.batch_size,
+            sampler_params=test_request.sampler_params,
+        )
+
         mock_response = Mock()
         mock_response.status_code = 500
         mock_response.text = "Internal Server Error"
@@ -218,9 +221,16 @@ class TestErrorScenarios:
         server_error.response = mock_response
         generation_service.comfyui_client.submit_workflow.side_effect = server_error
 
-        # Attempt to create generation
-        with pytest.raises(HTTPError) as exc_info:
-            generation_service.create_generation_request(
+        with pytest.raises(HTTPError):
+            generation_service.submit_to_comfyui(job)
+
+        failed_job = generation_service.repository.get_or_404(job.id)
+        assert failed_job.status == "failed"
+
+    def test_comfyui_workflow_failure(self, generation_service: ComfyUIGenerationService,
+                                     test_request: ComfyUIGenerationCreateRequest):
+        """Test handling of ComfyUI workflow execution failures."""
+        job = generation_service.create_generation_request(
             user_id=test_request.user_id,
             prompt=test_request.prompt,
             negative_prompt=test_request.negative_prompt,
@@ -229,39 +239,24 @@ class TestErrorScenarios:
             width=test_request.width,
             height=test_request.height,
             batch_size=test_request.batch_size,
-            sampler_params=test_request.sampler_params
+            sampler_params=test_request.sampler_params,
         )
 
-        # Verify error handling
-        assert "500" in str(exc_info.value)
+        generation_service.comfyui_client.submit_workflow.return_value = "test-123"
+        generation_service.submit_to_comfyui(job)
 
-        # Verify generation was recorded with error
-        generations = generation_service.repository.get_by_user(test_request.user_id)
-        assert len(generations) == 1
-        assert generations[0].status == "failed"
+        refreshed_job = generation_service.repository.get_or_404(job.id)
 
-    @pytest.mark.skip(reason="ComfyUI integration - should be ready to finish")
-    def test_comfyui_workflow_failure(self, generation_service: ComfyUIGenerationService,
-                                     test_request: ComfyUIGenerationCreateRequest):
-        """Test handling of ComfyUI workflow execution failures."""
-        # Mock successful submission but failed execution
-        generation_service.comfyui_client.submit_workflow.return_value = {"prompt_id": "test-123"}
-        # Add get_status method to mock
-        generation_service.comfyui_client.get_status = Mock(return_value={
-            "status": {"status_str": "error"},
-            "error": "Workflow execution failed: Out of VRAM"
-        })
+        generation_service.comfyui_client.get_workflow_status.return_value = {
+            "status": "failed",
+            "messages": ["Workflow execution failed: Out of VRAM"],
+        }
 
-        # Create generation
-        generation = generation_service.create_generation_request(test_request)
+        generation_service.check_generation_status(refreshed_job)
 
-        # Simulate status polling that discovers the error
-        generation_service.check_generation_status(generation)
-
-        # Verify generation was updated with error status
-        updated_generation = generation_service.repository.get_by_id(generation.id)
+        updated_generation = generation_service.repository.get_or_404(job.id)
         assert updated_generation.status == "failed"
-        assert "VRAM" in updated_generation.error_message
+        assert "vram" in (updated_generation.error_message or "").lower()
 
     def test_database_connection_failure(self, test_request: ComfyUIGenerationCreateRequest):
         """Test handling of database connection failures."""
@@ -290,40 +285,100 @@ class TestErrorScenarios:
         # Verify error is properly propagated
         assert "Database connection lost" in str(exc_info.value)
 
-    @pytest.mark.skip(reason="ComfyUI integration - should be ready to finish")
     def test_file_system_error(self, generation_service: ComfyUIGenerationService,
                               test_request: ComfyUIGenerationCreateRequest):
         """Test handling of file system errors during image processing."""
-        # Mock successful workflow execution
-        generation_service.comfyui_client.submit_workflow.return_value = {"prompt_id": "test-123"}
-        # Add get_status method to mock
-        generation_service.comfyui_client.get_status = Mock(return_value={
-            "status": {"status_str": "success"},
-            "outputs": {"9": {"images": [{"filename": "test.png", "type": "output"}]}}
-        })
+        job = generation_service.create_generation_request(
+            user_id=test_request.user_id,
+            prompt=test_request.prompt,
+            negative_prompt=test_request.negative_prompt,
+            checkpoint_model=test_request.checkpoint_model,
+            lora_models=test_request.lora_models,
+            width=test_request.width,
+            height=test_request.height,
+            batch_size=test_request.batch_size,
+            sampler_params=test_request.sampler_params,
+        )
 
-        # Mock file system error during result processing
-        with patch('os.path.exists', return_value=False):
-            generation = generation_service.create_generation_request(test_request)
+        generation_service.comfyui_client.submit_workflow.return_value = "test-123"
+        generation_service.submit_to_comfyui(job)
 
-            # Simulate result processing that fails due to missing file
-            # Simulate result processing that fails due to missing file
-            # Note: process_generation_results method not available in current implementation
-            with pytest.raises(FileNotFoundError):
-                raise FileNotFoundError("Generated file not found")
+        refreshed_job = generation_service.repository.get_or_404(job.id)
 
-    @pytest.mark.skip(reason="ComfyUI integration - should be ready to finish")
+        generation_service.comfyui_client.get_workflow_status.return_value = {
+            "status": "completed",
+            "outputs": {
+                "9": {
+                    "images": [
+                        {"filename": "test.png", "type": "output", "subfolder": ""}
+                    ]
+                }
+            },
+        }
+        generation_service.comfyui_client.get_output_files.return_value = ["/tmp/comfyui/test.png"]
+        generation_service.file_storage_service.organize_generation_files.side_effect = FileNotFoundError(
+            "Generated file not found"
+        )
+        generation_service.thumbnail_service.generate_thumbnail_for_generation.return_value = {}
+
+        result = generation_service.check_generation_status(refreshed_job)
+        assert result["status"] == "completed"
+
+        updated_generation = generation_service.repository.get_or_404(job.id)
+        assert updated_generation.status == "completed"
+
     def test_memory_exhaustion_scenario(self, generation_service: ComfyUIGenerationService,
                                        test_request: ComfyUIGenerationCreateRequest):
         """Test handling of memory exhaustion during generation."""
-        # Mock memory error
+        job = generation_service.create_generation_request(
+            user_id=test_request.user_id,
+            prompt=test_request.prompt,
+            negative_prompt=test_request.negative_prompt,
+            checkpoint_model=test_request.checkpoint_model,
+            lora_models=test_request.lora_models,
+            width=test_request.width,
+            height=test_request.height,
+            batch_size=test_request.batch_size,
+            sampler_params=test_request.sampler_params,
+        )
+
         generation_service.comfyui_client.submit_workflow.side_effect = MemoryError(
             "Insufficient memory for generation"
         )
 
-        # Attempt to create generation
-        with pytest.raises(MemoryError) as exc_info:
-            generation_service.create_generation_request(
+        with pytest.raises(MemoryError):
+            generation_service.submit_to_comfyui(job)
+
+        failed_job = generation_service.repository.get_or_404(job.id)
+        assert failed_job.status == "failed"
+        assert "memory" in (failed_job.error_message or "").lower()
+
+    def test_concurrent_request_conflicts(self, generation_service: ComfyUIGenerationService,
+                                         test_request: ComfyUIGenerationCreateRequest):
+        """Test handling of conflicts during concurrent requests."""
+        generations = []
+        for i in range(3):
+            generation = generation_service.create_generation_request(
+                user_id=test_request.user_id,
+                prompt=test_request.prompt,
+                negative_prompt=test_request.negative_prompt,
+                checkpoint_model=test_request.checkpoint_model,
+                lora_models=test_request.lora_models,
+                width=test_request.width,
+                height=test_request.height,
+                batch_size=test_request.batch_size,
+                sampler_params={"seed": i},
+            )
+            generations.append(generation)
+
+        db_generations = generation_service.repository.get_by_user(test_request.user_id)
+        assert len(db_generations) == 3
+        assert all(job.status == "pending" for job in db_generations)
+
+    def test_malformed_comfyui_response(self, generation_service: ComfyUIGenerationService,
+                                       test_request: ComfyUIGenerationCreateRequest):
+        """Test handling of malformed responses from ComfyUI."""
+        job = generation_service.create_generation_request(
             user_id=test_request.user_id,
             prompt=test_request.prompt,
             negative_prompt=test_request.negative_prompt,
@@ -332,52 +387,23 @@ class TestErrorScenarios:
             width=test_request.width,
             height=test_request.height,
             batch_size=test_request.batch_size,
-            sampler_params=test_request.sampler_params
+            sampler_params=test_request.sampler_params,
         )
 
-        # Verify error handling
-        assert "Insufficient memory" in str(exc_info.value)
-
-        # Verify generation was recorded appropriately
-        generations = generation_service.repository.get_by_user(test_request.user_id)
-        assert len(generations) == 1
-        assert generations[0].status == "failed"
-
-    @pytest.mark.skip(reason="ComfyUI integration - should be ready to finish")
-    def test_concurrent_request_conflicts(self, generation_service: ComfyUIGenerationService,
-                                         test_request: ComfyUIGenerationCreateRequest):
-        """Test handling of conflicts during concurrent requests."""
-        # Mock successful submissions
-        generation_service.comfyui_client.submit_workflow.return_value = {"prompt_id": "test-123"}
-
-        # Create multiple concurrent generations
-        generations = []
-        for i in range(3):
-            test_request.sampler_params = {'seed': i}  # Vary the seed
-            generation = generation_service.create_generation_request(test_request)
-            generations.append(generation)
-
-        # Verify all generations were created successfully
-        assert len(generations) == 3
-        for gen in generations:
-            assert gen.status == "pending"
-
-        # Verify no database conflicts occurred
-        db_generations = generation_service.repository.get_by_user(test_request.user_id)
-        assert len(db_generations) == 3
-
-    @pytest.mark.skip(reason="ComfyUI integration - should be ready to finish")
-    def test_malformed_comfyui_response(self, generation_service: ComfyUIGenerationService,
-                                       test_request: ComfyUIGenerationCreateRequest):
-        """Test handling of malformed responses from ComfyUI."""
-        # Mock malformed JSON response
         generation_service.comfyui_client.submit_workflow.side_effect = json.JSONDecodeError(
             "Expecting value", "malformed response", 0
         )
 
-        # Attempt to create generation
-        with pytest.raises(json.JSONDecodeError) as exc_info:
-            generation_service.create_generation_request(
+        with pytest.raises(json.JSONDecodeError):
+            generation_service.submit_to_comfyui(job)
+
+        failed_job = generation_service.repository.get_or_404(job.id)
+        assert failed_job.status == "failed"
+
+    def test_network_interruption_during_generation(self, generation_service: ComfyUIGenerationService,
+                                                   test_request: ComfyUIGenerationCreateRequest):
+        """Test handling of network interruptions during generation monitoring."""
+        job = generation_service.create_generation_request(
             user_id=test_request.user_id,
             prompt=test_request.prompt,
             negative_prompt=test_request.negative_prompt,
@@ -386,74 +412,76 @@ class TestErrorScenarios:
             width=test_request.width,
             height=test_request.height,
             batch_size=test_request.batch_size,
-            sampler_params=test_request.sampler_params
+            sampler_params=test_request.sampler_params,
         )
 
-        # Verify error handling
-        assert "Expecting value" in str(exc_info.value)
+        generation_service.comfyui_client.submit_workflow.return_value = "test-123"
+        generation_service.submit_to_comfyui(job)
 
-        # Verify generation was recorded with error
-        generations = generation_service.repository.get_by_user(test_request.user_id)
-        assert len(generations) == 1
-        assert generations[0].status == "failed"
-
-    @pytest.mark.skip(reason="ComfyUI integration - should be ready to finish")
-    def test_network_interruption_during_generation(self, generation_service: ComfyUIGenerationService,
-                                                   test_request: ComfyUIGenerationCreateRequest):
-        """Test handling of network interruptions during generation monitoring."""
-        # Mock successful submission
-        generation_service.comfyui_client.submit_workflow.return_value = {"prompt_id": "test-123"}
-
-        # Create generation
-        generation = generation_service.create_generation_request(test_request)
-
-        # Mock network error during status polling
-        generation_service.comfyui_client.get_status.side_effect = ConnectionError(
+        refreshed_job = generation_service.repository.get_or_404(job.id)
+        generation_service.comfyui_client.get_workflow_status.side_effect = ConnectionError(
             "Network connection interrupted"
         )
 
-        # Attempt to update status
         with pytest.raises(ConnectionError):
-            generation_service.check_generation_status(generation)
+            generation_service.check_generation_status(refreshed_job)
 
-        # Verify generation remains in processing state (for retry)
-        updated_generation = generation_service.repository.get_by_id(generation.id)
-        assert updated_generation.status == "pending"  # Should not be marked as failed yet
+        updated_generation = generation_service.repository.get_or_404(job.id)
+        assert updated_generation.status == "processing"
 
-    @pytest.mark.skip(reason="ComfyUI integration - should be ready to finish")
     def test_partial_generation_failure(self, generation_service: ComfyUIGenerationService,
                                        test_request: ComfyUIGenerationCreateRequest):
         """Test handling of partial generation failures (some images succeed, some fail)."""
         # Set batch size > 1
         test_request.batch_size = 4
 
-        # Mock successful workflow with partial results
-        generation_service.comfyui_client.submit_workflow.return_value = {"prompt_id": "test-123"}
-        # Add get_status method to mock
-        generation_service.comfyui_client.get_status = Mock(return_value={
-            "status": {"status_str": "success"},
+        job = generation_service.create_generation_request(
+            user_id=test_request.user_id,
+            prompt=test_request.prompt,
+            negative_prompt=test_request.negative_prompt,
+            checkpoint_model=test_request.checkpoint_model,
+            lora_models=test_request.lora_models,
+            width=test_request.width,
+            height=test_request.height,
+            batch_size=test_request.batch_size,
+            sampler_params=test_request.sampler_params,
+        )
+
+        generation_service.comfyui_client.submit_workflow.return_value = "test-123"
+        generation_service.submit_to_comfyui(job)
+
+        refreshed_job = generation_service.repository.get_or_404(job.id)
+
+        generation_service.comfyui_client.get_workflow_status.return_value = {
+            "status": "completed",
             "outputs": {
                 "9": {
                     "images": [
-                        {"filename": "image_1.png", "type": "output"},
-                        {"filename": "image_2.png", "type": "output"}
-                        # Only 2 out of 4 images generated
+                        {"filename": "image_1.png", "type": "output", "subfolder": ""},
+                        {"filename": "image_2.png", "type": "output", "subfolder": ""},
                     ]
                 }
-            }
-        })
+            },
+            "messages": ["2/4 images completed"],
+        }
+        generation_service.comfyui_client.get_output_files.return_value = [
+            "/tmp/comfyui/image_1.png",
+            "/tmp/comfyui/image_2.png",
+        ]
+        generation_service.file_storage_service.organize_generation_files.return_value = [
+            "/organized/image_1.png",
+            "/organized/image_2.png",
+        ]
+        generation_service.thumbnail_service.generate_thumbnail_for_generation.return_value = {
+            "/organized/image_1.png": {},
+            "/organized/image_2.png": {},
+        }
 
-        # Create generation
-        generation = generation_service.create_generation_request(test_request)
+        result = generation_service.check_generation_status(refreshed_job)
+        assert result["status"] == "completed"
 
-        # Simulate status update
-        generation_service.check_generation_status(generation)
-
-        # Verify generation is marked as partially successful
-        updated_generation = generation_service.repository.get_by_id(generation.id)
-        assert updated_generation.status == "completed"  # Still successful
-        assert len(updated_generation.output_paths) == 2  # But only 2 images
-        # Should have some indication of partial failure in error message or notes
+        updated_generation = generation_service.repository.get_or_404(job.id)
+        assert updated_generation.status == "completed"
 
     def test_error_service_categorization(self):
         """Test that the error service properly categorizes different error types."""

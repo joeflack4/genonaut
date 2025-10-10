@@ -26,6 +26,8 @@ class TestComfyUIClientIntegration:
         assert len(prompt_id) > 0
         assert isinstance(prompt_id, str)
 
+    @pytest.mark.longrunning
+    @pytest.mark.comfyui_poll
     def test_get_workflow_status_completed(self, mock_comfyui_client: ComfyUIClient):
         """Test getting workflow status for completed job."""
         workflow = {
@@ -45,6 +47,8 @@ class TestComfyUIClientIntegration:
         assert "outputs" in status
         assert len(status["outputs"]) > 0
 
+    @pytest.mark.longrunning
+    @pytest.mark.comfyui_poll
     def test_wait_for_completion(self, mock_comfyui_client: ComfyUIClient):
         """Test waiting for workflow completion."""
         workflow = {
@@ -71,6 +75,8 @@ class TestComfyUIClientIntegration:
         assert len(models["checkpoints"]) > 0
         assert len(models["loras"]) > 0
 
+    @pytest.mark.longrunning
+    @pytest.mark.comfyui_poll
     def test_get_output_files(self, mock_comfyui_client: ComfyUIClient):
         """Test extracting output files from workflow result."""
         workflow = {
@@ -85,6 +91,8 @@ class TestComfyUIClientIntegration:
         assert len(output_files) > 0
         assert all("output_test" in path for path in output_files)
 
+    @pytest.mark.longrunning
+    @pytest.mark.comfyui_poll
     def test_workflow_with_client_id(self, mock_comfyui_client: ComfyUIClient):
         """Test submitting workflow with custom client_id."""
         workflow = {

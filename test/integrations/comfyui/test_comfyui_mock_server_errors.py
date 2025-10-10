@@ -43,6 +43,8 @@ class TestMockServerErrorScenarios:
         with pytest.raises(ValidationError):
             mock_comfyui_client.submit_workflow({})
 
+    @pytest.mark.longrunning
+    @pytest.mark.comfyui_poll
     def test_workflow_timeout(self, mock_comfyui_client: ComfyUIClient):
         """Test workflow timeout handling."""
         # This test verifies the timeout mechanism exists
@@ -87,6 +89,8 @@ class TestMockServerErrorScenarios:
         response = requests.get(f"{mock_comfyui_url}/invalid_endpoint")
         assert response.status_code == 404
 
+    @pytest.mark.longrunning
+    @pytest.mark.comfyui_poll
     def test_workflow_without_save_node(self, mock_comfyui_client: ComfyUIClient):
         """Test workflow without SaveImage node."""
         # Workflow without SaveImage node

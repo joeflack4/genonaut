@@ -15,7 +15,7 @@ curl -f http://localhost:8002/api/v1/health || echo "Test server not responding"
 python -m genonaut.db.init --check-playwright-fixtures
 
 # Verify environment variables
-python -c "import os; print('API_ENVIRONMENT:', os.getenv('API_ENVIRONMENT', 'Not set')); print('DATABASE_URL_TEST:', os.getenv('DATABASE_URL_TEST', 'Not set'))"
+python -c "import os; print('APP_ENV:', os.getenv('APP_ENV', 'Not set')); print('DATABASE_URL_TEST:', os.getenv('DATABASE_URL_TEST', 'Not set'))"
 ```
 
 ## Common Issues and Solutions
@@ -131,7 +131,7 @@ npm --prefix frontend run test:e2e:real-api
 pkill -f "uvicorn.*8002"
 
 # 6. Check server logs
-API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8002 --log-level debug
+APP_ENV=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8002 --log-level debug
 ```
 
 #### Issue: "API server starts but returns 500 errors"
@@ -145,7 +145,7 @@ API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8002 --
 
 ```bash
 # 1. Check server logs
-API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8002 --log-level debug
+APP_ENV=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8002 --log-level debug
 
 # 2. Verify database connection
 curl http://localhost:8002/api/v1/database-info
@@ -154,7 +154,7 @@ curl http://localhost:8002/api/v1/database-info
 pip install -r requirements.txt
 
 # 4. Verify environment setup
-API_ENVIRONMENT=test python -c "from genonaut.api.main import app; print('App created successfully')"
+APP_ENV=test python -c "from genonaut.api.main import app; print('App created successfully')"
 ```
 
 ### Playwright Test Issues
@@ -429,7 +429,7 @@ echo "OS: $(uname -a)"
 echo "Python: $(python --version)"
 echo "Node: $(node --version)"
 echo "Environment variables:"
-env | grep -E "(DATABASE_URL|API_ENVIRONMENT|GENONAUT)" | sort
+env | grep -E "(DATABASE_URL|APP_ENV|GENONAUT)" | sort
 echo ""
 echo "Test server processes:"
 ps aux | grep -E "(uvicorn|genonaut)" | grep -v grep
@@ -448,7 +448,7 @@ For detailed debugging, run commands with verbose flags:
 
 ```bash
 # Backend API with debug logging
-API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8002 --log-level debug --reload
+APP_ENV=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8002 --log-level debug --reload
 
 # Playwright with debug mode
 DEBUG=pw:api npm run test:e2e:real-api

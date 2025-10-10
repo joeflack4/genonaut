@@ -8,6 +8,7 @@ import type { ComfyUIGenerationResponse } from '../../services/comfyui-service'
 import type { GenerationJobResponse } from '../../services/generation-job-service'
 import { usePersistedState } from '../../hooks/usePersistedState'
 import { UI_CONFIG } from '../../config/ui'
+import { debugLog } from '../../utils/debug'
 
 type ActiveGeneration = ComfyUIGenerationResponse | GenerationJobResponse
 type TerminalStatus = 'completed' | 'failed' | 'cancelled'
@@ -28,7 +29,7 @@ export function GenerationPage() {
   }
 
   const handleGenerationUpdate = useCallback((generation: ActiveGeneration) => {
-    console.log('[GenerationPage] Received update from child', {
+    debugLog.generation('[GenerationPage] Received update from child', {
       id: generation.id,
       status: generation.status,
       updated_at: generation.updated_at,

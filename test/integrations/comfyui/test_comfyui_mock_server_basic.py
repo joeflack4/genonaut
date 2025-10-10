@@ -50,6 +50,8 @@ class TestMockServerBasics:
         assert "node_errors" in data
         assert data["node_errors"] == {}
 
+    @pytest.mark.longrunning
+    @pytest.mark.comfyui_poll
     def test_get_history_pending(self, mock_comfyui_url: str):
         """Test getting history for pending job returns empty dict while processing."""
         import time
@@ -80,6 +82,8 @@ class TestMockServerBasics:
         assert prompt_id in history_data2, "Should return full history after processing delay"
         assert history_data2[prompt_id]["status"]["completed"] is True
 
+    @pytest.mark.longrunning
+    @pytest.mark.comfyui_poll
     def test_get_history_completed(self, mock_comfyui_url: str):
         """Test getting history for completed job with outputs."""
         import time
@@ -140,6 +144,8 @@ class TestMockServerBasics:
         data = response.json()
         assert data["status"] == "interrupted"
 
+    @pytest.mark.longrunning
+    @pytest.mark.comfyui_poll
     def test_output_file_generation(self, mock_comfyui_url: str):
         """Test that mock server generates output files."""
         import time
@@ -169,6 +175,8 @@ class TestMockServerBasics:
         assert output_file.exists()
         assert output_file.stat().st_size > 0  # File has content
 
+    @pytest.mark.longrunning
+    @pytest.mark.comfyui_poll
     def test_multiple_jobs_unique_files(self, mock_comfyui_url: str):
         """Test that multiple jobs create unique output files."""
         import time

@@ -1,0 +1,89 @@
+test/api/integration/test_api_endpoints.py:439:test_search_content:api_server:Content search functionality not yet implemented - TODO: Implement search service and endpoint
+test/api/integration/test_api_endpoints.py:675:test_list_generation_jobs:api_server:Generation feature not yet implemented - pending generation job listing functionality
+test/api/integration/test_content_endpoints_pagination.py:41:test_get_content_list_with_pagination::Skipped until db-infrastructure setup - requires real database schemas and proper fixture management (Medium-High Effort)
+test/api/integration/test_content_endpoints_pagination.py:84:test_get_content_by_creator_paginated::Data scaling tests - Mock architecture issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/integration/test_content_endpoints_pagination.py:122:test_get_content_by_type_paginated::Data scaling tests - Mock architecture issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/integration/test_content_endpoints_pagination.py:160:test_get_public_content_paginated::Skipped until db-infrastructure setup - requires real database schemas and proper fixture management (Medium-High Effort)
+test/api/integration/test_content_endpoints_pagination.py:196:test_get_top_rated_content_paginated::Data scaling tests - Mock architecture issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/integration/test_content_endpoints_pagination.py:236:test_get_recent_content_paginated::Data scaling tests - Mock architecture issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/integration/test_content_endpoints_pagination.py:272:test_search_content_paginated::Data scaling tests - Mock architecture issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/integration/test_content_endpoints_pagination.py:313:test_pagination_with_cursor_support::Data scaling tests - Mock architecture and cursor navigation issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/integration/test_content_endpoints_pagination.py:352:test_pagination_default_values::Skipped until db-infrastructure setup - requires real database schemas and proper fixture management (Medium-High Effort)
+test/api/integration/test_content_endpoints_pagination.py:386:test_pagination_max_page_size_limit::Data scaling tests - Mock architecture issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/integration/test_content_endpoints_pagination.py:402:test_pagination_error_handling::Skipped until db-infrastructure setup - requires real database schemas and proper fixture management (Medium-High Effort)
+test/api/integration/test_content_endpoints_pagination.py:422:test_sorting_parameters_in_pagination::Data scaling tests - Mock architecture issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/integration/test_content_endpoints_pagination.py:462:test_backward_compatibility_with_old_parameters::Data scaling tests - Mock architecture issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/integration/test_cursor_pagination.py:155:test_cursor_pagination_bidirectional_navigation::Data scaling tests - Cursor bidirectional navigation issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/integration/test_error_recovery.py:302:test_connection_recovery_after_downtime::Database binding issues - submit_to_comfyui stores dict instead of string in comfyui_prompt_id column. Requires schema fixes.
+test/api/integration/test_error_recovery.py:336:test_partial_service_degradation_handling::Complex service interactions and mock setup issues with ComfyUI status checking. Requires service architecture refinement.
+test/api/integration/test_error_recovery.py:471:test_graceful_degradation_during_high_error_rate::Complex database transaction issues and mock coordination problems during high-load simulation. Requires improved error handling infrastructure.
+test/api/integration/test_error_scenarios.py:79:test_comfyui_connection_failure::ComfyUI integration - should be ready to finish
+test/api/integration/test_error_scenarios.py:111:test_comfyui_timeout_failure::ComfyUI integration - should be ready to finish
+test/api/integration/test_error_scenarios.py:143:test_invalid_model_request::ComfyUI integration - should be ready to finish
+test/api/integration/test_error_scenarios.py:178:test_invalid_generation_parameters::ComfyUI integration - should be ready to finish
+test/api/integration/test_error_scenarios.py:209:test_comfyui_server_error::ComfyUI integration - should be ready to finish
+test/api/integration/test_error_scenarios.py:244:test_comfyui_workflow_failure::ComfyUI integration - should be ready to finish
+test/api/integration/test_error_scenarios.py:294:test_file_system_error::ComfyUI integration - should be ready to finish
+test/api/integration/test_error_scenarios.py:316:test_memory_exhaustion_scenario::ComfyUI integration - should be ready to finish
+test/api/integration/test_error_scenarios.py:347:test_concurrent_request_conflicts::ComfyUI integration - should be ready to finish
+test/api/integration/test_error_scenarios.py:370:test_malformed_comfyui_response::ComfyUI integration - should be ready to finish
+test/api/integration/test_error_scenarios.py:401:test_network_interruption_during_generation::ComfyUI integration - should be ready to finish
+test/api/integration/test_error_scenarios.py:424:test_partial_generation_failure::ComfyUI integration - should be ready to finish
+test/api/integration/test_flagged_content_api.py:237:test_get_flagged_content_by_id_not_found:api_server:Integration test returns 500 instead of 404 - needs investigation
+test/api/integration/test_user_error_experience.py:58:test_api_error_response_structure::Skipped until API endpoints implemented
+test/api/integration/test_user_error_experience.py:96:test_validation_error_user_feedback::Skipped until API endpoints implemented
+test/api/integration/test_user_error_experience.py:128:test_model_not_found_error_guidance::Skipped until API endpoints implemented
+test/api/integration/test_user_error_experience.py:159:test_service_unavailable_error_experience::Skipped until API endpoints implemented
+test/api/integration/test_user_error_experience.py:196:test_rate_limit_error_user_guidance::Skipped until rate limiting middleware implemented
+test/api/integration/test_user_error_experience.py:231:test_generation_status_error_communication::Skipped until API endpoints implemented
+test/api/integration/test_user_error_experience.py:341:test_progressive_error_disclosure::Skipped until enhanced error service features implemented
+test/api/integration/test_user_error_experience.py:370:test_error_help_links_and_documentation::Skipped until enhanced error service features implemented
+test/api/integration/test_user_error_experience.py:400:test_error_feedback_collection::Skipped until enhanced error service features implemented
+test/api/integration/test_user_error_experience.py:429:test_error_analytics_and_trends::Skipped until enhanced error service features implemented
+test/api/integration/test_user_error_experience.py:453:test_multilingual_error_messages::Skipped until multilingual support implemented
+test/api/integration/test_user_error_experience.py:478:test_accessibility_in_error_communication::Skipped until accessibility features implemented
+test/api/integration/test_user_error_experience.py:504:test_error_context_preservation::Skipped until enhanced error service features implemented
+test/api/integration/test_websocket.py:28:test_websocket_connection_established::WebSocket tests require manual testing with running server
+test/api/integration/test_websocket.py:54:test_websocket_relays_redis_messages::WebSocket tests require manual testing with running server
+test/api/integration/test_websocket.py:113:test_websocket_handles_client_disconnect::WebSocket tests require manual testing with running server
+test/api/integration/test_websocket.py:138:test_websocket_ping_pong::WebSocket tests require manual testing with running server
+test/api/integration/test_websocket.py:177:test_multi_job_websocket_connection::WebSocket tests require manual testing with running server
+test/api/integration/test_websocket.py:216:test_multi_job_websocket_empty_ids::WebSocket tests require manual testing with running server
+test/api/integration/test_workflows.py:117:test_generation_job_lifecycle:api_server:Generation feature not yet implemented - pending generation job lifecycle functionality
+test/api/integration/test_workflows.py:187:test_recommendation_system_workflow:api_server:Generation feature not yet implemented - pending recommendation workflow that depends on generation
+test/api/integration/test_workflows.py:308:test_comprehensive_search_workflow::Comprehensive search functionality not yet implemented - TODO: Implement after basic search
+test/api/stress/test_pagination_stress.py:493:test_concurrent_pagination_load:longrunning,stress:Data scaling tests - Performance/stress testing (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/stress/test_pagination_stress.py:512:test_cursor_pagination_performance:longrunning,stress:Data scaling tests - Performance/stress testing and cursor navigation (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/stress/test_pagination_stress.py:534:test_memory_usage_stability:longrunning,stress:Data scaling tests - Performance/stress testing (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/stress/test_pagination_stress.py:557:test_pagination_performance_benchmarks:longrunning,stress:Data scaling tests - Performance/stress testing (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/unit/test_content_repository_pagination.py:132:test_get_by_content_type_paginated::Data scaling tests - Repository issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/unit/test_content_repository_pagination.py:156:test_search_by_title_paginated::Data scaling tests - Repository issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/unit/test_content_repository_pagination.py:186:test_get_top_rated_paginated::Data scaling tests - Repository issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/unit/test_content_repository_pagination.py:213:test_get_recent_paginated::Data scaling tests - Repository issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/unit/test_content_repository_pagination.py:237:test_search_by_metadata_paginated::Data scaling tests - Repository issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/unit/test_content_repository_pagination.py:268:test_search_by_tags_paginated::Data scaling tests - Repository issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/unit/test_content_repository_pagination.py:318:test_optimized_content_query_with_composite_index::Data scaling tests - Repository issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/api/unit/test_content_repository_pagination.py:347:test_cursor_based_pagination_for_large_datasets::Data scaling tests - Repository and cursor navigation issues (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/db/integration/test_comfyui_query_performance.py:94:test_generation_list_query_performance::Skipped until schema finalization - 'steps' field not in current schema
+test/db/integration/test_comfyui_query_performance.py:116:test_generation_by_user_query_performance::Skipped until schema finalization - 'steps' field not in current schema
+test/db/integration/test_comfyui_query_performance.py:144:test_generation_by_status_query_performance::Skipped until schema finalization - 'steps' field not in current schema
+test/db/integration/test_comfyui_query_performance.py:169:test_generation_by_model_query_performance::Skipped until schema finalization - 'steps' field not in current schema
+test/db/integration/test_comfyui_query_performance.py:197:test_generation_statistics_query_performance::Skipped until schema finalization - 'steps' field not in current schema
+test/db/integration/test_comfyui_query_performance.py:225:test_generation_with_user_join_performance::Skipped until schema finalization - 'steps' field not in current schema
+test/db/integration/test_comfyui_query_performance.py:251:test_generation_date_range_query_performance::Skipped until schema finalization - 'steps' field not in current schema
+test/db/integration/test_comfyui_query_performance.py:272:test_generation_complex_filter_performance::Skipped until schema finalization - 'steps' field not in current schema
+test/db/integration/test_comfyui_query_performance.py:306:test_generation_search_query_performance::Skipped until schema finalization - 'steps' field not in current schema
+test/db/integration/test_comfyui_query_performance.py:331:test_available_models_query_performance::Skipped until schema finalization - 'steps' field not in current schema
+test/db/integration/test_comfyui_query_performance.py:357:test_model_usage_statistics_performance::Skipped until schema finalization - 'steps' field not in current schema
+test/db/integration/test_comfyui_query_performance.py:387:test_large_dataset_query_performance:longrunning:Performance stress testing - only run manually
+test/db/integration/test_pagination_performance.py:152:test_user_pagination_performance_active_only::Data scaling tests - Performance/stress testing (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/db/integration/test_pagination_performance.py:316:test_large_dataset_pagination_performance:longrunning:Data scaling tests - Performance/stress testing (see notes/issues/by_priority/low/data-scaling-tests.md)
+test/db/unit/test_flagged_content_repository.py:357:test_delete::SQLite doesn't support ON DELETE CASCADE properly in test
+test/db/unit/test_flagged_content_repository.py:391:test_bulk_delete::SQLite doesn't support ON DELETE CASCADE properly in test
+test/db/unit/test_flagged_content_repository.py:421:test_bulk_delete_with_errors::SQLite doesn't support ON DELETE CASCADE properly in test
+test/integrations/comfyui/test_comfyui_mock_class_load_testing.py:89:test_concurrent_generation_requests_small_load:longrunning:Load testing - only run manually for performance analysis
+test/integrations/comfyui/test_comfyui_mock_class_load_testing.py:150:test_concurrent_generation_requests_medium_load:longrunning:Load testing - only run manually for performance analysis
+test/integrations/comfyui/test_comfyui_mock_class_load_testing.py:208:test_concurrent_generation_requests_high_load:longrunning:Load testing - only run manually for performance analysis
+test/integrations/comfyui/test_comfyui_mock_class_load_testing.py:268:test_generation_queue_processing_under_load:longrunning:Load testing - only run manually for performance analysis
+test/integrations/comfyui/test_comfyui_mock_class_load_testing.py:328:test_database_performance_under_concurrent_writes:longrunning:Load testing - only run manually for performance analysis
+test/integrations/comfyui/test_comfyui_mock_server_client.py:114:test_health_check::Health check has caching issues in full test suite - works in isolation

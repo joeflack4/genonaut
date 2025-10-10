@@ -15,6 +15,7 @@ def make_request(method: str, endpoint: str, **kwargs) -> requests.Response:
     return requests.request(method, url, timeout=TEST_TIMEOUT, **kwargs)
 
 
+@pytest.mark.api_server
 class TestCompleteUserWorkflow:
     """Test complete user lifecycle workflow."""
     
@@ -107,6 +108,7 @@ class TestCompleteUserWorkflow:
         print(f"✅ Complete workflow test passed for user {user_id}")
 
 
+@pytest.mark.api_server
 class TestContentGenerationWorkflow:
     """Test content generation workflow."""
     
@@ -176,6 +178,7 @@ class TestContentGenerationWorkflow:
         print(f"✅ Generation workflow test passed for job {job_id}")
 
 
+@pytest.mark.api_server
 class TestRecommendationWorkflow:
     """Test recommendation system workflow."""
     

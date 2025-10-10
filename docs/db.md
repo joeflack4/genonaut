@@ -54,7 +54,7 @@ Genonaut uses a three-tier database user system for security:
 - Otherwise, the system will construct the database URL from the individual DB_* variables
 - For initialization, admin credentials (`DB_PASSWORD_ADMIN`) are used by default
 - For production, using `DATABASE_URL` with admin credentials is recommended for database setup
-- When `GENONAUT_DB_ENVIRONMENT=test` (or `API_ENVIRONMENT=test`) the helpers route all initialization and session management to the dedicated test database.
+- When `GENONAUT_DB_ENVIRONMENT=test` (or `APP_ENV=test`) the helpers route all initialization and session management to the dedicated test database.
 - If `DATABASE_URL_TEST` is absent, the tooling clones `DATABASE_URL`/`DB_NAME` and swaps in `DB_NAME_TEST` so the test environment stays isolated.
 
 **Notes:**

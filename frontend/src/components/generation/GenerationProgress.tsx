@@ -26,6 +26,7 @@ import type { GenerationJobResponse } from '../../services/generation-job-servic
 import type { ComfyUIGenerationResponse } from '../../services/comfyui-service'
 import { getImageUrl } from '../../utils/image-url'
 import { ApiError } from '../../services/api-client'
+import { debugLog } from '../../utils/debug'
 
 type TerminalStatus = 'completed' | 'failed' | 'cancelled'
 
@@ -92,7 +93,7 @@ const isTerminal = (status: NormalizedStatus): status is TerminalStatus => (
 
 const hasMeaningfulChange = (prev: NormalizedGeneration | null, next: NormalizedGeneration) => {
   if (!prev) {
-    console.log('[hasMeaningfulChange] No previous generation, accepting update')
+    debugLog.generation('[hasMeaningfulChange] No previous generation, accepting update')
     return true
   }
 
@@ -110,7 +111,7 @@ const hasMeaningfulChange = (prev: NormalizedGeneration | null, next: Normalized
   const hasChange = Object.values(changes).some(Boolean)
 
   if (hasChange) {
-    console.log('[hasMeaningfulChange] Changes detected:', {
+    debugLog.generation('[hasMeaningfulChange] Changes detected:', {
       changes,
       prev: { id: prev.id, status: prev.status, updated_at: prev.updated_at },
       next: { id: next.id, status: next.status, updated_at: next.updated_at },
@@ -182,7 +183,7 @@ export function GenerationProgress({ generation: initialGeneration, onStatusFina
 
   // Stable status update callback to prevent unnecessary WebSocket reconnections
   const handleStatusUpdate = useCallback((update: JobStatusUpdate) => {
-    console.log('WebSocket update received:', update)
+    debugLog.generation('WebSocket update received:', update)
     // Update current generation with WebSocket data
     setCurrentGeneration(prev => {
       if (!prev) {
@@ -204,14 +205,14 @@ export function GenerationProgress({ generation: initialGeneration, onStatusFina
       })
 
       if (isTerminal(prev.status) && !isTerminal(nextGeneration.status)) {
-        console.debug('[GenerationProgress] Ignoring websocket downgrade', {
+        debugLog.generationDebug('[GenerationProgress] Ignoring websocket downgrade', {
           previousStatus: prev.status,
           incomingStatus: nextGeneration.status,
         })
         return prev
       }
 
-      console.debug('[GenerationProgress] Applying websocket update', {
+      debugLog.generationDebug('[GenerationProgress] Applying websocket update', {
         previousStatus: prev.status,
         nextStatus: nextGeneration.status,
       })
@@ -232,7 +233,7 @@ export function GenerationProgress({ generation: initialGeneration, onStatusFina
 
   // Reset local state when a new generation id is supplied OR when parent provides fresher data
   useEffect(() => {
-    console.log('[Effect:PropSync] Parent prop changed', {
+    debugLog.generation('[Effect:PropSync] Parent prop changed', {
       id: initialGeneration.id,
       status: initialGeneration.status,
       updated_at: initialGeneration.updated_at,
@@ -243,7 +244,7 @@ export function GenerationProgress({ generation: initialGeneration, onStatusFina
 
       // If different job ID, always accept
       if (!prev || prev.id !== next.id) {
-        console.log('[Effect:PropSync] New job ID, accepting', { prevId: prev?.id, nextId: next.id })
+        debugLog.generation('[Effect:PropSync] New job ID, accepting', { prevId: prev?.id, nextId: next.id })
         startTimeRef.current = Date.now()
         previousStatusRef.current = next.status
         return next
@@ -251,7 +252,7 @@ export function GenerationProgress({ generation: initialGeneration, onStatusFina
 
       // Same job - don't accept downgrades from terminal to non-terminal
       if (isTerminal(prev.status) && !isTerminal(next.status)) {
-        console.debug('[GenerationProgress] Ignoring parent prop downgrade', {
+        debugLog.generationDebug('[GenerationProgress] Ignoring parent prop downgrade', {
           previousStatus: prev.status,
           incomingStatus: next.status,
         })
@@ -263,7 +264,7 @@ export function GenerationProgress({ generation: initialGeneration, onStatusFina
         const prevTime = new Date(prev.updated_at).getTime()
         const nextTime = new Date(next.updated_at).getTime()
         if (prevTime > nextTime) {
-          console.debug('[GenerationProgress] Ignoring parent prop with older timestamp', {
+          debugLog.generationDebug('[GenerationProgress] Ignoring parent prop with older timestamp', {
             previousUpdatedAt: prev.updated_at,
             incomingUpdatedAt: next.updated_at,
           })
@@ -273,12 +274,12 @@ export function GenerationProgress({ generation: initialGeneration, onStatusFina
 
       // Same job - check if there's actually a meaningful change before updating
       if (!hasMeaningfulChange(prev, next)) {
-        console.log('[Effect:PropSync] No meaningful change from parent, keeping current state')
+        debugLog.generation('[Effect:PropSync] No meaningful change from parent, keeping current state')
         return prev  // Return prev to avoid triggering downstream effects
       }
 
       // Accept the update
-      console.log('[Effect:PropSync] Accepting parent prop update', {
+      debugLog.generation('[Effect:PropSync] Accepting parent prop update', {
         prevStatus: prev.status,
         nextStatus: next.status,
       })
@@ -340,7 +341,7 @@ export function GenerationProgress({ generation: initialGeneration, onStatusFina
           const nextGeneration = normalizeGeneration({ ...prev, ...updated })
 
           if (prev && isTerminal(prev.status) && !isTerminal(nextGeneration.status)) {
-            console.debug('[GenerationProgress] Ignoring poll downgrade', {
+            debugLog.generationDebug('[GenerationProgress] Ignoring poll downgrade', {
               previousStatus: prev.status,
               incomingStatus: nextGeneration.status,
             })
@@ -351,7 +352,7 @@ export function GenerationProgress({ generation: initialGeneration, onStatusFina
             const prevTime = new Date(prev.updated_at).getTime()
             const nextTime = new Date(updated.updated_at).getTime()
             if (prevTime > nextTime) {
-              console.debug('[GenerationProgress] Ignoring poll update with older timestamp', {
+              debugLog.generationDebug('[GenerationProgress] Ignoring poll update with older timestamp', {
                 previousUpdatedAt: prev.updated_at,
                 incomingUpdatedAt: updated.updated_at,
               })
@@ -359,7 +360,7 @@ export function GenerationProgress({ generation: initialGeneration, onStatusFina
             }
           }
 
-          console.debug('[GenerationProgress] Applying poll update', {
+          debugLog.generationDebug('[GenerationProgress] Applying poll update', {
             previousStatus: prev?.status,
             nextStatus: nextGeneration.status,
           })
@@ -460,11 +461,11 @@ export function GenerationProgress({ generation: initialGeneration, onStatusFina
     const previousBroadcast = lastBroadcastRef.current
 
     if (!hasMeaningfulChange(previousBroadcast, currentGeneration)) {
-      console.log('[Effect:ParentCallback] No meaningful change, skipping onGenerationUpdate')
+      debugLog.generation('[Effect:ParentCallback] No meaningful change, skipping onGenerationUpdate')
       return
     }
 
-    console.log('[Effect:ParentCallback] Calling onGenerationUpdate', {
+    debugLog.generation('[Effect:ParentCallback] Calling onGenerationUpdate', {
       id: currentGeneration.id,
       status: currentGeneration.status,
       updated_at: currentGeneration.updated_at,

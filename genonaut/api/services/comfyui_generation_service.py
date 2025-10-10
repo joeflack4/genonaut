@@ -180,13 +180,18 @@ class ComfyUIGenerationService:
                 )
 
                 # Update request with ComfyUI prompt ID and processing status
-                self.repository.update_status(
-                    generation_request.id,
-                    'processing',
-                    comfyui_prompt_id=prompt_id,
-                    started_at=datetime.utcnow()
-                )
+                job_record = self.repository.get_or_404(generation_request.id)
+                job_record.comfyui_prompt_id = prompt_id
+                if not job_record.started_at:
+                    job_record.started_at = datetime.utcnow()
+                job_record.status = 'processing'
+
                 self.db.commit()
+                self.db.refresh(job_record)
+
+                # Keep the in-memory instance consistent for callers
+                generation_request.comfyui_prompt_id = job_record.comfyui_prompt_id
+                generation_request.status = job_record.status
 
                 logger.info(
                     f"Submitted generation request {generation_request.id} to ComfyUI with prompt ID {prompt_id}"

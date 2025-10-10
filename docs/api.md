@@ -24,13 +24,13 @@ make api-test
 **Manual Start (Advanced):**
 ```bash
 # Development database
-API_ENVIRONMENT=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
+APP_ENV=dev uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
 
 # Demo database
-API_ENVIRONMENT=demo uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
+APP_ENV=demo uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
 
 # Test database
-API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
+APP_ENV=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
 ## API Configuration
@@ -43,7 +43,7 @@ API_ENVIRONMENT=test uvicorn genonaut.api.main:app --host 0.0.0.0 --port 8001 --
 | `API_HOST` | Host address for the API server | `0.0.0.0` | `127.0.0.1` |
 | `API_PORT` | Port for the API server | `8001` | `9000` |
 | `API_DEBUG` | Enable debug mode (auto-reload, detailed errors) | `false` | `true` |
-| `API_ENVIRONMENT` | Which database to use by default (`dev`/`demo`/`test`) | `dev` | `test` |
+| `APP_ENV` | Which database to use by default (`dev`/`demo`/`test`) | `dev` | `test` |
 | `DATABASE_URL_DEMO` | Demo database connection URL | Uses `DATABASE_URL` with demo DB name | `postgresql://user:pass@localhost:5432/genonaut_demo` |
 
 ## API Documentation & Testing
@@ -499,7 +499,7 @@ const items = await fetchAllItems('http://localhost:8001', {
 
 ### 🔧 Configuration Notes
 - API configuration is loaded from `.env` file in the `env/` directory
-- Database connections are managed automatically based on `API_ENVIRONMENT`
+- Database connections are managed automatically based on `APP_ENV`
 - The API supports both dev and demo databases simultaneously
 
 ### ⚠️ Important Caveats

@@ -65,6 +65,7 @@ def flag_words_file(tmp_path_factory):
         os.environ.pop("FLAG_WORDS_PATH", None)
 
 
+@pytest.mark.api_server
 class TestFlaggedContentAPI:
     """Test flagged content API endpoints."""
 

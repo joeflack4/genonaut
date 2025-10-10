@@ -12,12 +12,14 @@ from pathlib import Path
 import tempfile
 import shutil
 import os
+import pytest
 
 # Add the project root to the path
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 
+@pytest.mark.ontology_perf
 class TestMakefileGoals(unittest.TestCase):
     """Test makefile goals for ontology management."""
 
@@ -66,6 +68,7 @@ class TestMakefileGoals(unittest.TestCase):
             self.fail("make help timed out")
 
 
+@pytest.mark.ontology_perf
 class TestScriptDependencies(unittest.TestCase):
     """Test script inter-dependencies and imports."""
 
@@ -110,6 +113,7 @@ class TestScriptDependencies(unittest.TestCase):
             self.fail(f"Could not import script functions: {e}")
 
 
+@pytest.mark.ontology_perf
 class TestFileGeneration(unittest.TestCase):
     """Test file generation pipeline and data flow."""
 
@@ -169,6 +173,7 @@ class TestFileGeneration(unittest.TestCase):
                         self.fail(f"Could not read {filename}: {e}")
 
 
+@pytest.mark.ontology_perf
 class TestErrorHandling(unittest.TestCase):
     """Test error handling and robustness."""
 
@@ -223,6 +228,7 @@ class TestErrorHandling(unittest.TestCase):
             os.unlink(temp_path)
 
 
+@pytest.mark.ontology_perf
 class TestDocumentationSync(unittest.TestCase):
     """Test that documentation stays synchronized with implementation."""
 

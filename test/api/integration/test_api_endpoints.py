@@ -198,6 +198,7 @@ def test_content_data():
     }
 
 
+@pytest.mark.api_server
 class TestSystemEndpoints:
     """Test system/health endpoints."""
     
@@ -244,6 +245,7 @@ class TestSystemEndpoints:
         assert all(isinstance(v, int) for v in data.values())
 
 
+@pytest.mark.api_server
 class TestUserEndpoints:
     """Test user management endpoints."""
     
@@ -370,6 +372,7 @@ class TestUserEndpoints:
         assert isinstance(data["content_created"], int)
 
 
+@pytest.mark.api_server
 class TestContentEndpoints:
     """Test content management endpoints."""
     
@@ -469,6 +472,7 @@ class TestContentEndpoints:
         assert data["quality_score"] == 0.85
 
 
+@pytest.mark.api_server
 class TestInteractionEndpoints:
     """Test interaction tracking endpoints."""
     
@@ -537,6 +541,7 @@ class TestInteractionEndpoints:
         assert "favorite_content_types" in data
 
 
+@pytest.mark.api_server
 class TestRecommendationEndpoints:
     """Test recommendation endpoints."""
     
@@ -607,6 +612,7 @@ class TestRecommendationEndpoints:
         assert isinstance(data["recommendations"], list)
 
 
+@pytest.mark.api_server
 class TestGenerationJobEndpoints:
     """Test generation job endpoints."""
     
@@ -805,6 +811,7 @@ class TestGenerationJobEndpoints:
         assert "Cannot cancel job with status 'completed'" in response.json()["detail"]
 
 
+@pytest.mark.api_server
 class TestComfyUIEndpoints:
     """Test ComfyUI endpoints."""
 
@@ -895,6 +902,7 @@ class TestComfyUIEndpoints:
         assert "Refreshed" in data["message"]
 
 
+@pytest.mark.api_server
 class TestErrorHandling:
     """Test API error handling."""
     

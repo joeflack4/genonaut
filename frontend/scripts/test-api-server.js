@@ -20,7 +20,7 @@ const projectRoot = path.resolve(__dirname, '../..');
 // Configuration
 const TEST_DB_PATH = path.join(projectRoot, 'frontend', 'tests', 'e2e', 'output', 'test_playwright.db');
 const API_PORT = process.env.PORT || 8002;
-const API_ENVIRONMENT = 'test';
+const APP_ENV = 'test';
 
 let apiProcess = null;
 
@@ -68,7 +68,7 @@ async function startApiServer() {
     cwd: projectRoot,
     env: {
       ...process.env,
-      API_ENVIRONMENT: API_ENVIRONMENT,
+      APP_ENV: APP_ENV,
       DATABASE_URL: `sqlite:///${TEST_DB_PATH}`,
       DATABASE_URL_TEST: `sqlite:///${TEST_DB_PATH}`,
     },

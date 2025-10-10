@@ -7,7 +7,7 @@ lint format clean migrate-all migrate-prep migrate-dev migrate-demo migrate-test
 backup-test api-dev api-demo api-test celery-dev celery-demo celery-test flower-dev flower-demo flower-test \
 redis-flush-dev redis-flush-demo redis-flush-test redis-keys-dev redis-keys-demo redis-keys-test \
 redis-info-dev redis-info-demo redis-info-test redis-start celery-check-running-workers \
-frontend-install frontend-dev frontend-build frontend-preview frontend-test \
+frontend-install frontend-dev frontend-dev-debug frontend-build frontend-preview frontend-test \
 frontend-test-unit frontend-test-watch frontend-test-coverage frontend-test-e2e frontend-test-e2e-headed \
 frontend-test-e2e-ui frontend-test-e2e-real-api frontend-test-e2e-real-api-headed frontend-test-e2e-real-api-ui \
 frontend-lint frontend-type-check frontend-format frontend-format-write \
@@ -139,6 +139,7 @@ help:
 	@echo "Frontend:"
 	@echo "  frontend-install         Install frontend dependencies"
 	@echo "  frontend-dev             Start frontend dev server"
+	@echo "  frontend-dev-debug       Start frontend dev server with debug logging"
 	@echo "  frontend-build           Build frontend for production"
 	@echo "  frontend-preview         Preview built frontend"
 	@echo "  frontend-lint            Lint frontend code"
@@ -304,6 +305,22 @@ test-long-running:
 	@echo "Running long-running tests (performance, stress, large datasets)..."
 	@echo "⚠️  Warning: These tests may take 5-15 minutes to complete"
 	pytest test/ -v -m "longrunning"
+
+test-comfyui-poll:
+	@echo "Running mock ComfyUI polling tests (wait-for-completion scenarios)..."
+	pytest test/ -v -m "comfyui_poll"
+
+test-comfyui-e2e:
+	@echo "Running ComfyUI end-to-end workflow tests (Celery-style processing)..."
+	pytest test/ -v -m "comfyui_e2e"
+
+test-api-server:
+	@echo "Running API server integration suites (uvicorn startup, HTTP flows)..."
+	pytest test/ -v -m "api_server"
+
+test-ontology-perf:
+	@echo "Running ontology performance/CLI tests (large datasets & subprocess calls)..."
+	pytest test/ -v -m "ontology_perf"
 
 test-verbose:
 	@echo "Running quick tests with verbose output..."
@@ -671,6 +688,10 @@ frontend-install:
 frontend-dev:
 	@echo "Starting frontend dev server..."
 	npm --prefix frontend run dev
+
+frontend-dev-debug:
+	@echo "Starting frontend dev server with debug logging..."
+	npm --prefix frontend run dev:debug
 
 frontend-build:
 	@echo "Building frontend..."

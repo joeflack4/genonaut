@@ -10,6 +10,7 @@ import sys
 import time
 import psutil
 import os
+import pytest
 from pathlib import Path
 import tempfile
 from unittest import mock
@@ -19,6 +20,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 
+@pytest.mark.ontology_perf
 class TestLargeDatasetHandling(unittest.TestCase):
     """Test performance with large datasets."""
 
@@ -120,6 +122,7 @@ class TestLargeDatasetHandling(unittest.TestCase):
         self.assertGreater(len(patterns), 0)
 
 
+@pytest.mark.ontology_perf
 class TestMemoryUsage(unittest.TestCase):
     """Test memory usage and efficiency."""
 
@@ -198,6 +201,7 @@ class TestMemoryUsage(unittest.TestCase):
         del hierarchy
 
 
+@pytest.mark.ontology_perf
 class TestExecutionTime(unittest.TestCase):
     """Test execution time constraints."""
 
@@ -278,6 +282,7 @@ class TestExecutionTime(unittest.TestCase):
                           "Validation time appears to scale worse than linearly")
 
 
+@pytest.mark.ontology_perf
 class TestConcurrentAccess(unittest.TestCase):
     """Test concurrent access and thread safety."""
 

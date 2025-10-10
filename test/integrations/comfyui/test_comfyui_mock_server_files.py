@@ -8,6 +8,8 @@ from genonaut.api.services.comfyui_client import ComfyUIClient
 class TestMockServerFileOutput:
     """Test file generation and management in mock server."""
 
+    @pytest.mark.longrunning
+    @pytest.mark.comfyui_poll
     def test_output_file_naming_pattern(self, mock_comfyui_client: ComfyUIClient):
         """Test output files follow correct naming pattern."""
         workflow = {
@@ -25,6 +27,8 @@ class TestMockServerFileOutput:
         assert filename.startswith("naming_test_")
         assert filename.endswith("_.png")
 
+    @pytest.mark.longrunning
+    @pytest.mark.comfyui_poll
     def test_output_file_subfolder(self, mock_comfyui_client: ComfyUIClient):
         """Test output files report correct subfolder."""
         workflow = {
@@ -41,6 +45,8 @@ class TestMockServerFileOutput:
         assert images[0]["subfolder"] == ""
         assert images[0]["type"] == "output"
 
+    @pytest.mark.longrunning
+    @pytest.mark.comfyui_poll
     def test_concurrent_jobs_unique_files(self, mock_comfyui_client: ComfyUIClient):
         """Test concurrent jobs create unique output files."""
         filenames = []
@@ -63,6 +69,8 @@ class TestMockServerFileOutput:
         for i, filename in enumerate(filenames):
             assert filename.startswith(f"concurrent_{i}_")
 
+    @pytest.mark.longrunning
+    @pytest.mark.comfyui_poll
     def test_output_files_exist_on_disk(self, mock_comfyui_url: str, mock_comfyui_client: ComfyUIClient):
         """Test generated files actually exist on disk."""
         output_dir = Path(__file__).parent.parent.parent / "_infra/mock_services/comfyui/output"
@@ -93,6 +101,8 @@ class TestMockServerFileOutput:
         # We can't guarantee zero files if server just started, but we can verify cleanup happens
         assert output_dir.exists()
 
+    @pytest.mark.longrunning
+    @pytest.mark.comfyui_poll
     def test_multiple_images_same_job(self, mock_comfyui_client: ComfyUIClient):
         """Test job can have multiple output images."""
         # In the real ComfyUI, batch_size > 1 would create multiple images
@@ -109,6 +119,8 @@ class TestMockServerFileOutput:
         assert isinstance(images, list)
         assert len(images) >= 1  # At least one image
 
+    @pytest.mark.longrunning
+    @pytest.mark.comfyui_poll
     def test_filename_counter_increments(self, mock_comfyui_client: ComfyUIClient):
         """Test filename counter increments across jobs."""
         filenames = []

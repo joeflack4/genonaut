@@ -433,7 +433,7 @@ Purpose-built Postgres schema for automated API/database testing that mirrors de
 - [ ] Address remaining unit test configuration failures
 
 **Environment & Configuration**
-- New env vars: `DATABASE_URL_TEST`, `DB_NAME_TEST` (default `genonaut_test`), and `GENONAUT_DB_ENVIRONMENT` to target `dev`/`demo`/`test` explicitly. Setting `API_ENVIRONMENT=test` routes FastAPI dependencies to the test connection.
+- New env vars: `DATABASE_URL_TEST`, `DB_NAME_TEST` (default `genonaut_test`), and `GENONAUT_DB_ENVIRONMENT` to target `dev`/`demo`/`test` explicitly. Setting `APP_ENV=test` routes FastAPI dependencies to the test connection.
 - Fallback logic allows omitting `DATABASE_URL_TEST`: we clone `DATABASE_URL` and swap in `DB_NAME_TEST`, retaining admin credentials. Legacy flags (`DEMO`, `TEST`) stay functional for backwards compatibility.
 - Alembic/init helpers call `resolve_database_environment` so migrations and initialisation cannot accidentally run against the wrong database.
 - The test environment **must** point at its own database; init routines now drop and recreate schemas each run.
@@ -447,7 +447,7 @@ Purpose-built Postgres schema for automated API/database testing that mirrors de
 - `make init-test` – bootstrap schema + seed data (after truncating tables/identities).
 - `make migrate-test` – autogenerate revision snapshots against the test DSN (falls back to `DATABASE_URL` when `DATABASE_URL_TEST` missing).
 - `make migrate-step2-test` – apply migrations to the test database (included in `make migrate-step2-all`).
-- `make api-test` – launch FastAPI with `API_ENVIRONMENT=test` for isolated integration runs.
+- `make api-test` – launch FastAPI with `APP_ENV=test` for isolated integration runs.
 - Integration flow: run `make init-test` once, keep `make api-test` running, then execute `make test-api` (or targeted pytest modules) pointing to the test server.
 - `make init-test` truncates existing test data and resets identities so fixtures remain conflict-free across repeated runs.
 
