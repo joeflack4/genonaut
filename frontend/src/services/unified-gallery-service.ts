@@ -6,6 +6,7 @@ export interface UnifiedGalleryParams {
   pageSize?: number
   contentTypes?: string[]
   creatorFilter?: 'all' | 'user' | 'community'
+  contentSourceTypes?: string[]  // NEW: Preferred method - specific combinations like ['user-regular', 'community-auto']
   userId?: string
   searchTerm?: string
   sortField?: string
@@ -42,12 +43,23 @@ export class UnifiedGalleryService {
       searchParams.set('page_size', String(params.pageSize))
     }
 
-    if (params.contentTypes && params.contentTypes.length > 0) {
-      searchParams.set('content_types', params.contentTypes.join(','))
-    }
+    // NEW: Use contentSourceTypes if provided (preferred method)
+    if (params.contentSourceTypes !== undefined) {
+      // Send each content source type as a separate query parameter
+      params.contentSourceTypes.forEach(cst => searchParams.append('content_source_types', cst))
+    } else {
+      // LEGACY: Use contentTypes and creatorFilter
+      // Always set content_types parameter:
+      // - If array is not empty, join with comma
+      // - If array is empty, send empty string to get no results
+      // - If undefined, don't send parameter (backend will default to 'regular,auto')
+      if (params.contentTypes !== undefined) {
+        searchParams.set('content_types', params.contentTypes.join(','))
+      }
 
-    if (params.creatorFilter) {
-      searchParams.set('creator_filter', params.creatorFilter)
+      if (params.creatorFilter) {
+        searchParams.set('creator_filter', params.creatorFilter)
+      }
     }
 
     if (params.userId) {

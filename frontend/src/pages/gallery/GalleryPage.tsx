@@ -183,39 +183,21 @@ export function GalleryPage() {
   }, [optionsOpen])
 
 
-  // Determine content types based on toggles
-  const contentTypes = useMemo(() => {
-    const types = []
-    if (contentToggles.yourGens || contentToggles.communityGens) {
-      types.push('regular')
-    }
-    if (contentToggles.yourAutoGens || contentToggles.communityAutoGens) {
-      types.push('auto')
-    }
+  // NEW: Build content source types array directly from toggles
+  const contentSourceTypes = useMemo(() => {
+    const types: string[] = []
+    if (contentToggles.yourGens) types.push('user-regular')
+    if (contentToggles.yourAutoGens) types.push('user-auto')
+    if (contentToggles.communityGens) types.push('community-regular')
+    if (contentToggles.communityAutoGens) types.push('community-auto')
     return types
   }, [contentToggles])
 
-  // Determine creator filter
-  const creatorFilter = useMemo(() => {
-    const userContent = contentToggles.yourGens || contentToggles.yourAutoGens
-    const communityContent = contentToggles.communityGens || contentToggles.communityAutoGens
-
-    if (userContent && communityContent) {
-      return 'all'
-    } else if (userContent) {
-      return 'user'
-    } else if (communityContent) {
-      return 'community'
-    }
-    return 'all'
-  }, [contentToggles])
-
-  // Use unified gallery API
+  // Use unified gallery API with new content source types
   const { data: unifiedData, isLoading } = useUnifiedGallery({
     page: filters.page + 1, // Convert from 0-based to 1-based
     pageSize: PAGE_SIZE,
-    contentTypes,
-    creatorFilter,
+    contentSourceTypes,  // NEW: Use specific combinations instead of contentTypes + creatorFilter
     userId,
     searchTerm: filters.search || undefined,
     sortField: filters.sort === 'recent' ? 'created_at' : 'quality_score',

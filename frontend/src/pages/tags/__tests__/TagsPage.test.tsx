@@ -69,6 +69,13 @@ describe('TagsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    // Default mock for tag hierarchy
+    mockUseTagHierarchy.mockReturnValue({
+      data: mockHierarchyData,
+      isLoading: false,
+      error: null,
+    } as any);
+
     // Default mock for tree hierarchy (used by TagTreeView)
     mockUseTagHierarchyTree.mockReturnValue({
       data: [

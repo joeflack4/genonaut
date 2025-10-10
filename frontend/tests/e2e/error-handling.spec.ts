@@ -25,8 +25,32 @@ test.describe('Frontend Error Handling', () => {
   })
 
   test('displays user-friendly error when API is unavailable', async ({ page }) => {
-    // Mock API to return 503 Service Unavailable
-    await page.route('**/api/v1/generation-jobs/', async route => {
+    // Mock necessary APIs for page load
+    await page.route('**/api/v1/users/me', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: '123',
+          username: 'testuser',
+          email: 'test@example.com'
+        })
+      })
+    })
+
+    await page.route('**/api/v1/models**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          checkpoints: [],
+          loras: []
+        })
+      })
+    })
+
+    // Mock API to return 503 Service Unavailable for generation jobs
+    await page.route('**/api/v1/generation-jobs/**', async route => {
       await route.fulfill({
         status: 503,
         contentType: 'application/json',
@@ -43,7 +67,7 @@ test.describe('Frontend Error Handling', () => {
       })
     })
 
-    await page.goto('/generation')
+    await page.goto('/generation', { waitUntil: 'domcontentloaded' })
 
     // Try to submit a generation request
     await page.fill('[data-testid="prompt-input"]', 'Test prompt')
@@ -423,7 +447,31 @@ test.describe('Frontend Error Handling', () => {
   })
 
   test('preserves form data during errors', async ({ page }) => {
-    await page.goto('/generation')
+    // Mock necessary APIs for page load
+    await page.route('**/api/v1/users/me', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: '123',
+          username: 'testuser',
+          email: 'test@example.com'
+        })
+      })
+    })
+
+    await page.route('**/api/v1/models**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          checkpoints: [],
+          loras: []
+        })
+      })
+    })
+
+    await page.goto('/generation', { waitUntil: 'domcontentloaded' })
 
     // Fill out form with complex data
     const formData = {
@@ -470,6 +518,30 @@ test.describe('Frontend Error Handling', () => {
   })
 
   test('provides accessible error messages', async ({ page }) => {
+    // Mock necessary APIs for page load
+    await page.route('**/api/v1/users/me', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: '123',
+          username: 'testuser',
+          email: 'test@example.com'
+        })
+      })
+    })
+
+    await page.route('**/api/v1/models**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          checkpoints: [],
+          loras: []
+        })
+      })
+    })
+
     // Mock error response
     await page.route('**/api/v1/generation-jobs/**', async route => {
       await route.fulfill({
@@ -484,7 +556,7 @@ test.describe('Frontend Error Handling', () => {
       })
     })
 
-    await page.goto('/generation')
+    await page.goto('/generation', { waitUntil: 'domcontentloaded' })
 
     // Submit request
     await page.fill('[data-testid="prompt-input"]', 'Test prompt')

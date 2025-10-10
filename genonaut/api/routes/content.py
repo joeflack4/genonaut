@@ -55,8 +55,9 @@ async def create_content(
 async def get_unified_content(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(10, ge=1, le=1000, description="Items per page"),
-    content_types: str = Query("regular,auto", description="Comma-separated content types (regular, auto)"),
+    content_types: Optional[str] = Query(None, description="Comma-separated content types (regular, auto). Defaults to 'regular,auto' if not provided. Send empty string to get no results."),
     creator_filter: str = Query("all", description="Creator filter (all, user, community)"),
+    content_source_types: Optional[List[str]] = Query(None, description="Specific content-source combinations (user-regular, user-auto, community-regular, community-auto). When provided, overrides content_types and creator_filter."),
     user_id: Optional[UUID] = Query(None, description="User ID for filtering"),
     search_term: Optional[str] = Query(None, description="Search term for title"),
     sort_field: str = Query("created_at", description="Field to sort by"),
@@ -68,26 +69,49 @@ async def get_unified_content(
     service = ContentService(db)
 
     try:
-        # Parse content types
-        content_type_list = [ct.strip() for ct in content_types.split(",") if ct.strip()]
-        if not content_type_list:
-            content_type_list = ["regular", "auto"]
+        # NEW: Handle content_source_types parameter (preferred method)
+        if content_source_types is not None:
+            # Validate content_source_types
+            valid_source_types = {"user-regular", "user-auto", "community-regular", "community-auto"}
+            for cst in content_source_types:
+                if cst not in valid_source_types:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Invalid content_source_type: {cst}. Must be one of: {', '.join(valid_source_types)}"
+                    )
 
-        # Validate content types
-        valid_types = {"regular", "auto"}
-        for ct in content_type_list:
-            if ct not in valid_types:
+            # Parse content_source_types into content_types and creator_filter
+            # This will be passed to the service layer for processing
+            content_type_list = []
+            creator_filter_derived = "all"  # We'll use a special flag to indicate source-based filtering
+
+            # The service layer will handle the actual filtering based on content_source_types
+            # For now, we just validate and pass through
+
+        else:
+            # LEGACY: Parse content types (backward compatibility)
+            # If not provided (None), default to both regular and auto
+            # If provided but empty, return empty list (will result in no content)
+            if content_types is None:
+                content_type_list = ["regular", "auto"]
+            else:
+                content_type_list = [ct.strip() for ct in content_types.split(",") if ct.strip()]
+
+            # Validate content types
+            valid_types = {"regular", "auto"}
+            for ct in content_type_list:
+                if ct not in valid_types:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Invalid content type: {ct}. Must be one of: {', '.join(valid_types)}"
+                    )
+
+            # Validate creator filter
+            if creator_filter not in {"all", "user", "community"}:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid content type: {ct}. Must be one of: {', '.join(valid_types)}"
+                    detail="creator_filter must be one of: all, user, community"
                 )
-
-        # Validate creator filter
-        if creator_filter not in {"all", "user", "community"}:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="creator_filter must be one of: all, user, community"
-            )
 
         # Create pagination request
         pagination = PaginationRequest(
@@ -98,8 +122,9 @@ async def get_unified_content(
         # Get unified content
         result = service.get_unified_content_paginated(
             pagination=pagination,
-            content_types=content_type_list,
-            creator_filter=creator_filter,
+            content_types=content_type_list if content_source_types is None else None,
+            creator_filter=creator_filter if content_source_types is None else None,
+            content_source_types=content_source_types,
             user_id=user_id,
             search_term=search_term,
             sort_field=sort_field,

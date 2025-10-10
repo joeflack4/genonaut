@@ -79,9 +79,9 @@ test.describe('Gallery page', () => {
             is_active: true,
           },
         },
-        // All content types enabled
+        // All content types enabled (new API with content_source_types)
         {
-          pattern: '\\u002Fapi\\u002Fv1\\u002Fcontent\\u002Funified\\?.*content_types=regular%2Cauto.*creator_filter=all',
+          pattern: '\\u002Fapi\\u002Fv1\\u002Fcontent\\u002Funified\\?.*content_source_types=user-regular.*content_source_types=user-auto.*content_source_types=community-regular.*content_source_types=community-auto',
           body: {
             items: Array.from({ length: 25 }, (_, i) => ({
               id: i + 1,
@@ -109,9 +109,9 @@ test.describe('Gallery page', () => {
             },
           },
         },
-        // Only regular content
+        // Only regular content (user-regular + community-regular)
         {
-          pattern: '\\u002Fapi\\u002Fv1\\u002Fcontent\\u002Funified\\?.*content_types=regular.*creator_filter=all',
+          pattern: '\\u002Fapi\\u002Fv1\\u002Fcontent\\u002Funified\\?.*content_source_types=user-regular.*content_source_types=community-regular',
           body: {
             items: Array.from({ length: 25 }, (_, i) => ({
               id: i + 1,

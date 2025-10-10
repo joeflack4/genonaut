@@ -420,6 +420,7 @@ class ContentService:
         pagination: PaginationRequest,
         content_types: Optional[List[str]] = None,
         creator_filter: str = "all",
+        content_source_types: Optional[List[str]] = None,
         user_id: Optional[UUID] = None,
         search_term: Optional[str] = None,
         sort_field: str = "created_at",
@@ -432,8 +433,9 @@ class ContentService:
 
         Args:
             pagination: Pagination parameters
-            content_types: List of content types to include ("regular", "auto", or both)
-            creator_filter: "all", "user", or "community"
+            content_types: List of content types to include ("regular", "auto", or both) - LEGACY
+            creator_filter: "all", "user", or "community" - LEGACY
+            content_source_types: Specific combinations (e.g., ['user-regular', 'community-auto']) - PREFERRED
             user_id: User ID for filtering
             search_term: Search term for title filtering
             sort_field: Field to sort by
@@ -441,79 +443,209 @@ class ContentService:
             tags: List of tags to filter by (returns content with at least 1 matching tag)
             **filters: Additional filters
         """
-        if content_types is None:
-            content_types = ["regular", "auto"]
-
         session = self.repository.db
 
         # Build unified query using UNION
         queries = []
 
-        # Regular content query
-        if "regular" in content_types:
-            regular_query = session.query(
-                ContentItem.id.label('id'),
-                ContentItem.title.label('title'),
-                ContentItem.content_type.label('content_type'),
-                ContentItem.content_data.label('content_data'),
-                ContentItem.path_thumb.label('path_thumb'),
-                ContentItem.path_thumbs_alt_res.label('path_thumbs_alt_res'),
-                ContentItem.prompt.label('prompt'),
-                ContentItem.creator_id.label('creator_id'),
-                ContentItem.item_metadata.label('item_metadata'),
-                ContentItem.tags.label('tags'),
-                ContentItem.is_private.label('is_private'),
-                ContentItem.quality_score.label('quality_score'),
-                ContentItem.created_at.label('created_at'),
-                ContentItem.updated_at.label('updated_at'),
-                literal('regular').label('source_type'),
-                User.username.label('creator_username')
-            ).join(User, ContentItem.creator)
+        # NEW APPROACH: Use content_source_types if provided
+        if content_source_types is not None:
+            # Parse content_source_types to determine which queries to build
+            include_user_regular = 'user-regular' in content_source_types
+            include_user_auto = 'user-auto' in content_source_types
+            include_community_regular = 'community-regular' in content_source_types
+            include_community_auto = 'community-auto' in content_source_types
 
-            # Apply filters
-            if creator_filter == "user" and user_id:
-                regular_query = regular_query.filter(ContentItem.creator_id == user_id)
-            elif creator_filter == "community" and user_id:
-                regular_query = regular_query.filter(ContentItem.creator_id != user_id)
+            # Build regular content query for user content
+            if include_user_regular and user_id:
+                user_regular_query = session.query(
+                    ContentItem.id.label('id'),
+                    ContentItem.title.label('title'),
+                    ContentItem.content_type.label('content_type'),
+                    ContentItem.content_data.label('content_data'),
+                    ContentItem.path_thumb.label('path_thumb'),
+                    ContentItem.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                    ContentItem.prompt.label('prompt'),
+                    ContentItem.creator_id.label('creator_id'),
+                    ContentItem.item_metadata.label('item_metadata'),
+                    ContentItem.tags.label('tags'),
+                    ContentItem.is_private.label('is_private'),
+                    ContentItem.quality_score.label('quality_score'),
+                    ContentItem.created_at.label('created_at'),
+                    ContentItem.updated_at.label('updated_at'),
+                    literal('regular').label('source_type'),
+                    User.username.label('creator_username')
+                ).join(User, ContentItem.creator).filter(ContentItem.creator_id == user_id)
 
-            if search_term:
-                regular_query = regular_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
+                if search_term:
+                    user_regular_query = user_regular_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
+                if tags:
+                    user_regular_query = user_regular_query.filter(
+                        func.jsonb_exists_any(ContentItem.tags, text(':tags'))
+                    ).params(tags=tags)
 
-            # Apply tag filtering - match if content has at least 1 of the specified tags
-            if tags:
-                # Use jsonb_exists_any function for PostgreSQL JSON array overlap
-                regular_query = regular_query.filter(
-                    func.jsonb_exists_any(ContentItem.tags, text(':tags'))
-                ).params(tags=tags)
+                queries.append(user_regular_query)
 
-            queries.append(regular_query)
+            # Build regular content query for community content
+            if include_community_regular and user_id:
+                community_regular_query = session.query(
+                    ContentItem.id.label('id'),
+                    ContentItem.title.label('title'),
+                    ContentItem.content_type.label('content_type'),
+                    ContentItem.content_data.label('content_data'),
+                    ContentItem.path_thumb.label('path_thumb'),
+                    ContentItem.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                    ContentItem.prompt.label('prompt'),
+                    ContentItem.creator_id.label('creator_id'),
+                    ContentItem.item_metadata.label('item_metadata'),
+                    ContentItem.tags.label('tags'),
+                    ContentItem.is_private.label('is_private'),
+                    ContentItem.quality_score.label('quality_score'),
+                    ContentItem.created_at.label('created_at'),
+                    ContentItem.updated_at.label('updated_at'),
+                    literal('regular').label('source_type'),
+                    User.username.label('creator_username')
+                ).join(User, ContentItem.creator).filter(ContentItem.creator_id != user_id)
 
-        # Auto content query
-        if "auto" in content_types:
-            auto_query = session.query(
-                ContentItemAuto.id.label('id'),
-                ContentItemAuto.title.label('title'),
-                ContentItemAuto.content_type.label('content_type'),
-                ContentItemAuto.content_data.label('content_data'),
-                ContentItemAuto.path_thumb.label('path_thumb'),
-                ContentItemAuto.path_thumbs_alt_res.label('path_thumbs_alt_res'),
-                ContentItemAuto.prompt.label('prompt'),
-                ContentItemAuto.creator_id.label('creator_id'),
-                ContentItemAuto.item_metadata.label('item_metadata'),
-                ContentItemAuto.tags.label('tags'),
-                ContentItemAuto.is_private.label('is_private'),
-                ContentItemAuto.quality_score.label('quality_score'),
-                ContentItemAuto.created_at.label('created_at'),
-                ContentItemAuto.updated_at.label('updated_at'),
-                literal('auto').label('source_type'),
-                User.username.label('creator_username')
-            ).join(User, ContentItemAuto.creator)
+                if search_term:
+                    community_regular_query = community_regular_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
+                if tags:
+                    community_regular_query = community_regular_query.filter(
+                        func.jsonb_exists_any(ContentItem.tags, text(':tags'))
+                    ).params(tags=tags)
 
-            # Apply filters
-            if creator_filter == "user" and user_id:
-                auto_query = auto_query.filter(ContentItemAuto.creator_id == user_id)
-            elif creator_filter == "community" and user_id:
-                auto_query = auto_query.filter(ContentItemAuto.creator_id != user_id)
+                queries.append(community_regular_query)
+
+            # Build auto content query for user content
+            if include_user_auto and user_id:
+                user_auto_query = session.query(
+                    ContentItemAuto.id.label('id'),
+                    ContentItemAuto.title.label('title'),
+                    ContentItemAuto.content_type.label('content_type'),
+                    ContentItemAuto.content_data.label('content_data'),
+                    ContentItemAuto.path_thumb.label('path_thumb'),
+                    ContentItemAuto.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                    ContentItemAuto.prompt.label('prompt'),
+                    ContentItemAuto.creator_id.label('creator_id'),
+                    ContentItemAuto.item_metadata.label('item_metadata'),
+                    ContentItemAuto.tags.label('tags'),
+                    ContentItemAuto.is_private.label('is_private'),
+                    ContentItemAuto.quality_score.label('quality_score'),
+                    ContentItemAuto.created_at.label('created_at'),
+                    ContentItemAuto.updated_at.label('updated_at'),
+                    literal('auto').label('source_type'),
+                    User.username.label('creator_username')
+                ).join(User, ContentItemAuto.creator).filter(ContentItemAuto.creator_id == user_id)
+
+                if search_term:
+                    user_auto_query = user_auto_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
+                if tags:
+                    user_auto_query = user_auto_query.filter(
+                        func.jsonb_exists_any(ContentItemAuto.tags, text(':tags'))
+                    ).params(tags=tags)
+
+                queries.append(user_auto_query)
+
+            # Build auto content query for community content
+            if include_community_auto and user_id:
+                community_auto_query = session.query(
+                    ContentItemAuto.id.label('id'),
+                    ContentItemAuto.title.label('title'),
+                    ContentItemAuto.content_type.label('content_type'),
+                    ContentItemAuto.content_data.label('content_data'),
+                    ContentItemAuto.path_thumb.label('path_thumb'),
+                    ContentItemAuto.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                    ContentItemAuto.prompt.label('prompt'),
+                    ContentItemAuto.creator_id.label('creator_id'),
+                    ContentItemAuto.item_metadata.label('item_metadata'),
+                    ContentItemAuto.tags.label('tags'),
+                    ContentItemAuto.is_private.label('is_private'),
+                    ContentItemAuto.quality_score.label('quality_score'),
+                    ContentItemAuto.created_at.label('created_at'),
+                    ContentItemAuto.updated_at.label('updated_at'),
+                    literal('auto').label('source_type'),
+                    User.username.label('creator_username')
+                ).join(User, ContentItemAuto.creator).filter(ContentItemAuto.creator_id != user_id)
+
+                if search_term:
+                    community_auto_query = community_auto_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
+                if tags:
+                    community_auto_query = community_auto_query.filter(
+                        func.jsonb_exists_any(ContentItemAuto.tags, text(':tags'))
+                    ).params(tags=tags)
+
+                queries.append(community_auto_query)
+
+        # LEGACY APPROACH: Use content_types and creator_filter
+        else:
+            if content_types is None:
+                content_types = ["regular", "auto"]
+
+            # Regular content query
+            if "regular" in content_types:
+                regular_query = session.query(
+                    ContentItem.id.label('id'),
+                    ContentItem.title.label('title'),
+                    ContentItem.content_type.label('content_type'),
+                    ContentItem.content_data.label('content_data'),
+                    ContentItem.path_thumb.label('path_thumb'),
+                    ContentItem.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                    ContentItem.prompt.label('prompt'),
+                    ContentItem.creator_id.label('creator_id'),
+                    ContentItem.item_metadata.label('item_metadata'),
+                    ContentItem.tags.label('tags'),
+                    ContentItem.is_private.label('is_private'),
+                    ContentItem.quality_score.label('quality_score'),
+                    ContentItem.created_at.label('created_at'),
+                    ContentItem.updated_at.label('updated_at'),
+                    literal('regular').label('source_type'),
+                    User.username.label('creator_username')
+                ).join(User, ContentItem.creator)
+
+                # Apply filters
+                if creator_filter == "user" and user_id:
+                    regular_query = regular_query.filter(ContentItem.creator_id == user_id)
+                elif creator_filter == "community" and user_id:
+                    regular_query = regular_query.filter(ContentItem.creator_id != user_id)
+
+                if search_term:
+                    regular_query = regular_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
+
+                # Apply tag filtering - match if content has at least 1 of the specified tags
+                if tags:
+                    # Use jsonb_exists_any function for PostgreSQL JSON array overlap
+                    regular_query = regular_query.filter(
+                        func.jsonb_exists_any(ContentItem.tags, text(':tags'))
+                    ).params(tags=tags)
+
+                queries.append(regular_query)
+
+            # Auto content query
+            if "auto" in content_types:
+                auto_query = session.query(
+                    ContentItemAuto.id.label('id'),
+                    ContentItemAuto.title.label('title'),
+                    ContentItemAuto.content_type.label('content_type'),
+                    ContentItemAuto.content_data.label('content_data'),
+                    ContentItemAuto.path_thumb.label('path_thumb'),
+                    ContentItemAuto.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                    ContentItemAuto.prompt.label('prompt'),
+                    ContentItemAuto.creator_id.label('creator_id'),
+                    ContentItemAuto.item_metadata.label('item_metadata'),
+                    ContentItemAuto.tags.label('tags'),
+                    ContentItemAuto.is_private.label('is_private'),
+                    ContentItemAuto.quality_score.label('quality_score'),
+                    ContentItemAuto.created_at.label('created_at'),
+                    ContentItemAuto.updated_at.label('updated_at'),
+                    literal('auto').label('source_type'),
+                    User.username.label('creator_username')
+                ).join(User, ContentItemAuto.creator)
+
+                # Apply filters
+                if creator_filter == "user" and user_id:
+                    auto_query = auto_query.filter(ContentItemAuto.creator_id == user_id)
+                elif creator_filter == "community" and user_id:
+                    auto_query = auto_query.filter(ContentItemAuto.creator_id != user_id)
 
             if search_term:
                 auto_query = auto_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))

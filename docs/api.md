@@ -104,6 +104,129 @@ The API provides **77 endpoints** across 6 main categories:
 - `GET /api/v1/content/public` - Get public content only
 - `GET /api/v1/content/by-type/{content_type}` - Filter by content type
 
+**Unified Content API:**
+- `GET /api/v1/content/unified` - Get combined regular and auto-generated content with advanced filtering
+- `GET /api/v1/content/stats/unified` - Get statistics for all content types
+
+### Unified Content Endpoint
+
+The unified content endpoint provides a powerful way to query both regular and auto-generated content with precise filtering capabilities.
+
+#### Endpoint
+```
+GET /api/v1/content/unified
+```
+
+#### Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `page` | integer | No | 1 | Page number (1-based) |
+| `page_size` | integer | No | 10 | Items per page (max: 1000) |
+| `content_source_types` | array[string] | No | all types | **Preferred method** - Specific content-source combinations. Values: `user-regular`, `user-auto`, `community-regular`, `community-auto` |
+| `content_types` | string | No | `regular,auto` | **Legacy** - Comma-separated content types. Values: `regular`, `auto` |
+| `creator_filter` | string | No | `all` | **Legacy** - Creator filter. Values: `all`, `user`, `community` |
+| `user_id` | UUID | No | null | User ID for filtering user vs community content |
+| `search_term` | string | No | null | Search term for title filtering |
+| `sort_field` | string | No | `created_at` | Field to sort by |
+| `sort_order` | string | No | `desc` | Sort order: `asc` or `desc` |
+| `tag` | array[string] | No | null | Filter by tags (can specify multiple) |
+
+#### Using content_source_types (Recommended)
+
+The `content_source_types` parameter provides precise control over which content to retrieve. It accepts an array of the following values:
+
+- `user-regular` - Regular content created by the specified user
+- `user-auto` - Auto-generated content created by the specified user
+- `community-regular` - Regular content created by other users
+- `community-auto` - Auto-generated content created by other users
+
+**Examples:**
+
+```bash
+# Get only the user's regular content
+GET /api/v1/content/unified?content_source_types=user-regular&user_id=<uuid>
+
+# Get all auto-generated content (user + community)
+GET /api/v1/content/unified?content_source_types=user-auto&content_source_types=community-auto&user_id=<uuid>
+
+# Get all user content (regular + auto)
+GET /api/v1/content/unified?content_source_types=user-regular&content_source_types=user-auto&user_id=<uuid>
+
+# Get all regular content (user + community)
+GET /api/v1/content/unified?content_source_types=user-regular&content_source_types=community-regular&user_id=<uuid>
+
+# Get all content
+GET /api/v1/content/unified?content_source_types=user-regular&content_source_types=user-auto&content_source_types=community-regular&content_source_types=community-auto&user_id=<uuid>
+
+# Get no content (returns 0 results)
+GET /api/v1/content/unified?user_id=<uuid>
+```
+
+#### Legacy Parameters
+
+For backward compatibility, the endpoint also supports the legacy combination of `content_types` and `creator_filter`:
+
+```bash
+# All content (legacy method)
+GET /api/v1/content/unified?content_types=regular,auto&creator_filter=all&user_id=<uuid>
+
+# User content only (legacy method)
+GET /api/v1/content/unified?content_types=regular,auto&creator_filter=user&user_id=<uuid>
+
+# Regular content only (legacy method)
+GET /api/v1/content/unified?content_types=regular&creator_filter=all&user_id=<uuid>
+```
+
+**Note:** When `content_source_types` is provided, it takes precedence over `content_types` and `creator_filter`.
+
+#### Response Format
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "title": "Example Content",
+      "content_type": "image",
+      "source_type": "regular",
+      "creator_id": "uuid",
+      "creator_username": "username",
+      "quality_score": 0.85,
+      "tags": ["tag1", "tag2"],
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "path_thumb": "/path/to/thumbnail.jpg",
+      "prompt": "Content generation prompt"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "page_size": 10,
+    "total_count": 150,
+    "total_pages": 15,
+    "has_next": true,
+    "has_previous": false
+  },
+  "stats": {
+    "user_regular_count": 25,
+    "user_auto_count": 30,
+    "community_regular_count": 45,
+    "community_auto_count": 50
+  }
+}
+```
+
+#### Filter Combinations
+
+The `content_source_types` parameter enables all 16 possible combinations of content filtering:
+
+| Your Gens | Your Auto-Gens | Community Gens | Community Auto-Gens | Total Combinations |
+|-----------|----------------|----------------|---------------------|-------------------|
+| ✓/✗ | ✓/✗ | ✓/✗ | ✓/✗ | 2^4 = 16 |
+
+This granular control is not possible with the legacy `content_types` + `creator_filter` approach, which can only express 9 combinations.
+
 ### Interaction Tracking Endpoints
 
 **Core Interactions:**
