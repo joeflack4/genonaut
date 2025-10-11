@@ -74,51 +74,42 @@ test.describe('Settings Page Interactions', () => {
   })
 
   test('should handle theme mode toggle', async ({ page }) => {
-    // Look for theme toggle button/switch
-    const themeToggle = page.locator('button:has-text("Dark"), button:has-text("Light"), button:has-text("Theme"), .theme-toggle, input[type="checkbox"]').first()
+    const themeToggle = page.getByTestId('settings-toggle-theme-button')
+    const modeLabel = page.getByTestId('settings-current-mode')
 
-    if (await themeToggle.isVisible()) {
-      // Get initial theme state
-      const getThemeState = async () => {
-        const htmlElement = await page.locator('html')
-        const dataTheme = await htmlElement.getAttribute('data-theme')
-        const className = await htmlElement.getAttribute('class')
-        return { dataTheme, className }
-      }
+    await expect(themeToggle).toBeVisible()
+    await expect(modeLabel).toBeVisible()
 
-      const initialState = await getThemeState()
-
-      // Toggle theme
-      await themeToggle.click()
-      await page.waitForTimeout(500)
-
-      // Verify theme changed
-      const newState = await getThemeState()
-      const changed =
-        newState.dataTheme !== initialState.dataTheme ||
-        newState.className !== initialState.className
-
-      if (changed) {
-        expect(changed).toBe(true)
-
-        // Toggle back
-        await themeToggle.click()
-        await page.waitForTimeout(500)
-
-        // Should be back to original state
-        const finalState = await getThemeState()
-        const backToOriginal =
-          finalState.dataTheme === initialState.dataTheme ||
-          finalState.className === initialState.className
-
-        expect(backToOriginal).toBe(true)
-      } else {
-        // Theme functionality might not be fully implemented
-        test.skip()
-      }
-    } else {
-      test.skip()
+    const extractMode = async () => {
+      const text = await modeLabel.textContent()
+      const match = text?.match(/current mode:\s*(light|dark)/i)
+      return match ? match[1].toLowerCase() : null
     }
+
+    const initialMode = await extractMode()
+    expect(initialMode).toBeTruthy()
+
+    const initialStoredMode = await page.evaluate(() => window.localStorage.getItem('theme-mode'))
+
+    await themeToggle.click()
+    await page.waitForTimeout(200)
+
+    const toggledMode = await extractMode()
+    expect(toggledMode).toBeTruthy()
+    expect(toggledMode).not.toBe(initialMode)
+
+    const storedToggleMode = await page.evaluate(() => window.localStorage.getItem('theme-mode'))
+    expect(storedToggleMode?.toLowerCase()).toBe(toggledMode ?? undefined)
+
+    await themeToggle.click()
+    await page.waitForTimeout(200)
+
+    const finalMode = await extractMode()
+    expect(finalMode).toBe(initialMode)
+
+    const storedFinalMode = await page.evaluate(() => window.localStorage.getItem('theme-mode'))
+    const expectedFinal = initialStoredMode ?? initialMode ?? null
+    expect(storedFinalMode?.toLowerCase()).toBe(expectedFinal ?? undefined)
   })
 
   test('should validate form field requirements', async ({ page }) => {

@@ -3,73 +3,59 @@ import { test, expect } from '@playwright/test'
 test.describe('Theme and UI Settings Tests', () => {
   test('should toggle theme and persist across pages', async ({ page }) => {
     await page.goto('/settings')
+    await page.waitForSelector('[data-testid="settings-page-root"]')
 
-    // Wait for settings page to load
-    await page.waitForSelector('main')
+    const getToggle = () => page.getByTestId('settings-toggle-theme-button')
+    const getModeLabel = () => page.getByTestId('settings-current-mode')
 
-    // Look for theme toggle with more specific selectors
-    const themeToggle = page.locator('button:has-text("Dark"), button:has-text("Light"), button:has-text("Theme"), button:has-text("mode"), [role="switch"], input[type="checkbox"], .theme-toggle, [data-testid*="theme"]').first()
-
-    const toggleVisible = await themeToggle.count() > 0 && await themeToggle.isVisible()
-
-    if (toggleVisible) {
-      // Try to detect any theme-related functionality
-      const getThemeState = async () => {
-        const dataTheme = await page.locator('html').getAttribute('data-theme')
-        const className = await page.locator('html').getAttribute('class')
-        const bodyClass = await page.locator('body').getAttribute('class')
-        const computed = await page.evaluate(() => {
-          const style = window.getComputedStyle(document.documentElement)
-          return style.colorScheme || style.backgroundColor
-        })
-        return { dataTheme, className, bodyClass, computed }
-      }
-
-      const initialState = await getThemeState()
-
-      // Toggle theme
-      await themeToggle.click()
-
-      // Wait for theme to apply
-      await page.waitForTimeout(500)
-
-      // Verify theme changed
-      const newState = await getThemeState()
-
-      // At least one theme indicator should have changed
-      const changed =
-        newState.dataTheme !== initialState.dataTheme ||
-        newState.className !== initialState.className ||
-        newState.bodyClass !== initialState.bodyClass ||
-        newState.computed !== initialState.computed
-
-      if (changed) {
-        // Theme toggle is working - test persistence
-        expect(changed).toBe(true)
-
-        // Navigate to another page
-        await page.click('[href="/dashboard"]')
-        await expect(page).toHaveURL('/dashboard')
-
-        // Verify theme persisted
-        const persistedState = await getThemeState()
-
-        // At least one theme indicator should match the new state
-        const persisted =
-          persistedState.dataTheme === newState.dataTheme ||
-          persistedState.className === newState.className ||
-          persistedState.bodyClass === newState.bodyClass
-
-        expect(persisted).toBe(true)
-      } else {
-        // Theme functionality might not be implemented yet - skip test
-        console.log('Theme toggle found but no theme change detected - skipping test')
-        test.skip()
-      }
-    } else {
-      // Skip if theme toggle not found
-      test.skip()
+    const extractMode = async () => {
+      const text = await getModeLabel().textContent()
+      const match = text?.match(/current mode:\s*(light|dark)/i)
+      return match ? match[1].toLowerCase() : null
     }
+
+    await expect(getToggle()).toBeVisible()
+    await expect(getModeLabel()).toBeVisible()
+
+    const initialMode = await extractMode()
+    expect(initialMode).toBeTruthy()
+
+    const initialStored = await page.evaluate(() => window.localStorage.getItem('theme-mode'))
+
+    await getToggle().click()
+    await page.waitForTimeout(200)
+
+    const toggledMode = await extractMode()
+    expect(toggledMode).toBeTruthy()
+    expect(toggledMode).not.toBe(initialMode)
+
+    const storedAfterToggle = await page.evaluate(() => window.localStorage.getItem('theme-mode'))
+    expect(storedAfterToggle?.toLowerCase()).toBe(toggledMode ?? undefined)
+
+    const dashboardLink = page.locator('[href="/dashboard"]').first()
+    await expect(dashboardLink).toBeVisible()
+    await dashboardLink.click()
+    await page.waitForURL('**/dashboard')
+    await page.waitForSelector('[data-testid="dashboard-page-root"]')
+
+    const persistedMode = await page.evaluate(() => window.localStorage.getItem('theme-mode'))
+    expect(persistedMode?.toLowerCase()).toBe(toggledMode ?? undefined)
+
+    const settingsLink = page.locator('[href="/settings"]').first()
+    await expect(settingsLink).toBeVisible()
+    await settingsLink.click()
+    await page.waitForURL('**/settings')
+    await page.waitForSelector('[data-testid="settings-page-root"]')
+
+    await getToggle().click()
+    await page.waitForTimeout(200)
+
+    const finalMode = await extractMode()
+    expect(finalMode).toBe(initialMode)
+
+    const storedFinal = await page.evaluate(() => window.localStorage.getItem('theme-mode'))
+    const expectedFinal = initialStored ?? initialMode ?? null
+    expect(storedFinal?.toLowerCase()).toBe(expectedFinal ?? undefined)
   })
 
   test('should toggle UI settings and persist changes', async ({ page }) => {

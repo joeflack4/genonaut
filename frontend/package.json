@@ -20,9 +20,13 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "DEBUG_E2E=true playwright test",
+    "test:e2e:debug:headed": "DEBUG_E2E=true playwright test --headed",
     "test:e2e:real-api": "playwright test --config=playwright-real-api.config.ts",
     "test:e2e:real-api:headed": "playwright test --config=playwright-real-api.config.ts --headed",
     "test:e2e:real-api:ui": "playwright test --config=playwright-real-api.config.ts --ui",
+    "test:e2e:real-api:debug": "DEBUG_E2E=true playwright test --config=playwright-real-api.config.ts",
+    "test:e2e:real-api:debug:headed": "DEBUG_E2E=true playwright test --config=playwright-real-api.config.ts --headed",
     "test:api-server": "node scripts/test-api-server.js"
   },
   "dependencies": {
@@ -56,6 +60,7 @@
     "eslint-plugin-testing-library": "^7.8.0",
     "globals": "^16.4.0",
     "jsdom": "^27.0.0",
+    "rollup": "^4.43.0",
     "msw": "^2.11.3",
     "openapi-typescript": "^7.9.1",
     "prettier": "^3.6.2",

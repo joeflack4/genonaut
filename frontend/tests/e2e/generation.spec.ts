@@ -4,7 +4,7 @@ test.describe('ComfyUI Generation', () => {
   test.beforeEach(async ({ page }) => {
     page.setDefaultNavigationTimeout(5_000)
   })
-  test.skip('should navigate to generation page', async ({ page }) => {
+  test('should navigate to generation page', async ({ page }) => {
     await page.goto('/')
 
     // Wait for navigation to load
@@ -24,14 +24,14 @@ test.describe('ComfyUI Generation', () => {
 
     // Should show model selector (or loading state)
     await expect(
-      page.locator('text=Checkpoint Model').or(page.locator('text=Loading models...'))
+      page.locator('label:has-text("Checkpoint Model")').first().or(page.locator('text=Loading models...'))
     ).toBeVisible()
 
     // Should show generate button
     await expect(page.locator('button:has-text("Generate")')).toBeVisible()
   })
 
-  test.skip('should validate required form fields', async ({ page }) => {
+  test('should validate required form fields', async ({ page }) => {
     await page.goto('/generate', { waitUntil: 'domcontentloaded', timeout: 5_000 })
 
     // Wait for form to load

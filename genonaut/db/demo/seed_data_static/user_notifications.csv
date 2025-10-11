@@ -1,0 +1,2 @@
+"id","user_id","title","message","notification_type","read_status","related_job_id","related_content_id","created_at","read_at"
+1,"121e194b-4caa-4b81-ad4f-86ca3919d5b9","Hello world!","A simple demonstraction of the notification system.","system",TRUE,,,"2025-10-05 21:04:28.170033","2025-10-11 19:11:11.296001"

@@ -7,24 +7,19 @@ in the seed_data_static/ directory and insert them into the database.
 import csv
 import json
 import logging
+import uuid
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-from genonaut.db.schema import CheckpointModel, LoraModel
+from genonaut.db.schema import Base
 
 logger = logging.getLogger(__name__)
 
 
 class StaticDataLoader:
     """Loads static seed data from CSV files."""
-
-    # Mapping of table names to SQLAlchemy model classes
-    TABLE_MODEL_MAP = {
-        'models_checkpoints': CheckpointModel,
-        'models_loras': LoraModel,
-    }
 
     # Fields that should be parsed as JSON arrays from comma-separated strings
     ARRAY_FIELDS = {
@@ -47,6 +42,17 @@ class StaticDataLoader:
         """
         self.session = session
         self.static_data_dir = static_data_dir
+        self.table_model_map = self._build_table_model_map()
+
+    def _build_table_model_map(self) -> Dict[str, Any]:
+        """Construct a dynamic mapping of table names to SQLAlchemy model classes."""
+        model_map: Dict[str, Any] = {}
+        for mapper in Base.registry.mappers:  # type: ignore[attr-defined]
+            model_class = mapper.class_
+            table_name = getattr(model_class, '__tablename__', None)
+            if table_name:
+                model_map[table_name] = model_class
+        return model_map
 
     def load_all_static_data(self):
         """Discover and load all CSV files from static data directory."""
@@ -87,7 +93,7 @@ class StaticDataLoader:
         table_name = csv_file.stem
 
         # Get corresponding model class
-        model_class = self.TABLE_MODEL_MAP.get(table_name)
+        model_class = self.table_model_map.get(table_name)
         if not model_class:
             logger.warning(f"No model mapping found for table '{table_name}', skipping {csv_file.name}")
             return 0
@@ -139,41 +145,62 @@ class StaticDataLoader:
             return None
 
         processed = {}
+        column_types = {column.name: column.type for column in getattr(model_class, "__table__").columns}
 
         for field_name, value in row.items():
-            # Skip empty values
             if not value.strip():
-                # For array and JSON fields, use empty list/dict instead of None
                 if field_name in self.ARRAY_FIELDS:
                     processed[field_name] = []
                 elif field_name in self.JSON_FIELDS:
                     processed[field_name] = {}
                 continue
 
-            # Parse array fields (comma-separated strings)
-            if field_name in self.ARRAY_FIELDS:
-                # Split by comma and strip whitespace from each item
-                processed[field_name] = [item.strip() for item in value.split(',') if item.strip()]
+            column_type = column_types.get(field_name)
+            python_type = None
+            if column_type is not None:
+                try:
+                    python_type = column_type.python_type
+                except (AttributeError, NotImplementedError):
+                    python_type = None
 
-            # Parse JSON fields
-            elif field_name in self.JSON_FIELDS:
+            if field_name in self.ARRAY_FIELDS:
+                processed[field_name] = [item.strip() for item in value.split(',') if item.strip()]
+                continue
+
+            if field_name in self.JSON_FIELDS:
                 try:
                     processed[field_name] = json.loads(value)
                 except json.JSONDecodeError as e:
                     logger.error(f"Invalid JSON in field '{field_name}': {value}")
                     raise ValueError(f"Invalid JSON in field '{field_name}': {e}")
+                continue
 
-            # Parse numeric fields
-            elif field_name == 'rating':
+            if field_name == 'rating':
                 try:
                     processed[field_name] = float(value)
                 except ValueError:
                     logger.error(f"Invalid rating value: {value}")
                     raise
+                continue
 
-            # Regular string fields
-            else:
-                processed[field_name] = value
+            lower_value = value.lower()
+            if lower_value in {'true', 'false'}:
+                processed[field_name] = lower_value == 'true'
+                continue
+
+            if python_type is uuid.UUID:
+                processed[field_name] = uuid.UUID(value)
+                continue
+
+            if python_type is int:
+                processed[field_name] = int(value)
+                continue
+
+            if python_type is float:
+                processed[field_name] = float(value)
+                continue
+
+            processed[field_name] = value
 
         # Auto-populate filename from path if missing
         if 'path' in processed and 'filename' not in processed:
@@ -190,8 +217,9 @@ class StaticDataLoader:
 
         # Add timestamps
         now = datetime.utcnow()
-        processed['created_at'] = now
-        processed['updated_at'] = now
+        processed.setdefault('created_at', now)
+        if hasattr(model_class, 'updated_at'):
+            processed['updated_at'] = now
 
         return processed
 

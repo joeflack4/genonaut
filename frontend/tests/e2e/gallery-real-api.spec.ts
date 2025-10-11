@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { waitForGalleryLoad, getPaginationInfo, clickNextPage } from './utils/realApiHelpers'
+import {
+  waitForGalleryLoad,
+  getPaginationInfo,
+  clickNextPage,
+  ensureRealApiAvailable,
+  assertSufficientTestData,
+} from './utils/realApiHelpers'
 
 /**
  * Gallery Real API Tests
@@ -15,20 +21,14 @@ import { waitForGalleryLoad, getPaginationInfo, clickNextPage } from './utils/re
 test.describe.configure({ mode: 'serial' });
 
 test.describe('Gallery page (Real API)', () => {
-  test.beforeAll(async () => {
-    // Check if test API server is available, skip tests if not
+  test.beforeEach(async ({ page }) => {
     try {
-      const response = await fetch('http://127.0.0.1:8002/health', {
-        method: 'GET',
-        signal: AbortSignal.timeout(2000)
-      });
-      if (!response.ok) {
-        throw new Error('Test API server not responding correctly');
-      }
+      await ensureRealApiAvailable(page)
+      await assertSufficientTestData(page, '/api/v1/content/unified?page=1&page_size=1', 1)
     } catch (error) {
-      test.skip(true, 'Real API server not available on port 8002. Run with: npm run test:e2e:real-api');
+      test.skip(true, 'Real API server not available or missing seed data. Run with: npm run test:e2e:real-api')
     }
-  });
+  })
   test.describe('Gallery Pagination', () => {
     test('displays correct total count and page navigation', async ({ page }) => {
       // For real API tests, we need to use the frontend configured for port 8002
