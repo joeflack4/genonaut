@@ -22,6 +22,7 @@ export function useNotificationService() {
       getUnreadCount: notificationServiceInstance.getUnreadCount.bind(notificationServiceInstance),
       markAsRead: notificationServiceInstance.markAsRead.bind(notificationServiceInstance),
       markAllAsRead: notificationServiceInstance.markAllAsRead.bind(notificationServiceInstance),
+      markAsUnread: notificationServiceInstance.markAsUnread.bind(notificationServiceInstance),
       deleteNotification: notificationServiceInstance.deleteNotification.bind(notificationServiceInstance),
     }
   }, [])

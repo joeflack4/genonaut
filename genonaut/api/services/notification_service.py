@@ -80,7 +80,8 @@ class NotificationService:
         user_id: UUID,
         skip: int = 0,
         limit: int = 10,
-        unread_only: bool = False
+        unread_only: bool = False,
+        notification_types: Optional[List[str]] = None
     ) -> List[UserNotification]:
         """Get paginated notifications for a user.
 
@@ -89,11 +90,40 @@ class NotificationService:
             skip: Number of records to skip
             limit: Maximum number of records to return
             unread_only: If True, only return unread notifications
+            notification_types: Optional list of notification types to filter by
 
         Returns:
             List of UserNotification instances
         """
-        return self.repository.get_user_notifications(user_id, skip, limit, unread_only)
+        return self.repository.get_user_notifications(
+            user_id=user_id,
+            skip=skip,
+            limit=limit,
+            unread_only=unread_only,
+            notification_types=notification_types,
+        )
+
+    def count_user_notifications(
+        self,
+        user_id: UUID,
+        unread_only: bool = False,
+        notification_types: Optional[List[str]] = None
+    ) -> int:
+        """Count notifications for a user with optional filters.
+
+        Args:
+            user_id: User ID to count notifications for
+            unread_only: If True, only count unread notifications
+            notification_types: Optional list of notification types to filter by
+
+        Returns:
+            Count of matching notifications
+        """
+        return self.repository.count_user_notifications(
+            user_id=user_id,
+            unread_only=unread_only,
+            notification_types=notification_types,
+        )
 
     def get_unread_count(self, user_id: UUID) -> int:
         """Get count of unread notifications for a user.
@@ -105,6 +135,13 @@ class NotificationService:
             Count of unread notifications
         """
         return self.repository.get_unread_count(user_id)
+
+    def get_notification(self, notification_id: int, user_id: UUID) -> UserNotification:
+        """Get a notification for a user."""
+        notification = self.repository.get_notification_for_user(notification_id, user_id)
+        if not notification:
+            raise EntityNotFoundError("Notification", notification_id)
+        return notification
 
     def mark_notification_read(self, notification_id: int, user_id: UUID) -> UserNotification:
         """Mark a notification as read.
@@ -120,6 +157,13 @@ class NotificationService:
             EntityNotFoundError: If notification not found or doesn't belong to user
         """
         notification = self.repository.mark_as_read(notification_id, user_id)
+        if not notification:
+            raise EntityNotFoundError("Notification", notification_id)
+        return notification
+
+    def mark_notification_unread(self, notification_id: int, user_id: UUID) -> UserNotification:
+        """Mark a notification as unread."""
+        notification = self.repository.mark_as_unread(notification_id, user_id)
         if not notification:
             raise EntityNotFoundError("Notification", notification_id)
         return notification

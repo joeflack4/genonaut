@@ -21,6 +21,7 @@ export function useGenerationJobService() {
       getGenerationJob: generationJobServiceInstance.getGenerationJob.bind(generationJobServiceInstance),
       listGenerationJobs: generationJobServiceInstance.listGenerationJobs.bind(generationJobServiceInstance),
       cancelGenerationJob: generationJobServiceInstance.cancelGenerationJob.bind(generationJobServiceInstance),
+      deleteGenerationJob: generationJobServiceInstance.deleteGenerationJob.bind(generationJobServiceInstance),
       listAvailableModels: generationJobServiceInstance.listAvailableModels.bind(generationJobServiceInstance),
       refreshModels: generationJobServiceInstance.refreshModels.bind(generationJobServiceInstance),
     }

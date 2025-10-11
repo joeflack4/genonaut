@@ -306,8 +306,18 @@ test.describe('Recommendations page (Real API)', () => {
     await page.goto('/recommendations')
     await waitForPageLoad(page, 'recommendations')
 
+    // Wait for content to settle after initial load
+    await page.waitForTimeout(1000)
+
     // Capture initial state
     const initialContent = await page.locator('main').textContent()
+    const hasRecommendations = initialContent?.toLowerCase().includes('recommendation')
+
+    // If there are no recommendations initially, skip the state persistence test
+    if (!hasRecommendations) {
+      test.skip(true, 'No recommendations available to test state persistence')
+      return
+    }
 
     // Navigate away and back
     await page.click('[href="/dashboard"]')
@@ -317,19 +327,15 @@ test.describe('Recommendations page (Real API)', () => {
     await page.click('[href="/recommendations"]')
     await waitForPageLoad(page, 'recommendations')
 
+    // Wait for content to load after navigation
+    await page.waitForTimeout(1000)
+
     // Content should be consistent
     const returnContent = await page.locator('main').textContent()
+    const stillHasRecommendations = returnContent?.toLowerCase().includes('recommendation')
 
-    // Basic consistency check - page should load the same content
-    if (initialContent && returnContent) {
-      // Should contain similar structural elements
-      const hasRecommendations = initialContent.toLowerCase().includes('recommendation')
-      const stillHasRecommendations = returnContent.toLowerCase().includes('recommendation')
-
-      if (hasRecommendations) {
-        expect(stillHasRecommendations).toBe(true)
-      }
-    }
+    // The page should still show recommendations after navigation
+    expect(stillHasRecommendations).toBe(true)
 
     // Page should not crash or show errors
     await expect(page.locator('main')).toBeVisible()

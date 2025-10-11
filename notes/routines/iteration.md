@@ -31,3 +31,7 @@ my attention to it.
 
 So, once all the work in a minor section is completed or skipped for good cause, follow these 6 steps to close that 
 minor subsection off, and then you can move on to the next section.
+
+It's also worth noting that it makes good sense that most major sections (phase) should have their own dedicated tests 
+(and also documentation updates, if applicable). For each phase, add tasks as applicable for 1+ tests of each of 
+category (frontend | backend) x (unit | integration / e2e)--whatever tests make sense for the given work. 

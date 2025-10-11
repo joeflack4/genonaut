@@ -21,18 +21,23 @@ def client():
     return TestClient(app)
 
 
-@pytest.mark.skip(reason="WebSocket tests require manual testing with running server")
 class TestWebSocketEndpoint:
     """Test WebSocket endpoints for job status updates."""
 
+    @pytest.mark.skip(reason="WEBSOCKET-TESTCLIENT-LIMITATION: WebSocket tests timeout due to limitations in FastAPI's TestClient")
     def test_websocket_connection_established(self, client):
         """Test that WebSocket connection can be established."""
+
+        async def empty_async_iterator():
+            """Empty async iterator for listen mock."""
+            if False:
+                yield  # Make this a generator but never actually yield
+
         with patch('genonaut.api.routes.websocket.get_async_redis_client') as mock_redis:
             # Mock Redis client and pubsub
             mock_pubsub = AsyncMock()
             mock_pubsub.subscribe = AsyncMock()
-            mock_pubsub.listen = AsyncMock()
-            mock_pubsub.listen.return_value = [].__aiter__()  # Empty async iterator
+            mock_pubsub.listen = AsyncMock(return_value=empty_async_iterator())
             mock_pubsub.unsubscribe = AsyncMock()
             mock_pubsub.close = AsyncMock()
 
@@ -51,6 +56,7 @@ class TestWebSocketEndpoint:
                 assert data["job_id"] == 123
                 assert data["status"] == "connected"
 
+    @pytest.mark.skip(reason="WEBSOCKET-TESTCLIENT-LIMITATION: WebSocket tests timeout due to limitations in FastAPI's TestClient")
     def test_websocket_relays_redis_messages(self, client):
         """Test that WebSocket relays Redis pub/sub messages to client."""
 
@@ -110,13 +116,19 @@ class TestWebSocketEndpoint:
                 assert update2["status"] == "completed"
                 assert update2["content_id"] == 456
 
+    @pytest.mark.skip(reason="WEBSOCKET-TESTCLIENT-LIMITATION: WebSocket tests timeout due to limitations in FastAPI's TestClient")
     def test_websocket_handles_client_disconnect(self, client):
         """Test that WebSocket properly cleans up on client disconnect."""
+
+        async def empty_async_iterator():
+            """Empty async iterator for listen mock."""
+            if False:
+                yield  # Make this a generator but never actually yield
+
         with patch('genonaut.api.routes.websocket.get_async_redis_client') as mock_redis:
             mock_pubsub = AsyncMock()
             mock_pubsub.subscribe = AsyncMock()
-            mock_pubsub.listen = AsyncMock()
-            mock_pubsub.listen.return_value = [].__aiter__()
+            mock_pubsub.listen = AsyncMock(return_value=empty_async_iterator())
             mock_pubsub.unsubscribe = AsyncMock()
             mock_pubsub.close = AsyncMock()
 
@@ -135,15 +147,14 @@ class TestWebSocketEndpoint:
             mock_pubsub.close.assert_called_once()
             mock_client_instance.close.assert_called_once()
 
+    @pytest.mark.skip(reason="WEBSOCKET-TESTCLIENT-LIMITATION: WebSocket tests timeout due to limitations in FastAPI's TestClient")
     def test_websocket_ping_pong(self, client):
         """Test that WebSocket responds to ping messages."""
 
         async def mock_redis_messages():
-            """Empty message stream."""
-            # Keep connection alive but don't send messages
-            await asyncio.sleep(10)
-            return
-            yield  # Make this a generator
+            """Empty message stream that never yields."""
+            if False:
+                yield  # Make this a generator but never actually yield
 
         with patch('genonaut.api.routes.websocket.get_async_redis_client') as mock_redis:
             mock_pubsub = AsyncMock()
@@ -170,10 +181,10 @@ class TestWebSocketEndpoint:
                 assert response["type"] == "pong"
 
 
-@pytest.mark.skip(reason="WebSocket tests require manual testing with running server")
 class TestMultiJobWebSocket:
     """Test multi-job WebSocket endpoint."""
 
+    @pytest.mark.skip(reason="WEBSOCKET-TESTCLIENT-LIMITATION: WebSocket tests timeout due to limitations in FastAPI's TestClient")
     def test_multi_job_websocket_connection(self, client):
         """Test connecting to multiple jobs via query parameter."""
 
@@ -213,12 +224,13 @@ class TestMultiJobWebSocket:
                 assert any("job:456" in ch for ch in channels)
                 assert any("job:789" in ch for ch in channels)
 
+    @pytest.mark.skip(reason="WEBSOCKET-TESTCLIENT-LIMITATION: WebSocket tests timeout due to limitations in FastAPI's TestClient")
     def test_multi_job_websocket_empty_ids(self, client):
         """Test multi-job WebSocket with empty job_ids."""
 
         async def mock_redis_messages():
-            return
-            yield
+            if False:
+                yield  # Make this a generator but never actually yield
 
         with patch('genonaut.api.routes.websocket.get_async_redis_client') as mock_redis:
             mock_pubsub = AsyncMock()

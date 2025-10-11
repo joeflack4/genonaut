@@ -16,6 +16,10 @@ import {
   IconButton,
   Switch,
   FormControlLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material'
 import {
   Refresh as RefreshIcon,
@@ -36,8 +40,11 @@ export function GenerationHistory() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [generationsResponse, setGenerationsResponse] = useState<{ items: GenerationJobResponse[]; total: number } | null>(null)
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const { listGenerationJobs } = useGenerationJobService()
+  const { listGenerationJobs, deleteGenerationJob } = useGenerationJobService()
 
   const pageSize = useVirtualScrolling ? 100 : 12 // Load more items when using virtual scrolling
 
@@ -97,9 +104,39 @@ export function GenerationHistory() {
     setViewerOpen(true)
   }
 
-  const handleDeleteGeneration = async (id: number) => {
-    // TODO: Implement delete functionality
-    console.log('Delete generation:', id)
+  const handleRequestDelete = (id: number) => {
+    setPendingDeleteId(id)
+    setDeleteError(null)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (pendingDeleteId === null || isDeleting) {
+      return
+    }
+
+    setIsDeleting(true)
+    setDeleteError(null)
+
+    try {
+      await deleteGenerationJob(pendingDeleteId)
+      setPendingDeleteId(null)
+      // Refresh the list after successful deletion
+      fetchGenerations()
+    } catch (error) {
+      console.error('Failed to delete generation:', error)
+      setDeleteError(error instanceof Error ? error.message : 'Failed to delete generation')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleCancelDelete = () => {
+    setPendingDeleteId(null)
+    setDeleteError(null)
+  }
+
+  const handleDeleteGeneration = (id: number) => {
+    handleRequestDelete(id)
   }
 
   const filteredGenerations = useMemo(() => {
@@ -300,6 +337,42 @@ export function GenerationHistory() {
           }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={pendingDeleteId !== null}
+        onClose={handleCancelDelete}
+        data-testid="generation-delete-dialog"
+      >
+        <DialogTitle>Delete generation?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            Are you sure you want to delete this generation? This action cannot be undone.
+          </Typography>
+          {deleteError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {deleteError}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleCancelDelete}
+            disabled={isDeleting}
+            data-testid="generation-delete-cancel"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmDelete}
+            color="error"
+            disabled={isDeleting}
+            data-testid="generation-delete-confirm"
+          >
+            {isDeleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

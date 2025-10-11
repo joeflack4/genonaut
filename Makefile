@@ -155,9 +155,13 @@ help:
 	@echo "  frontend-test-e2e        Run frontend Playwright e2e tests"
 	@echo "  frontend-test-e2e-headed Run Playwright tests in headed mode"
 	@echo "  frontend-test-e2e-ui     Run Playwright UI mode"
+	@echo "  frontend-test-e2e-debug  Run Playwright tests with verbose debug logging"
+	@echo "  frontend-test-e2e-debug-headed Run Playwright tests with debug + browser UI"
 	@echo "  frontend-test-e2e-real-api Run Playwright tests with real API server"
 	@echo "  frontend-test-e2e-real-api-headed Run real API tests in headed mode"
 	@echo "  frontend-test-e2e-real-api-ui Run real API tests in UI mode"
+	@echo "  frontend-test-e2e-real-api-debug Run real API tests with debug logging"
+	@echo "  frontend-test-e2e-real-api-debug-headed Run real API tests with debug + browser UI"
 	@echo ""
 	@echo "Frontend Test Aliases (test-frontend*):"
 	@echo "  test-frontend            Alias for frontend-test"
@@ -167,9 +171,13 @@ help:
 	@echo "  test-frontend-e2e        Alias for frontend-test-e2e"
 	@echo "  test-frontend-e2e-headed Alias for frontend-test-e2e-headed"
 	@echo "  test-frontend-e2e-ui     Alias for frontend-test-e2e-ui"
+	@echo "  test-frontend-e2e-debug  Alias for frontend-test-e2e-debug"
+	@echo "  test-frontend-e2e-debug-headed Alias for frontend-test-e2e-debug-headed"
 	@echo "  test-frontend-e2e-real-api Alias for frontend-test-e2e-real-api"
 	@echo "  test-frontend-e2e-real-api-headed Alias for frontend-test-e2e-real-api-headed"
 	@echo "  test-frontend-e2e-real-api-ui Alias for frontend-test-e2e-real-api-ui"
+	@echo "  test-frontend-e2e-real-api-debug Alias for frontend-test-e2e-real-api-debug"
+	@echo "  test-frontend-e2e-real-api-debug-headed Alias for frontend-test-e2e-real-api-debug-headed"
 	@echo ""
 	@echo "Documentation:"
 	@echo "  docs                     Generate documentation"
@@ -729,6 +737,14 @@ frontend-test-e2e-ui:
 	@echo "Running Playwright UI mode..."
 	npm --prefix frontend run test:e2e:ui
 
+frontend-test-e2e-debug:
+	@echo "Running frontend Playwright tests with debug logging..."
+	npm --prefix frontend run test:e2e:debug
+
+frontend-test-e2e-debug-headed:
+	@echo "Running frontend Playwright tests with debug logging in headed mode..."
+	npm --prefix frontend run test:e2e:debug:headed
+
 frontend-test-e2e-real-api:
 	@echo "Running Playwright tests with real API server..."
 	npm --prefix frontend run test:e2e:real-api
@@ -740,6 +756,14 @@ frontend-test-e2e-real-api-headed:
 frontend-test-e2e-real-api-ui:
 	@echo "Running real API Playwright tests in UI mode..."
 	npm --prefix frontend run test:e2e:real-api:ui
+
+frontend-test-e2e-real-api-debug:
+	@echo "Running real API Playwright tests with debug logging..."
+	npm --prefix frontend run test:e2e:real-api:debug
+
+frontend-test-e2e-real-api-debug-headed:
+	@echo "Running real API Playwright tests with debug logging in headed mode..."
+	npm --prefix frontend run test:e2e:real-api:debug:headed
 
 frontend-lint:
 	@echo "Linting frontend code..."
@@ -765,9 +789,13 @@ test-frontend-coverage: frontend-test-coverage
 test-frontend-e2e: frontend-test-e2e
 test-frontend-e2e-headed: frontend-test-e2e-headed
 test-frontend-e2e-ui: frontend-test-e2e-ui
+test-frontend-e2e-debug: frontend-test-e2e-debug
+test-frontend-e2e-debug-headed: frontend-test-e2e-debug-headed
 test-frontend-e2e-real-api: frontend-test-e2e-real-api
 test-frontend-e2e-real-api-headed: frontend-test-e2e-real-api-headed
 test-frontend-e2e-real-api-ui: frontend-test-e2e-real-api-ui
+test-frontend-e2e-real-api-debug: frontend-test-e2e-real-api-debug
+test-frontend-e2e-real-api-debug-headed: frontend-test-e2e-real-api-debug-headed
 
 # todo: find a better place in file
 # Integration checks

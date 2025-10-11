@@ -13,31 +13,41 @@ import {
   Button,
   CircularProgress,
   Tooltip,
+  Chip,
+  ListItemButton,
 } from '@mui/material'
 import {
   Notifications as NotificationsIcon,
+  MailOutline as MailOutlineIcon,
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
   Cancel as CancelIcon,
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { useNotificationService } from '../../hooks/useNotificationService'
+import { useCurrentUser } from '../../hooks'
+import { ADMIN_USER_ID } from '../../constants/config'
+import {
+  getNotificationTypeLabel,
+  isKnownNotificationType,
+  mapNotificationTypeToFilter,
+} from '../../constants/notifications'
 import type { NotificationResponse } from '../../services/notification-service'
 
 export function NotificationBell() {
   const navigate = useNavigate()
   const { getNotifications, getUnreadCount, markAsRead, markAllAsRead } = useNotificationService()
+  const { data: currentUser } = useCurrentUser()
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [notifications, setNotifications] = useState<NotificationResponse[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(false)
 
-  const userId = '121e194b-4caa-4b81-ad4f-86ca3919d5b9' // TODO: Get from auth context
+  const userId = currentUser?.id ?? ADMIN_USER_ID
 
   const open = Boolean(anchorEl)
 
-  // Poll for unread count
   useEffect(() => {
     const fetchUnreadCount = async () => {
       try {
@@ -49,7 +59,7 @@ export function NotificationBell() {
     }
 
     fetchUnreadCount()
-    const interval = setInterval(fetchUnreadCount, 30000) // Poll every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000)
 
     return () => clearInterval(interval)
   }, [getUnreadCount, userId])
@@ -77,28 +87,23 @@ export function NotificationBell() {
   }
 
   const handleNotificationClick = async (notification: NotificationResponse) => {
-    // Mark as read
     if (!notification.read_status) {
       try {
         await markAsRead(notification.id, userId)
         setUnreadCount((prev) => Math.max(0, prev - 1))
+        setNotifications((prev) =>
+          prev.map((item) =>
+            item.id === notification.id
+              ? { ...item, read_status: true, read_at: new Date().toISOString() }
+              : item
+          )
+        )
       } catch (err) {
         console.error('Failed to mark notification as read:', err)
       }
     }
 
-    // Navigate based on notification type
-    if (notification.related_content_id) {
-      navigate(`/view/${notification.related_content_id}`, {
-        state: {
-          from: 'notifications',
-          fallbackPath: '/gallery',
-        },
-      })
-    } else if (notification.related_job_id) {
-      navigate('/generate') // Or to a job details page
-    }
-
+    navigate(`/notification/${notification.id}`)
     handleClose()
   }
 
@@ -106,7 +111,6 @@ export function NotificationBell() {
     try {
       await markAllAsRead(userId)
       setUnreadCount(0)
-      // Refresh notifications
       const response = await getNotifications({
         user_id: userId,
         limit: 10,
@@ -132,7 +136,7 @@ export function NotificationBell() {
       case 'job_cancelled':
         return <CancelIcon fontSize="small" color="warning" />
       default:
-        return <NotificationsIcon fontSize="small" />
+        return <MailOutlineIcon fontSize="small" />
     }
   }
 
@@ -186,37 +190,62 @@ export function NotificationBell() {
           </Box>
         ) : (
           <List sx={{ py: 0 }}>
-            {notifications.map((notification) => (
-              <ListItem
-                key={notification.id}
-                button
-                onClick={() => handleNotificationClick(notification)}
-                sx={{
-                  bgcolor: notification.read_status ? 'transparent' : 'action.hover',
-                  '&:hover': {
-                    bgcolor: 'action.selected',
-                  },
-                }}
-              >
-                <Box sx={{ mr: 1 }}>{getNotificationIcon(notification.notification_type)}</Box>
-                <ListItemText
-                  primary={notification.title}
-                  secondary={
-                    <Box>
-                      <Typography variant="body2" sx={{ mb: 0.5 }}>
-                        {notification.message}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {new Date(notification.created_at).toLocaleString()}
-                      </Typography>
-                    </Box>
-                  }
-                  primaryTypographyProps={{
-                    fontWeight: notification.read_status ? 'normal' : 'bold',
-                  }}
-                />
-              </ListItem>
-            ))}
+            {notifications.map((notification) => {
+              const normalizedType = mapNotificationTypeToFilter(notification.notification_type)
+              const typeLabel = getNotificationTypeLabel(notification.notification_type)
+              const showTypeTooltip =
+                normalizedType === 'other' && notification.notification_type !== 'other' &&
+                !isKnownNotificationType(notification.notification_type)
+              const typeChip = <Chip size="small" label={typeLabel} variant="outlined" />
+              const chipContent = showTypeTooltip ? (
+                <Tooltip arrow placement="top" title={`Type: ${notification.notification_type}`}>
+                  {typeChip}
+                </Tooltip>
+              ) : (
+                typeChip
+              )
+
+              return (
+                <ListItem
+                  key={notification.id}
+                  disablePadding
+                  data-testid={`notification-menu-item-${notification.id}`}
+                >
+                  <ListItemButton
+                    onClick={() => handleNotificationClick(notification)}
+                    sx={{
+                      alignItems: 'flex-start',
+                      gap: 1,
+                      bgcolor: notification.read_status ? 'transparent' : 'action.hover',
+                      '&:hover': {
+                        bgcolor: 'action.selected',
+                      },
+                    }}
+                  >
+                    <Box sx={{ mr: 1 }}>{getNotificationIcon(notification.notification_type)}</Box>
+                    <ListItemText
+                      primary={notification.title}
+                      secondary={
+                        <Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                            {chipContent}
+                            {!notification.read_status && <Chip size="small" color="warning" label="Unread" />}
+                          </Box>
+                          <Typography variant="body2" component="span" sx={{ mb: 0.5 }}>
+                            {notification.message}
+                          </Typography>
+                          <Typography variant="caption" component="span" color="text.secondary">
+                            {new Date(notification.created_at).toLocaleString()}
+                          </Typography>
+                        </Box>
+                      }
+                      primaryTypographyProps={{ component: 'div', fontWeight: notification.read_status ? 'normal' : 'bold' }}
+                      secondaryTypographyProps={{ component: 'div' }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              )
+            })}
           </List>
         )}
 

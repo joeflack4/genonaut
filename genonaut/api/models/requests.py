@@ -371,3 +371,7 @@ class NotificationListRequest(BaseModel):
     skip: int = Field(0, ge=0, description="Number of records to skip")
     limit: int = Field(10, ge=1, le=100, description="Maximum number of records to return")
     unread_only: bool = Field(False, description="Only return unread notifications")
+    notification_types: Optional[List[NotificationType]] = Field(
+        None,
+        description="Optional list of notification types to filter by"
+    )

@@ -670,8 +670,6 @@ class TestGenerationJobEndpoints:
         assert data["id"] == job_id
         assert data["user_id"] == user_id
     
-    # TODO: Re-enable after generation feature implementation
-    @pytest.mark.skip(reason="Generation feature not yet implemented - pending generation job listing functionality")
     def test_list_generation_jobs(self, api_client):
         """Test listing generation jobs."""
         params = {

@@ -10,6 +10,7 @@ import { SettingsPage } from './pages/settings'
 import { GenerationPage } from './pages/generation'
 import { TagsPage } from './pages/tags'
 import { AdminFlaggedContentPage } from './pages/admin'
+import { NotificationsPage, NotificationDetailPage } from './pages/notifications'
 
 const routes: RouteObject[] = [
   {
@@ -26,6 +27,8 @@ const routes: RouteObject[] = [
       { path: 'generate', element: <GenerationPage /> },
       { path: 'generation', element: <GenerationPage /> },
       { path: 'tags', element: <TagsPage /> },
+      { path: 'notifications', element: <NotificationsPage /> },
+      { path: 'notification/:id', element: <NotificationDetailPage /> },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'admin/flagged-content', element: <AdminFlaggedContentPage /> },
     ],

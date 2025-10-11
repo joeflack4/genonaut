@@ -16,10 +16,13 @@ from httpx import ConnectError, TimeoutException
 
 from genonaut.api.services.comfyui_generation_service import ComfyUIGenerationService
 from genonaut.api.services.comfyui_client import ComfyUIClient, ComfyUIConnectionError
+from genonaut.api.services.file_storage_service import FileStorageService
 from genonaut.api.services.retry_service import (
     RetryService, RetryConfig, RetryStrategy, get_retry_service, with_retry
 )
-from genonaut.api.services.error_service import ErrorService, get_error_service
+from genonaut.api.services.error_service import ErrorCategory, ErrorService, ErrorSeverity, get_error_service
+from genonaut.api.services.metrics_service import MetricsService
+from genonaut.api.services.thumbnail_service import ThumbnailService
 from genonaut.api.repositories.generation_job_repository import GenerationJobRepository
 from genonaut.api.models.requests import ComfyUIGenerationCreateRequest
 from genonaut.db.schema import User, GenerationJob, AvailableModel
@@ -27,6 +30,25 @@ from genonaut.db.schema import User, GenerationJob, AvailableModel
 
 class TestErrorRecovery:
     """Test error recovery mechanisms and retry logic."""
+
+    @pytest.fixture
+    def comfyui_service(self, db_session: Session) -> ComfyUIGenerationService:
+        """Return a generation service with external integrations mocked."""
+        service = ComfyUIGenerationService(db_session)
+
+        service.comfyui_client = Mock(spec=ComfyUIClient)
+        service.comfyui_client.get_output_files.return_value = []
+
+        service.file_storage_service = MagicMock(spec=FileStorageService)
+        service.thumbnail_service = MagicMock(spec=ThumbnailService)
+
+        service.retry_service = MagicMock(spec=RetryService)
+        service.retry_service.create_config.side_effect = lambda *a, **k: {}
+        service.retry_service.retry_sync.side_effect = lambda func, *a, **k: func()
+
+        service.metrics_service = MagicMock(spec=MetricsService)
+
+        return service
 
     @pytest.fixture
     def test_user(self, db_session: Session) -> User:
@@ -298,17 +320,13 @@ class TestErrorRecovery:
             )
             assert result is not None
 
-    @pytest.mark.skip(reason="Database binding issues - submit_to_comfyui stores dict instead of string in comfyui_prompt_id column. Requires schema fixes.")
-    def test_connection_recovery_after_downtime(self, db_session: Session, test_request: ComfyUIGenerationCreateRequest):
+    def test_connection_recovery_after_downtime(
+        self,
+        comfyui_service: ComfyUIGenerationService,
+        test_request: ComfyUIGenerationCreateRequest,
+    ):
         """Test system recovery after ComfyUI downtime."""
-        service = ComfyUIGenerationService(db_session)
-        service.comfyui_client = Mock(spec=ComfyUIClient)
-
-        # Simulate ComfyUI being down
-        service.comfyui_client.submit_workflow.side_effect = ComfyUIConnectionError("Service unavailable")
-
-        # Create a generation request first
-        generation_request = service.create_generation_request(
+        generation_request = comfyui_service.create_generation_request(
             user_id=test_request.user_id,
             prompt=test_request.prompt,
             negative_prompt=test_request.negative_prompt,
@@ -318,32 +336,43 @@ class TestErrorRecovery:
             height=test_request.height,
             batch_size=test_request.batch_size,
             sampler_params=test_request.sampler_params
+        )
+
+        comfyui_service.comfyui_client.submit_workflow.side_effect = ComfyUIConnectionError(
+            "Service unavailable"
         )
 
         # First attempt to submit should fail
         with pytest.raises(ComfyUIConnectionError):
-            service.submit_to_comfyui(generation_request)
+            comfyui_service.submit_to_comfyui(generation_request)
+
+        failed_job = comfyui_service.repository.get_or_404(generation_request.id)
+        assert failed_job.status == "failed"
 
         # Simulate ComfyUI coming back online
-        service.comfyui_client.submit_workflow.side_effect = None
-        service.comfyui_client.submit_workflow.return_value = {"prompt_id": "recovery-123"}
+        comfyui_service.comfyui_client.submit_workflow.side_effect = None
+        comfyui_service.comfyui_client.submit_workflow.return_value = "recovery-123"
 
         # Second attempt to submit should succeed
-        prompt_id = service.submit_to_comfyui(generation_request)
+        prompt_id = comfyui_service.submit_to_comfyui(failed_job)
         assert prompt_id == "recovery-123"
 
-    @pytest.mark.skip(reason="Complex service interactions and mock setup issues with ComfyUI status checking. Requires service architecture refinement.")
-    def test_partial_service_degradation_handling(self, db_session: Session, test_request: ComfyUIGenerationCreateRequest):
+        updated_job = comfyui_service.repository.get_or_404(generation_request.id)
+        assert updated_job.status == "processing"
+        assert updated_job.comfyui_prompt_id == "recovery-123"
+
+    def test_partial_service_degradation_handling(
+        self,
+        comfyui_service: ComfyUIGenerationService,
+        test_request: ComfyUIGenerationCreateRequest,
+    ):
         """Test handling when some ComfyUI features are unavailable but core functionality works."""
-        service = ComfyUIGenerationService(db_session)
-        service.comfyui_client = Mock(spec=ComfyUIClient)
+        comfyui_service.comfyui_client.submit_workflow.return_value = "partial-123"
+        comfyui_service.comfyui_client.get_workflow_status.side_effect = ConnectionError(
+            "Status service unavailable"
+        )
 
-        # Mock successful submission but status checking fails
-        service.comfyui_client.submit_workflow.return_value = {"prompt_id": "partial-123"}
-        service.comfyui_client.get_workflow_status.side_effect = ConnectionError("Status service unavailable")
-
-        # Generation creation should succeed
-        generation = service.create_generation_request(
+        generation = comfyui_service.create_generation_request(
             user_id=test_request.user_id,
             prompt=test_request.prompt,
             negative_prompt=test_request.negative_prompt,
@@ -354,18 +383,14 @@ class TestErrorRecovery:
             batch_size=test_request.batch_size,
             sampler_params=test_request.sampler_params
         )
-        assert generation is not None
+        comfyui_service.submit_to_comfyui(generation)
+        active_job = comfyui_service.repository.get_or_404(generation.id)
 
-        # Status update should handle the error gracefully
-        try:
-            service.check_generation_status(generation)
-        except ConnectionError:
-            # This is expected - status service is down
-            pass
+        with pytest.raises(ConnectionError):
+            comfyui_service.check_generation_status(active_job)
 
-        # Generation should remain in pending state (not marked as failed)
-        updated_generation = service.repository.get_by_id(generation.id)
-        assert updated_generation.status == "pending"
+        updated_generation = comfyui_service.repository.get_or_404(generation.id)
+        assert updated_generation.status == "processing"
 
     def test_database_recovery_after_connection_loss(self, test_request: ComfyUIGenerationCreateRequest):
         """Test recovery after database connection is lost and restored."""
@@ -467,57 +492,58 @@ class TestErrorRecovery:
         with pytest.raises(ConnectionError):
             circuit_breaker.call(failing_function)
 
-    @pytest.mark.skip(reason="Complex database transaction issues and mock coordination problems during high-load simulation. Requires improved error handling infrastructure.")
-    def test_graceful_degradation_during_high_error_rate(self, db_session: Session):
+    def test_graceful_degradation_during_high_error_rate(
+        self,
+        comfyui_service: ComfyUIGenerationService,
+        db_session: Session,
+    ):
         """Test that system gracefully degrades during high error rates."""
-        service = ComfyUIGenerationService(db_session)
-        service.comfyui_client = Mock(spec=ComfyUIClient)
+        user = User(
+            username="degradation_user",
+            email="degradation@example.com",
+            created_at=datetime.utcnow()
+        )
+        db_session.add(user)
+        db_session.commit()
 
-        # Mock high failure rate (80% failures)
+        comfyui_service.comfyui_client.submit_workflow.side_effect = None
+
         call_count = 0
+
         def mock_submit_with_failures(*args, **kwargs):
             nonlocal call_count
             call_count += 1
-            if call_count % 5 == 0:  # 20% success rate
-                return {"prompt_id": f"success-{call_count}"}
-            else:
-                raise ConnectionError("High error rate simulation")
+            if call_count % 5 == 0:
+                return f"success-{call_count}"
+            raise ConnectionError("High error rate simulation")
 
-        service.comfyui_client.submit_workflow.side_effect = mock_submit_with_failures
+        comfyui_service.comfyui_client.submit_workflow.side_effect = mock_submit_with_failures
 
-        # Test multiple requests - some should succeed despite high error rate
         successful_requests = 0
         failed_requests = 0
 
         for i in range(10):
+            request = comfyui_service.create_generation_request(
+                user_id=user.id,
+                prompt=f"Test request {i}",
+                negative_prompt="",
+                checkpoint_model="test.safetensors",
+                lora_models=[],
+                width=512,
+                height=512,
+                batch_size=1,
+                sampler_params={"seed": i, "steps": 20, "cfg": 7.0},
+            )
+
             try:
-                test_request = ComfyUIGenerationCreateRequest(
-                    user_id=UUID("00000000-0000-0000-0000-000000000001"),  # Simplified for test
-                    prompt=f"Test request {i}",
-                    checkpoint_model="test.safetensors",
-                    width=512,
-                    height=512,
-                    steps=20,
-                    cfg_scale=7.0,
-                    seed=i,
-                    batch_size=1
-                )
-                service.create_generation_request(
-                    user_id=test_request.user_id,
-                    prompt=test_request.prompt,
-                    negative_prompt=test_request.negative_prompt,
-                    checkpoint_model=test_request.checkpoint_model,
-                    lora_models=test_request.lora_models,
-                    width=test_request.width,
-                    height=test_request.height,
-                    batch_size=test_request.batch_size,
-                    sampler_params=test_request.sampler_params
-                )
+                comfyui_service.submit_to_comfyui(request)
                 successful_requests += 1
             except ConnectionError:
                 failed_requests += 1
 
-        # Should have some successes despite high error rate
+        assert successful_requests > 0
+        assert failed_requests > 0
+        assert successful_requests + failed_requests == 10
         assert successful_requests >= 2  # At least 20% success rate
         assert failed_requests >= 6      # Majority should fail
 

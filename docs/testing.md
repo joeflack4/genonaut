@@ -643,12 +643,57 @@ make frontend-test         # Same via Makefile
 npm run test:e2e           # Run Playwright tests
 make frontend-test-e2e     # Same via Makefile
 
+# E2E tests with debug logging
+npm run test:e2e:debug              # Run with verbose console/network logging
+make frontend-test-e2e-debug        # Same via Makefile
+npm run test:e2e:debug:headed       # Debug mode with browser UI
+make frontend-test-e2e-debug-headed # Same via Makefile
+
 # Additional test options
 npm run test:watch         # Unit tests in watch mode
 npm run test:coverage      # Unit tests with coverage
 npm run test:e2e:headed    # E2E tests with browser UI
 npm run test:e2e:ui        # Playwright UI mode
 ```
+
+### Debug Logging in E2E Tests
+
+By default, E2E tests run with minimal console output to keep logs clean. To enable verbose logging for debugging:
+
+**Debug Mode Features:**
+- Console error stack traces (loading-errors.spec.ts)
+- Network request/response logging (tag-hierarchy-debug.spec.ts)
+- Page navigation details
+- Element detection results
+
+**Enable Debug Logging:**
+```bash
+# Via npm scripts
+npm run test:e2e:debug              # Debug mode
+npm run test:e2e:debug:headed       # Debug mode with browser UI
+
+# Via Makefile
+make frontend-test-e2e-debug        # Debug mode
+make frontend-test-e2e-debug-headed # Debug mode with browser UI
+
+# With real API
+npm run test:e2e:real-api:debug              # Debug with real API
+npm run test:e2e:real-api:debug:headed       # Debug with real API + browser UI
+make frontend-test-e2e-real-api-debug        # Via Makefile
+make frontend-test-e2e-real-api-debug-headed # Via Makefile
+
+# Directly via environment variable
+DEBUG_E2E=true npm run test:e2e
+```
+
+**What Gets Logged in Debug Mode:**
+- `loading-errors.spec.ts`: Full console error stack traces
+- `tag-hierarchy-debug.spec.ts`: REQUEST/RESPONSE for all network calls, page navigation, element detection
+
+**Production Mode (default):**
+- Minimal output for clean CI/CD logs
+- Only test pass/fail results
+- Error summaries without verbose details
 
 ### Frontend Test Structure
 

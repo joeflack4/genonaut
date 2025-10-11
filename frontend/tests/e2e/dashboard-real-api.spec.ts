@@ -32,6 +32,8 @@ test.describe('Dashboard (Real API)', () => {
   })
 
   test('shows gallery stats and recent content', async ({ page }) => {
+    test.setTimeout(20000) // Increase timeout for multiple API calls
+
     // Get expected data from API
     const stats = await getDashboardStats(page)
     expect(stats).toBeTruthy()
@@ -159,8 +161,8 @@ test.describe('Dashboard (Real API)', () => {
     }
 
     // Verify the distinction between user and community content is clear
-    await expect(page.getByText(/your/i)).toHaveCount({ min: 1 })
-    await expect(page.getByText(/community/i)).toHaveCount({ min: 1 })
+    expect(await page.getByText(/your/i).count()).toBeGreaterThanOrEqual(1)
+    expect(await page.getByText(/community/i).count()).toBeGreaterThanOrEqual(1)
   })
 
   test('recent content sections load correctly', async ({ page }) => {

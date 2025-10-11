@@ -93,10 +93,10 @@ addopts = -o strict_markers=true
 
 ## ✅ Deliverable
 
-- [ ] All custom markers registered
-- [ ] Warnings gone
-- [ ] `pytest --markers` lists them
-- [ ] PR with changes to `pytest.ini` or equivalent config file
+- [x] All custom markers registered
+- [x] Warnings gone
+- [x] `pytest --markers` lists them
+- [x] Changes to `pytest.ini` complete
 
 ---
 

@@ -1,12 +1,13 @@
 """Notification API routes."""
 
-from typing import List
+from typing import List, Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from genonaut.api.services.notification_service import NotificationService
-from genonaut.api.models.requests import NotificationCreateRequest, NotificationListRequest
+from genonaut.api.models.requests import NotificationCreateRequest
+from genonaut.api.models.enums import NotificationType
 from genonaut.api.models.responses import (
     NotificationResponse,
     NotificationListResponse,
@@ -25,25 +26,38 @@ def list_user_notifications(
     skip: int = 0,
     limit: int = 10,
     unread_only: bool = False,
+    notification_types: Optional[List[NotificationType]] = Query(None),
     db: Session = Depends(get_database_session)
 ):
-    """List notifications for a user.
+    """List notifications for a user with optional filters.
 
     Args:
         user_id: User ID to get notifications for
         skip: Number of records to skip
         limit: Maximum number of records to return
-        unread_only: Only return unread notifications
+        unread_only: Only return unread notifications when True
+        notification_types: Optional list of notification types to include
         db: Database session
 
     Returns:
         NotificationListResponse with paginated notifications
     """
     service = NotificationService(db)
-    notifications = service.get_user_notifications(user_id, skip, limit, unread_only)
+    type_filters = [notification_type.value for notification_type in notification_types] if notification_types else None
 
-    # Get total count
-    total = len(service.get_user_notifications(user_id, 0, 10000, unread_only))
+    notifications = service.get_user_notifications(
+        user_id=user_id,
+        skip=skip,
+        limit=limit,
+        unread_only=unread_only,
+        notification_types=type_filters,
+    )
+
+    total = service.count_user_notifications(
+        user_id=user_id,
+        unread_only=unread_only,
+        notification_types=type_filters,
+    )
 
     return NotificationListResponse(
         items=[NotificationResponse.model_validate(n) for n in notifications],
@@ -67,22 +81,21 @@ def get_notification(
         db: Database session
 
     Returns:
-        NotificationResponse
+        NotificationResponse for the requested notification
 
     Raises:
         HTTPException: If notification not found
     """
     service = NotificationService(db)
-    notifications = service.get_user_notifications(user_id, 0, 1000)
-    notification = next((n for n in notifications if n.id == notification_id), None)
 
-    if not notification:
+    try:
+        notification = service.get_notification(notification_id, user_id)
+        return NotificationResponse.model_validate(notification)
+    except EntityNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Notification {notification_id} not found"
-        )
-
-    return NotificationResponse.model_validate(notification)
+            detail=str(e)
+        ) from e
 
 
 @router.get("/unread/count", response_model=UnreadCountResponse)
@@ -135,6 +148,26 @@ def mark_notification_read(
             detail=str(e)
         )
 
+
+
+
+@router.put("/{notification_id}/unread", response_model=NotificationResponse)
+def mark_notification_unread(
+    notification_id: int,
+    user_id: UUID,
+    db: Session = Depends(get_database_session)
+):
+    """Mark a notification as unread."""
+    service = NotificationService(db)
+
+    try:
+        notification = service.mark_notification_unread(notification_id, user_id)
+        return NotificationResponse.model_validate(notification)
+    except EntityNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
 
 @router.put("/read-all", response_model=SuccessResponse)
 def mark_all_read(

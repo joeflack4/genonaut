@@ -8,6 +8,57 @@
 
 import { Page, expect } from '@playwright/test'
 
+// Global variable to cache the detected API port
+let cachedApiPort: number | null = null
+
+/**
+ * Detect which API port is available (8002 for test server, 8001 for demo/dev server)
+ */
+async function detectApiPort(page: Page): Promise<number | null> {
+  if (cachedApiPort) {
+    return cachedApiPort
+  }
+
+  // Try port 8002 first (test server)
+  try {
+    const response = await page.request.get('http://localhost:8002/api/v1/health', {
+      timeout: 2000
+    })
+    if (response.ok()) {
+      cachedApiPort = 8002
+      return 8002
+    }
+  } catch (error) {
+    // Port 8002 not available, try 8001
+  }
+
+  // Try port 8001 (demo/dev server)
+  try {
+    const response = await page.request.get('http://localhost:8001/api/v1/health', {
+      timeout: 2000
+    })
+    if (response.ok()) {
+      cachedApiPort = 8001
+      return 8001
+    }
+  } catch (error) {
+    // Port 8001 not available either
+  }
+
+  return null
+}
+
+/**
+ * Get the API base URL for the currently available server
+ */
+async function getApiBaseUrl(page: Page): Promise<string> {
+  const port = await detectApiPort(page)
+  if (!port) {
+    throw new Error('No API server available on port 8001 or 8002')
+  }
+  return `http://localhost:${port}`
+}
+
 /**
  * Wait for the gallery page to fully load with real API data
  */
@@ -191,15 +242,22 @@ export async function logGalleryState(page: Page, context?: string) {
 /**
  * Check if the real API server is available on the expected port
  */
-export async function checkRealApiHealth(page: Page, port = 8002): Promise<boolean> {
-  try {
-    const response = await page.request.get(`http://localhost:${port}/api/v1/health`, {
-      timeout: 3000
-    })
-    return response.ok()
-  } catch (error) {
-    return false
+export async function checkRealApiHealth(page: Page, port?: number): Promise<boolean> {
+  if (port) {
+    // Check specific port if provided
+    try {
+      const response = await page.request.get(`http://localhost:${port}/api/v1/health`, {
+        timeout: 3000
+      })
+      return response.ok()
+    } catch (error) {
+      return false
+    }
   }
+
+  // Auto-detect available port
+  const detectedPort = await detectApiPort(page)
+  return detectedPort !== null
 }
 
 /**
@@ -213,10 +271,11 @@ export async function getTestUserId(): Promise<string> {
 /**
  * Wait for real API to be ready and skip test if unavailable
  */
-export async function ensureRealApiAvailable(page: Page, port = 8002): Promise<void> {
+export async function ensureRealApiAvailable(page: Page, port?: number): Promise<void> {
   const isAvailable = await checkRealApiHealth(page, port)
   if (!isAvailable) {
-    throw new Error(`Real API server not available on port ${port}. Run with: npm run test:e2e:real-api`)
+    const portMsg = port ? `port ${port}` : 'port 8001 or 8002'
+    throw new Error(`Real API server not available on ${portMsg}. Ensure the backend is running.`)
   }
 }
 
@@ -225,7 +284,8 @@ export async function ensureRealApiAvailable(page: Page, port = 8002): Promise<v
  */
 export async function checkApiDataAvailable(page: Page, endpoint: string, minCount = 1): Promise<boolean> {
   try {
-    const response = await page.request.get(`http://localhost:8002${endpoint}`)
+    const baseUrl = await getApiBaseUrl(page)
+    const response = await page.request.get(`${baseUrl}${endpoint}`)
     if (!response.ok()) return false
 
     const data = await response.json()
@@ -248,6 +308,11 @@ export async function loginAsTestUser(page: Page): Promise<void> {
   // For now, we'll set up the user session directly since auth isn't fully implemented
   const userId = await getTestUserId()
 
+  // Navigate to the app first so we can access localStorage
+  // (localStorage requires a document context)
+  await page.goto('/')
+  await page.waitForLoadState('domcontentloaded')
+
   // Set authentication cookie/session (adjust based on actual auth implementation)
   await page.context().addCookies([{
     name: 'user_id',
@@ -267,6 +332,14 @@ export async function loginAsTestUser(page: Page): Promise<void> {
  * Log out the current user
  */
 export async function logout(page: Page): Promise<void> {
+  // Navigate to a page first to ensure we have a document context
+  try {
+    await page.goto('/')
+    await page.waitForLoadState('domcontentloaded')
+  } catch (e) {
+    // Already on a page or navigation failed - that's okay
+  }
+
   await page.context().clearCookies()
   await page.evaluate(() => {
     window.localStorage.removeItem('user_id')
@@ -280,7 +353,8 @@ export async function logout(page: Page): Promise<void> {
  */
 export async function isAuthenticated(page: Page): Promise<boolean> {
   try {
-    const response = await page.request.get('http://localhost:8002/api/v1/users/me')
+    const baseUrl = await getApiBaseUrl(page)
+    const response = await page.request.get(`${baseUrl}/api/v1/users/me`)
     return response.ok()
   } catch (error) {
     return false
@@ -295,8 +369,9 @@ export async function isAuthenticated(page: Page): Promise<boolean> {
  * Get current user profile data
  */
 export async function getCurrentUser(page: Page): Promise<any> {
+  const baseUrl = await getApiBaseUrl(page)
   const userId = await getTestUserId()
-  const response = await page.request.get(`http://localhost:8002/api/v1/users/${userId}`)
+  const response = await page.request.get(`${baseUrl}/api/v1/users/${userId}`)
   if (!response.ok()) {
     throw new Error(`Failed to get user: ${response.status()}`)
   }
@@ -307,8 +382,9 @@ export async function getCurrentUser(page: Page): Promise<any> {
  * Update user profile
  */
 export async function updateUserProfile(page: Page, updates: any): Promise<any> {
+  const baseUrl = await getApiBaseUrl(page)
   const userId = await getTestUserId()
-  const response = await page.request.put(`http://localhost:8002/api/v1/users/${userId}`, {
+  const response = await page.request.put(`${baseUrl}/api/v1/users/${userId}`, {
     data: updates
   })
   if (!response.ok()) {
@@ -329,7 +405,8 @@ export async function createTestContent(page: Page, content: {
   description: string
   content_type?: string
 }): Promise<any> {
-  const response = await page.request.post('http://localhost:8002/api/v1/content', {
+  const baseUrl = await getApiBaseUrl(page)
+  const response = await page.request.post(`${baseUrl}/api/v1/content`, {
     data: {
       title: content.title,
       description: content.description,
@@ -349,7 +426,8 @@ export async function createTestContent(page: Page, content: {
  * Delete test content item
  */
 export async function deleteTestContent(page: Page, contentId: string): Promise<void> {
-  const response = await page.request.delete(`http://localhost:8002/api/v1/content/${contentId}`)
+  const baseUrl = await getApiBaseUrl(page)
+  const response = await page.request.delete(`${baseUrl}/api/v1/content/${contentId}`)
   if (!response.ok() && response.status() !== 404) {
     throw new Error(`Failed to delete content: ${response.status()}`)
   }
@@ -365,6 +443,7 @@ export async function getUnifiedContent(page: Page, params: {
   creator_filter?: string
   user_id?: string
 } = {}): Promise<any> {
+  const baseUrl = await getApiBaseUrl(page)
   const userId = await getTestUserId()
   const queryParams = new URLSearchParams({
     page: String(params.page || 1),
@@ -376,7 +455,7 @@ export async function getUnifiedContent(page: Page, params: {
     sort_order: 'desc'
   })
 
-  const response = await page.request.get(`http://localhost:8002/api/v1/content/unified?${queryParams}`)
+  const response = await page.request.get(`${baseUrl}/api/v1/content/unified?${queryParams}`)
   if (!response.ok()) {
     throw new Error(`Failed to get unified content: ${response.status()}`)
   }
@@ -391,8 +470,9 @@ export async function getUnifiedContent(page: Page, params: {
  * Get user recommendations
  */
 export async function getUserRecommendations(page: Page): Promise<any> {
+  const baseUrl = await getApiBaseUrl(page)
   const userId = await getTestUserId()
-  const response = await page.request.get(`http://localhost:8002/api/v1/users/${userId}/recommendations`)
+  const response = await page.request.get(`${baseUrl}/api/v1/users/${userId}/recommendations`)
   if (!response.ok()) {
     throw new Error(`Failed to get recommendations: ${response.status()}`)
   }
@@ -403,7 +483,8 @@ export async function getUserRecommendations(page: Page): Promise<any> {
  * Mark a recommendation as served
  */
 export async function markRecommendationServed(page: Page, recommendationId: string): Promise<any> {
-  const response = await page.request.post('http://localhost:8002/api/v1/recommendations/served', {
+  const baseUrl = await getApiBaseUrl(page)
+  const response = await page.request.post(`${baseUrl}/api/v1/recommendations/served`, {
     data: { recommendation_id: recommendationId }
   })
   if (!response.ok()) {
@@ -420,7 +501,8 @@ export async function markRecommendationServed(page: Page, recommendationId: str
  * Get dashboard statistics
  */
 export async function getDashboardStats(page: Page): Promise<any> {
-  const response = await page.request.get('http://localhost:8002/api/v1/content/stats/unified')
+  const baseUrl = await getApiBaseUrl(page)
+  const response = await page.request.get(`${baseUrl}/api/v1/content/stats/unified`)
   if (!response.ok()) {
     throw new Error(`Failed to get dashboard stats: ${response.status()}`)
   }
@@ -435,13 +517,14 @@ export async function getRecentContent(page: Page, params: {
   sort?: string
   creator_id?: string
 } = {}): Promise<any> {
+  const baseUrl = await getApiBaseUrl(page)
   const queryParams = new URLSearchParams({
     limit: String(params.limit || 5),
     sort: params.sort || 'recent',
     ...(params.creator_id && { creator_id: params.creator_id })
   })
 
-  const response = await page.request.get(`http://localhost:8002/api/v1/content?${queryParams}`)
+  const response = await page.request.get(`${baseUrl}/api/v1/content?${queryParams}`)
   if (!response.ok()) {
     throw new Error(`Failed to get recent content: ${response.status()}`)
   }
@@ -470,9 +553,10 @@ export async function cleanupTestData(page: Page, createdIds: {
 
   // Clean up recommendations (if API supports it)
   if (createdIds.recommendationIds) {
+    const baseUrl = await getApiBaseUrl(page)
     for (const id of createdIds.recommendationIds) {
       try {
-        await page.request.delete(`http://localhost:8002/api/v1/recommendations/${id}`)
+        await page.request.delete(`${baseUrl}/api/v1/recommendations/${id}`)
       } catch (error) {
         // Ignore cleanup errors
       }

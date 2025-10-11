@@ -1,11 +1,13 @@
 import type { ApiClient } from './api-client'
 
+export type KnownNotificationType = 'job_completed' | 'job_failed' | 'job_cancelled' | 'system' | 'recommendation'
+
 export interface NotificationResponse {
   id: number
   user_id: string
   title: string
   message: string
-  notification_type: 'job_completed' | 'job_failed' | 'job_cancelled' | 'system' | 'recommendation'
+  notification_type: KnownNotificationType | string
   read_status: boolean
   related_job_id?: number
   related_content_id?: number
@@ -29,6 +31,7 @@ export interface NotificationListParams {
   skip?: number
   limit?: number
   unread_only?: boolean
+  notification_types?: KnownNotificationType[]
 }
 
 export class NotificationService {
@@ -44,6 +47,11 @@ export class NotificationService {
     if (params.skip !== undefined) query.append('skip', params.skip.toString())
     if (params.limit !== undefined) query.append('limit', params.limit.toString())
     if (params.unread_only !== undefined) query.append('unread_only', params.unread_only.toString())
+    if (params.notification_types?.length) {
+      for (const notificationType of params.notification_types) {
+        query.append('notification_types', notificationType)
+      }
+    }
 
     return this.apiClient.get<NotificationListResponse>(`/api/v1/notifications/?${query.toString()}`)
   }
@@ -63,6 +71,13 @@ export class NotificationService {
   async markAsRead(id: number, userId: string): Promise<NotificationResponse> {
     return this.apiClient.put<NotificationResponse>(
       `/api/v1/notifications/${id}/read?user_id=${userId}`,
+      {}
+    )
+  }
+
+  async markAsUnread(id: number, userId: string): Promise<NotificationResponse> {
+    return this.apiClient.put<NotificationResponse>(
+      `/api/v1/notifications/${id}/unread?user_id=${userId}`,
       {}
     )
   }

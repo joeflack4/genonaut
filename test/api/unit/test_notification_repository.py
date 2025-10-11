@@ -75,6 +75,47 @@ class TestNotificationRepository:
         unread = notification_repository.get_user_notifications(test_user.id, skip=0, limit=10, unread_only=True)
         assert len(unread) == 2  # Indices 1 and 3
 
+    def test_get_user_notifications_filter_by_types(self, notification_repository, test_user, test_db_session):
+        """Test filtering notifications by multiple types."""
+        notification_types = [
+            NotificationType.JOB_COMPLETED.value,
+            NotificationType.JOB_FAILED.value,
+            NotificationType.SYSTEM.value,
+        ]
+        for idx, notification_type in enumerate(notification_types):
+            notification = UserNotification(
+                user_id=test_user.id,
+                title=f'Filtered Notification {idx}',
+                message=f'Message {idx}',
+                notification_type=notification_type,
+                read_status=False,
+            )
+            test_db_session.add(notification)
+        # Add one more notification of a type we will filter out
+        test_db_session.add(
+            UserNotification(
+                user_id=test_user.id,
+                title='Recommendation notification',
+                message='Recommendation message',
+                notification_type=NotificationType.RECOMMENDATION.value,
+                read_status=False,
+            )
+        )
+        test_db_session.commit()
+
+        filtered = notification_repository.get_user_notifications(
+            test_user.id,
+            skip=0,
+            limit=10,
+            notification_types=[NotificationType.JOB_COMPLETED.value, NotificationType.SYSTEM.value],
+        )
+
+        assert len(filtered) == 2
+        assert {n.notification_type for n in filtered} == {
+            NotificationType.JOB_COMPLETED.value,
+            NotificationType.SYSTEM.value,
+        }
+
     def test_get_unread_count(self, notification_repository, test_user, test_db_session):
         """Test getting unread notification count."""
         # Create notifications
@@ -91,6 +132,35 @@ class TestNotificationRepository:
 
         count = notification_repository.get_unread_count(test_user.id)
         assert count == 2
+
+    def test_count_user_notifications(self, notification_repository, test_user, test_db_session):
+        """Test counting notifications with filters."""
+        # Create unread notifications of different types
+        for idx, notification_type in enumerate([
+            NotificationType.JOB_COMPLETED.value,
+            NotificationType.JOB_FAILED.value,
+            NotificationType.JOB_COMPLETED.value,
+        ]):
+            notification = UserNotification(
+                user_id=test_user.id,
+                title=f'Count Notification {idx}',
+                message='Count message',
+                notification_type=notification_type,
+                read_status=(idx == 0),
+            )
+            test_db_session.add(notification)
+        test_db_session.commit()
+
+        total_all = notification_repository.count_user_notifications(test_user.id)
+        unread_only = notification_repository.count_user_notifications(test_user.id, unread_only=True)
+        filtered = notification_repository.count_user_notifications(
+            test_user.id,
+            notification_types=[NotificationType.JOB_COMPLETED.value],
+        )
+
+        assert total_all == 3
+        assert unread_only == 2
+        assert filtered == 2
 
     def test_mark_as_read(self, notification_repository, test_user, test_db_session):
         """Test marking notification as read."""
@@ -110,6 +180,25 @@ class TestNotificationRepository:
         assert updated is not None
         assert updated.read_status is True
         assert updated.read_at is not None
+
+    def test_mark_as_unread(self, notification_repository, test_user, test_db_session):
+        """Test marking notification as unread."""
+        notification = UserNotification(
+            user_id=test_user.id,
+            title='Test',
+            message='Test message',
+            notification_type=NotificationType.JOB_COMPLETED.value,
+            read_status=True,
+            read_at=datetime.utcnow(),
+        )
+        test_db_session.add(notification)
+        test_db_session.commit()
+
+        updated = notification_repository.mark_as_unread(notification.id, test_user.id)
+
+        assert updated is not None
+        assert updated.read_status is False
+        assert updated.read_at is None
 
     def test_mark_all_as_read(self, notification_repository, test_user, test_db_session):
         """Test marking all notifications as read."""
@@ -131,6 +220,26 @@ class TestNotificationRepository:
         # Verify all are read
         unread_count = notification_repository.get_unread_count(test_user.id)
         assert unread_count == 0
+
+    def test_get_notification_for_user(self, notification_repository, test_user, test_db_session):
+        """Test fetching a notification by ID for a user."""
+        notification = UserNotification(
+            user_id=test_user.id,
+            title='Fetch Notification',
+            message='Fetch message',
+            notification_type=NotificationType.SYSTEM.value,
+            read_status=False,
+        )
+        test_db_session.add(notification)
+        test_db_session.commit()
+
+        fetched = notification_repository.get_notification_for_user(notification.id, test_user.id)
+        assert fetched is not None
+        assert fetched.id == notification.id
+        assert fetched.user_id == test_user.id
+
+        missing = notification_repository.get_notification_for_user(notification.id + 1, test_user.id)
+        assert missing is None
 
     def test_delete_notification(self, notification_repository, test_user, test_db_session):
         """Test deleting a notification."""

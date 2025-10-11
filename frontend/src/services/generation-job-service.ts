@@ -138,6 +138,10 @@ export class GenerationJobService {
     })
   }
 
+  async deleteGenerationJob(id: number): Promise<void> {
+    return this.apiClient.delete<void>(`/api/v1/generation-jobs/${id}`)
+  }
+
   async listAvailableModels(params?: ModelListParams): Promise<AvailableModelListResponse> {
     const query = new URLSearchParams()
     if (params?.model_type) query.append('model_type', params.model_type)

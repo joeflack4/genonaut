@@ -69,14 +69,17 @@ class TestComfyUIQueryPerformance:
 
             generation = GenerationJob(
                 user_id=user.id,
+                job_type="image",
                 prompt=f"Test generation prompt {i:04d} with various details",
                 negative_prompt="low quality, blurry" if i % 3 == 0 else "",
                 checkpoint_model=checkpoint_model.name,
                 width=512 if i % 2 == 0 else 768,
                 height=512 if i % 2 == 0 else 768,
-                steps=20 + (i % 30),  # 20-50 steps
-                cfg_scale=7.0 + (i % 10) * 0.5,  # 7.0-12.0
-                seed=i if i % 10 != 0 else -1,  # Some random seeds
+                params={
+                    "steps": 20 + (i % 30),  # 20-50 steps
+                    "cfg": 7.0 + (i % 10) * 0.5,  # 7.0-12.0
+                    "seed": i if i % 10 != 0 else -1,  # Some random seeds
+                },
                 batch_size=1 if i % 5 != 0 else 4,  # Mostly single, some batch
                 status=statuses[i % len(statuses)],
                 created_at=datetime.utcnow() - timedelta(hours=i % 240),  # Last 10 days
@@ -90,11 +93,10 @@ class TestComfyUIQueryPerformance:
         db_session.commit()
         return generations
 
-    @pytest.mark.skip(reason="Skipped until schema finalization - 'steps' field not in current schema")
     def test_generation_list_query_performance(self, db_session: Session,
                                              sample_generations: List[GenerationJob]):
         """Test performance of basic generation list queries."""
-        repository = ComfyUIGenerationRepository(db_session)
+        repository = GenerationJobRepository(db_session)
 
         pagination_request = PaginationRequest(page=1, page_size=50)
 
@@ -112,12 +114,11 @@ class TestComfyUIQueryPerformance:
 
         print(f"Basic generation list query: {query_time:.3f}s for {len(result.items)} items")
 
-    @pytest.mark.skip(reason="Skipped until schema finalization - 'steps' field not in current schema")
     def test_generation_by_user_query_performance(self, db_session: Session,
                                                  sample_users: List[User],
                                                  sample_generations: List[GenerationJob]):
         """Test performance of user-specific generation queries."""
-        repository = ComfyUIGenerationRepository(db_session)
+        repository = GenerationJobRepository(db_session)
         user_id = sample_users[0].id
 
         pagination_request = PaginationRequest(page=1, page_size=25)
@@ -140,11 +141,10 @@ class TestComfyUIQueryPerformance:
 
         print(f"Generation by user query: {query_time:.3f}s for {len(result.items)} items")
 
-    @pytest.mark.skip(reason="Skipped until schema finalization - 'steps' field not in current schema")
     def test_generation_by_status_query_performance(self, db_session: Session,
                                                    sample_generations: List[GenerationJob]):
         """Test performance of status-filtered generation queries."""
-        repository = ComfyUIGenerationRepository(db_session)
+        repository = GenerationJobRepository(db_session)
 
         pagination_request = PaginationRequest(page=1, page_size=50)
 
@@ -165,12 +165,11 @@ class TestComfyUIQueryPerformance:
 
         print(f"Generation by status query: {query_time:.3f}s for {len(result.items)} items")
 
-    @pytest.mark.skip(reason="Skipped until schema finalization - 'steps' field not in current schema")
     def test_generation_by_model_query_performance(self, db_session: Session,
                                                   sample_models: List[AvailableModel],
                                                   sample_generations: List[GenerationJob]):
         """Test performance of model-specific generation queries."""
-        repository = ComfyUIGenerationRepository(db_session)
+        repository = GenerationJobRepository(db_session)
         checkpoint_models = [m for m in sample_models if m.type == "checkpoint"]
         model_name = checkpoint_models[0].name
 
@@ -193,7 +192,6 @@ class TestComfyUIQueryPerformance:
 
         print(f"Generation by model query: {query_time:.3f}s for {len(result.items)} items")
 
-    @pytest.mark.skip(reason="Skipped until schema finalization - 'steps' field not in current schema")
     def test_generation_statistics_query_performance(self, db_session: Session,
                                                     sample_generations: List[GenerationJob]):
         """Test performance of generation statistics aggregation queries."""
@@ -203,8 +201,6 @@ class TestComfyUIQueryPerformance:
         stats = db_session.query(
             func.count(GenerationJob.id).label('total_generations'),
             func.count(func.distinct(GenerationJob.user_id)).label('unique_users'),
-            func.avg(GenerationJob.steps).label('avg_steps'),
-            func.avg(GenerationJob.cfg_scale).label('avg_cfg_scale'),
             func.sum(GenerationJob.batch_size).label('total_images')
         ).filter(
             GenerationJob.created_at >= datetime.utcnow() - timedelta(days=7)
@@ -221,7 +217,6 @@ class TestComfyUIQueryPerformance:
         print(f"Generation statistics query: {query_time:.3f}s "
               f"(total: {stats.total_generations}, users: {stats.unique_users})")
 
-    @pytest.mark.skip(reason="Skipped until schema finalization - 'steps' field not in current schema")
     def test_generation_with_user_join_performance(self, db_session: Session,
                                                   sample_generations: List[GenerationJob]):
         """Test performance of generation queries with user table joins."""
@@ -247,11 +242,10 @@ class TestComfyUIQueryPerformance:
 
         print(f"Generation with user join query: {query_time:.3f}s for {len(results)} items")
 
-    @pytest.mark.skip(reason="Skipped until schema finalization - 'steps' field not in current schema")
     def test_generation_date_range_query_performance(self, db_session: Session,
                                                     sample_generations: List[GenerationJob]):
         """Test performance of date range queries."""
-        repository = ComfyUIGenerationRepository(db_session)
+        repository = GenerationJobRepository(db_session)
 
         # Test recent generations (last 24 hours)
         start_time = time.time()
@@ -268,19 +262,16 @@ class TestComfyUIQueryPerformance:
 
         print(f"Date range query: {query_time:.3f}s (found {recent_count} recent generations)")
 
-    @pytest.mark.skip(reason="Skipped until schema finalization - 'steps' field not in current schema")
     def test_generation_complex_filter_performance(self, db_session: Session,
                                                   sample_generations: List[GenerationJob]):
         """Test performance of complex multi-filter queries."""
-        repository = ComfyUIGenerationRepository(db_session)
+        repository = GenerationJobRepository(db_session)
 
         pagination_request = PaginationRequest(page=1, page_size=20)
         filters = {
             "status": "completed",
             "width": 512,
-            "height": 512,
-            "steps_min": 20,
-            "steps_max": 30
+            "height": 512
         }
 
         start_time = time.time()
@@ -298,15 +289,13 @@ class TestComfyUIQueryPerformance:
             assert item.status == "completed"
             assert item.width == 512
             assert item.height == 512
-            assert 20 <= item.steps <= 30
 
         print(f"Complex filter query: {query_time:.3f}s for {len(result.items)} items with multiple filters")
 
-    @pytest.mark.skip(reason="Skipped until schema finalization - 'steps' field not in current schema")
     def test_generation_search_query_performance(self, db_session: Session,
                                                 sample_generations: List[GenerationJob]):
         """Test performance of text search queries."""
-        repository = ComfyUIGenerationRepository(db_session)
+        repository = GenerationJobRepository(db_session)
 
         pagination_request = PaginationRequest(page=1, page_size=25)
 
@@ -327,7 +316,6 @@ class TestComfyUIQueryPerformance:
 
         print(f"Text search query: {query_time:.3f}s for {len(result.items)} items")
 
-    @pytest.mark.skip(reason="Skipped until schema finalization - 'steps' field not in current schema")
     def test_available_models_query_performance(self, db_session: Session,
                                               sample_models: List[AvailableModel]):
         """Test performance of available models queries."""
@@ -353,7 +341,6 @@ class TestComfyUIQueryPerformance:
 
         print(f"Available models query: {query_time:.3f}s for {len(checkpoint_models)} models")
 
-    @pytest.mark.skip(reason="Skipped until schema finalization - 'steps' field not in current schema")
     def test_model_usage_statistics_performance(self, db_session: Session,
                                                sample_generations: List[GenerationJob]):
         """Test performance of model usage statistics queries."""
@@ -363,8 +350,7 @@ class TestComfyUIQueryPerformance:
         model_stats = db_session.query(
             GenerationJob.checkpoint_model,
             func.count(GenerationJob.id).label('usage_count'),
-            func.count(func.distinct(GenerationJob.user_id)).label('unique_users'),
-            func.avg(GenerationJob.steps).label('avg_steps')
+            func.count(func.distinct(GenerationJob.user_id)).label('unique_users')
         ).filter(
             GenerationJob.status == "completed"
         ).group_by(
@@ -383,7 +369,6 @@ class TestComfyUIQueryPerformance:
         print(f"Model usage statistics query: {query_time:.3f}s for {len(model_stats)} models")
 
     @pytest.mark.longrunning
-    @pytest.mark.skip(reason="Performance stress testing - only run manually")
     def test_large_dataset_query_performance(self, db_session: Session):
         """Test query performance with a larger dataset."""
         # Create a larger test dataset
@@ -397,6 +382,9 @@ class TestComfyUIQueryPerformance:
             db_session.add(user)
             users.append(user)
 
+        # Commit users first to get IDs
+        db_session.commit()
+
         models = []
         for i in range(10):
             model = AvailableModel(
@@ -409,18 +397,25 @@ class TestComfyUIQueryPerformance:
             db_session.add(model)
             models.append(model)
 
+        # Commit models to get IDs
+        db_session.commit()
+
         # Create 5000 generation records
         generations = []
         for i in range(5000):
             generation = GenerationJob(
                 user_id=users[i % len(users)].id,
+                job_type="image",
                 prompt=f"Large dataset performance test {i:05d}",
                 checkpoint_model=models[i % len(models)].name,
                 width=512,
                 height=512,
-                steps=20,
-                cfg_scale=7.0,
-                seed=i,
+                params={
+                    "steps": 20,
+                    "cfg": 7.0,
+                    "seed": i,
+                    "sampler_name": "euler"
+                },
                 batch_size=1,
                 status=["pending", "processing", "completed", "failed"][i % 4],
                 created_at=datetime.utcnow() - timedelta(hours=i % (24 * 30))
@@ -430,7 +425,7 @@ class TestComfyUIQueryPerformance:
 
         db_session.commit()
 
-        repository = ComfyUIGenerationRepository(db_session)
+        repository = GenerationJobRepository(db_session)
 
         # Test various queries with large dataset
         test_cases = [

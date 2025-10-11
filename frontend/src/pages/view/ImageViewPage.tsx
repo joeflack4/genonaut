@@ -15,6 +15,7 @@ import {
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import ImageNotSupportedIcon from '@mui/icons-material/ImageNotSupported'
+import DeleteIcon from '@mui/icons-material/Delete'
 import { useGalleryItem } from '../../hooks'
 import { resolveImageSourceCandidates } from '../../utils/image-url'
 
@@ -113,6 +114,11 @@ export function ImageViewPage() {
     } else {
       navigate(fallbackPath)
     }
+  }
+
+  const handleDelete = () => {
+    // TODO: Implement delete functionality
+    console.log('Delete content:', contentId)
   }
 
   if (!contentId) {
@@ -246,14 +252,32 @@ export function ImageViewPage() {
         </Box>
 
         <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Typography
-            variant="h5"
-            fontWeight={600}
-            data-testid="image-view-title"
-            title={displayTitle}
-          >
-            {truncatedTitle}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+            <Typography
+              variant="h5"
+              fontWeight={600}
+              data-testid="image-view-title"
+              title={displayTitle}
+              sx={{ flexGrow: 1 }}
+            >
+              {truncatedTitle}
+            </Typography>
+            <Tooltip title="Delete Content">
+              <IconButton
+                onClick={handleDelete}
+                aria-label="Delete content"
+                data-testid="delete-content-button"
+                sx={{
+                  color: 'text.secondary',
+                  '&:hover': {
+                    color: 'error.main',
+                  },
+                }}
+              >
+                <DeleteIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
 
           <Stack
             direction={{ xs: 'column', sm: 'row' }}

@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 from genonaut.db.schema import GenerationJob
 from genonaut.api.repositories.base import BaseRepository
 from genonaut.api.exceptions import DatabaseError
+from genonaut.api.models.requests import PaginationRequest
+from genonaut.api.models.responses import PaginatedResponse, PaginationMeta
 
 
 class GenerationJobRepository(BaseRepository[GenerationJob, Dict[str, Any], Dict[str, Any]]):
@@ -405,3 +407,110 @@ class GenerationJobRepository(BaseRepository[GenerationJob, Dict[str, Any], Dict
             return self.create(job_data)
         except SQLAlchemyError as e:
             raise DatabaseError(f"Failed to create generation job: {str(e)}")
+
+    def get_by_user_paginated(
+        self,
+        user_id: UUID,
+        pagination: PaginationRequest
+    ) -> PaginatedResponse:
+        """Get paginated generation jobs for a specific user.
+
+        Args:
+            user_id: User ID to filter by
+            pagination: Pagination parameters
+
+        Returns:
+            PaginatedResponse with generation jobs and pagination metadata
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        return self.get_paginated(pagination, filters={'user_id': user_id})
+
+    def get_by_status_paginated(
+        self,
+        status: str,
+        pagination: PaginationRequest
+    ) -> PaginatedResponse:
+        """Get paginated generation jobs by status.
+
+        Args:
+            status: Job status to filter by
+            pagination: Pagination parameters
+
+        Returns:
+            PaginatedResponse with generation jobs and pagination metadata
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        return self.get_paginated(pagination, filters={'status': status})
+
+    def get_by_model_paginated(
+        self,
+        model_name: str,
+        pagination: PaginationRequest
+    ) -> PaginatedResponse:
+        """Get paginated generation jobs by model.
+
+        Args:
+            model_name: Model name to filter by
+            pagination: Pagination parameters
+
+        Returns:
+            PaginatedResponse with generation jobs and pagination metadata
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        return self.get_paginated(pagination, filters={'checkpoint_model': model_name})
+
+    def search_by_prompt(
+        self,
+        search_term: str,
+        pagination: PaginationRequest
+    ) -> PaginatedResponse:
+        """Search generation jobs by prompt text.
+
+        Args:
+            search_term: Text to search for in prompts
+            pagination: Pagination parameters
+
+        Returns:
+            PaginatedResponse with generation jobs and pagination metadata
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        try:
+            query = self.db.query(GenerationJob).filter(
+                GenerationJob.prompt.contains(search_term)
+            )
+
+            # Apply sorting
+            if pagination.sort_field and hasattr(GenerationJob, pagination.sort_field):
+                sort_field = getattr(GenerationJob, pagination.sort_field)
+                if pagination.sort_order == "asc":
+                    query = query.order_by(asc(sort_field))
+                else:
+                    query = query.order_by(desc(sort_field))
+
+            # Get total count
+            total_count = query.count()
+            items = query.offset(pagination.skip).limit(pagination.page_size).all()
+
+            # Calculate pagination metadata
+            has_next = (pagination.skip + pagination.page_size) < total_count
+            has_previous = pagination.page > 1
+
+            pagination_meta = PaginationMeta(
+                page=pagination.page,
+                page_size=pagination.page_size,
+                total_count=total_count,
+                has_next=has_next,
+                has_previous=has_previous
+            )
+
+            return PaginatedResponse(items=items, pagination=pagination_meta)
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Failed to search generation jobs by prompt: {str(e)}")

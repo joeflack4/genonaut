@@ -30,8 +30,8 @@ test.describe('Loading and Error State Tests', () => {
       await page.waitForTimeout(300)
     }
 
-    // Report any console errors found
-    if (consoleErrors.length > 0) {
+    // Report any console errors found (only in debug mode)
+    if (consoleErrors.length > 0 && process.env.DEBUG_E2E) {
       console.log('Console errors found:', consoleErrors)
     }
 

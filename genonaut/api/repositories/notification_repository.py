@@ -23,18 +23,45 @@ class NotificationRepository(BaseRepository[UserNotification, Dict[str, Any], Di
         user_id: UUID,
         skip: int = 0,
         limit: int = 10,
-        unread_only: bool = False
+        unread_only: bool = False,
+        notification_types: Optional[List[str]] = None
     ) -> List[UserNotification]:
-        """Get paginated notifications for a user.
+        """Get paginated notifications for a user."""
+        try:
+            query = self.db.query(UserNotification).filter(
+                UserNotification.user_id == user_id
+            )
+
+            if unread_only:
+                query = query.filter(UserNotification.read_status == False)
+
+            if notification_types:
+                query = query.filter(UserNotification.notification_type.in_(notification_types))
+
+            return (
+                query.order_by(desc(UserNotification.created_at))
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Failed to get user notifications for {user_id}: {str(e)}")
+
+    def count_user_notifications(
+        self,
+        user_id: UUID,
+        unread_only: bool = False,
+        notification_types: Optional[List[str]] = None
+    ) -> int:
+        """Count notifications for a user with optional filters.
 
         Args:
-            user_id: User ID to get notifications for
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-            unread_only: If True, only return unread notifications
+            user_id: User ID to count notifications for
+            unread_only: If True, only count unread notifications
+            notification_types: Optional list of notification types to filter by
 
         Returns:
-            List of UserNotification instances
+            Count of matching notifications
 
         Raises:
             DatabaseError: If database operation fails
@@ -47,9 +74,13 @@ class NotificationRepository(BaseRepository[UserNotification, Dict[str, Any], Di
             if unread_only:
                 query = query.filter(UserNotification.read_status == False)
 
-            return query.order_by(desc(UserNotification.created_at)).offset(skip).limit(limit).all()
+            if notification_types:
+                query = query.filter(UserNotification.notification_type.in_(notification_types))
+
+            return query.count()
         except SQLAlchemyError as e:
-            raise DatabaseError(f"Failed to get user notifications for {user_id}: {str(e)}")
+            raise DatabaseError(f"Failed to count notifications for {user_id}: {str(e)}")
+
 
     def get_unread_count(self, user_id: UUID) -> int:
         """Get count of unread notifications for a user.
@@ -101,6 +132,25 @@ class NotificationRepository(BaseRepository[UserNotification, Dict[str, Any], Di
             self.db.rollback()
             raise DatabaseError(f"Failed to mark notification {notification_id} as read: {str(e)}")
 
+    def mark_as_unread(self, notification_id: int, user_id: UUID) -> Optional[UserNotification]:
+        """Mark a notification as unread."""
+        try:
+            notification = self.db.query(UserNotification).filter(
+                UserNotification.id == notification_id,
+                UserNotification.user_id == user_id
+            ).first()
+
+            if notification and notification.read_status:
+                notification.read_status = False
+                notification.read_at = None
+                self.db.commit()
+                self.db.refresh(notification)
+
+            return notification
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            raise DatabaseError(f"Failed to mark notification {notification_id} as unread: {str(e)}")
+
     def mark_all_as_read(self, user_id: UUID) -> int:
         """Mark all user notifications as read.
 
@@ -126,6 +176,27 @@ class NotificationRepository(BaseRepository[UserNotification, Dict[str, Any], Di
         except SQLAlchemyError as e:
             self.db.rollback()
             raise DatabaseError(f"Failed to mark all notifications as read for {user_id}: {str(e)}")
+
+    def get_notification_for_user(self, notification_id: int, user_id: UUID) -> Optional[UserNotification]:
+        """Fetch a single notification ensuring it belongs to the user.
+
+        Args:
+            notification_id: Notification ID to fetch
+            user_id: User ID to verify ownership
+
+        Returns:
+            UserNotification instance if found, otherwise None
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        try:
+            return self.db.query(UserNotification).filter(
+                UserNotification.id == notification_id,
+                UserNotification.user_id == user_id
+            ).first()
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Failed to fetch notification {notification_id}: {str(e)}")
 
     def delete_notification(self, notification_id: int, user_id: UUID) -> bool:
         """Delete a notification.
@@ -177,10 +248,9 @@ class NotificationRepository(BaseRepository[UserNotification, Dict[str, Any], Di
         Raises:
             DatabaseError: If database operation fails
         """
-        try:
-            return self.db.query(UserNotification).filter(
-                UserNotification.user_id == user_id,
-                UserNotification.notification_type == notification_type
-            ).order_by(desc(UserNotification.created_at)).offset(skip).limit(limit).all()
-        except SQLAlchemyError as e:
-            raise DatabaseError(f"Failed to get notifications by type for {user_id}: {str(e)}")
+        return self.get_user_notifications(
+            user_id=user_id,
+            skip=skip,
+            limit=limit,
+            notification_types=[notification_type]
+        )

@@ -41,8 +41,8 @@ class TestComfyUILoadTesting:
             name="test_checkpoint.safetensors",
             type="checkpoint",
             file_path="/models/checkpoints/test_checkpoint.safetensors",
-            is_available=True,
-            discovered_at=datetime.utcnow()
+            is_active=True,
+            created_at=datetime.utcnow()
         )
         db_session.add(model)
         db_session.commit()
@@ -51,21 +51,19 @@ class TestComfyUILoadTesting:
     @pytest.fixture
     def generation_service(self, db_session: Session) -> ComfyUIGenerationService:
         """Create a generation service with mocked ComfyUI client."""
-        repository = ComfyUIGenerationRepository(db_session)
-
         # Mock the ComfyUI client to avoid actual API calls
         with patch('genonaut.api.services.comfyui_generation_service.ComfyUIClient') as mock_client_class:
             mock_client = Mock()
             mock_client_class.return_value = mock_client
 
             # Mock successful workflow submission
-            mock_client.submit_workflow.return_value = {"prompt_id": "test-prompt-123"}
-            mock_client.get_status.return_value = {
-                "status": {"status_str": "success"},
+            mock_client.submit_workflow.return_value = "test-prompt-123"
+            mock_client.wait_for_completion.return_value = {
+                "status": "completed",
                 "outputs": {"9": {"images": [{"filename": "test_image.png", "type": "output"}]}}
             }
 
-            service = ComfyUIGenerationService(repository, mock_client)
+            service = ComfyUIGenerationService(db_session)
             yield service
 
     def create_test_request(self, user_id: int, model_name: str,
@@ -78,14 +76,17 @@ class TestComfyUILoadTesting:
             checkpoint_model=model_name,
             width=512,
             height=512,
-            steps=20,
-            cfg_scale=7.0,
-            seed=-1,
+            sampler_params={
+                "steps": 20,
+                "cfg": 7.0,
+                "seed": -1,
+                "sampler_name": "euler"
+            },
             batch_size=1
         )
 
     @pytest.mark.longrunning
-    @pytest.mark.skip(reason="Load testing - only run manually for performance analysis")
+    @pytest.mark.skip(reason="Concurrent threading tests fail with SQLite - requires PostgreSQL with proper connection pooling")
     def test_concurrent_generation_requests_small_load(self, generation_service: ComfyUIGenerationService,
                                                       test_user: User, test_model: AvailableModel):
         """Test system with small concurrent load (5 simultaneous requests)."""
@@ -107,7 +108,17 @@ class TestComfyUILoadTesting:
 
         def submit_request(req):
             try:
-                return generation_service.create_generation(req)
+                return generation_service.create_generation_request(
+                    user_id=req.user_id,
+                    prompt=req.prompt,
+                    negative_prompt=req.negative_prompt or "",
+                    checkpoint_model=req.checkpoint_model,
+                    lora_models=req.lora_models,
+                    width=req.width,
+                    height=req.height,
+                    batch_size=req.batch_size,
+                    sampler_params=req.sampler_params
+                )
             except Exception as e:
                 return {"error": str(e)}
 
@@ -133,6 +144,11 @@ class TestComfyUILoadTesting:
         successful_requests = [r for r in results if "error" not in r]
         failed_requests = [r for r in results if "error" in r]
 
+        # Debug: print errors if any
+        if failed_requests:
+            for fr in failed_requests:
+                print(f"Request failed with error: {fr.get('error')}")
+
         # All requests should succeed with mocked client
         assert len(successful_requests) == num_requests
         assert len(failed_requests) == 0
@@ -146,7 +162,7 @@ class TestComfyUILoadTesting:
               f"(avg: {avg_time_per_request:.2f}s per request)")
 
     @pytest.mark.longrunning
-    @pytest.mark.skip(reason="Load testing - only run manually for performance analysis")
+    @pytest.mark.skip(reason="Concurrent threading tests fail with SQLite - requires PostgreSQL with proper connection pooling")
     def test_concurrent_generation_requests_medium_load(self, generation_service: ComfyUIGenerationService,
                                                        test_user: User, test_model: AvailableModel):
         """Test system with medium concurrent load (20 simultaneous requests)."""
@@ -168,7 +184,17 @@ class TestComfyUILoadTesting:
 
         def submit_request(req):
             try:
-                return generation_service.create_generation(req)
+                return generation_service.create_generation_request(
+                    user_id=req.user_id,
+                    prompt=req.prompt,
+                    negative_prompt=req.negative_prompt or "",
+                    checkpoint_model=req.checkpoint_model,
+                    lora_models=req.lora_models,
+                    width=req.width,
+                    height=req.height,
+                    batch_size=req.batch_size,
+                    sampler_params=req.sampler_params
+                )
             except Exception as e:
                 return {"error": str(e)}
 
@@ -204,7 +230,7 @@ class TestComfyUILoadTesting:
               f"success rate: {success_rate:.1%})")
 
     @pytest.mark.longrunning
-    @pytest.mark.skip(reason="Load testing - only run manually for performance analysis")
+    @pytest.mark.skip(reason="Concurrent threading tests fail with SQLite - requires PostgreSQL with proper connection pooling")
     def test_concurrent_generation_requests_high_load(self, generation_service: ComfyUIGenerationService,
                                                      test_user: User, test_model: AvailableModel):
         """Test system with high concurrent load (50 simultaneous requests)."""
@@ -226,7 +252,17 @@ class TestComfyUILoadTesting:
 
         def submit_request(req):
             try:
-                return generation_service.create_generation(req)
+                return generation_service.create_generation_request(
+                    user_id=req.user_id,
+                    prompt=req.prompt,
+                    negative_prompt=req.negative_prompt or "",
+                    checkpoint_model=req.checkpoint_model,
+                    lora_models=req.lora_models,
+                    width=req.width,
+                    height=req.height,
+                    batch_size=req.batch_size,
+                    sampler_params=req.sampler_params
+                )
             except Exception as e:
                 return {"error": str(e)}
 
@@ -264,7 +300,6 @@ class TestComfyUILoadTesting:
               f"success rate: {success_rate:.1%})")
 
     @pytest.mark.longrunning
-    @pytest.mark.skip(reason="Load testing - only run manually for performance analysis")
     def test_generation_queue_processing_under_load(self, generation_service: ComfyUIGenerationService,
                                                    test_user: User, test_model: AvailableModel):
         """Test generation queue processing efficiency under load."""
@@ -287,7 +322,17 @@ class TestComfyUILoadTesting:
         # Submit requests sequentially to test queue processing
         for request in requests:
             try:
-                generation = generation_service.create_generation(request)
+                generation = generation_service.create_generation_request(
+                    user_id=request.user_id,
+                    prompt=request.prompt,
+                    negative_prompt=request.negative_prompt or "",
+                    checkpoint_model=request.checkpoint_model,
+                    lora_models=request.lora_models,
+                    width=request.width,
+                    height=request.height,
+                    batch_size=request.batch_size,
+                    sampler_params=request.sampler_params
+                )
                 submitted_generations.append(generation)
             except Exception as e:
                 print(f"Failed to submit request: {e}")
@@ -324,7 +369,7 @@ class TestComfyUILoadTesting:
               f"completion rate: {processing_efficiency:.1%}")
 
     @pytest.mark.longrunning
-    @pytest.mark.skip(reason="Load testing - only run manually for performance analysis")
+    @pytest.mark.skip(reason="SQLite does not support concurrent writes from multiple threads - requires PostgreSQL for proper testing")
     def test_database_performance_under_concurrent_writes(self, db_session: Session,
                                                          test_user: User, test_model: AvailableModel):
         """Test database performance with concurrent generation record writes."""
@@ -334,14 +379,18 @@ class TestComfyUILoadTesting:
             try:
                 generation = GenerationJob(
                     user_id=test_user.id,
+                    job_type="image",
                     prompt=f"Database performance test {i}",
                     negative_prompt="test",
                     checkpoint_model=test_model.name,
                     width=512,
                     height=512,
-                    steps=20,
-                    cfg_scale=7.0,
-                    seed=i,
+                    params={
+                        "steps": 20,
+                        "cfg": 7.0,
+                        "seed": i,
+                        "sampler_name": "euler"
+                    },
                     batch_size=1,
                     status="pending",
                     created_at=datetime.utcnow()

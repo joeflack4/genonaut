@@ -115,6 +115,72 @@ class TestNotificationService:
         assert notification.related_job_id == 123
         assert notification.related_content_id == 456
 
+    def test_get_user_notifications_filtered(self, notification_service, test_user_with_notifications_enabled):
+        """Test listing notifications with type filters."""
+        # Create notifications of different types
+        notification_service.create_notification(
+            user_id=test_user_with_notifications_enabled.id,
+            title="Completed",
+            message="Completed message",
+            notification_type=NotificationType.JOB_COMPLETED,
+        )
+        notification_service.create_notification(
+            user_id=test_user_with_notifications_enabled.id,
+            title="Failed",
+            message="Failed message",
+            notification_type=NotificationType.JOB_FAILED,
+        )
+
+        notifications = notification_service.get_user_notifications(
+            user_id=test_user_with_notifications_enabled.id,
+            notification_types=[NotificationType.JOB_COMPLETED.value],
+        )
+
+        assert len(notifications) == 1
+        assert notifications[0].notification_type == NotificationType.JOB_COMPLETED.value
+
+    def test_count_user_notifications(self, notification_service, test_user_with_notifications_enabled):
+        """Test counting notifications with filters."""
+        notification_service.create_notification(
+            user_id=test_user_with_notifications_enabled.id,
+            title="Completed",
+            message="Completed message",
+            notification_type=NotificationType.JOB_COMPLETED,
+        )
+        notification_service.create_notification(
+            user_id=test_user_with_notifications_enabled.id,
+            title="Failed",
+            message="Failed message",
+            notification_type=NotificationType.JOB_FAILED,
+        )
+
+        total = notification_service.count_user_notifications(test_user_with_notifications_enabled.id)
+        filtered = notification_service.count_user_notifications(
+            test_user_with_notifications_enabled.id,
+            notification_types=[NotificationType.JOB_COMPLETED.value],
+        )
+
+        assert total == 2
+        assert filtered == 1
+
+    def test_get_notification(self, notification_service, test_user_with_notifications_enabled):
+        """Test retrieving a single notification by ID."""
+        notification = notification_service.create_notification(
+            user_id=test_user_with_notifications_enabled.id,
+            title="Detail",
+            message="Detail message",
+            notification_type=NotificationType.SYSTEM,
+        )
+
+        fetched = notification_service.get_notification(notification.id, test_user_with_notifications_enabled.id)
+        assert fetched.id == notification.id
+        assert fetched.notification_type == NotificationType.SYSTEM.value
+
+    def test_get_notification_not_found(self, notification_service, test_user_with_notifications_enabled):
+        """Test retrieving notification that does not exist."""
+        with pytest.raises(EntityNotFoundError):
+            notification_service.get_notification(99999, test_user_with_notifications_enabled.id)
+
     def test_create_job_failure_notification(self, notification_service, test_user_with_notifications_enabled):
         """Test creating job failure notification."""
         notification = notification_service.create_job_failure_notification(
@@ -141,6 +207,22 @@ class TestNotificationService:
         updated = notification_service.mark_notification_read(notification.id, test_user_with_notifications_enabled.id)
         assert updated.read_status is True
         assert updated.read_at is not None
+
+    def test_mark_notification_unread(self, notification_service, test_user_with_notifications_enabled):
+        """Test marking notification as unread."""
+        notification = notification_service.create_notification(
+            user_id=test_user_with_notifications_enabled.id,
+            title="Test",
+            message="Test message",
+            notification_type=NotificationType.JOB_COMPLETED
+        )
+
+        updated_read = notification_service.mark_notification_read(notification.id, test_user_with_notifications_enabled.id)
+        assert updated_read.read_status is True
+
+        updated_unread = notification_service.mark_notification_unread(notification.id, test_user_with_notifications_enabled.id)
+        assert updated_unread.read_status is False
+        assert updated_unread.read_at is None
 
     def test_mark_notification_read_not_found(self, notification_service, test_user_with_notifications_enabled):
         """Test marking non-existent notification as read."""
