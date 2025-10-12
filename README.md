@@ -10,7 +10,8 @@ Core features
 - **Generations**: Generate art using ComfyUI integration.
 - **Models**: Easily find and download AI models for image generation.
 - **Browse & Catalogue**: Browse, search, filter, rate, and tag.
-- **Recommenders**: Automatically generate works based on your preferences and use cases. Explore novel combinations / 
+- **Tag System**: Hierarchical tag organization with 127+ curated tags, polyhierarchy support, and gallery filtering.
+- **Recommenders**: Automatically generate works based on your preferences and use cases. Explore novel combinations /
 directions.
 - **Community**: Browse and auto-generate based on popular community trends, and other users like you.
 - **Content Moderation**: Automatic content flagging system with risk assessment and admin management tools.

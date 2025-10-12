@@ -64,6 +64,7 @@ The API provides **77 endpoints** across 6 main categories:
 |----------|-----------|-------------|
 | **Users** | 11 | User CRUD, preferences, authentication, search, statistics |
 | **Content** | 12 | Content CRUD, search by metadata/tags, quality scoring, filtering |
+| **Tags** | 14 | Hierarchy, browsing, ratings, favorites, statistics |
 | **Interactions** | 13 | User behavior tracking, analytics, interaction recording |
 | **Recommendations** | 15 | Recommendation generation, serving, bulk operations, analytics |
 | **Generation Jobs** | 17 | Content generation job management, queue processing, status tracking |
@@ -108,6 +109,31 @@ The API provides **77 endpoints** across 6 main categories:
 - `GET /api/v1/content/unified` - Get combined regular and auto-generated content with advanced filtering
 - `GET /api/v1/content/stats/unified` - Get statistics for all content types
 
+### Tag Management Endpoints
+
+**Core Tag Operations:**
+- `GET /api/v1/tags` - List tags with pagination, sorting (`name-asc`, `rating-desc`, etc.), and optional search/minimum ratings filter
+- `GET /api/v1/tags/search` - Convenience search endpoint (delegates to tag listing)
+- `GET /api/v1/tags/{tag_id}` - Retrieve a tag’s detail view (parents, children, ancestors/descendants, ratings, favorites)
+- `GET /api/v1/tags/by-name/{tag_name}` - Retrieve tag detail by slug name
+- `GET /api/v1/tags/hierarchy` - Fetch the hierarchy, optionally including average ratings
+- `POST /api/v1/tags/hierarchy/refresh` - Refresh cached hierarchy data
+- `GET /api/v1/tags/statistics` - Global hierarchy statistics
+
+**Hierarchy navigation:**
+- `GET /api/v1/tags/roots` - Root tags
+- `GET /api/v1/tags/{tag_id}/parents` - Direct parents
+- `GET /api/v1/tags/{tag_id}/children` - Direct children
+- `GET /api/v1/tags/{tag_id}/ancestors` - Ancestors with depth metadata
+- `GET /api/v1/tags/{tag_id}/descendants` - Descendants with depth metadata
+
+**Ratings & favorites:**
+- `POST /api/v1/tags/{tag_id}/rate` / `DELETE /api/v1/tags/{tag_id}/rate` - Upsert or remove a rating
+- `GET /api/v1/tags/{tag_id}/rating` - Fetch the current user’s rating value
+- `GET /api/v1/tags/ratings` - Fetch many ratings for the current user (query `tag_ids[]`)
+- `GET /api/v1/tags/favorites` - Fetch favorites for the current user (query `user_id`)
+- `POST /api/v1/tags/{tag_id}/favorite` / `DELETE /api/v1/tags/{tag_id}/favorite` - Manage favorites
+
 ### Unified Content Endpoint
 
 The unified content endpoint provides a powerful way to query both regular and auto-generated content with precise filtering capabilities.
@@ -131,6 +157,8 @@ GET /api/v1/content/unified
 | `sort_field` | string | No | `created_at` | Field to sort by |
 | `sort_order` | string | No | `desc` | Sort order: `asc` or `desc` |
 | `tag` | array[string] | No | null | Filter by tags (can specify multiple) |
+| `tag_names` | array[string] | No | null | Additional filter alias for tag names (equivalent to `tag`) |
+| `tag_match` | string | No | `any` | Tag logic: `any` (OR) or `all` (AND) when filtering by tags |
 
 #### Using content_source_types (Recommended)
 

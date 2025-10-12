@@ -18,6 +18,13 @@ class UserRepository(BaseRepository[User, Dict[str, Any], Dict[str, Any]]):
     
     def __init__(self, db: Session):
         super().__init__(db, User)
+
+    def get_by_id(self, user_id: UUID) -> Optional[User]:
+        """Get user by primary key."""
+        try:
+            return self.db.query(User).filter(User.id == user_id).first()
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Failed to get user by id {user_id}: {str(e)}")
     
     def get_by_username(self, username: str) -> Optional[User]:
         """Get user by username.

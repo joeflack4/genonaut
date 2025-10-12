@@ -204,12 +204,10 @@ test.describe('Dashboard Page Interactions', () => {
       }
     }
 
-    // Wait a bit for any async data loading
-    await page.waitForTimeout(500)
-
     // Verify content is loaded - either actual content or empty states
     const mainContent = page.locator('h1, .MuiCard-root, main, .empty-state')
-    await expect(mainContent.first()).toBeVisible()
+    await expect(mainContent).not.toHaveCount(0)
+    await expect(mainContent.first()).toBeVisible({ timeout: 10000 })
   })
 
   test('should display proper empty states when no data', async ({ page }) => {

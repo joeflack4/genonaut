@@ -436,15 +436,66 @@ class AvailableModelListResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TagSummaryResponse(BaseModel):
+    """Compact representation of a tag."""
+
+    id: UUID = Field(..., description="Tag identifier")
+    name: str = Field(..., description="Human-readable tag name")
+
+    model_config = {"from_attributes": True}
+
+
+class TagRelationResponse(TagSummaryResponse):
+    """Tag summary including traversal depth for ancestor/descendant routes."""
+
+    depth: int = Field(..., ge=0, description="Depth relative to the requested tag")
+
+
+class TagResponse(TagSummaryResponse):
+    """Detailed representation of a tag including metadata and ratings."""
+
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Arbitrary tag metadata")
+    created_at: datetime = Field(..., description="Creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
+    average_rating: Optional[float] = Field(
+        None,
+        ge=0.0,
+        le=5.0,
+        description="Average rating across users (null if no ratings)",
+    )
+    rating_count: Optional[int] = Field(
+        None,
+        ge=0,
+        description="Number of ratings contributing to the average",
+    )
+    is_favorite: Optional[bool] = Field(
+        None,
+        description="Whether the requesting user has favorited this tag",
+    )
+
+
 class TagHierarchyNode(BaseModel):
     """Response model for a single tag hierarchy node."""
-    id: str = Field(..., description="Tag identifier")
+
+    id: str = Field(..., description="Tag identifier (legacy name slug)")
     name: str = Field(..., description="Human-readable tag name")
     parent: Optional[str] = Field(None, description="Parent tag ID, null for root nodes")
+    average_rating: Optional[float] = Field(
+        None,
+        ge=0.0,
+        le=5.0,
+        description="Average rating for the tag when requested",
+    )
+    rating_count: Optional[int] = Field(
+        None,
+        ge=0,
+        description="Number of ratings included in the average",
+    )
 
 
 class TagHierarchyMetadata(BaseModel):
     """Metadata for tag hierarchy response."""
+
     totalNodes: int = Field(..., description="Total number of nodes in hierarchy")
     totalRelationships: int = Field(..., description="Total number of parent-child relationships")
     rootCategories: int = Field(..., description="Number of root categories")
@@ -455,10 +506,88 @@ class TagHierarchyMetadata(BaseModel):
 
 class TagHierarchyResponse(BaseModel):
     """Response model for tag hierarchy data."""
+
     nodes: List[TagHierarchyNode] = Field(..., description="List of all nodes in flat array format")
     metadata: TagHierarchyMetadata = Field(..., description="Hierarchy metadata and statistics")
 
     model_config = {"from_attributes": True}
+
+
+class TagDetailResponse(BaseModel):
+    """Complete detail view of a tag including relationships and ratings."""
+
+    tag: TagResponse = Field(..., description="Primary tag information")
+    parents: List[TagSummaryResponse] = Field(..., description="Direct parent tags")
+    children: List[TagSummaryResponse] = Field(..., description="Direct child tags")
+    ancestors: Optional[List[TagRelationResponse]] = Field(
+        None,
+        description="Optional list of ancestor tags with depth metadata",
+    )
+    descendants: Optional[List[TagRelationResponse]] = Field(
+        None,
+        description="Optional list of descendant tags with depth metadata",
+    )
+    average_rating: Optional[float] = Field(
+        None,
+        ge=0.0,
+        le=5.0,
+        description="Average rating for the tag",
+    )
+    rating_count: int = Field(0, ge=0, description="Number of ratings recorded for the tag")
+    user_rating: Optional[float] = Field(
+        None,
+        ge=1.0,
+        le=5.0,
+        description="Rating supplied by the requesting user, if any",
+    )
+    is_favorite: Optional[bool] = Field(
+        None,
+        description="Whether the requesting user has favorited the tag",
+    )
+
+
+class TagRatingResponse(BaseModel):
+    """Response model representing a single tag rating."""
+
+    id: int = Field(..., description="Database identifier for the rating")
+    user_id: UUID = Field(..., description="User who supplied the rating")
+    tag_id: UUID = Field(..., description="Tag that was rated")
+    rating: float = Field(..., ge=1.0, le=5.0, description="Rating value")
+    created_at: datetime = Field(..., description="Rating creation timestamp")
+    updated_at: datetime = Field(..., description="Rating last update timestamp")
+
+    model_config = {"from_attributes": True}
+
+
+class TagRatingValueResponse(BaseModel):
+    """Response model representing a user's rating value for a tag."""
+
+    rating: Optional[float] = Field(
+        None,
+        ge=1.0,
+        le=5.0,
+        description="Rating value if present; null when user has not rated the tag",
+    )
+
+
+class TagStatisticsResponse(BaseModel):
+    """Response model for global tag statistics."""
+
+    totalNodes: int = Field(..., description="Total number of tags")
+    totalRelationships: int = Field(..., description="Total parent-child relationships")
+    rootCategories: int = Field(..., description="Number of root-level categories")
+
+
+class TagListResponse(PaginatedResponse[TagResponse]):
+    """Paginated list response for tags."""
+
+    model_config = {"from_attributes": True}
+
+
+class TagUserRatingsResponse(BaseModel):
+    """Mapping of tag IDs to the requesting user's ratings."""
+
+    ratings: Dict[UUID, float] = Field(default_factory=dict, description="Mapping of tag IDs to rating values")
 
 
 class CheckpointModelResponse(BaseModel):

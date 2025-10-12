@@ -12,7 +12,7 @@ import * as tagHierarchyHooks from '../../../hooks/useTagHierarchy';
 // Mock the hooks
 vi.mock('../../../hooks/useTagHierarchy');
 
-const mockUseTagSearch = vi.mocked(tagHierarchyHooks.useTagSearch);
+const mockUseTagHierarchySearch = vi.mocked(tagHierarchyHooks.useTagHierarchySearch);
 const mockUseTagBreadcrumbs = vi.mocked(tagHierarchyHooks.useTagBreadcrumbs);
 
 // Test data
@@ -57,7 +57,7 @@ describe('TagSearchFilter', () => {
   });
 
   it('renders search input with placeholder', () => {
-    mockUseTagSearch.mockReturnValue({
+    mockUseTagHierarchySearch.mockReturnValue({
       results: [],
       isLoading: false,
       error: null,
@@ -86,7 +86,7 @@ describe('TagSearchFilter', () => {
     const searchInput = screen.getByRole('textbox');
 
     // First setup the mock before typing
-    mockUseTagSearch.mockReturnValue({
+    mockUseTagHierarchySearch.mockReturnValue({
       results: mockSearchResults,
       isLoading: false,
       error: null,
@@ -103,7 +103,7 @@ describe('TagSearchFilter', () => {
   });
 
   it('shows loading state during search', () => {
-    mockUseTagSearch.mockReturnValue({
+    mockUseTagHierarchySearch.mockReturnValue({
       results: [],
       isLoading: true,
       error: null,
@@ -129,7 +129,7 @@ describe('TagSearchFilter', () => {
   it('shows error state when search fails', async () => {
     const user = userEvent.setup();
 
-    mockUseTagSearch.mockReturnValue({
+    mockUseTagHierarchySearch.mockReturnValue({
       results: [],
       isLoading: false,
       error: new Error('Search failed'),
@@ -154,7 +154,7 @@ describe('TagSearchFilter', () => {
   it('shows no results message when no matches found', async () => {
     const user = userEvent.setup();
 
-    mockUseTagSearch.mockReturnValue({
+    mockUseTagHierarchySearch.mockReturnValue({
       results: [],
       isLoading: false,
       error: null,
@@ -180,7 +180,7 @@ describe('TagSearchFilter', () => {
     const user = userEvent.setup();
     const mockOnTagSelect = vi.fn();
 
-    mockUseTagSearch.mockReturnValue({
+    mockUseTagHierarchySearch.mockReturnValue({
       results: mockSearchResults,
       isLoading: false,
       error: null,
@@ -212,7 +212,7 @@ describe('TagSearchFilter', () => {
   it('clears search when clear button is clicked', async () => {
     const user = userEvent.setup();
 
-    mockUseTagSearch.mockReturnValue({
+    mockUseTagHierarchySearch.mockReturnValue({
       results: mockSearchResults,
       isLoading: false,
       error: null,
@@ -241,7 +241,7 @@ describe('TagSearchFilter', () => {
   it('shows breadcrumbs when enabled', async () => {
     const user = userEvent.setup();
 
-    mockUseTagSearch.mockReturnValue({
+    mockUseTagHierarchySearch.mockReturnValue({
       results: mockSearchResults,
       isLoading: false,
       error: null,
@@ -276,7 +276,7 @@ describe('TagSearchFilter', () => {
       parent: 'parent',
     }));
 
-    mockUseTagSearch.mockReturnValue({
+    mockUseTagHierarchySearch.mockReturnValue({
       results: manyResults,
       isLoading: false,
       error: null,

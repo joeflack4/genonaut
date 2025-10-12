@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { SelectChangeEvent } from '@mui/material/Select'
 import {
   Box,
-  Button,
   Card,
   CardContent,
   Chip,
@@ -45,6 +44,7 @@ import {
 } from '../../constants/gallery'
 import { loadViewMode, persistViewMode } from '../../utils/viewModeStorage'
 import { GridView as GalleryGridView, ResolutionDropdown } from '../../components/gallery'
+import { TagFilter } from '../../components/gallery/TagFilter'
 
 const PAGE_SIZE = 25
 const PANEL_WIDTH = 360
@@ -57,7 +57,6 @@ interface FiltersState {
   search: string
   sort: SortOption
   page: number
-  tag?: string | string[]  // Tag filter from URL - single or multiple tags
 }
 
 interface ContentToggles {
@@ -72,22 +71,29 @@ const sortOptions: Array<{ value: SortOption; label: string }> = [
   { value: 'top-rated', label: 'Top Rated' },
 ]
 
+function arraysEqualIgnoreOrder(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) {
+    return false
+  }
+  const sortedA = [...a].sort()
+  const sortedB = [...b].sort()
+  return sortedA.every((value, index) => value === sortedB[index])
+}
+
 export function GalleryPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [searchInput, setSearchInput] = useState('')
 
   // Initialize filters from URL parameters
   const [filters, setFilters] = useState<FiltersState>(() => {
-    // Handle multiple tag parameters from URL
-    const tags = searchParams.getAll('tag')
-    const tag = tags.length === 0 ? undefined : tags.length === 1 ? tags[0] : tags
     return {
       search: '',
       sort: 'recent' as SortOption,
       page: 0,
-      tag
     }
   })
+
+  const [selectedTags, setSelectedTags] = useState<string[]>(() => searchParams.getAll('tag'))
 
   // Initialize optionsOpen state from localStorage
   const [optionsOpen, setOptionsOpen] = useState(() => {
@@ -166,12 +172,14 @@ export function GalleryPage() {
   const { data: currentUser } = useCurrentUser()
   const userId = currentUser?.id ?? DEFAULT_USER_ID
 
-  // Update filters when URL parameters change
+  // Sync Selected tags with URL parameters (supports navigation/back links)
   useEffect(() => {
-    const tags = searchParams.getAll('tag')
-    const tag = tags.length === 0 ? undefined : tags.length === 1 ? tags[0] : tags
-    setFilters(prev => ({ ...prev, tag, page: 0 }))
-  }, [searchParams])
+    const tagsFromParams = searchParams.getAll('tag')
+    if (!arraysEqualIgnoreOrder(tagsFromParams, selectedTags)) {
+      setSelectedTags(tagsFromParams)
+      setFilters((prev) => ({ ...prev, page: 0 }))
+    }
+  }, [searchParams, selectedTags])
 
   // Save optionsOpen state to localStorage whenever it changes
   useEffect(() => {
@@ -194,6 +202,8 @@ export function GalleryPage() {
   }, [contentToggles])
 
   // Use unified gallery API with new content source types
+  const tagFilterParam = selectedTags.length === 0 ? undefined : selectedTags
+
   const { data: unifiedData, isLoading } = useUnifiedGallery({
     page: filters.page + 1, // Convert from 0-based to 1-based
     pageSize: PAGE_SIZE,
@@ -202,7 +212,7 @@ export function GalleryPage() {
     searchTerm: filters.search || undefined,
     sortField: filters.sort === 'recent' ? 'created_at' : 'quality_score',
     sortOrder: 'desc',
-    tag: filters.tag, // Pass tag filter(s) to API
+    tag: tagFilterParam,
   })
 
   const data = unifiedData
@@ -236,6 +246,21 @@ export function GalleryPage() {
     }))
     // Reset page when toggling content types
     setFilters((prev) => ({ ...prev, page: 0 }))
+  }
+
+  const handleTagFilterChange = (tags: string[]) => {
+    setSelectedTags(tags)
+    setFilters((prev) => ({ ...prev, page: 0 }))
+    setSearchParams((params) => {
+      const newParams = new URLSearchParams(params)
+      newParams.delete('tag')
+      tags.forEach((tagId) => newParams.append('tag', tagId))
+      return newParams
+    })
+  }
+
+  const handleTagClick = (tagId: string) => {
+    navigate(`/tags/${tagId}`)
   }
 
   return (
@@ -438,6 +463,7 @@ export function GalleryPage() {
           },
         }}
         data-testid="gallery-options-drawer"
+        data-open={optionsOpen ? 'true' : 'false'}
       >
         <Stack spacing={3} sx={{ height: '100%' }} data-testid="gallery-options-stack">
           <Box sx={{ textAlign: 'center' }} data-testid="gallery-options-summary">
@@ -498,89 +524,6 @@ export function GalleryPage() {
               inputProps={{ 'data-testid': 'gallery-search-input' }}
             />
 
-            {/* Tag Filter Display */}
-            {filters.tag && (
-              <Box
-                sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}
-                data-testid="gallery-tag-filter"
-              >
-                <Typography variant="body2" color="text.secondary" data-testid="gallery-tag-filter-label">
-                  Filtered by {Array.isArray(filters.tag) ? 'tags' : 'tag'}:
-                </Typography>
-                {Array.isArray(filters.tag) ? (
-                  // Multiple tags
-                  filters.tag.map((tag, index) => (
-                    <Chip
-                      key={tag}
-                      label={tag}
-                      variant="outlined"
-                      color="primary"
-                      onDelete={() => {
-                        const remainingTags = filters.tag.filter(t => t !== tag);
-                        if (remainingTags.length === 0) {
-                          // Remove all tags if this was the last one
-                          setFilters(prev => ({ ...prev, tag: undefined, page: 0 }));
-                          setSearchParams(params => {
-                            const newParams = new URLSearchParams(params);
-                            newParams.delete('tag');
-                            return newParams;
-                          });
-                        } else {
-                          // Update with remaining tags
-                          setFilters(prev => ({ ...prev, tag: remainingTags.length === 1 ? remainingTags[0] : remainingTags, page: 0 }));
-                          setSearchParams(params => {
-                            const newParams = new URLSearchParams(params);
-                            newParams.delete('tag');
-                            remainingTags.forEach(t => newParams.append('tag', t));
-                            return newParams;
-                          });
-                        }
-                      }}
-                      sx={{ maxWidth: 200 }}
-                      data-testid={`gallery-tag-chip-${index}`}
-                    />
-                  ))
-                ) : (
-                  // Single tag
-                  <Chip
-                    label={filters.tag}
-                    variant="outlined"
-                    color="primary"
-                    onDelete={() => {
-                      setFilters(prev => ({ ...prev, tag: undefined, page: 0 }));
-                      setSearchParams(params => {
-                        const newParams = new URLSearchParams(params);
-                        newParams.delete('tag');
-                        return newParams;
-                      });
-                    }}
-                    sx={{ maxWidth: 200 }}
-                    data-testid="gallery-tag-chip-single"
-                  />
-                )}
-                {/* Clear All Tags Button */}
-                {filters.tag && (
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    color="secondary"
-                    onClick={() => {
-                      setFilters(prev => ({ ...prev, tag: undefined, page: 0 }));
-                      setSearchParams(params => {
-                        const newParams = new URLSearchParams(params);
-                        newParams.delete('tag');
-                        return newParams;
-                      });
-                    }}
-                    sx={{ ml: 1 }}
-                    data-testid="gallery-clear-tags-button"
-                  >
-                    Clear All Tags
-                  </Button>
-                )}
-              </Box>
-            )}
-
             <FormControl fullWidth>
               <InputLabel id="gallery-sort-label">Sort by</InputLabel>
               <Select
@@ -605,7 +548,7 @@ export function GalleryPage() {
 
           <Stack spacing={2} data-testid="gallery-content-toggles">
             <Typography variant="h6" component="h2" data-testid="gallery-content-toggles-title">
-              Content Types
+              Filter by gen source
             </Typography>
             <Typography variant="body2" color="text.secondary" data-testid="gallery-content-toggles-description">
               Choose which types of content to include in your gallery view.
@@ -656,6 +599,17 @@ export function GalleryPage() {
                 data-testid="gallery-toggle-community-autogens-label"
               />
             </Stack>
+          </Stack>
+
+          <Stack spacing={2} data-testid="gallery-tag-filter-section">
+            <Typography variant="h6" component="h2" data-testid="gallery-tag-filter-title">
+              Filter by tags
+            </Typography>
+            <TagFilter
+              selectedTags={selectedTags}
+              onTagsChange={handleTagFilterChange}
+              onTagClick={handleTagClick}
+            />
           </Stack>
         </Stack>
       </Drawer>

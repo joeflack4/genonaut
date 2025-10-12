@@ -57,7 +57,7 @@ def _fts_language_literal() -> literal_column:
 
 class User(Base):
     """User model for storing user information and preferences.
-    
+
     Attributes:
         id: Primary key
         username: Unique username
@@ -66,9 +66,10 @@ class User(Base):
         updated_at: Timestamp when user was last updated
         preferences: JSON field for storing user preferences
         is_active: Whether the user account is active
+        favorite_tag_ids: Array of favorite tag UUIDs
     """
     __tablename__ = 'users'
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
@@ -76,19 +77,21 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     preferences = Column(JSONColumn, default=dict)
     is_active = Column(Boolean, default=True, nullable=False)
-    
+    favorite_tag_ids = Column(JSONColumn, default=list, nullable=True)
+
     # Relationships
     content_items = relationship("ContentItem", back_populates="creator")
     auto_content_items = relationship("ContentItemAuto", back_populates="creator")
     interactions = relationship("UserInteraction", back_populates="user")
     recommendations = relationship("Recommendation", back_populates="user")
-    
+
     # Pagination optimization indexes
     __table_args__ = (
         Index("idx_users_created_at_desc", created_at.desc()),
         Index("idx_users_active_created", is_active, created_at.desc()),
         Index("idx_users_username_lower", func.lower(username)),  # For case-insensitive username searches
         Index("idx_users_email_lower", func.lower(email)),      # For case-insensitive email searches
+        Index("idx_users_favorite_tags_gin", favorite_tag_ids, postgresql_using="gin", info={"postgres_only": True}),
     )
 
 
@@ -773,6 +776,102 @@ class LoraModel(Base):
         Index("idx_lora_model_metadata_gin", model_metadata, postgresql_using="gin", postgresql_ops={"model_metadata": "jsonb_path_ops"}, info={"postgres_only": True}),
         # GiST index for full-text search on description
         Index("idx_lora_description_gist", func.to_tsvector(_fts_language_literal(), description), postgresql_using="gist", info={"postgres_only": True}),
+    )
+
+
+class Tag(Base):
+    """Tag model for content categorization and organization.
+
+    Supports polyhierarchical relationships through the tag_parents table.
+    Tags can have multiple parents, enabling flexible taxonomies.
+
+    Attributes:
+        id: Primary key (UUID)
+        name: Unique tag name (required)
+        tag_metadata: Additional metadata in JSON format
+        created_at: Timestamp when tag was created
+        updated_at: Timestamp when tag was last updated
+    """
+    __tablename__ = 'tags'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), unique=True, nullable=False, index=True)
+    tag_metadata = Column(JSONColumn, default=dict, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    # Parents: tags that this tag is a child of
+    parents = relationship(
+        "Tag",
+        secondary="tag_parents",
+        primaryjoin="Tag.id==TagParent.tag_id",
+        secondaryjoin="Tag.id==TagParent.parent_id",
+        backref="children",
+        foreign_keys="[TagParent.tag_id, TagParent.parent_id]"
+    )
+
+    # Indexes
+    __table_args__ = (
+        Index("idx_tags_name", name),
+        Index("idx_tags_created_at_desc", created_at.desc()),
+    )
+
+
+class TagParent(Base):
+    """Tag parent relationship model for polyhierarchical tag structures.
+
+    Each row represents a parent-child relationship: tag_id (child) has parent_id (parent).
+    Supports multiple parents per tag for flexible polyhierarchies.
+
+    Attributes:
+        tag_id: Foreign key to tags.id (the child tag)
+        parent_id: Foreign key to tags.id (the parent tag)
+    """
+    __tablename__ = 'tag_parents'
+
+    tag_id = Column(UUID(as_uuid=True), ForeignKey('tags.id', ondelete='CASCADE'), primary_key=True, nullable=False)
+    parent_id = Column(UUID(as_uuid=True), ForeignKey('tags.id', ondelete='CASCADE'), primary_key=True, nullable=False)
+
+    # Indexes for efficient parent/child queries
+    __table_args__ = (
+        Index("idx_tag_parents_tag", tag_id),
+        Index("idx_tag_parents_parent", parent_id),
+    )
+
+
+class TagRating(Base):
+    """Tag rating model for user ratings of tags.
+
+    Allows users to rate tags on a 1.0-5.0 scale with half-star increments (0.5).
+    Each user can rate each tag only once (enforced by unique constraint).
+
+    Attributes:
+        id: Primary key
+        user_id: Foreign key to users.id
+        tag_id: Foreign key to tags.id
+        rating: Rating value (1.0-5.0, half-star increments allowed)
+        created_at: Timestamp when rating was created
+        updated_at: Timestamp when rating was last updated
+    """
+    __tablename__ = 'tag_ratings'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
+    tag_id = Column(UUID(as_uuid=True), ForeignKey('tags.id'), nullable=False, index=True)
+    rating = Column(Float, nullable=False)  # 1.0-5.0 with 0.5 increments
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id])
+    tag = relationship("Tag", foreign_keys=[tag_id])
+
+    # Constraints and indexes
+    __table_args__ = (
+        UniqueConstraint('user_id', 'tag_id', name='uq_user_tag_rating'),
+        Index("idx_tag_ratings_tag_rating", tag_id, rating.desc()),  # For sorting tags by rating
+        Index("idx_tag_ratings_user_created", user_id, created_at.desc()),  # For user rating history
     )
 
 

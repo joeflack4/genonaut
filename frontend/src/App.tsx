@@ -8,7 +8,7 @@ import { ImageViewPage } from './pages/view'
 import { RecommendationsPage } from './pages/recommendations'
 import { SettingsPage } from './pages/settings'
 import { GenerationPage } from './pages/generation'
-import { TagsPage } from './pages/tags'
+import { TagsPage, TagDetailPage } from './pages/tags'
 import { AdminFlaggedContentPage } from './pages/admin'
 import { NotificationsPage, NotificationDetailPage } from './pages/notifications'
 
@@ -27,6 +27,7 @@ const routes: RouteObject[] = [
       { path: 'generate', element: <GenerationPage /> },
       { path: 'generation', element: <GenerationPage /> },
       { path: 'tags', element: <TagsPage /> },
+      { path: 'tags/:tagId', element: <TagDetailPage /> },
       { path: 'notifications', element: <NotificationsPage /> },
       { path: 'notification/:id', element: <NotificationDetailPage /> },
       { path: 'settings', element: <SettingsPage /> },

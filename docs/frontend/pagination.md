@@ -488,4 +488,4 @@ const {
 } = galleryData;
 ```
 
-For more detailed implementation examples, see the `EnhancedGalleryPage` component in `frontend/src/pages/gallery/EnhancedGalleryPage.tsx`.
+For more detailed implementation examples, see the `GalleryPage` component in `frontend/src/pages/gallery/GalleryPage.tsx`.

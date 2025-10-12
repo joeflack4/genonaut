@@ -10,6 +10,7 @@ import { NotificationService } from './notification-service'
 import { FlaggedContentService } from './flagged-content-service'
 import { CheckpointModelService } from './checkpoint-model-service'
 import { LoraModelService } from './lora-model-service'
+import { TagService } from './tag-service'
 
 const apiClient = new ApiClient()
 
@@ -24,6 +25,7 @@ export const notificationService = new NotificationService(apiClient)
 export const flaggedContentService = new FlaggedContentService(apiClient)
 export const checkpointModelService = new CheckpointModelService(apiClient)
 export const loraModelService = new LoraModelService(apiClient)
+export const tagService = new TagService(apiClient)
 
 export type { GalleryListParams } from './gallery-service'
 export type { GalleryAutoListParams } from './gallery-auto-service'
@@ -45,3 +47,11 @@ export type {
   NotificationListResponse,
   NotificationListParams
 } from './notification-service'
+export type {
+  TagListParams,
+  TagSearchParams,
+  TagRateParams,
+  TagFavoriteParams,
+  TagRatingsParams,
+  TagSortOption
+} from './tag-service'

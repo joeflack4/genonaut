@@ -23,6 +23,7 @@ from genonaut.api.services.generation_service import GenerationService
 from genonaut.api.exceptions import EntityNotFoundError, ValidationError
 from genonaut.api.models.requests import PaginationRequest
 from genonaut.api.models.responses import ContentResponse
+from genonaut.api.utils.tag_identifiers import get_uuid_for_slug
 
 
 @pytest.fixture(scope="function")
@@ -350,6 +351,148 @@ class TestContentService:
         assert item["path_thumbs_alt_res"]["256x384"] == "/thumbs/256x384.png"
         assert item["path_thumbs_alt_res"]["358x538"] == "/thumbs/358x538.png"
         assert item["path_thumbs_alt_res"]["512x768"] == "/thumbs/512x768.png"
+
+    def test_get_unified_content_tag_match_any(self, test_db_session, sample_user):
+        """Tag filtering with 'any' logic should return items that match any tag."""
+        content_one = ContentItem(
+            title="Forest Dragon",
+            content_type="image",
+            content_data="/images/dragon.png",
+            creator_id=sample_user.id,
+            item_metadata={},
+            prompt="Generated",
+            tags=["fantasy", "dragon"],
+        )
+        content_two = ContentItem(
+            title="Forest Spirit",
+            content_type="image",
+            content_data="/images/spirit.png",
+            creator_id=sample_user.id,
+            item_metadata={},
+            prompt="Generated",
+            tags=["fantasy", "spirit"],
+        )
+        test_db_session.add_all([content_one, content_two])
+        test_db_session.commit()
+
+        service = ContentService(test_db_session)
+        pagination = PaginationRequest(page=1, page_size=10)
+
+        result = service.get_unified_content_paginated(
+            pagination=pagination,
+            content_types=["regular"],
+            tags=["dragon", "spirit"],
+            tag_match="any",
+        )
+
+        titles = {item["title"] for item in result["items"]}
+        assert "Forest Dragon" in titles
+        assert "Forest Spirit" in titles
+
+    def test_get_unified_content_tag_match_all(self, test_db_session, sample_user):
+        """Tag filtering with 'all' logic should require all tags to be present."""
+        content_all = ContentItem(
+            title="Crystal Dragon",
+            content_type="image",
+            content_data="/images/crystal.png",
+            creator_id=sample_user.id,
+            item_metadata={},
+            prompt="Generated",
+            tags=["fantasy", "dragon", "crystal"],
+        )
+        content_partial = ContentItem(
+            title="Crystal Cave",
+            content_type="image",
+            content_data="/images/cave.png",
+            creator_id=sample_user.id,
+            item_metadata={},
+            prompt="Generated",
+            tags=["fantasy", "crystal"],
+        )
+        test_db_session.add_all([content_all, content_partial])
+        test_db_session.commit()
+
+        service = ContentService(test_db_session)
+        pagination = PaginationRequest(page=1, page_size=10)
+
+        result = service.get_unified_content_paginated(
+            pagination=pagination,
+            content_types=["regular"],
+            tags=["fantasy", "dragon"],
+            tag_match="all",
+        )
+
+        titles = [item["title"] for item in result["items"]]
+        assert "Crystal Dragon" in titles
+        assert "Crystal Cave" not in titles
+
+    def test_get_unified_content_tag_uuid_filter(self, test_db_session, sample_user):
+        """UUID-identifiers should resolve to legacy slugs for tag filtering."""
+
+        tagged_content = ContentItem(
+            title="4K Landscape",
+            content_type="image",
+            content_data="/images/4k.png",
+            creator_id=sample_user.id,
+            item_metadata={},
+            prompt="High resolution",
+            tags=['4k'],
+        )
+        test_db_session.add(tagged_content)
+        test_db_session.commit()
+
+        uuid_identifier = get_uuid_for_slug('4k')
+        assert uuid_identifier is not None
+
+        service = ContentService(test_db_session)
+        pagination = PaginationRequest(page=1, page_size=10)
+
+        result = service.get_unified_content_paginated(
+            pagination=pagination,
+            content_types=['regular'],
+            tags=[uuid_identifier],
+            tag_match='any',
+        )
+
+        titles = [item["title"] for item in result["items"]]
+        assert "4K Landscape" in titles
+
+    def test_get_unified_content_tag_objects_filter(self, test_db_session, sample_user):
+        """Content tagged with object structures should be filterable."""
+
+        uuid_identifier = get_uuid_for_slug('4k')
+        assert uuid_identifier is not None
+
+        tagged_content = ContentItem(
+            title="4K Portrait",
+            content_type="image",
+            content_data="/images/4k-portrait.png",
+            creator_id=sample_user.id,
+            item_metadata={},
+            prompt="High resolution portrait",
+            tags=[
+                {
+                    'id': uuid_identifier,
+                    'slug': '4k',
+                    'name': '4K',
+                }
+            ],
+        )
+        test_db_session.add(tagged_content)
+        test_db_session.commit()
+
+        service = ContentService(test_db_session)
+        pagination = PaginationRequest(page=1, page_size=10)
+
+        result = service.get_unified_content_paginated(
+            pagination=pagination,
+            content_types=['regular'],
+            tags=[uuid_identifier],
+            tag_match='any',
+        )
+
+        titles = [item["title"] for item in result["items"]]
+        assert "4K Portrait" in titles
 
 
 class TestContentAutoService:

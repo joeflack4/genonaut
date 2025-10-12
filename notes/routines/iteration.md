@@ -12,7 +12,7 @@ And there are a very special set of tasks that you must follow every time you co
 them passing now because you need me to do something, or because of a complex setup, and you feel they are not truly 
 necessary now, then skip them, and add as much information as you can about them in a document 
 `notes/DOC_NAME-skipped-tests.md`, where `DOC_NAME` is the name of the document containing the checklist of tasks that 
-you are currently working on. 
+you are currently working on.
 2. For the checkboxes in this minor section, check off all the ones completed. If there are any that you can't complete
 now, put an annotation at the end of the sentence on the checkbox, like: `@skipped-until-TAG`, where `TAG` is an alias 
 for a broader description of what is being held up.
@@ -32,6 +32,7 @@ my attention to it.
 So, once all the work in a minor section is completed or skipped for good cause, follow these 6 steps to close that 
 minor subsection off, and then you can move on to the next section.
 
-It's also worth noting that it makes good sense that most major sections (phase) should have their own dedicated tests 
+Use TDD where it makes sense (that is, write the tests first, then implement) when it comes to major sections. Most 
+major sections (phase) should have their own dedicated tests 
 (and also documentation updates, if applicable). For each phase, add tasks as applicable for 1+ tests of each of 
 category (frontend | backend) x (unit | integration / e2e)--whatever tests make sense for the given work. 

@@ -211,7 +211,7 @@ test.describe('Tag Hierarchy Tests', () => {
     await expect(page.locator('button:has-text("Apply & Query")')).not.toBeVisible();
   });
 
-  test('should apply selected tags and navigate to gallery', async ({ page }) => {
+  test('should apply Selected tags and navigate to gallery', async ({ page }) => {
     await page.goto('/tags', { waitUntil: 'domcontentloaded' });
 
     // Wait for tree to load

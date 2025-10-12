@@ -148,34 +148,39 @@ test.describe('Gallery page', () => {
       await expect(page.getByText(/47,000 pages showing 1,175,000 results/)).toBeVisible()
 
       // Check if options panel is already open (default behavior) or needs to be opened
-      const contentTypesSection = page.locator('text="Content Types"')
+      const contentTypesSection = page.getByTestId('gallery-content-toggles-title')
       const isOptionsOpen = await contentTypesSection.isVisible().catch(() => false)
 
       if (!isOptionsOpen) {
         // Options panel is closed, need to open it
-        const optionsButton = page.getByRole('button', { name: 'Options' })
-        await optionsButton.click()
-        await page.waitForSelector('text="Content Types"', { state: 'visible' })
+        const optionsButton = page.getByTestId('gallery-options-toggle-button')
+        await optionsButton.click({ force: true })
+        await page.getByTestId('gallery-content-toggles-title').waitFor({ state: 'visible' })
       }
 
       // Wait for switches to be fully rendered and stable
       await page.waitForTimeout(1000)
 
-      // Use the exact Material-UI switch pattern with role="switch"
-      const yourAutoGenSwitch = page.locator('input[role="switch"]').nth(1) // "Your auto-gens" is typically the second switch
-      const communityAutoGenSwitch = page.locator('input[role="switch"]').nth(3) // "Community auto-gens" is typically the fourth switch
+      const yourAutoGenSwitch = page.getByTestId('gallery-toggle-your-autogens-label')
+      const communityAutoGenSwitch = page.getByTestId('gallery-toggle-community-autogens-label')
+
+      const yourAutoGenInput = yourAutoGenSwitch.locator('input[role="switch"]')
+      const communityAutoGenInput = communityAutoGenSwitch.locator('input[role="switch"]')
+
+      await expect(yourAutoGenInput).toBeVisible()
+      await expect(communityAutoGenInput).toBeVisible()
 
       // Verify switches are checked before clicking (they should be checked initially)
-      await expect(yourAutoGenSwitch).toBeChecked()
-      await expect(communityAutoGenSwitch).toBeChecked()
+      await expect(yourAutoGenInput).toBeChecked()
+      await expect(communityAutoGenInput).toBeChecked()
 
-      // Click to uncheck them
+      // Click to uncheck them via the label (material UI wraps the input)
       await yourAutoGenSwitch.click({ force: true })
       await communityAutoGenSwitch.click({ force: true })
 
       // Verify they are now unchecked
-      await expect(yourAutoGenSwitch).not.toBeChecked()
-      await expect(communityAutoGenSwitch).not.toBeChecked()
+      await expect(yourAutoGenInput).not.toBeChecked()
+      await expect(communityAutoGenInput).not.toBeChecked()
 
       // Check that pagination updated
       await expect(page.getByText(/2,610 pages showing 65,233 results/)).toBeVisible()

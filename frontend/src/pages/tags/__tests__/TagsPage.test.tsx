@@ -16,7 +16,7 @@ vi.mock('../../../hooks/useTagHierarchy');
 const mockUseTagHierarchy = vi.mocked(tagHierarchyHooks.useTagHierarchy);
 const mockUseTagHierarchyTree = vi.mocked(tagHierarchyHooks.useTagHierarchyTree);
 const mockUseRefreshHierarchy = vi.mocked(tagHierarchyHooks.useRefreshHierarchy);
-const mockUseTagSearch = vi.mocked(tagHierarchyHooks.useTagSearch);
+const mockUseTagHierarchySearch = vi.mocked(tagHierarchyHooks.useTagHierarchySearch);
 
 // Mock react-router-dom's useNavigate
 const mockNavigate = vi.fn();
@@ -95,7 +95,7 @@ describe('TagsPage', () => {
     } as any);
 
     // Default mock for search
-    mockUseTagSearch.mockReturnValue({
+    mockUseTagHierarchySearch.mockReturnValue({
       results: [],
       isLoading: false,
       error: null,

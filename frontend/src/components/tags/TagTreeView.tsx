@@ -191,7 +191,7 @@ export default function TagTreeView({
           padding: '8px 12px',
           cursor: 'pointer',
           backgroundColor: isSelected
-            ? alpha('#4caf50', 0.15) // Green for selected tags
+            ? alpha('#4caf50', 0.15) // Green for Selected tags
             : isHighlighted
             ? alpha('#1976d2', 0.1) // Blue for highlighted
             : 'transparent',

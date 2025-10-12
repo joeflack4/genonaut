@@ -221,3 +221,76 @@ export interface ApiLoraModelListResponse {
   total: number
   pagination?: ApiLoraModelPaginationMeta
 }
+
+// Tag types
+export interface ApiTag {
+  id: string  // UUID
+  name: string
+  metadata?: Record<string, unknown>
+  created_at?: string
+  updated_at?: string
+  average_rating?: number | null
+  rating_count?: number | null
+  is_favorite?: boolean | null
+}
+
+export interface ApiTagRelation {
+  id: string
+  name: string
+  depth: number
+}
+
+export interface ApiTagNode {
+  id: string  // Tag name for compatibility
+  name: string
+  parent: string | null
+  average_rating?: number | null
+  rating_count?: number
+}
+
+export interface ApiTagHierarchy {
+  nodes: ApiTagNode[]
+  metadata: {
+    totalNodes: number
+    totalRelationships: number
+    rootCategories: number
+    lastUpdated: string
+    format: string
+    version: string
+  }
+}
+
+export interface ApiTagStatistics {
+  totalNodes: number
+  totalRelationships: number
+  rootCategories: number
+}
+
+export interface ApiTagDetail {
+  tag: ApiTag
+  parents: ApiTag[]
+  children: ApiTag[]
+  ancestors?: ApiTagRelation[]
+  descendants?: ApiTagRelation[]
+  average_rating: number | null
+  rating_count: number
+  user_rating: number | null
+  is_favorite?: boolean | null
+}
+
+export interface ApiTagRating {
+  id: number
+  user_id: string  // UUID
+  tag_id: string  // UUID
+  rating: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ApiTagRatingValue {
+  rating: number | null
+}
+
+export interface ApiTagUserRatings {
+  ratings: Record<string, number>
+}

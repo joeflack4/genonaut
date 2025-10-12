@@ -45,7 +45,7 @@ export default function TagsPage() {
   const [helpExpanded, setHelpExpanded] = useState(false);
   const [hierarchyOverviewExpanded, setHierarchyOverviewExpanded] = useState(false);
 
-  // Initialize dirty state based on persisted selected tags
+  // Initialize dirty state based on persisted Selected tags
   useEffect(() => {
     setIsDirty(selectedTagIds.size > 0);
   }, [selectedTagIds.size]);

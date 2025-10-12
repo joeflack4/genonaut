@@ -161,6 +161,28 @@ Seed-data directories for the main and demo databases are configured in `config.
 - `started_at`: Timestamp when job processing started
 - `completed_at`: Timestamp when job completed
 
+**Tags Table (`tags`):**
+- `id` (Primary Key, UUID): Unique tag identifier
+- `name` (Unique): Tag name/label (max 255 characters)
+- `tag_metadata`: JSONB column for additional tag metadata
+- `created_at`: Timestamp when tag was created
+- `updated_at`: Timestamp when tag was last updated
+
+**Tag Parents Table (`tag_parents`):**
+- Composite Primary Key: (`tag_id`, `parent_id`)
+- `tag_id` (Foreign Key): Reference to the child tag (CASCADE delete)
+- `parent_id` (Foreign Key): Reference to the parent tag (CASCADE delete)
+- Supports polyhierarchical relationships (tags can have multiple parents)
+
+**Tag Ratings Table (`tag_ratings`):**
+- `id` (Primary Key): Unique rating identifier
+- `user_id` (Foreign Key): Reference to the user who rated the tag
+- `tag_id` (Foreign Key): Reference to the rated tag
+- `rating`: Rating value (1.0 to 5.0, allows half-star increments)
+- `created_at`: Timestamp when rating was created
+- `updated_at`: Timestamp when rating was last updated
+- Unique constraint on (user_id, tag_id) - each user can rate a tag only once
+
 ### Database Indexes
 
 Genonaut uses a comprehensive indexing strategy optimized for both general queries and high-performance pagination scenarios.
@@ -219,6 +241,26 @@ The database includes specialized composite indexes designed to support efficien
 - `ix_generation_jobs_created_at` - Temporal queries
 - `idx_generation_jobs_user_created` - (user_id, created_at DESC) - User job history pagination
 - `idx_generation_jobs_status_created` - (status, created_at DESC) - Status-filtered job queries
+
+**Tags:**
+- `ix_tags_name` - Unique index for tag name lookups and uniqueness enforcement
+- `idx_tags_name` - Additional B-tree index for tag name searches
+- `idx_tags_created_at_desc` - (created_at DESC) - Recently created tags
+
+**Tag Parents:**
+- `idx_tag_parents_tag` - (tag_id) - Find all parents of a tag (breadcrumbs/up-links)
+- `idx_tag_parents_parent` - (parent_id) - Find all children of a tag (hot path for hierarchy traversal)
+- Composite primary key on (tag_id, parent_id) ensures no duplicate relationships
+
+**Tag Ratings:**
+- `ix_tag_ratings_user_id` - User-specific ratings
+- `ix_tag_ratings_tag_id` - Tag-specific ratings
+- `idx_tag_ratings_tag_rating` - (tag_id, rating DESC) - Sorting tags by rating
+- `idx_tag_ratings_user_created` - (user_id, created_at DESC) - User rating history
+- Unique constraint on (user_id, tag_id) ensures one rating per user per tag
+
+**Users (Tag-Related):**
+- `idx_users_favorite_tags_gin` - GIN index on favorite_tag_ids array for efficient tag favorite queries (PostgreSQL only)
 
 #### Index Design Principles
 
@@ -593,5 +635,159 @@ FROM pg_stat_user_tables t
 WHERE t.seq_scan > 100 AND t.seq_tup_read / t.seq_scan > 10000
 ORDER BY t.seq_tup_read DESC;
 ```
+
+## Tag System Queries
+
+The tag system supports polyhierarchical relationships where tags can have multiple parents, enabling flexible taxonomies for content organization.
+
+### Common Tag Queries
+
+**Find all children of a tag:**
+```sql
+SELECT t.*
+FROM tags AS t
+JOIN tag_parents AS tp ON tp.tag_id = t.id
+WHERE tp.parent_id = :parent_tag_id
+ORDER BY t.name;
+```
+
+**Find all parents of a tag:**
+```sql
+SELECT p.*
+FROM tags AS p
+JOIN tag_parents AS tp ON tp.parent_id = p.id
+WHERE tp.tag_id = :child_tag_id
+ORDER BY p.name;
+```
+
+**Find root tags (tags with no parents):**
+```sql
+SELECT t.*
+FROM tags t
+LEFT JOIN tag_parents tp ON t.id = tp.tag_id
+WHERE tp.tag_id IS NULL
+ORDER BY t.name;
+```
+
+**Find all descendants recursively (using CTE):**
+```sql
+WITH RECURSIVE descendants AS (
+  -- Base case: direct children
+  SELECT tp.tag_id as descendant_id, 1 as depth
+  FROM tag_parents tp
+  WHERE tp.parent_id = :parent_tag_id
+
+  UNION
+
+  -- Recursive case: children of children
+  SELECT tp.tag_id, d.depth + 1
+  FROM tag_parents tp
+  JOIN descendants d ON tp.parent_id = d.descendant_id
+  WHERE d.depth < 10  -- Prevent infinite loops
+)
+SELECT DISTINCT t.*, d.depth
+FROM descendants d
+JOIN tags t ON t.id = d.descendant_id
+ORDER BY d.depth, t.name;
+```
+
+**Find all ancestors recursively (using CTE):**
+```sql
+WITH RECURSIVE ancestors AS (
+  -- Base case: direct parents
+  SELECT tp.parent_id as ancestor_id, 1 as depth
+  FROM tag_parents tp
+  WHERE tp.tag_id = :child_tag_id
+
+  UNION
+
+  -- Recursive case: parents of parents
+  SELECT tp.parent_id, a.depth + 1
+  FROM tag_parents tp
+  JOIN ancestors a ON tp.tag_id = a.ancestor_id
+  WHERE a.depth < 10  -- Prevent infinite loops
+)
+SELECT DISTINCT t.*, a.depth
+FROM ancestors a
+JOIN tags t ON t.id = a.ancestor_id
+ORDER BY a.depth, t.name;
+```
+
+**Get tag with average rating:**
+```sql
+SELECT
+    t.*,
+    COALESCE(AVG(tr.rating), 0) as avg_rating,
+    COUNT(tr.id) as rating_count
+FROM tags t
+LEFT JOIN tag_ratings tr ON tr.tag_id = t.id
+WHERE t.id = :tag_id
+GROUP BY t.id;
+```
+
+**Get user's rating for a tag:**
+```sql
+SELECT rating, created_at, updated_at
+FROM tag_ratings
+WHERE user_id = :user_id AND tag_id = :tag_id;
+```
+
+**Get top-rated tags:**
+```sql
+SELECT
+    t.*,
+    AVG(tr.rating) as avg_rating,
+    COUNT(tr.id) as rating_count
+FROM tags t
+INNER JOIN tag_ratings tr ON tr.tag_id = t.id
+GROUP BY t.id
+HAVING COUNT(tr.id) >= 5  -- Minimum rating threshold
+ORDER BY avg_rating DESC, rating_count DESC
+LIMIT 20;
+```
+
+**Get user's favorite tags:**
+```sql
+SELECT t.*
+FROM tags t
+WHERE t.id = ANY(
+    SELECT jsonb_array_elements_text(favorite_tag_ids)::uuid
+    FROM users
+    WHERE id = :user_id
+)
+ORDER BY t.name;
+```
+
+**Find content with specific tags (intersection):**
+```sql
+-- Content with ALL specified tags
+SELECT ci.*
+FROM content_items ci
+WHERE ci.tags @> :tag_array::jsonb;
+
+-- Example: WHERE ci.tags @> '["digital-art", "3d"]'::jsonb
+```
+
+**Find content with any of specified tags (union):**
+```sql
+-- Content with ANY of specified tags
+SELECT ci.*
+FROM content_items ci
+WHERE ci.tags ?| :tag_names_array;
+
+-- Example: WHERE ci.tags ?| ARRAY['digital-art', '3d']
+```
+
+### Tag System Performance Notes
+
+1. **Parent-Child Queries**: The `idx_tag_parents_parent` and `idx_tag_parents_tag` indexes make these queries very efficient (O(log n + k) where k is result size)
+
+2. **Recursive Queries**: Ancestor/descendant queries use recursive CTEs which are generally fast for moderate-depth hierarchies (< 10 levels). The depth limit prevents infinite loops in case of circular references (which shouldn't exist but are guarded against).
+
+3. **Rating Aggregation**: Computing average ratings requires a table scan of tag_ratings. For frequently accessed tags, consider caching these values.
+
+4. **Favorite Tags**: The GIN index on `users.favorite_tag_ids` makes favorite tag queries efficient using the `@>` (contains) operator.
+
+5. **Content Tag Filtering**: The GIN indexes on `content_items.tags` and `content_items_auto.tags` make tag-based content filtering very efficient.
 
 For more detailed migration procedures and troubleshooting, see [Database Migrations](./db_migrations.md).

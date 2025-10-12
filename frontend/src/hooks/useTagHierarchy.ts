@@ -1,8 +1,11 @@
 /**
  * React hook for tag hierarchy data management
+ *
+ * Updated to use database-backed tag service (v2.0)
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { tagService } from '../services';
 import { tagHierarchyService } from '../services/tag-hierarchy-service';
 
 // Query keys
@@ -16,12 +19,12 @@ export const tagHierarchyKeys = {
 };
 
 /**
- * Hook to get the complete tag hierarchy
+ * Hook to get the complete tag hierarchy (database-backed)
  */
-export function useTagHierarchy(options?: { noCache?: boolean }) {
+export function useTagHierarchy(options?: { includeRatings?: boolean }) {
   return useQuery({
-    queryKey: tagHierarchyKeys.hierarchy(),
-    queryFn: () => tagHierarchyService.getHierarchy(options),
+    queryKey: [...tagHierarchyKeys.hierarchy(), options?.includeRatings],
+    queryFn: () => tagService.getTagHierarchy(options?.includeRatings),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -30,7 +33,7 @@ export function useTagHierarchy(options?: { noCache?: boolean }) {
 /**
  * Hook to get hierarchy as a tree structure
  */
-export function useTagHierarchyTree(options?: { noCache?: boolean }) {
+export function useTagHierarchyTree(options?: { includeRatings?: boolean }) {
   const hierarchyQuery = useTagHierarchy(options);
 
   const treeData = hierarchyQuery.data ?
@@ -64,7 +67,7 @@ export function useTagNode(nodeId: string) {
 /**
  * Hook to get children of a parent tag
  */
-export function useTagChildren(parentId: string) {
+export function useTagHierarchyChildren(parentId: string) {
   return useQuery({
     queryKey: tagHierarchyKeys.children(parentId),
     queryFn: () => tagHierarchyService.getChildren(parentId),
@@ -74,12 +77,12 @@ export function useTagChildren(parentId: string) {
 }
 
 /**
- * Hook to get root tags
+ * Hook to get root tags (database-backed)
  */
 export function useRootTags() {
   return useQuery({
     queryKey: tagHierarchyKeys.roots(),
-    queryFn: () => tagHierarchyService.getRootTags(),
+    queryFn: () => tagService.getRootTags(),
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 }
@@ -103,7 +106,11 @@ export function useRefreshHierarchy() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => tagHierarchyService.refreshHierarchy(),
+    mutationFn: async () => {
+      // Fetch fresh hierarchy from database
+      const hierarchy = await tagService.getTagHierarchy(true);
+      return hierarchy;
+    },
     onSuccess: () => {
       // Invalidate all tag hierarchy queries
       queryClient.invalidateQueries({ queryKey: tagHierarchyKeys.all });
@@ -114,7 +121,7 @@ export function useRefreshHierarchy() {
 /**
  * Hook for tag search functionality
  */
-export function useTagSearch(query: string) {
+export function useTagHierarchySearch(query: string) {
   const { data: hierarchy, isLoading, error } = useTagHierarchy();
 
   const searchResults = hierarchy && query.trim() ?

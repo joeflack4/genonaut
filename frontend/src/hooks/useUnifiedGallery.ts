@@ -8,6 +8,7 @@ export function useUnifiedGallery(params: UnifiedGalleryParams = {}) {
     queryFn: () => unifiedGalleryService.getUnifiedContent(params),
     staleTime: 30000, // 30 seconds
     gcTime: 300000, // 5 minutes
+    retry: false,
   })
 }
 

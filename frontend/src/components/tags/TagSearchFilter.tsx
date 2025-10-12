@@ -25,7 +25,7 @@ import {
   Clear as ClearIcon,
   Label as LabelIcon,
 } from '@mui/icons-material';
-import { useTagSearch, useTagBreadcrumbs } from '../../hooks/useTagHierarchy';
+import { useTagHierarchySearch, useTagBreadcrumbs } from '../../hooks/useTagHierarchy';
 import type { TagHierarchyNode } from '../../services/tag-hierarchy-service';
 
 interface TagSearchFilterProps {
@@ -46,7 +46,7 @@ export default function TagSearchFilter({
   const [searchQuery, setSearchQuery] = useState('');
   const [showResults, setShowResults] = useState(false);
 
-  const { results, isLoading, error, hasQuery, totalResults } = useTagSearch(searchQuery);
+  const { results, isLoading, error, hasQuery, totalResults } = useTagHierarchySearch(searchQuery);
 
   // Limit results for performance
   const displayResults = useMemo(() => {
@@ -118,7 +118,7 @@ export default function TagSearchFilter({
         }}
       />
 
-      {/* Selected Tags */}
+      {/* Selected tags */}
       {selectedTags.length > 0 && (
         <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
           {selectedTags.map((tagId) => (

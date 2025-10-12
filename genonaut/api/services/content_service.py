@@ -3,7 +3,7 @@
 from typing import Any, Dict, List, Optional, Type, Union
 from uuid import UUID
 
-from sqlalchemy import desc, func, text, literal
+from sqlalchemy import desc, func, text, literal, or_
 from sqlalchemy.orm import Session
 
 from genonaut.api.exceptions import EntityNotFoundError, ValidationError
@@ -13,6 +13,7 @@ from genonaut.api.models.requests import PaginationRequest
 from genonaut.api.models.responses import PaginatedResponse
 from genonaut.db.schema import ContentItem, ContentItemAuto, UserInteraction, User
 from genonaut.api.services.flagged_content_service import FlaggedContentService
+from genonaut.api.utils.tag_identifiers import expand_tag_identifiers
 
 _VALID_CONTENT_TYPES = {"text", "image", "video", "audio"}
 
@@ -33,6 +34,64 @@ class ContentService:
         except ValidationError:
             # Flag words file not configured - flagging will be disabled
             pass
+
+    @staticmethod
+    def _apply_tag_filter(query, column, tags: Optional[List[str]], tag_match: str):
+        """Apply tag filtering according to the requested match logic."""
+
+        if not tags:
+            return query
+
+        dialect_name = ""
+        query_session = getattr(query, "session", None)
+        if query_session and query_session.bind is not None:
+            dialect_name = query_session.bind.dialect.name
+
+        # SQLite (used in tests) does not support the JSON containment operators we rely on.
+        # Defer tag filtering to Python post-processing for non-PostgreSQL backends.
+        if dialect_name and dialect_name != "postgresql":
+            return query
+
+        normalized = (tag_match or "any").lower()
+        unique_tags = list(dict.fromkeys(tags))
+        if not unique_tags:
+            return query
+
+        if normalized == "all":
+            # Use JSON containment operator to ensure all requested tags are present
+            return query.filter(column.contains(unique_tags))
+
+        # Default to "any" logic by OR-ing individual containment checks
+        or_clauses = [column.contains([tag]) for tag in unique_tags]
+        return query.filter(or_(*or_clauses))
+
+    @staticmethod
+    def _matches_tag_logic(item_tags: Optional[List[str]], tags: List[str], tag_match: str) -> bool:
+        """Determine whether the provided tags satisfy the requested match logic."""
+
+        if not tags:
+            return True
+
+        normalized = (tag_match or "any").lower()
+        query_tags = [tag for tag in tags if tag]
+        if not query_tags:
+            return True
+
+        flattened_tags: set[str] = set()
+        for entry in item_tags or []:
+            if isinstance(entry, str):
+                flattened_tags.add(entry)
+                continue
+
+            if isinstance(entry, dict):
+                for key in ("id", "slug", "name", "value"):
+                    value = entry.get(key)
+                    if isinstance(value, str) and value:
+                        flattened_tags.add(value)
+        tag_set = flattened_tags
+        if normalized == "all":
+            return all(tag in tag_set for tag in query_tags)
+        return any(tag in tag_set for tag in query_tags)
 
     # ------------------------------------------------------------------
     # CRUD helpers
@@ -426,7 +485,7 @@ class ContentService:
         sort_field: str = "created_at",
         sort_order: str = "desc",
         tags: Optional[List[str]] = None,
-        **filters
+        tag_match: str = "any",
     ) -> Dict[str, Any]:
         """
         Get paginated content from both regular and auto tables.
@@ -440,13 +499,31 @@ class ContentService:
             search_term: Search term for title filtering
             sort_field: Field to sort by
             sort_order: Sort order ("asc" or "desc")
-            tags: List of tags to filter by (returns content with at least 1 matching tag)
-            **filters: Additional filters
+            tags: List of tags to filter by
+            tag_match: Tag matching logic ("any" for OR, "all" for AND)
         """
         session = self.repository.db
 
+        normalized_tags = list(dict.fromkeys(tags)) if tags else []
+        normalized_tags = expand_tag_identifiers(normalized_tags)
+
+        use_python_tag_filter = bool(normalized_tags)
+        if session.bind is not None:
+            if session.bind.dialect.name != "postgresql":
+                use_python_tag_filter = True
+
         # Build unified query using UNION
         queries = []
+
+        tag_match_normalized = (tag_match or "any").lower()
+        if tag_match_normalized not in {"any", "all"}:
+            tag_match_normalized = "any"
+
+        # Parse content_source_types flags at function level so they're available in exception handlers
+        include_user_regular = False
+        include_user_auto = False
+        include_community_regular = False
+        include_community_auto = False
 
         # NEW APPROACH: Use content_source_types if provided
         if content_source_types is not None:
@@ -479,10 +556,13 @@ class ContentService:
 
                 if search_term:
                     user_regular_query = user_regular_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
-                if tags:
-                    user_regular_query = user_regular_query.filter(
-                        func.jsonb_exists_any(ContentItem.tags, text(':tags'))
-                    ).params(tags=tags)
+                if not use_python_tag_filter:
+                    user_regular_query = self._apply_tag_filter(
+                        user_regular_query,
+                        ContentItem.tags,
+                        normalized_tags,
+                        tag_match_normalized,
+                    )
 
                 queries.append(user_regular_query)
 
@@ -509,10 +589,13 @@ class ContentService:
 
                 if search_term:
                     community_regular_query = community_regular_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
-                if tags:
-                    community_regular_query = community_regular_query.filter(
-                        func.jsonb_exists_any(ContentItem.tags, text(':tags'))
-                    ).params(tags=tags)
+                if not use_python_tag_filter:
+                    community_regular_query = self._apply_tag_filter(
+                        community_regular_query,
+                        ContentItem.tags,
+                        normalized_tags,
+                        tag_match_normalized,
+                    )
 
                 queries.append(community_regular_query)
 
@@ -539,10 +622,13 @@ class ContentService:
 
                 if search_term:
                     user_auto_query = user_auto_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
-                if tags:
-                    user_auto_query = user_auto_query.filter(
-                        func.jsonb_exists_any(ContentItemAuto.tags, text(':tags'))
-                    ).params(tags=tags)
+                if not use_python_tag_filter:
+                    user_auto_query = self._apply_tag_filter(
+                        user_auto_query,
+                        ContentItemAuto.tags,
+                        normalized_tags,
+                        tag_match_normalized,
+                    )
 
                 queries.append(user_auto_query)
 
@@ -569,10 +655,13 @@ class ContentService:
 
                 if search_term:
                     community_auto_query = community_auto_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
-                if tags:
-                    community_auto_query = community_auto_query.filter(
-                        func.jsonb_exists_any(ContentItemAuto.tags, text(':tags'))
-                    ).params(tags=tags)
+                if not use_python_tag_filter:
+                    community_auto_query = self._apply_tag_filter(
+                        community_auto_query,
+                        ContentItemAuto.tags,
+                        normalized_tags,
+                        tag_match_normalized,
+                    )
 
                 queries.append(community_auto_query)
 
@@ -612,11 +701,13 @@ class ContentService:
                     regular_query = regular_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
 
                 # Apply tag filtering - match if content has at least 1 of the specified tags
-                if tags:
-                    # Use jsonb_exists_any function for PostgreSQL JSON array overlap
-                    regular_query = regular_query.filter(
-                        func.jsonb_exists_any(ContentItem.tags, text(':tags'))
-                    ).params(tags=tags)
+                if not use_python_tag_filter:
+                    regular_query = self._apply_tag_filter(
+                        regular_query,
+                        ContentItem.tags,
+                        normalized_tags,
+                        tag_match_normalized,
+                    )
 
                 queries.append(regular_query)
 
@@ -651,11 +742,13 @@ class ContentService:
                     auto_query = auto_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
 
                 # Apply tag filtering - match if content has at least 1 of the specified tags
-                if tags:
-                    # Use jsonb_exists_any function for PostgreSQL JSON array overlap
-                    auto_query = auto_query.filter(
-                        func.jsonb_exists_any(ContentItemAuto.tags, text(':tags'))
-                    ).params(tags=tags)
+                if not use_python_tag_filter:
+                    auto_query = self._apply_tag_filter(
+                        auto_query,
+                        ContentItemAuto.tags,
+                        normalized_tags,
+                        tag_match_normalized,
+                    )
 
                 queries.append(auto_query)
 
@@ -706,32 +799,59 @@ class ContentService:
         except Exception:
             # Fallback: calculate count separately for each table
             total_count = 0
-            if "regular" in content_types:
-                regular_count_query = session.query(func.count(ContentItem.id))
-                if creator_filter == "user" and user_id:
-                    regular_count_query = regular_count_query.filter(ContentItem.creator_id == user_id)
-                elif creator_filter == "community" and user_id:
-                    regular_count_query = regular_count_query.filter(ContentItem.creator_id != user_id)
-                if search_term:
-                    regular_count_query = regular_count_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
-                total_count += regular_count_query.scalar() or 0
 
-            if "auto" in content_types:
-                auto_count_query = session.query(func.count(ContentItemAuto.id))
-                if creator_filter == "user" and user_id:
-                    auto_count_query = auto_count_query.filter(ContentItemAuto.creator_id == user_id)
-                elif creator_filter == "community" and user_id:
-                    auto_count_query = auto_count_query.filter(ContentItemAuto.creator_id != user_id)
-                if search_term:
-                    auto_count_query = auto_count_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
-                total_count += auto_count_query.scalar() or 0
+            # When using content_source_types, derive what to count from the parsed flags
+            if content_source_types is not None:
+                # NEW APPROACH: Count based on content_source_types
+                if include_user_regular or include_community_regular:
+                    regular_count_query = session.query(func.count(ContentItem.id))
+                    if include_user_regular and not include_community_regular and user_id:
+                        regular_count_query = regular_count_query.filter(ContentItem.creator_id == user_id)
+                    elif include_community_regular and not include_user_regular and user_id:
+                        regular_count_query = regular_count_query.filter(ContentItem.creator_id != user_id)
+                    if search_term:
+                        regular_count_query = regular_count_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
+                    total_count += regular_count_query.scalar() or 0
+
+                if include_user_auto or include_community_auto:
+                    auto_count_query = session.query(func.count(ContentItemAuto.id))
+                    if include_user_auto and not include_community_auto and user_id:
+                        auto_count_query = auto_count_query.filter(ContentItemAuto.creator_id == user_id)
+                    elif include_community_auto and not include_user_auto and user_id:
+                        auto_count_query = auto_count_query.filter(ContentItemAuto.creator_id != user_id)
+                    if search_term:
+                        auto_count_query = auto_count_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
+                    total_count += auto_count_query.scalar() or 0
+            else:
+                # LEGACY APPROACH: Use content_types
+                if content_types and "regular" in content_types:
+                    regular_count_query = session.query(func.count(ContentItem.id))
+                    if creator_filter == "user" and user_id:
+                        regular_count_query = regular_count_query.filter(ContentItem.creator_id == user_id)
+                    elif creator_filter == "community" and user_id:
+                        regular_count_query = regular_count_query.filter(ContentItem.creator_id != user_id)
+                    if search_term:
+                        regular_count_query = regular_count_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
+                    total_count += regular_count_query.scalar() or 0
+
+                if content_types and "auto" in content_types:
+                    auto_count_query = session.query(func.count(ContentItemAuto.id))
+                    if creator_filter == "user" and user_id:
+                        auto_count_query = auto_count_query.filter(ContentItemAuto.creator_id == user_id)
+                    elif creator_filter == "community" and user_id:
+                        auto_count_query = auto_count_query.filter(ContentItemAuto.creator_id != user_id)
+                    if search_term:
+                        auto_count_query = auto_count_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
+                    total_count += auto_count_query.scalar() or 0
 
         # Apply pagination
         offset = (pagination.page - 1) * pagination.page_size
-        unified_query = unified_query.offset(offset).limit(pagination.page_size)
+        paginated_query = unified_query
+        if not use_python_tag_filter:
+            paginated_query = unified_query.offset(offset).limit(pagination.page_size)
 
         # Execute query
-        results = unified_query.all()
+        results = paginated_query.all()
 
         # Convert results to dictionaries
         items = []
@@ -755,10 +875,23 @@ class ContentService:
                 "source_type": row.source_type,
             })
 
-        # Calculate pagination metadata
-        total_pages = (total_count + pagination.page_size - 1) // pagination.page_size
-        has_next = pagination.page < total_pages
-        has_previous = pagination.page > 1
+        if use_python_tag_filter:
+            filtered_items = [
+                item
+                for item in items
+                if self._matches_tag_logic(item.get("tags"), normalized_tags, tag_match_normalized)
+            ]
+            total_count = len(filtered_items)
+            total_pages = (total_count + pagination.page_size - 1) // pagination.page_size if pagination.page_size else 0
+            start = offset
+            end = offset + pagination.page_size
+            items = filtered_items[start:end]
+            has_next = pagination.page < total_pages
+            has_previous = pagination.page > 1 and total_pages > 0
+        else:
+            total_pages = (total_count + pagination.page_size - 1) // pagination.page_size if pagination.page_size else 0
+            has_next = pagination.page < total_pages
+            has_previous = pagination.page > 1
 
         return {
             "items": items,

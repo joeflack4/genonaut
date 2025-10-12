@@ -97,6 +97,17 @@ export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelReq
 
   const { createGenerationJob } = useGenerationJobService()
 
+  const clearFieldError = (field: keyof FieldErrors) => {
+    setFieldErrors(prev => {
+      if (!prev[field]) {
+        return prev
+      }
+
+      const { [field]: _removed, ...rest } = prev
+      return rest
+    })
+  }
+
   useEffect(() => {
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<SuggestionEventDetail>).detail
@@ -134,6 +145,24 @@ export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelReq
 
     if (!sanitizedPrompt) {
       setFieldErrors(prev => ({ ...prev, prompt: 'Prompt cannot be empty' }))
+      setErrorState({ type: 'generic', message: 'Please resolve the highlighted issues.' })
+      return
+    }
+
+    const validationErrors: FieldErrors = {}
+    if (!Number.isFinite(width) || width < 64 || width > 2048) {
+      validationErrors.width = 'Width must be between 64 and 2048.'
+    } else if (width % 64 !== 0) {
+      validationErrors.width = 'Width must be a multiple of 64.'
+    }
+
+    const effectiveSteps = samplerParams.steps ?? defaultSamplerParams.steps
+    if (effectiveSteps !== undefined && (effectiveSteps < 1 || effectiveSteps > 150)) {
+      validationErrors.steps = 'Steps must be between 1 and 150.'
+    }
+
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(prev => ({ ...prev, ...validationErrors }))
       setErrorState({ type: 'generic', message: 'Please resolve the highlighted issues.' })
       return
     }
@@ -300,7 +329,10 @@ export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelReq
         rows={4}
         label="Prompt"
         value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
+        onChange={(e) => {
+          setPrompt(e.target.value)
+          clearFieldError('prompt')
+        }}
         placeholder="Describe the image you want to generate..."
         sx={{ mb: 2 }}
         error={Boolean(fieldErrors.prompt)}
@@ -344,16 +376,26 @@ export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelReq
               fullWidth
               type="number"
               label="Width"
-        value={width}
-        onChange={(e) => setWidth(Number(e.target.value))}
-        error={Boolean(fieldErrors.width)}
-        inputProps={{ min: 64, max: 2048, step: 64, 'data-testid': 'width-input', className: fieldErrors.width ? 'error' : undefined }}
-      />
-      {fieldErrors.width && (
-        <Typography variant="caption" color="error" data-testid="width-error" sx={{ display: 'block', mt: 1 }}>
-          {fieldErrors.width}
-        </Typography>
-      )}
+              value={width}
+              onChange={(e) => {
+                const nextWidth = Number(e.target.value)
+                setWidth(nextWidth)
+                clearFieldError('width')
+              }}
+              error={Boolean(fieldErrors.width)}
+              inputProps={{
+                min: 64,
+                max: 2048,
+                step: 64,
+                'data-testid': 'width-input',
+                className: fieldErrors.width ? 'error' : undefined,
+              }}
+            />
+            {fieldErrors.width && (
+              <Typography variant="caption" color="error" data-testid="width-error" sx={{ display: 'block', mt: 1 }}>
+                {fieldErrors.width}
+              </Typography>
+            )}
           </Grid>
           <Grid size={{ xs: 6 }}>
             <TextField
@@ -402,16 +444,24 @@ export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelReq
                 fullWidth
                 type="number"
                 label="Steps"
-        value={samplerParams.steps}
-        onChange={(e) => updateSamplerParam('steps', Number(e.target.value))}
-        error={Boolean(fieldErrors.steps)}
-        inputProps={{ min: 1, max: 150, 'data-testid': 'steps-input', className: fieldErrors.steps ? 'error' : undefined }}
-      />
-      {fieldErrors.steps && (
-        <Typography variant="caption" color="error" data-testid="steps-error" sx={{ display: 'block', mt: 1 }}>
-          {fieldErrors.steps}
-        </Typography>
-      )}
+                value={samplerParams.steps}
+                onChange={(e) => {
+                  updateSamplerParam('steps', Number(e.target.value))
+                  clearFieldError('steps')
+                }}
+                error={Boolean(fieldErrors.steps)}
+                inputProps={{
+                  min: 1,
+                  max: 150,
+                  'data-testid': 'steps-input',
+                  className: fieldErrors.steps ? 'error' : undefined,
+                }}
+              />
+              {fieldErrors.steps && (
+                <Typography variant="caption" color="error" data-testid="steps-error" sx={{ display: 'block', mt: 1 }}>
+                  {fieldErrors.steps}
+                </Typography>
+              )}
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
               <TextField

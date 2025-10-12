@@ -50,20 +50,30 @@ with op.get_context().autocommit_block():
 ```
 
 ## Troubleshooting / Gotchas
-- **Autogenerate is empty but I changed models**  
-  - Ensure `target_metadata = Base.metadata`.  
-  - Check your `__init__.py` imports so models are imported.  
+- **Autogenerate is empty but I changed models**
+  - Ensure `target_metadata = Base.metadata`.
+  - Check your `__init__.py` imports so models are imported.
   - Use `compare_type=True` and `compare_server_default=True`.
-- **Multiple heads error** (`alembic heads` shows >1)  
+- **Multiple heads error** (`alembic heads` shows >1)
   - Resolve: `alembic merge -m "merge heads" <head1> <head2>` then upgrade.
-- **Bad autogen for exotic things (partial indexes, triggers)**  
+- **Bad autogen for exotic things (partial indexes, triggers)**
   - Write manual `op.execute(...)` SQL; add `depends_on=`/comments in script.
-- **Long locks adding indexes**  
-  - Use `postgresql_concurrently=True` + `autocommit_block()` (see above).  
-- **Need to revert in prod**  
-  - Don’t `downgrade`. Ship a new **forward** migration that restores old shape or data.
-- **Type change on large table**  
+- **Long locks adding indexes**
+  - Use `postgresql_concurrently=True` + `autocommit_block()` (see above).
+- **Need to revert in prod**
+  - Don't `downgrade`. Ship a new **forward** migration that restores old shape or data.
+- **Type change on large table**
   - Create shadow column, backfill in batches, swap in a short transaction, drop old later.
+- **"Target database is not up to date" or "database_url argument required" errors**
+  - After config system refactor, `DATABASE_URL_DEMO` and `DATABASE_URL_TEST` are no longer defined in env files.
+  - Database URLs are now constructed dynamically via `get_database_url(environment)` from `genonaut.db.utils`.
+  - The Makefile migration commands have been updated to use Python's `get_database_url()` function.
+  - Config precedence: config/base.json -> config/{ENV_TARGET}.json -> env/.env.shared -> env/.env.{ENV_TARGET} -> process env -> env/.env
+  - If you see migration errors, ensure your Makefile uses: `DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('demo'))")`
+- **Migration fails with "constraint does not exist"**
+  - Some migrations may try to drop constraints that don't exist in certain database states.
+  - Fixed migrations use conditional logic: check if constraint exists before dropping with `sa.inspect(bind).get_unique_constraints()`.
+  - For test database issues, consider: `make init-test` to recreate with latest schema, or manually drop/recreate the database.
 
 ## Examples
 ### Example: add a column

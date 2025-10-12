@@ -138,7 +138,10 @@ export function NotificationsPage() {
   const handleTypeChange = (event: SelectChangeEvent<NotificationFilterType[]>) => {
     const value = event.target.value
     const nextValue = (typeof value === 'string' ? value.split(',') : value) as NotificationFilterType[]
-    setSelectedTypes(nextValue.length === 0 ? DEFAULT_NOTIFICATION_TYPES : nextValue)
+    const normalizedSelection = nextValue.length === 0 ? DEFAULT_NOTIFICATION_TYPES : nextValue
+
+    setSelectedTypes(normalizedSelection)
+    invalidateNotifications()
   }
 
   const handleNotificationClick = async (notification: NotificationResponse) => {

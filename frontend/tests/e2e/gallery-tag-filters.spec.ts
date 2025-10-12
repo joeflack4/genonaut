@@ -15,27 +15,23 @@ test.describe('Gallery Tag Filters Tests', () => {
     // Navigate directly to gallery with a single tag
     await page.goto('/gallery?tag=artistic_medium', { waitUntil: 'domcontentloaded' });
 
-    // Should show the tag filter display
-    await expect(page.locator('text=Filtered by tag:')).toBeVisible();
-    await expect(page.locator('text=artistic_medium')).toBeVisible();
+    // Should show the selected tag chip within the tag filter
+    await expect(page.getByTestId('tag-filter-selected-artistic_medium')).toBeVisible();
 
     // Should show the clear all tags button
-    await expect(page.locator('button:has-text("Clear All Tags")')).toBeVisible();
+    await expect(page.getByTestId('tag-filter-clear-all-button')).toBeVisible();
   });
 
   test('should display multiple tag filters in gallery', async ({ page }) => {
     // Navigate directly to gallery with multiple tags (using actual tag IDs)
     await page.goto('/gallery?tag=artistic_medium&tag=content_classification', { waitUntil: 'domcontentloaded' });
 
-    // Should show the tag filter display with plural text
-    await expect(page.locator('text=Filtered by tags:')).toBeVisible();
-
     // Should show both tags
-    await expect(page.locator('text=artistic_medium')).toBeVisible();
-    await expect(page.locator('text=content_classification')).toBeVisible();
+    await expect(page.getByTestId('tag-filter-selected-artistic_medium')).toBeVisible();
+    await expect(page.getByTestId('tag-filter-selected-content_classification')).toBeVisible();
 
     // Should show the clear all tags button
-    await expect(page.locator('button:has-text("Clear All Tags")')).toBeVisible();
+    await expect(page.getByTestId('tag-filter-clear-all-button')).toBeVisible();
   });
 
   test('should allow removing individual tags from gallery', async ({ page }) => {
@@ -43,19 +39,18 @@ test.describe('Gallery Tag Filters Tests', () => {
     await page.goto('/gallery?tag=artistic_medium&tag=content_classification', { waitUntil: 'domcontentloaded' });
 
     // Should show both tags initially
-    await expect(page.locator('text=artistic_medium')).toBeVisible();
-    await expect(page.locator('text=content_classification')).toBeVisible();
+    await expect(page.getByTestId('tag-filter-selected-artistic_medium')).toBeVisible();
+    await expect(page.getByTestId('tag-filter-selected-content_classification')).toBeVisible();
 
     // Remove one tag by clicking its delete button
-    const artisticMediumChip = page.locator('[data-testid="CancelIcon"]').first();
-    await artisticMediumChip.click();
+    const firstTagDelete = page.getByTestId('tag-filter-selected-artistic_medium-delete');
+    await firstTagDelete.click();
 
-    // Should still show "Filtered by tag:" (singular) and remaining tag
-    await expect(page.locator('text=Filtered by tag:')).toBeVisible();
-    await expect(page.locator('text=content_classification')).toBeVisible();
+    // Should still show the remaining tag chip
+    await expect(page.getByTestId('tag-filter-selected-content_classification')).toBeVisible();
 
     // The removed tag should not be visible
-    await expect(page.locator('text=artistic_medium')).not.toBeVisible();
+    await expect(page.locator('[data-testid="tag-filter-selected-artistic_medium"]')).toHaveCount(0);
 
     // URL should be updated
     await expect(page).toHaveURL('/gallery?tag=content_classification');
@@ -65,15 +60,15 @@ test.describe('Gallery Tag Filters Tests', () => {
     // Navigate directly to gallery with multiple tags
     await page.goto('/gallery?tag=artistic_medium&tag=content_classification', { waitUntil: 'domcontentloaded' });
 
-    // Should show tag filters
-    await expect(page.locator('text=Filtered by tags:')).toBeVisible();
+    // Should show tag chips
+    await expect(page.getByTestId('tag-filter-selected-artistic_medium')).toBeVisible();
 
     // Click clear all tags button
-    await page.locator('button:has-text("Clear All Tags")').click();
+    await page.getByTestId('tag-filter-clear-all-button').click();
 
     // Tag filter display should disappear
-    await expect(page.locator('text=Filtered by tag')).not.toBeVisible();
-    await expect(page.locator('button:has-text("Clear All Tags")')).not.toBeVisible();
+    await expect(page.locator('[data-testid^="tag-filter-selected-"]')).toHaveCount(0);
+    await expect(page.getByTestId('tag-filter-clear-all-button')).not.toBeVisible();
 
     // URL should be updated to remove tag parameters
     await expect(page).toHaveURL('/gallery');
@@ -102,28 +97,27 @@ test.describe('Gallery Tag Filters Tests', () => {
     // Should navigate to gallery
     await expect(page).toHaveURL(/\/gallery\?.*tag=/);
 
-    // Should show multiple tag filters in gallery
-    await expect(page.locator('text=Filtered by tags:')).toBeVisible();
-
-    // Should show clear all tags button
-    await expect(page.locator('button:has-text("Clear All Tags")')).toBeVisible();
+    // Should show the selected tag chips and clear all button in gallery
+    await expect(page.getByTestId('tag-filter-selected-artistic_medium')).toBeVisible();
+    await expect(page.getByTestId('tag-filter-selected-content_classification')).toBeVisible();
+    await expect(page.getByTestId('tag-filter-clear-all-button')).toBeVisible();
   });
 
   test('should maintain tag filters when navigating within gallery', async ({ page }) => {
     // Navigate to gallery with tags
     await page.goto('/gallery?tag=artistic_medium&tag=content_classification', { waitUntil: 'domcontentloaded' });
 
-    // Verify tag filters are shown
-    await expect(page.locator('text=Filtered by tags:')).toBeVisible();
+    // Verify tag chips are shown
+    await expect(page.getByTestId('tag-filter-selected-artistic_medium')).toBeVisible();
+    await expect(page.getByTestId('tag-filter-selected-content_classification')).toBeVisible();
 
     // Navigate to a different page and back
     await page.goto('/tags');
     await page.goto('/gallery?tag=artistic_medium&tag=content_classification');
 
-    // Tag filters should still be shown
-    await expect(page.locator('text=Filtered by tags:')).toBeVisible();
-    await expect(page.locator('text=artistic_medium')).toBeVisible();
-    await expect(page.locator('text=content_classification')).toBeVisible();
+    // Tag chips should still be shown
+    await expect(page.getByTestId('tag-filter-selected-artistic_medium')).toBeVisible();
+    await expect(page.getByTestId('tag-filter-selected-content_classification')).toBeVisible();
   });
 
   test('should show clear all tags button in tag hierarchy when tags are selected', async ({ page }) => {

@@ -7,9 +7,37 @@
  */
 
 import { Page, expect } from '@playwright/test'
+import type { APIResponse } from '@playwright/test'
 
 // Global variable to cache the detected API port
 let cachedApiPort: number | null = null
+
+async function retryApiRequest(
+  requestFn: () => Promise<APIResponse>,
+  options: { retries?: number; delayMs?: number } = {}
+): Promise<APIResponse> {
+  const { retries = 1, delayMs = 500 } = options
+  let lastError: unknown
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await requestFn()
+    } catch (error) {
+      lastError = error
+      const isTimeout = error instanceof Error && /Timeout/i.test(error.message)
+
+      if (!isTimeout || attempt === retries) {
+        throw error
+      }
+
+      if (delayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs))
+      }
+    }
+  }
+
+  throw lastError ?? new Error('Unknown API request failure')
+}
 
 /**
  * Detect which API port is available (8002 for test server, 8001 for demo/dev server)
@@ -354,7 +382,7 @@ export async function logout(page: Page): Promise<void> {
 export async function isAuthenticated(page: Page): Promise<boolean> {
   try {
     const baseUrl = await getApiBaseUrl(page)
-    const response = await page.request.get(`${baseUrl}/api/v1/users/me`)
+    const response = await page.request.get(`${baseUrl}/api/v1/users/me`, { timeout: 6_000 })
     return response.ok()
   } catch (error) {
     return false
@@ -371,7 +399,10 @@ export async function isAuthenticated(page: Page): Promise<boolean> {
 export async function getCurrentUser(page: Page): Promise<any> {
   const baseUrl = await getApiBaseUrl(page)
   const userId = await getTestUserId()
-  const response = await page.request.get(`${baseUrl}/api/v1/users/${userId}`)
+  const response = await retryApiRequest(
+    () => page.request.get(`${baseUrl}/api/v1/users/${userId}`, { timeout: 8_000 }),
+    { retries: 2, delayMs: 400 }
+  )
   if (!response.ok()) {
     throw new Error(`Failed to get user: ${response.status()}`)
   }
@@ -384,9 +415,13 @@ export async function getCurrentUser(page: Page): Promise<any> {
 export async function updateUserProfile(page: Page, updates: any): Promise<any> {
   const baseUrl = await getApiBaseUrl(page)
   const userId = await getTestUserId()
-  const response = await page.request.put(`${baseUrl}/api/v1/users/${userId}`, {
-    data: updates
-  })
+  const response = await retryApiRequest(
+    () => page.request.put(`${baseUrl}/api/v1/users/${userId}`, {
+      data: updates,
+      timeout: 8_000,
+    }),
+    { retries: 1, delayMs: 400 }
+  )
   if (!response.ok()) {
     throw new Error(`Failed to update user: ${response.status()}`)
   }

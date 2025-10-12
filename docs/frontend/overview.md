@@ -95,7 +95,7 @@ The frontend includes a sophisticated pagination system optimized for performanc
 - Support for both offset-based and cursor-based pagination
 
 **Advanced UI Components**:
-- **EnhancedGalleryPage**: Showcase implementation with real-time performance indicators
+- **GalleryPage**: Showcase implementation with real-time performance indicators and tag sidebar
 - Progress indicators show cache status and pre-fetch operations
 - Smooth loading states and skeleton screens
 

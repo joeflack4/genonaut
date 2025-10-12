@@ -262,11 +262,13 @@ endef
 
 seed-from-gen-demo:
 	@echo "Generating synthetic data for demo database..."
-	$(call seed-from-gen-helper,${DATABASE_URL_DEMO})
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('demo'))") && \
+	$(call seed-from-gen-helper,$$DB_URL)
 
 seed-from-gen-test:
 	@echo "Generating synthetic data for test database..."
-	$(call seed-from-gen-helper,${DATABASE_URL_TEST})
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('test'))") && \
+	$(call seed-from-gen-helper,$$DB_URL)
 
 # Static data seeding
 # Helper function for seeding static data from CSV files
@@ -276,11 +278,13 @@ endef
 
 seed-static-demo:
 	@echo "Loading static seed data into demo database..."
-	$(call seed-static-helper,${DATABASE_URL_DEMO})
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('demo'))") && \
+	$(call seed-static-helper,$$DB_URL)
 
 seed-static-test:
 	@echo "Loading static seed data into test database..."
-	$(call seed-static-helper,${DATABASE_URL_TEST})
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('test'))") && \
+	$(call seed-static-helper,$$DB_URL)
 
 export-demo-data:
 	@echo "Exporting demo database data to test TSV files..."
@@ -290,7 +294,8 @@ export-demo-data:
 # todo: Add support for other databases (dev, test) via parameters like db-wal-buffers-reset-dev, db-wal-buffers-set-test, etc.
 db-wal-buffers-reset:
 	@echo "Resetting PostgreSQL wal_buffers to 4MB (demo database)..."
-	@set -a && source env/.env && python -m genonaut.db.utils.wal_buffers --database-url "$$DATABASE_URL_DEMO" reset
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('demo'))") && \
+	python -m genonaut.db.utils.wal_buffers --database-url "$$DB_URL" reset
 	@echo "⚠️  Please restart PostgreSQL for changes to take effect!"
 
 db-wal-buffers-set:
@@ -299,7 +304,8 @@ db-wal-buffers-set:
 		echo "Error: VALUE parameter is required. Usage: make db-wal-buffers-set VALUE=64MB"; \
 		exit 1; \
 	fi
-	@set -a && source env/.env && python -m genonaut.db.utils.wal_buffers --database-url "$$DATABASE_URL_DEMO" set --value "$(VALUE)"
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('demo'))") && \
+	python -m genonaut.db.utils.wal_buffers --database-url "$$DB_URL" set --value "$(VALUE)"
 	@echo "⚠️  Please restart PostgreSQL for changes to take effect!"
 
 # Tests
@@ -474,7 +480,8 @@ migrate-all: migrate-prep migrate-demo migrate-dev migrate-test
 # @TEST_URL=$${DATABASE_URL_TEST:-$${DATABASE_URL}}; \
 # GENONAUT_DB_ENVIRONMENT=test DATABASE_URL=$$TEST_URL DATABASE_URL_TEST=$$TEST_URL ALEMBIC_SQLALCHEMY_URL=$$TEST_URL alembic revision --autogenerate -m "$(m)"
 migrate-prep:
-	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic revision --autogenerate -m "$(m)"
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('demo'))"); \
+	ALEMBIC_SQLALCHEMY_URL="$$DB_URL" DATABASE_URL="$$DB_URL" alembic revision --autogenerate -m "$(m)"
 
 
 # Function to run alembic upgrade with extensions check
@@ -486,25 +493,38 @@ define run-migration
 endef
 
 migrate-dev:
-	$(call run-migration,${DATABASE_URL})
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('dev'))") && \
+	python -m genonaut.db.schema_extensions install "$$DB_URL" && \
+	echo "📦 Running database migration..." && \
+	DATABASE_URL="$$DB_URL" ALEMBIC_SQLALCHEMY_URL="$$DB_URL" alembic upgrade head
 
 migrate-demo:
-	$(call run-migration,${DATABASE_URL_DEMO})
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('demo'))") && \
+	python -m genonaut.db.schema_extensions install "$$DB_URL" && \
+	echo "📦 Running database migration..." && \
+	DATABASE_URL="$$DB_URL" ALEMBIC_SQLALCHEMY_URL="$$DB_URL" alembic upgrade head
 
 migrate-test:
-	$(call run-migration,${DATABASE_URL_TEST:-${DATABASE_URL}},test)
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('test'))") && \
+	python -m genonaut.db.schema_extensions install "$$DB_URL" && \
+	echo "📦 Running database migration..." && \
+	GENONAUT_DB_ENVIRONMENT=test DATABASE_URL="$$DB_URL" DATABASE_URL_TEST="$$DB_URL" ALEMBIC_SQLALCHEMY_URL="$$DB_URL" alembic upgrade head
 
 migrate-down-dev:
-	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL} DATABASE_URL=${DATABASE_URL} alembic downgrade -1
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('dev'))") && \
+	ALEMBIC_SQLALCHEMY_URL="$$DB_URL" DATABASE_URL="$$DB_URL" alembic downgrade -1
 
 migrate-heads-dev:
-	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL} DATABASE_URL=${DATABASE_URL} alembic heads
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('dev'))") && \
+	ALEMBIC_SQLALCHEMY_URL="$$DB_URL" DATABASE_URL="$$DB_URL" alembic heads
 
 migrate-down-demo:
-	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic downgrade -1
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('demo'))") && \
+	ALEMBIC_SQLALCHEMY_URL="$$DB_URL" DATABASE_URL="$$DB_URL" alembic downgrade -1
 
 migrate-heads-demo:
-	@ALEMBIC_SQLALCHEMY_URL=${DATABASE_URL_DEMO} DATABASE_URL=${DATABASE_URL_DEMO} alembic heads
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('demo'))") && \
+	ALEMBIC_SQLALCHEMY_URL="$$DB_URL" DATABASE_URL="$$DB_URL" alembic heads
 
 # Coverage
 test-coverage:
@@ -525,16 +545,18 @@ check-env:
 # Backup targets
 backup-dev:
 	@echo "Backing up development database..."
-	@python -m genonaut.db.utils.backup ${DATABASE_URL}
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('dev'))") && \
+	python -m genonaut.db.utils.backup "$$DB_URL"
 
 backup-demo:
 	@echo "Backing up demo database..."
-	@python -m genonaut.db.utils.backup ${DATABASE_URL_DEMO}
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('demo'))") && \
+	python -m genonaut.db.utils.backup "$$DB_URL"
 
 backup-test:
 	@echo "Backing up test database..."
-	@TEST_URL=$${DATABASE_URL_TEST:-$${DATABASE_URL}}; \
-	python -m genonaut.db.utils.backup $$TEST_URL
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('test'))") && \
+	python -m genonaut.db.utils.backup "$$DB_URL"
 
 backup: backup-dev backup-demo backup-test
 	@echo "✅ All database backups completed!"

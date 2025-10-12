@@ -123,7 +123,7 @@ test.describe('Gallery page (Real API)', () => {
 
       // Look for content type toggles/filters
       // Check if there are content type controls visible
-      const contentTypesSection = page.locator('text="Content Types"')
+      const contentTypesSection = page.locator('text="Filter by gen source"')
 
       if (await contentTypesSection.isVisible()) {
         console.log('Content type controls found - testing filtering')

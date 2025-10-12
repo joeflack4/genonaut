@@ -59,7 +59,7 @@ i want you to go through all of our pages in the frontend and update as many ele
 - [x] Review frontend pages to define consistent `data-testid` naming
 - [x] Add `data-testid` attributes to `DashboardPage`
 - [x] Add `data-testid` attributes to `GalleryPage`
-- [x] Add `data-testid` attributes to `EnhancedGalleryPage`
+- [x] Add `data-testid` attributes to `GalleryPage`
 - [x] Add `data-testid` attributes to `GenerationPage`
 - [x] Add `data-testid` attributes to `RecommendationsPage`
 - [x] Add `data-testid` attributes to `TagsPage`

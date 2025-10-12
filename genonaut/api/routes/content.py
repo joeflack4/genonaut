@@ -62,7 +62,12 @@ async def get_unified_content(
     search_term: Optional[str] = Query(None, description="Search term for title"),
     sort_field: str = Query("created_at", description="Field to sort by"),
     sort_order: str = Query("desc", description="Sort order (asc, desc)"),
-    tag: Optional[List[str]] = Query(None, description="Filter by tags (can specify multiple)"),
+    tag: Optional[List[str]] = Query(None, description="Deprecated: filter by tags (legacy parameter)"),
+    tag_names: Optional[List[str]] = Query(None, description="Filter by tag names (can specify multiple)"),
+    tag_match: str = Query(
+        "any",
+        description="Tag match logic: 'any' (OR) or 'all' (AND)",
+    ),
     db: Session = Depends(get_database_session)
 ):
     """Get unified content from both regular and auto tables with pagination."""
@@ -123,6 +128,23 @@ async def get_unified_content(
         page_size=page_size
     )
 
+    # Normalize tag filters
+    combined_tags: List[str] = []
+    if tag:
+        combined_tags.extend(tag)
+    if tag_names:
+        combined_tags.extend(tag_names)
+
+    if combined_tags:
+        combined_tags = list(dict.fromkeys(combined_tags))
+
+    normalized_tag_match = (tag_match or "any").lower()
+    if normalized_tag_match not in {"any", "all"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="tag_match must be either 'any' or 'all'",
+        )
+
     try:
         # Get unified content
         result = service.get_unified_content_paginated(
@@ -134,7 +156,8 @@ async def get_unified_content(
             search_term=search_term,
             sort_field=sort_field,
             sort_order=sort_order,
-            tags=tag
+            tags=combined_tags if combined_tags else None,
+            tag_match=normalized_tag_match,
         )
 
         return result
@@ -523,5 +546,4 @@ async def get_content_stats(
     service = ContentService(db)
     stats = service.get_content_stats()
     return ContentStatsResponse(**stats)
-
 
