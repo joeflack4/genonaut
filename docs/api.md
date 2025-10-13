@@ -573,6 +573,34 @@ All API responses follow a consistent format:
 }
 ```
 
+### Statement Timeout Errors
+
+Long-running database operations are cancelled once they exceed the configured `statement_timeout`. When this happens the API returns **HTTP 504 Gateway Timeout** with a structured payload so callers can distinguish it from other failures.
+
+```json
+{
+  "error_type": "statement_timeout",
+  "message": "The operation took too long to complete. Please try again or refine your request.",
+  "timeout_duration": "15s",
+  "details": {
+    "query": "SELECT ...",
+    "context": {
+      "path": "/api/v1/gallery",
+      "method": "GET",
+      "endpoint": "get_gallery_items"
+    }
+  }
+}
+```
+
+- `error_type` is always `statement_timeout`
+- `timeout_duration` mirrors the active configuration value
+- `details.context` includes best-effort request metadata (route, HTTP method, user id when available)
+- `details.query` is truncated to protect logs/clients from extremely long statements
+
+Clients should surface this error to users with retry guidance instead of treating it as a generic failure.
+
+
 **Paginated Response:**
 ```json
 {

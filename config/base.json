@@ -17,5 +17,7 @@
   },
   "backup-dir": "_archive/backups/db/",
   "storage-dir": "io/storage/",
-  "images-dir": "io/storage/images/"
+  "images-dir": "io/storage/images/",
+  "_comment_statement-timeout": "PostgreSQL statement_timeout (e.g., 15s, 500ms, 1min) applied to all API connections.",
+  "statement-timeout": "15s"
 }

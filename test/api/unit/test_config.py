@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 
 from genonaut.config_loader import (
     apply_env_overrides,
@@ -398,6 +399,75 @@ class TestSettings:
         settings1 = get_settings()
         settings2 = get_settings()
         assert settings1 is settings2
+
+    def test_settings_statement_timeout_defaults(self):
+        """Statement timeout defaults to 15s and normalizes casing."""
+        settings = Settings()
+        assert settings.statement_timeout == "15s"
+
+        updated = Settings(statement_timeout="30S")
+        assert updated.statement_timeout == "30s"
+
+    def test_settings_statement_timeout_validation(self):
+        """Invalid timeout formats raise validation errors."""
+        with pytest.raises(ValueError):
+            Settings(statement_timeout="30")
+
+        with pytest.raises(ValidationError):
+            Settings(statement_timeout=["30s"])  # type: ignore[arg-type]
+
+    def test_settings_pool_configuration_defaults(self):
+        """Pool configuration has sensible defaults."""
+        settings = Settings()
+        assert settings.db_pool_size == 10
+        assert settings.db_max_overflow == 20
+        assert settings.db_pool_recycle == 1800  # 30 minutes
+        assert settings.db_pool_pre_ping is True
+
+    def test_settings_pool_configuration_custom(self):
+        """Pool configuration can be customized."""
+        settings = Settings(
+            db_pool_size=5,
+            db_max_overflow=10,
+            db_pool_recycle=900,
+            db_pool_pre_ping=False
+        )
+        assert settings.db_pool_size == 5
+        assert settings.db_max_overflow == 10
+        assert settings.db_pool_recycle == 900
+        assert settings.db_pool_pre_ping is False
+
+    def test_settings_lock_timeout_defaults(self):
+        """Lock timeout defaults to 5s and normalizes casing."""
+        settings = Settings()
+        assert settings.lock_timeout == "5s"
+
+        updated = Settings(lock_timeout="10S")
+        assert updated.lock_timeout == "10s"
+
+    def test_settings_lock_timeout_validation(self):
+        """Invalid lock timeout formats raise validation errors."""
+        with pytest.raises(ValueError):
+            Settings(lock_timeout="10")
+
+        with pytest.raises(ValidationError):
+            Settings(lock_timeout=["10s"])  # type: ignore[arg-type]
+
+    def test_settings_idle_timeout_defaults(self):
+        """Idle in transaction timeout defaults to 30s and normalizes casing."""
+        settings = Settings()
+        assert settings.idle_in_transaction_session_timeout == "30s"
+
+        updated = Settings(idle_in_transaction_session_timeout="60S")
+        assert updated.idle_in_transaction_session_timeout == "60s"
+
+    def test_settings_idle_timeout_validation(self):
+        """Invalid idle timeout formats raise validation errors."""
+        with pytest.raises(ValueError):
+            Settings(idle_in_transaction_session_timeout="60")
+
+        with pytest.raises(ValidationError):
+            Settings(idle_in_transaction_session_timeout=["60s"])  # type: ignore[arg-type]
 
 
 class TestConfigLoadOrderPrecedence:

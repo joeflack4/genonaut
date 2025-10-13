@@ -17,4 +17,34 @@ export const UI_CONFIG = {
    * UI flashing on fast requests.
    */
   MIN_SUBMIT_DURATION_MS: 300,
+
+  /**
+   * Notification/Toast/Snackbar display configuration
+   */
+  NOTIFICATIONS: {
+    /**
+     * Default auto-hide durations for each notification severity type (in milliseconds).
+     * Set to null to disable auto-hide for that type.
+     */
+    AUTO_HIDE_DURATION: {
+      error: null, // Errors stay on screen until manually dismissed
+      warning: 8000, // 8 seconds
+      info: 6000, // 6 seconds
+      success: 4000, // 4 seconds
+    },
+
+    /**
+     * If true, all notifications will stay on screen until manually dismissed,
+     * overriding individual AUTO_HIDE_DURATION settings.
+     */
+    DISABLE_AUTO_HIDE: false,
+
+    /**
+     * Default position for notifications
+     */
+    POSITION: {
+      vertical: 'bottom' as const,
+      horizontal: 'left' as const,
+    },
+  },
 } as const

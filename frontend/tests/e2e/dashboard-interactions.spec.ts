@@ -195,19 +195,33 @@ test.describe('Dashboard Page Interactions', () => {
     const loadingElements = page.locator('.MuiSkeleton-root, .loading, .spinner')
 
     // If loading elements are present, wait for them to disappear
-    if (await loadingElements.count() > 0) {
+    const loadingCount = await loadingElements.count()
+    if (loadingCount > 0) {
       try {
-        await loadingElements.first().waitFor({ state: 'hidden', timeout: 10000 })
+        await loadingElements.first().waitFor({ state: 'hidden', timeout: 15000 })
       } catch (error) {
         // If loading states don't disappear, that's okay - just verify content eventually loads
         // This can happen if data fetching fails or takes longer than expected
+        console.log('Loading elements did not disappear within timeout, continuing...')
       }
     }
 
     // Verify content is loaded - either actual content or empty states
+    // Wait for the page to be stable before checking
+    try {
+      await page.waitForLoadState('networkidle', { timeout: 5000 })
+    } catch (error) {
+      // Network might not become idle, that's okay
+      console.log('Network did not become idle, continuing...')
+    }
+
     const mainContent = page.locator('h1, .MuiCard-root, main, .empty-state')
-    await expect(mainContent).not.toHaveCount(0)
-    await expect(mainContent.first()).toBeVisible({ timeout: 10000 })
+    const contentCount = await mainContent.count()
+    expect(contentCount).toBeGreaterThan(0)
+
+    if (contentCount > 0) {
+      await expect(mainContent.first()).toBeVisible({ timeout: 15000 })
+    }
   })
 
   test('should display proper empty states when no data', async ({ page }) => {

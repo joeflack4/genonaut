@@ -21,13 +21,16 @@ from urllib.parse import urlparse
 def load_config() -> dict:
     """Load configuration from config.json."""
     repo_root = Path(__file__).parent.parent.parent.parent
-    config_path = repo_root / "config.json"
+    config_path = repo_root / 'config' / "base.json"
 
     if not config_path.exists():
         raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
     with open(config_path, 'r') as f:
-        return json.load(f)
+        try:
+            return json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON in configuration file {config_path}: {e}") from e
 
 
 def sanitize_datetime_string(dt: datetime) -> str:

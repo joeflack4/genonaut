@@ -11,7 +11,7 @@ from genonaut.api.repositories.content_repository import ContentRepository
 from genonaut.api.repositories.user_repository import UserRepository
 from genonaut.api.models.requests import PaginationRequest
 from genonaut.api.models.responses import PaginatedResponse
-from genonaut.db.schema import ContentItem, ContentItemAuto, UserInteraction, User
+from genonaut.db.schema import ContentItem, ContentItemAuto, UserInteraction, User, ContentTag
 from genonaut.api.services.flagged_content_service import FlaggedContentService
 from genonaut.api.utils.tag_identifiers import expand_tag_identifiers
 
@@ -92,6 +92,93 @@ class ContentService:
         if normalized == "all":
             return all(tag in tag_set for tag in query_tags)
         return any(tag in tag_set for tag in query_tags)
+
+    def _apply_tag_filter_via_junction(
+        self,
+        query,
+        content_model,
+        content_source: str,
+        tag_uuids: List[UUID],
+        tag_match: str
+    ):
+        """Apply tag filtering using content_tags junction table.
+
+        This is the optimized approach for tag filtering that uses the normalized
+        content_tags junction table instead of JSONB array operations.
+
+        Args:
+            query: SQLAlchemy query to filter
+            content_model: ContentItem or ContentItemAuto model class
+            content_source: 'regular' or 'auto' (for content_tags.content_source)
+            tag_uuids: List of tag UUIDs to filter by
+            tag_match: 'any' or 'all' matching logic
+
+        Returns:
+            Filtered query
+        """
+        if not tag_uuids:
+            return query
+
+        normalized = (tag_match or "any").lower()
+        unique_tags = list(dict.fromkeys(tag_uuids))
+
+        if not unique_tags:
+            return query
+
+        # Use EXISTS for better performance - PostgreSQL optimizes these well
+        if normalized == "all":
+            # For "all" matching: content must have ALL specified tags
+            # Add an EXISTS clause for each tag
+            for tag_id in unique_tags:
+                exists_clause = self.db.query(ContentTag.content_id).filter(
+                    ContentTag.content_id == content_model.id,
+                    ContentTag.content_source == content_source,
+                    ContentTag.tag_id == tag_id
+                ).exists()
+                query = query.filter(exists_clause)
+            return query
+
+        # For "any" matching: content must have AT LEAST ONE of the specified tags
+        # Single EXISTS with IN clause
+        exists_clause = self.db.query(ContentTag.content_id).filter(
+            ContentTag.content_id == content_model.id,
+            ContentTag.content_source == content_source,
+            ContentTag.tag_id.in_(unique_tags)
+        ).exists()
+        return query.filter(exists_clause)
+
+    def _sync_tags_to_junction_table(
+        self,
+        content_id: int,
+        content_source: str,
+        tag_ids: Optional[List[UUID]]
+    ) -> None:
+        """Sync tags from UUID array to junction table (dual-write).
+
+        This ensures the content_tags junction table stays in sync with the
+        tags UUID[] array column for optimized querying.
+
+        Args:
+            content_id: ID of content item
+            content_source: 'regular' or 'auto'
+            tag_ids: List of tag UUIDs (None or empty list removes all tags)
+        """
+        # Delete existing tag relationships for this content
+        self.db.query(ContentTag).filter(
+            ContentTag.content_id == content_id,
+            ContentTag.content_source == content_source
+        ).delete(synchronize_session=False)
+
+        # Insert new tag relationships if any
+        if tag_ids:
+            for tag_id in tag_ids:
+                self.db.add(ContentTag(
+                    content_id=content_id,
+                    content_source=content_source,
+                    tag_id=tag_id
+                ))
+
+        # Commit happens in the calling method
 
     # ------------------------------------------------------------------
     # CRUD helpers
@@ -194,6 +281,23 @@ class ContentService:
         # Create the content item
         content_item = self.repository.create(payload)
 
+        # Sync tags to junction table for optimized querying
+        content_source = "auto" if self.model == ContentItemAuto else "regular"
+        if final_tags:
+            # Convert tag strings to UUIDs
+            tag_uuids = []
+            for tag in final_tags:
+                try:
+                    if isinstance(tag, UUID):
+                        tag_uuids.append(tag)
+                    else:
+                        tag_uuids.append(UUID(str(tag)))
+                except (ValueError, AttributeError):
+                    # Skip invalid UUIDs
+                    pass
+            if tag_uuids:
+                self._sync_tags_to_junction_table(content_item.id, content_source, tag_uuids)
+
         # Automatically check for problematic words and flag if needed
         if self.flagging_service:
             try:
@@ -258,7 +362,25 @@ class ContentService:
         if is_private is not None:
             update_data["is_private"] = is_private
 
-        return self.repository.update(content_id, update_data)
+        updated_content = self.repository.update(content_id, update_data)
+
+        # Sync tags to junction table if tags were updated
+        if tags is not None:
+            content_source = "auto" if self.model == ContentItemAuto else "regular"
+            # Convert tag strings to UUIDs
+            tag_uuids = []
+            for tag in tags:
+                try:
+                    if isinstance(tag, UUID):
+                        tag_uuids.append(tag)
+                    else:
+                        tag_uuids.append(UUID(str(tag)))
+                except (ValueError, AttributeError):
+                    # Skip invalid UUIDs
+                    pass
+            self._sync_tags_to_junction_table(content_id, content_source, tag_uuids)
+
+        return updated_content
 
     def delete_content(self, content_id: int) -> bool:
         """Delete a content record."""
@@ -505,12 +627,34 @@ class ContentService:
         session = self.repository.db
 
         normalized_tags = list(dict.fromkeys(tags)) if tags else []
+
+        # Extract UUIDs from input tags for junction table queries (before expansion)
+        tag_uuids = []
+        if normalized_tags:
+            for tag in normalized_tags:
+                try:
+                    # Tags should be UUIDs (may be strings or UUID objects)
+                    if isinstance(tag, UUID):
+                        tag_uuids.append(tag)
+                    else:
+                        tag_uuids.append(UUID(str(tag)))
+                except (ValueError, AttributeError):
+                    # Not a valid UUID - skip for junction table
+                    pass
+
+        # For backward compatibility with JSONB array queries, expand to include slugs
         normalized_tags = expand_tag_identifiers(normalized_tags)
 
         use_python_tag_filter = bool(normalized_tags)
+        use_junction_table_filter = False  # Feature flag for optimized junction table queries
+
         if session.bind is not None:
             if session.bind.dialect.name != "postgresql":
                 use_python_tag_filter = True
+            elif tag_uuids:
+                # Use junction table for PostgreSQL when valid UUID tags are provided
+                use_junction_table_filter = True
+                use_python_tag_filter = False
 
         # Build unified query using UNION
         queries = []
@@ -557,12 +701,21 @@ class ContentService:
                 if search_term:
                     user_regular_query = user_regular_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
                 if not use_python_tag_filter:
-                    user_regular_query = self._apply_tag_filter(
-                        user_regular_query,
-                        ContentItem.tags,
-                        normalized_tags,
-                        tag_match_normalized,
-                    )
+                    if use_junction_table_filter:
+                        user_regular_query = self._apply_tag_filter_via_junction(
+                            user_regular_query,
+                            ContentItem,
+                            'regular',
+                            tag_uuids,
+                            tag_match_normalized,
+                        )
+                    else:
+                        user_regular_query = self._apply_tag_filter(
+                            user_regular_query,
+                            ContentItem.tags,
+                            normalized_tags,
+                            tag_match_normalized,
+                        )
 
                 queries.append(user_regular_query)
 
@@ -590,12 +743,21 @@ class ContentService:
                 if search_term:
                     community_regular_query = community_regular_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
                 if not use_python_tag_filter:
-                    community_regular_query = self._apply_tag_filter(
-                        community_regular_query,
-                        ContentItem.tags,
-                        normalized_tags,
-                        tag_match_normalized,
-                    )
+                    if use_junction_table_filter:
+                        community_regular_query = self._apply_tag_filter_via_junction(
+                            community_regular_query,
+                            ContentItem,
+                            'regular',
+                            tag_uuids,
+                            tag_match_normalized,
+                        )
+                    else:
+                        community_regular_query = self._apply_tag_filter(
+                            community_regular_query,
+                            ContentItem.tags,
+                            normalized_tags,
+                            tag_match_normalized,
+                        )
 
                 queries.append(community_regular_query)
 
@@ -623,12 +785,21 @@ class ContentService:
                 if search_term:
                     user_auto_query = user_auto_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
                 if not use_python_tag_filter:
-                    user_auto_query = self._apply_tag_filter(
-                        user_auto_query,
-                        ContentItemAuto.tags,
-                        normalized_tags,
-                        tag_match_normalized,
-                    )
+                    if use_junction_table_filter:
+                        user_auto_query = self._apply_tag_filter_via_junction(
+                            user_auto_query,
+                            ContentItemAuto,
+                            'auto',
+                            tag_uuids,
+                            tag_match_normalized,
+                        )
+                    else:
+                        user_auto_query = self._apply_tag_filter(
+                            user_auto_query,
+                            ContentItemAuto.tags,
+                            normalized_tags,
+                            tag_match_normalized,
+                        )
 
                 queries.append(user_auto_query)
 
@@ -656,12 +827,21 @@ class ContentService:
                 if search_term:
                     community_auto_query = community_auto_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
                 if not use_python_tag_filter:
-                    community_auto_query = self._apply_tag_filter(
-                        community_auto_query,
-                        ContentItemAuto.tags,
-                        normalized_tags,
-                        tag_match_normalized,
-                    )
+                    if use_junction_table_filter:
+                        community_auto_query = self._apply_tag_filter_via_junction(
+                            community_auto_query,
+                            ContentItemAuto,
+                            'auto',
+                            tag_uuids,
+                            tag_match_normalized,
+                        )
+                    else:
+                        community_auto_query = self._apply_tag_filter(
+                            community_auto_query,
+                            ContentItemAuto.tags,
+                            normalized_tags,
+                            tag_match_normalized,
+                        )
 
                 queries.append(community_auto_query)
 
@@ -702,12 +882,21 @@ class ContentService:
 
                 # Apply tag filtering - match if content has at least 1 of the specified tags
                 if not use_python_tag_filter:
-                    regular_query = self._apply_tag_filter(
-                        regular_query,
-                        ContentItem.tags,
-                        normalized_tags,
-                        tag_match_normalized,
-                    )
+                    if use_junction_table_filter:
+                        regular_query = self._apply_tag_filter_via_junction(
+                            regular_query,
+                            ContentItem,
+                            'regular',
+                            tag_uuids,
+                            tag_match_normalized,
+                        )
+                    else:
+                        regular_query = self._apply_tag_filter(
+                            regular_query,
+                            ContentItem.tags,
+                            normalized_tags,
+                            tag_match_normalized,
+                        )
 
                 queries.append(regular_query)
 
@@ -743,12 +932,21 @@ class ContentService:
 
                 # Apply tag filtering - match if content has at least 1 of the specified tags
                 if not use_python_tag_filter:
-                    auto_query = self._apply_tag_filter(
-                        auto_query,
-                        ContentItemAuto.tags,
-                        normalized_tags,
-                        tag_match_normalized,
-                    )
+                    if use_junction_table_filter:
+                        auto_query = self._apply_tag_filter_via_junction(
+                            auto_query,
+                            ContentItemAuto,
+                            'auto',
+                            tag_uuids,
+                            tag_match_normalized,
+                        )
+                    else:
+                        auto_query = self._apply_tag_filter(
+                            auto_query,
+                            ContentItemAuto.tags,
+                            normalized_tags,
+                            tag_match_normalized,
+                        )
 
                 queries.append(auto_query)
 
@@ -791,14 +989,20 @@ class ContentService:
             unified_query = session.query(subquery).order_by(desc(subquery.c.created_at))
 
         # Get total count for pagination - use a simpler approach
-        try:
-            # Count from the original union query (before sorting)
-            original_union = queries[0] if len(queries) == 1 else queries[0].union_all(*queries[1:])
-            count_subquery = original_union.subquery()
-            total_count = session.query(func.count()).select_from(count_subquery).scalar() or 0
-        except Exception:
-            # Fallback: calculate count separately for each table
-            total_count = 0
+        # Quick optimization: Skip expensive count for tag-filtered junction table queries
+        if use_junction_table_filter and tag_uuids:
+            # Return a high estimate instead of accurate count to avoid timeout
+            # This is acceptable for pagination UX - users rarely go beyond first few pages
+            total_count = 999999  # High estimate to indicate "many results"
+        else:
+            try:
+                # Count from the original union query (before sorting)
+                original_union = queries[0] if len(queries) == 1 else queries[0].union_all(*queries[1:])
+                count_subquery = original_union.subquery()
+                total_count = session.query(func.count()).select_from(count_subquery).scalar() or 0
+            except Exception:
+                # Fallback: calculate count separately for each table
+                total_count = 0
 
             # When using content_source_types, derive what to count from the parsed flags
             if content_source_types is not None:

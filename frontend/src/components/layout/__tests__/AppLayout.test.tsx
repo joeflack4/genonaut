@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { vi } from 'vitest'
 import { ThemeModeProvider } from '../../../app/providers/theme'
+import { TimeoutNotificationProvider } from '../../../app/providers/timeout/TimeoutNotificationProvider'
 import { UiSettingsProvider } from '../../../app/providers/ui'
 import { AppLayout } from '../AppLayout'
 
@@ -31,9 +32,11 @@ const renderWithProviders = (ui: ReactNode, initialEntry: string = '/dashboard')
     <QueryClientProvider client={queryClient}>
       <UiSettingsProvider>
         <ThemeModeProvider>
-          <MemoryRouter initialEntries={[initialEntry]}>
-            {ui}
-          </MemoryRouter>
+          <TimeoutNotificationProvider>
+            <MemoryRouter initialEntries={[initialEntry]}>
+              {ui}
+            </MemoryRouter>
+          </TimeoutNotificationProvider>
         </ThemeModeProvider>
       </UiSettingsProvider>
     </QueryClientProvider>

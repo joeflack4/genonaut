@@ -1,5 +1,6 @@
 """Dependency injection for the Genonaut API."""
 
+import logging
 from functools import lru_cache
 from typing import Dict, Generator
 
@@ -7,13 +8,40 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 from genonaut.api.config import get_settings, Settings
+from genonaut.api.context import get_request_context
+from genonaut.api.exceptions import StatementTimeoutError
 from genonaut.db.utils import get_database_url, resolve_database_environment
 
 
 SUPPORTED_ENVIRONMENTS = {"dev", "demo", "test"}
+
+logger = logging.getLogger(__name__)
+
+STATEMENT_TIMEOUT_SQLSTATE = "57014"
+
+
+def _is_statement_timeout_error(error: SQLAlchemyError) -> bool:
+    """Check whether the SQLAlchemy error represents a statement timeout."""
+
+    if not isinstance(error, OperationalError):
+        return False
+
+    origin = getattr(error, "orig", None)
+    if origin is not None:
+        code = getattr(origin, "pgcode", None) or getattr(origin, "sqlstate", None)
+        if code == STATEMENT_TIMEOUT_SQLSTATE:
+            return True
+
+        # Also check the origin's class name for QueryCanceled
+        origin_class = type(origin).__name__
+        if origin_class == "QueryCanceled":
+            return True
+
+    message = str(error).lower()
+    return "statement timeout" in message or "canceling statement" in message
 
 
 class DatabaseManager:
@@ -27,12 +55,29 @@ class DatabaseManager:
         """Create SQLAlchemy engine for the specified database."""
         resolved_env = resolve_database_environment(environment=environment)
         try:
+            settings = get_settings()
             database_url = get_database_url(environment=resolved_env)
+            connect_args = {}
+            if database_url.startswith("postgresql"):
+                # Set session-level timeouts via PostgreSQL options
+                connect_args["options"] = (
+                    f"-c statement_timeout={settings.statement_timeout} "
+                    f"-c lock_timeout={settings.lock_timeout} "
+                    f"-c idle_in_transaction_session_timeout={settings.idle_in_transaction_session_timeout}"
+                )
+            engine_kwargs = {
+                "echo": settings.db_echo,
+                "pool_pre_ping": settings.db_pool_pre_ping,
+                "pool_recycle": settings.db_pool_recycle,
+                "pool_size": settings.db_pool_size,
+                "max_overflow": settings.db_max_overflow,
+            }
+            if connect_args:
+                engine_kwargs["connect_args"] = connect_args
+
             engine = create_engine(
                 database_url,
-                echo=get_settings().db_echo,
-                pool_pre_ping=True,
-                pool_recycle=300,
+                **engine_kwargs,
             )
             return engine
         except Exception as exc:
@@ -67,11 +112,57 @@ def _yield_session(environment: str) -> Generator[Session, None, None]:
     session = session_factory()
     try:
         yield session
-    except SQLAlchemyError as e:
+    except SQLAlchemyError as exc:
         session.rollback()
+
+        if _is_statement_timeout_error(exc):
+            settings = get_settings()
+            request_context = get_request_context()
+            context_data = {"environment": environment}
+
+            if request_context is not None:
+                context_data.update(
+                    {
+                        "path": request_context.path,
+                        "method": request_context.method,
+                        "endpoint": request_context.endpoint,
+                        "user_id": request_context.user_id,
+                    }
+                )
+
+            statement = getattr(exc, "statement", None)
+            if statement is not None and not isinstance(statement, str):
+                statement = str(statement)
+
+            context_data = {key: value for key, value in context_data.items() if value is not None}
+
+            log_context = dict(context_data)
+            if statement:
+                log_context["query"] = statement[:512]
+            log_context["timeout"] = settings.statement_timeout
+
+            logger.warning(
+                f"Database query exceeded timeout threshold of {settings.statement_timeout}",
+                extra={"timeout_context": log_context},
+                exc_info=exc,
+            )
+
+            message = (
+                "Database statement exceeded configured timeout "
+                f"({settings.statement_timeout})"
+            )
+
+            raise StatementTimeoutError(
+                message,
+                timeout=settings.statement_timeout,
+                query=statement,
+                context=context_data,
+                original_error=exc,
+            ) from exc
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error: {str(e)}"
+            detail=f"Database error: {str(exc)}"
         )
     finally:
         session.close()

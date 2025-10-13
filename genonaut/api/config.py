@@ -1,6 +1,7 @@
 """Configuration management for the Genonaut API."""
 
 import os
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -84,6 +85,20 @@ class Settings(BaseModel):
     celery_result_backend: Optional[str] = None
     celery_broker_url: Optional[str] = None
 
+    # Database timeout configuration
+    statement_timeout: str = "15s"
+
+    # Database connection pool configuration
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
+    db_pool_recycle: int = 1800  # 30 minutes in seconds
+    db_pool_pre_ping: bool = True
+    lock_timeout: str = "5s"
+    idle_in_transaction_session_timeout: str = "30s"
+
+    # Debugging configuration
+    enable_faulthandler: bool = True  # Enable stack trace dumping with SIGUSR1
+
     # Seed data configuration (from base.json)
     seed_data: Optional[Dict[str, str]] = None
     seed_data_premade: Optional[Dict[str, str]] = None
@@ -121,6 +136,29 @@ class Settings(BaseModel):
         if "-" in self.env_target:
             return self.env_target.split("-")[-1]
         return self.env_target
+
+    @field_validator("statement_timeout", "lock_timeout", "idle_in_transaction_session_timeout")
+    @classmethod
+    def validate_timeout(cls, value: str, info) -> str:
+        """Validate and normalize timeout format."""
+        field_name = info.field_name
+        if value is None:
+            raise ValueError(f"{field_name} must include a duration like '15s' or '500ms'")
+
+        if isinstance(value, (int, float)):
+            # Force string conversion before validation so that units are required
+            value = str(value)
+
+        if not isinstance(value, str):
+            raise TypeError(f"{field_name} must be provided as a string")
+
+        cleaned_value = value.strip().lower()
+        if not re.fullmatch(r"\d+(ms|s|min)", cleaned_value):
+            raise ValueError(
+                f"{field_name} must be an integer followed by a unit: 'ms', 's', or 'min'"
+            )
+
+        return cleaned_value
 
 
 @lru_cache()

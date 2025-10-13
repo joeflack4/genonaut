@@ -143,6 +143,20 @@ Environment variables can override config values using case-insensitive matching
 - `API_PORT` overrides `api-port`
 - `REDIS_NS` overrides `redis-ns`
 
+## Database Statement Timeout
+
+The API enforces a PostgreSQL `statement_timeout` on every connection to prevent runaway queries from blocking the system.
+
+- **Config key:** `statement-timeout` (kebab-case in JSON, exposed as `statement_timeout` in Python configuration)
+- **Format:** integer value followed by a unit (`ms`, `s`, or `min`). Examples: `"500ms"`, `"15s"`, `"2min"`.
+- **Defaults:**
+  - Development/test environments (`config/base.json`): `"15s"`
+  - Production (`config/cloud-prod.json`): `"30s"`
+
+Update the value in the appropriate `config/*.json` file to tune the timeout for your environment. No database restart is required—restart the API service and new connections will pick up the change automatically.
+
+> **Tip:** When testing timeout handling end-to-end, temporarily lower the value in your local config (e.g., `"1s"`) and run a deliberately slow query (`SELECT pg_sleep(2)`).
+
 ## Running Services
 
 ### Using Make Targets
@@ -306,6 +320,74 @@ All `APP_ENV` references have been replaced with `ENV_TARGET`.
 4. **Use .env** (gitignored) for real local credentials
 5. **Rotate secrets** when adding new team members
 6. **Use environment-specific** secrets in CI/CD
+
+## Frontend UI Configuration
+
+Frontend-specific UI settings are configured in `frontend/src/config/ui.ts`.
+
+### Notification/Toast/Snackbar Settings
+
+Controls the appearance and behavior of notifications throughout the application:
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `NOTIFICATIONS.AUTO_HIDE_DURATION.error` | `number \| null` | `null` | Auto-hide duration for error notifications in milliseconds. `null` = stays until dismissed |
+| `NOTIFICATIONS.AUTO_HIDE_DURATION.warning` | `number \| null` | `8000` | Auto-hide duration for warning notifications (8 seconds) |
+| `NOTIFICATIONS.AUTO_HIDE_DURATION.info` | `number \| null` | `6000` | Auto-hide duration for info notifications (6 seconds) |
+| `NOTIFICATIONS.AUTO_HIDE_DURATION.success` | `number \| null` | `4000` | Auto-hide duration for success notifications (4 seconds) |
+| `NOTIFICATIONS.DISABLE_AUTO_HIDE` | `boolean` | `false` | If `true`, all notifications stay on screen until manually dismissed, overriding individual duration settings |
+| `NOTIFICATIONS.POSITION.vertical` | `'top' \| 'bottom'` | `'bottom'` | Vertical position of notifications |
+| `NOTIFICATIONS.POSITION.horizontal` | `'left' \| 'center' \| 'right'` | `'left'` | Horizontal position of notifications |
+
+**Example:**
+
+To make all notifications auto-hide after 5 seconds:
+
+```typescript
+// frontend/src/config/ui.ts
+export const UI_CONFIG = {
+  NOTIFICATIONS: {
+    AUTO_HIDE_DURATION: {
+      error: 5000,
+      warning: 5000,
+      info: 5000,
+      success: 5000,
+    },
+    DISABLE_AUTO_HIDE: false,
+    // ...
+  },
+}
+```
+
+To disable auto-hide globally:
+
+```typescript
+export const UI_CONFIG = {
+  NOTIFICATIONS: {
+    // ...
+    DISABLE_AUTO_HIDE: true,
+  },
+}
+```
+
+**Component Override:**
+
+Individual components can override these defaults by passing props:
+
+```tsx
+<TimeoutNotification
+  severity="warning"
+  autoHideDuration={10000}  // Override to 10 seconds
+  position={{ vertical: 'top', horizontal: 'right' }}
+/>
+```
+
+### Other UI Settings
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `GENERATION_TIMEOUT_WARNING_MS` | `number` | `60000` | Time before showing "request taking longer than expected" warning during image generation (60 seconds) |
+| `MIN_SUBMIT_DURATION_MS` | `number` | `300` | Minimum duration to show submission state to prevent UI flashing on fast requests |
 
 ## See Also
 

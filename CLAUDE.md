@@ -60,7 +60,29 @@ When adding documentation:
 - Update `docs/developer.md` with links to new documentation files
 - Ensure cross-references between documentation files are working
 
-### When changing DB schema
+### Local infrastructure
+During development, the following processes should always be running:
+- Postgres
+- Web API (port 8001)
+- Redis (port 6379)
+- Celery queue worker (connects to redis) 
+- ComfyUI or ComfyUI Mock - image generation service (port 8189)
+- Frontend (port 5173)
+
+### Database FYIs
+#### Different databases and canonical database
+Locally, there are the following databases: dev, test, and demo
+
+The canonical one for local development is: demo
+
+That's the one that's most important that we do DB migrations on, do investigations, etc. During development, the web 
+API will almost always be running on port 8001, and it will be set to use this canonical DB.
+
+### Configuration
+Variables are configured in config/. Can be overriden by env/. The frontend, backend, and test servers may also have 
+some localized configuration files. More on this mentioned in docs/configuration.md. 
+
+#### When changing DB schema
 Caution!: DO NOT edit existing files Alembic version files!: `genonaut/db/migrations/versions/`. Treat them as immutable
 history. Always generate a new revision with `alembic revision -m "..."` and put upgrade/downgrade code there. If you 
 need to change the schema, add it in a new migration file rather than modifying or deleting old ones.

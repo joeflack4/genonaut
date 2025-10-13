@@ -790,4 +790,82 @@ WHERE ci.tags ?| :tag_names_array;
 
 5. **Content Tag Filtering**: The GIN indexes on `content_items.tags` and `content_items_auto.tags` make tag-based content filtering very efficient.
 
+## Database Timeout Configuration
+
+To prevent hung queries and ensure database responsiveness, Genonaut configures several PostgreSQL timeout settings at the database level.
+
+### Configured Timeouts
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `idle_in_transaction_session_timeout` | 30s | Terminates sessions idle in a transaction for > 30 seconds |
+| `lock_timeout` | 5s | Aborts statements waiting > 5 seconds for a lock |
+| `deadlock_timeout` | 1s | Time to wait before checking for deadlock (faster detection) |
+| `statement_timeout` | Configurable | Maximum query execution time (configured via application config) |
+
+### Logging and Monitoring
+
+The following logging settings help diagnose performance issues:
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `log_min_duration_statement` | 1000ms | Log all queries taking > 1 second |
+| `log_lock_waits` | on | Log when a query waits for a lock |
+
+### Query Statistics
+
+The `pg_stat_statements` extension is installed to track query performance.
+
+**Note:** To use `pg_stat_statements`, you must add it to PostgreSQL's `shared_preload_libraries`:
+
+1. Find your `postgresql.conf` file (usually in `/usr/local/var/postgresql@XX/` on macOS or `/etc/postgresql/XX/main/` on Linux)
+2. Add or update: `shared_preload_libraries = 'pg_stat_statements'`
+3. Restart PostgreSQL: `brew services restart postgresql@16` (macOS) or `sudo systemctl restart postgresql` (Linux)
+
+Once enabled, use these queries to monitor performance:
+
+```sql
+-- Top queries by total execution time
+SELECT
+  query,
+  calls,
+  total_exec_time,
+  mean_exec_time,
+  max_exec_time
+FROM pg_stat_statements
+ORDER BY total_exec_time DESC
+LIMIT 20;
+
+-- Top queries by mean execution time
+SELECT
+  query,
+  calls,
+  mean_exec_time,
+  max_exec_time
+FROM pg_stat_statements
+WHERE calls > 10
+ORDER BY mean_exec_time DESC
+LIMIT 20;
+
+-- Reset statistics (if needed)
+SELECT pg_stat_statements_reset();
+```
+
+### Applying Configuration Changes
+
+These settings are applied at the database level and persist across server restarts. To modify:
+
+```sql
+-- Change database-level setting
+ALTER DATABASE genonaut SET idle_in_transaction_session_timeout = '45s';
+
+-- Change role-level setting (for genonaut_rw role)
+ALTER ROLE genonaut_rw IN DATABASE genonaut SET idle_in_transaction_session_timeout = '45s';
+
+-- Verify settings (requires new connection)
+SHOW idle_in_transaction_session_timeout;
+```
+
+Settings take effect on new connections only. Restart the application to apply changes.
+
 For more detailed migration procedures and troubleshooting, see [Database Migrations](./db_migrations.md).

@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Optional, Union, Tuple, Dict, Any, List
 from sqlalchemy import (
     Column, Integer, String, Text, DateTime, Float, Boolean,
-    ForeignKey, JSON, UniqueConstraint, Index, event, func, literal_column, DDL,
+    ForeignKey, JSON, UniqueConstraint, Index, event, func, literal_column, DDL, ARRAY,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship, declarative_base, declared_attr
@@ -18,15 +18,68 @@ import uuid
 
 class JSONColumn(TypeDecorator):
     """Database-agnostic JSON column that uses JSONB for PostgreSQL and JSON for others."""
-    
+
     impl = JSON
     cache_ok = True
-    
+
     def load_dialect_impl(self, dialect):
         if dialect.name == 'postgresql':
             return dialect.type_descriptor(JSONB())
         else:
             return dialect.type_descriptor(JSON())
+
+
+class UUIDArrayColumn(TypeDecorator):
+    """Database-agnostic UUID array column.
+
+    Uses native UUID[] for PostgreSQL, falls back to JSON for SQLite/testing.
+    """
+
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+            return dialect.type_descriptor(ARRAY(PG_UUID(as_uuid=True)))
+        else:
+            # For SQLite and other databases, store as JSON array of strings
+            return dialect.type_descriptor(JSON())
+
+    def process_bind_param(self, value, dialect):
+        """Convert Python list of UUIDs to appropriate database format."""
+        if value is None:
+            return None
+        if dialect.name == 'postgresql':
+            # PostgreSQL handles UUID[] natively
+            return value
+        else:
+            # For SQLite, convert UUIDs to strings in JSON
+            import uuid as uuid_module
+            return [str(v) if isinstance(v, uuid_module.UUID) else v for v in value]
+
+    def process_result_value(self, value, dialect):
+        """Convert database format back to Python list of UUIDs."""
+        if value is None:
+            return []
+        if dialect.name == 'postgresql':
+            # PostgreSQL returns UUID objects
+            return value
+        else:
+            # For SQLite, convert JSON strings back to UUID objects
+            # Skip invalid UUIDs for backward compatibility with legacy data
+            import uuid as uuid_module
+            result = []
+            for v in value:
+                if isinstance(v, str):
+                    try:
+                        result.append(uuid_module.UUID(v))
+                    except ValueError:
+                        # Keep invalid UUIDs as strings for backward compatibility
+                        result.append(v)
+                else:
+                    result.append(v)
+            return result
 
 
 def create_gin_index_if_postgresql(index_name: str, column_name: str) -> Union[Index, None]:
@@ -150,7 +203,7 @@ class ContentItemColumns:
     creator_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    tags = Column(JSONColumn, default=list)
+    tags = Column(UUIDArrayColumn, nullable=False, default=list)
     quality_score = Column(Float, default=0.0)
     is_private = Column(Boolean, default=False, nullable=False)
 
@@ -166,7 +219,7 @@ class ContentItem(ContentItemColumns, Base):
         item_metadata: Additional metadata about the content
         creator_id: Foreign key to the user who created/requested the content
         created_at: Timestamp when content was created
-        tags: JSON array of tags associated with the content
+        tags: Array of tag UUIDs (foreign keys to tags table)
         quality_score: Quality score assigned to the content
     """
     __tablename__ = 'content_items'
@@ -208,8 +261,6 @@ class ContentItem(ContentItemColumns, Base):
             Index("idx_content_items_quality_created", cls.quality_score.desc(), cls.created_at.desc()),
             Index("idx_content_items_type_created", cls.content_type, cls.created_at.desc()),
             Index("idx_content_items_public_created", cls.created_at.desc(), postgresql_where=cls.is_private == False),
-            # GIN index for tags array operations (PostgreSQL only)
-            Index("idx_content_items_tags_gin", cls.tags, postgresql_using="gin", info={"postgres_only": True}),
             # GIN index for metadata operations (PostgreSQL only)
             Index("idx_content_items_metadata_gin", cls.item_metadata, postgresql_using="gin", info={"postgres_only": True}),
         )
@@ -260,8 +311,6 @@ class ContentItemAuto(ContentItemColumns, Base):
             Index("idx_content_items_auto_quality_created", cls.quality_score.desc(), cls.created_at.desc()),
             Index("idx_content_items_auto_type_created", cls.content_type, cls.created_at.desc()),
             Index("idx_content_items_auto_public_created", cls.created_at.desc(), postgresql_where=cls.is_private == False),
-            # GIN index for tags array operations (PostgreSQL only)
-            Index("idx_content_items_auto_tags_gin", cls.tags, postgresql_using="gin", info={"postgres_only": True}),
             # GIN index for metadata operations (PostgreSQL only)
             Index("idx_content_items_auto_metadata_gin", cls.item_metadata, postgresql_using="gin", info={"postgres_only": True}),
         )
@@ -872,6 +921,35 @@ class TagRating(Base):
         UniqueConstraint('user_id', 'tag_id', name='uq_user_tag_rating'),
         Index("idx_tag_ratings_tag_rating", tag_id, rating.desc()),  # For sorting tags by rating
         Index("idx_tag_ratings_user_created", user_id, created_at.desc()),  # For user rating history
+    )
+
+
+class ContentTag(Base):
+    """Content tag junction table for many-to-many content-tag relationships.
+
+    This table normalizes the tags relationship, replacing the denormalized
+    tags UUID[] arrays in content_items and content_items_auto tables.
+
+    Attributes:
+        content_id: Foreign key to either content_items.id or content_items_auto.id
+        content_source: Discriminator column ('regular' or 'auto')
+        tag_id: Foreign key to tags.id
+    """
+    __tablename__ = 'content_tags'
+
+    content_id = Column(Integer, primary_key=True, nullable=False)
+    content_source = Column(String(10), primary_key=True, nullable=False)
+    tag_id = Column(UUID(as_uuid=True), ForeignKey('tags.id', ondelete='CASCADE'), primary_key=True, nullable=False)
+
+    # Relationships
+    tag = relationship("Tag", foreign_keys=[tag_id])
+
+    # Indexes
+    __table_args__ = (
+        # For "all content with tag X" queries (primary use case for gallery filtering)
+        Index("idx_content_tags_tag_content", tag_id, content_id),
+        # For "all tags for content Y" queries
+        Index("idx_content_tags_content", content_id, content_source),
     )
 
 

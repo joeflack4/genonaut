@@ -36,6 +36,7 @@ import { useCurrentUser } from '../../hooks'
 import { useThemeMode } from '../../app/providers/theme'
 import { useUiSettings } from '../../app/providers/ui'
 import { NotificationBell } from '../notifications/NotificationBell'
+import { TimeoutNotification } from '../notifications/TimeoutNotification'
 
 const navItems = [
   { label: 'Dashboard', to: '/dashboard', icon: DashboardIcon },
@@ -102,7 +103,8 @@ export function AppLayout() {
   }
 
   return (
-    <Box
+    <>
+      <Box
       sx={{ minHeight: '100vh', bgcolor: 'background.default', color: 'text.primary' }}
       data-testid="app-layout-root"
     >
@@ -300,5 +302,7 @@ export function AppLayout() {
         </Box>
       </Box>
     </Box>
+    <TimeoutNotification />
+  </>
   )
 }

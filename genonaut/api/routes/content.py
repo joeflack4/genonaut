@@ -5,8 +5,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from genonaut.api.dependencies import get_database_session
+from genonaut.api.dependencies import get_database_session, _is_statement_timeout_error
+from genonaut.api.exceptions import StatementTimeoutError
 from genonaut.api.services.content_service import ContentService
+from genonaut.api.config import get_settings
 from genonaut.api.models.requests import (
     ContentCreateRequest,
     ContentUpdateRequest,
@@ -162,7 +164,29 @@ async def get_unified_content(
 
         return result
 
+    except StatementTimeoutError:
+        # Rollback the failed transaction
+        db.rollback()
+        # Let timeout errors propagate to the global exception handler
+        raise
     except Exception as exc:
+        # Rollback the failed transaction
+        db.rollback()
+
+        # Check if this is a timeout error at the SQLAlchemy level
+        if _is_statement_timeout_error(exc):
+            settings = get_settings()
+            raise StatementTimeoutError(
+                f"Database statement exceeded configured timeout ({settings.statement_timeout})",
+                timeout=settings.statement_timeout,
+                query=str(exc.statement) if hasattr(exc, 'statement') else None,
+                context={"endpoint": "get_unified_content"},
+                original_error=exc,
+            ) from exc
+
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Unexpected error in get_unified_content: {type(exc).__name__}: {exc}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving unified content: {str(exc)}"
@@ -180,6 +204,9 @@ async def get_unified_content_stats(
     try:
         stats = service.get_unified_content_stats(user_id=user_id)
         return stats
+    except StatementTimeoutError:
+        # Let timeout errors propagate to the global exception handler
+        raise
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

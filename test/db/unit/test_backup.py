@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock, patch, mock_open
+from unittest.mock import Mock, MagicMock, patch, mock_open
 
 from genonaut.db.utils.backup import (
     load_config,
@@ -53,7 +53,7 @@ class TestBackupUtility(unittest.TestCase):
             extract_db_name_from_url("invalid-url")
 
     @patch('genonaut.db.utils.backup.Path')
-    def test_load_config(self, mock_path):
+    def test_load_config(self, mock_path_class):
         """Test configuration loading."""
         # Mock config file content
         config_content = {
@@ -61,16 +61,22 @@ class TestBackupUtility(unittest.TestCase):
             "seed_data": {"test": "data"}
         }
 
-        # Mock file system
-        mock_config_file = mock_path.return_value.parent.parent.parent.parent / "config.json"
-        mock_config_file.exists.return_value = True
+        # Mock the Path chain properly
+        mock_file = MagicMock()
+        mock_file.__str__ = lambda x: "mocked_path"
+        mock_file.exists.return_value = True
+
+        # Setup the path chain: Path(__file__).parent.parent.parent.parent / 'config' / 'base.json'
+        mock_path_instance = MagicMock()
+        mock_path_instance.parent.parent.parent.parent.__truediv__.return_value.__truediv__.return_value = mock_file
+        mock_path_class.return_value = mock_path_instance
 
         with patch('builtins.open', mock_open(read_data=json.dumps(config_content))):
             result = load_config()
             self.assertEqual(result, config_content)
 
         # Test missing config file
-        mock_config_file.exists.return_value = False
+        mock_file.exists.return_value = False
         with self.assertRaises(FileNotFoundError):
             load_config()
 

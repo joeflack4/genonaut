@@ -1,5 +1,7 @@
 """Custom exceptions for the Genonaut API."""
 
+from typing import Any, Dict, Optional
+
 from fastapi import HTTPException, status
 
 
@@ -56,3 +58,22 @@ class AuthorizationError(GenonAutAPIException):
             status_code=status.HTTP_403_FORBIDDEN,
             detail=message
         )
+
+
+class StatementTimeoutError(Exception):
+    """Raised when a database statement exceeds the configured timeout."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        timeout: str,
+        query: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+        original_error: Optional[BaseException] = None,
+    ) -> None:
+        super().__init__(message)
+        self.timeout = timeout
+        self.query = query
+        self.context = context or {}
+        self.original_error = original_error

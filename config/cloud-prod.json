@@ -18,5 +18,5 @@
   "comfyui-models-dir": "/tmp/comfyui_models",
   "comfyui-mock-url": "http://localhost:8189",
   "comfyui-mock-port": 8189,
-  "celery-result-backend-template-string": "redis://:${REDIS_PASSWORD}@localhost:6379/2"
+  "celery-result-backend-template-string": "redis://:${REDIS_PASSWORD}@localhost:6379/2",
 }
