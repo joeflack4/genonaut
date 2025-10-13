@@ -16,7 +16,8 @@ test-frontend-e2e-ui test-frontend-e2e-real-api test-frontend-e2e-real-api-heade
 check-env api-dev-profile api-dev-load-test api-production-sim api-demo-load-test api-test-load-test \
 clear-excess-test-schemas-keep-3 migrate-down-dev migrate-heads-dev migrate-down-demo migrate-heads-demo \
 ontology-refresh ontology-generate ontology-validate ontology-stats ontology-test ontology-json \
-md-collate md-export-tsv md-test md-github-sync-down md-github-sync-up md-github-sync
+md-collate md-export-tsv md-test md-github-sync-down md-github-sync-up md-github-sync \
+tf-bootstrap-init tf-bootstrap-apply tf-bootstrap-destroy tf-init tf-plan tf-apply tf-destroy tf-fmt tf-validate tf-console
 
 # Load environment variables
 ifneq (,$(wildcard ./env/.env.shared))
@@ -200,8 +201,22 @@ help:
 	@echo "  md-github-sync-down      Sync GitHub issues to local files"
 	@echo "  md-github-sync-up        Push local files to GitHub issues"
 	@echo "  md-github-sync           Bidirectional GitHub sync"
+	@echo ""
+	@echo "Infrastructure:"
+	@echo "  tf-bootstrap-init        Initialize Terraform bootstrap directory"
+	@echo "  tf-bootstrap-apply       Apply Terraform bootstrap configuration"
+	@echo "  tf-bootstrap-destroy     Destroy Terraform bootstrap resources"
+	@echo "  tf-init             Initialize main Terraform directory"
+	@echo "  tf-plan             Create a plan for the main Terraform infrastructure"
+	@echo "  tf-apply            Apply main Terraform infrastructure changes"
+	@echo "  tf-destroy          Destroy main Terraform infrastructure"
+	@echo "  tf-fmt              Format Terraform code in the main directory"
+	@echo "  tf-validate         Validate Terraform code in the main directory"
+	@echo "  tf-console          Open Terraform console for the main directory"
 
-
+# ============================================
+# Various: todo: move these commands around to their correct sections || make new sections
+# ============================================
 # Database initialization
 init-all: init-dev init-demo init-test
 
@@ -456,6 +471,25 @@ clean:
 	find . -type f -name "*.db" -delete
 	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 
+# Coverage
+test-coverage:
+	@echo "Running tests with coverage..."
+	python -m pytest test/ --cov=genonaut --cov-report=html --cov-report=term
+
+# Documentation (if needed in the future)
+docs:
+	@echo "Generating documentation..."
+	@echo "Documentation generation not yet implemented"
+
+# Utility targets
+check-env:
+	@echo "Checking environment setup..."
+	@python -c "import sys; print(f'Python version: {sys.version}')"
+	@python -c "import pkg_resources; print('Installed packages:'); [print(f'  {d.project_name}: {d.version}') for d in pkg_resources.working_set]"
+
+# ============================================
+# DB commands
+# ============================================
 # Database initialization
 init-db:
 	@echo "Initializing database..."
@@ -526,22 +560,6 @@ migrate-heads-demo:
 	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('demo'))") && \
 	ALEMBIC_SQLALCHEMY_URL="$$DB_URL" DATABASE_URL="$$DB_URL" alembic heads
 
-# Coverage
-test-coverage:
-	@echo "Running tests with coverage..."
-	python -m pytest test/ --cov=genonaut --cov-report=html --cov-report=term
-
-# Documentation (if needed in the future)
-docs:
-	@echo "Generating documentation..."
-	@echo "Documentation generation not yet implemented"
-
-# Utility targets
-check-env:
-	@echo "Checking environment setup..."
-	@python -c "import sys; print(f'Python version: {sys.version}')"
-	@python -c "import pkg_resources; print('Installed packages:'); [print(f'  {d.project_name}: {d.version}') for d in pkg_resources.working_set]"
-
 # Backup targets
 backup-dev:
 	@echo "Backing up development database..."
@@ -561,6 +579,9 @@ backup-test:
 backup: backup-dev backup-demo backup-test
 	@echo "✅ All database backups completed!"
 
+# ============================================
+# Web API commands
+# ============================================
 # FastAPI server
 # Legacy targets (use new targets below for explicit env control)
 api-dev:
@@ -625,7 +646,9 @@ api-test-load-test:
 	@echo "Starting FastAPI server for test load testing (4 workers)..."
 	python -m genonaut.cli_main run-api --env-target local-test --workers 4
 
-# Celery worker commands
+# ============================================
+# Queuing / message broking: Redis & Celery
+# ============================================
 celery-dev:
 	@echo "Starting Celery worker for development environment..."
 	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-dev ] && . env/.env.local-dev && set +a && \
@@ -710,7 +733,9 @@ redis-info-test:
 	@echo "Redis info for test (DB 3)..."
 	@redis-cli -a ${REDIS_PASSWORD} -n 3 DBSIZE
 
+# ============================================
 # Frontend helpers
+# ============================================
 frontend-install:
 	@echo "Installing frontend dependencies..."
 	npm --prefix frontend install
@@ -731,6 +756,9 @@ frontend-preview:
 	@echo "Previewing built frontend..."
 	npm --prefix frontend run preview
 
+# ============================================
+# Frontend tewsts
+# ============================================
 frontend-test-unit:
 	@echo "Running frontend unit tests..."
 	npm --prefix frontend run test-unit
@@ -820,7 +848,9 @@ test-frontend-e2e-real-api-debug: frontend-test-e2e-real-api-debug
 test-frontend-e2e-real-api-debug-headed: frontend-test-e2e-real-api-debug-headed
 
 # todo: find a better place in file
+# ============================================
 # Integration checks
+# ============================================
 ## ComfyUI
 COMFY_EXAMPLE_FILE=test/integrations/comfy_ui/input/1.json
 COMFY_HOST=127.0.0.1
@@ -835,6 +865,72 @@ check-comfyui-create-img:
 	     -H "Content-Type: application/json" \
 	     -d @$${COMFY_EXAMPLE_FILE}
 
+# ============================================
+# Infrastructure
+# ============================================
+# Terraform directories
+DEPLOY_TF_BOOTSTRAP_DIR := infra/bootstrap
+DEPLOY_MAIN_DIR := infra/main
+
+# Bootstrap commands: 1-time setup
+tf-bootstrap-init:
+	cd $(DEPLOY_TF_BOOTSTRAP_DIR) && \
+	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) \
+	terraform init
+
+tf-bootstrap-apply:
+	cd $(DEPLOY_TF_BOOTSTRAP_DIR) && \
+	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) \
+	terraform apply -auto-approve \
+	  -var="state_bucket_name=$(DEPLOY_TF_STATE_BUCKET_NAME)" \
+	  -var="region=$(DEPLOY_AWS_REGION)"
+
+tf-bootstrap-destroy:
+	cd $(DEPLOY_TF_BOOTSTRAP_DIR) && \
+	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) \
+	terraform destroy -auto-approve \
+	  -var="state_bucket_name=$(DEPLOY_TF_STATE_BUCKET_NAME)" \
+	  -var="region=$(DEPLOY_AWS_REGION)"
+
+# Main commands
+tf-init:
+	cd $(DEPLOY_MAIN_DIR) && \
+	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) \
+	terraform init \
+	  -backend-config="bucket=$(DEPLOY_TF_STATE_BUCKET_NAME)" \
+	  -backend-config="key=envs/dev/terraform.tfstate" \
+	  -backend-config="region=$(DEPLOY_AWS_REGION)" \
+	  -backend-config="dynamodb_table=$(DEPLOY_TF_DYNAMO_DB_TABLE)" \
+	  -backend-config="encrypt=true"
+
+tf-plan:
+	cd $(DEPLOY_MAIN_DIR) && \
+	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) \
+	terraform plan
+
+tf-apply:
+	cd $(DEPLOY_MAIN_DIR) && \
+	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) \
+	terraform apply -auto-approve
+
+tf-destroy:
+	cd $(DEPLOY_MAIN_DIR) && \
+	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) \
+	terraform destroy -auto-approve
+
+# Utility commands
+tf-fmt:
+	cd $(DEPLOY_MAIN_DIR) && terraform fmt -recursive
+
+tf-validate:
+	cd $(DEPLOY_MAIN_DIR) && terraform validate
+
+tf-console:
+	cd $(DEPLOY_MAIN_DIR) && terraform console
+
+# ============================================
+# Helper libs
+# ============================================
 # Lib: Markdown Manager
 md-collate:
 	cd libs/md_manager && source env/bin/activate && python -m md_manager.cli --config-path ../../notes/md-manager.json collate
