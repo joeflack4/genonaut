@@ -203,14 +203,13 @@ class ContentItemColumns:
     creator_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    tags = Column(UUIDArrayColumn, nullable=False, default=list)
     quality_score = Column(Float, default=0.0)
     is_private = Column(Boolean, default=False, nullable=False)
 
 
 class ContentItem(ContentItemColumns, Base):
     """Content item model for storing generated content.
-    
+
     Attributes:
         id: Primary key
         title: Content title
@@ -219,8 +218,10 @@ class ContentItem(ContentItemColumns, Base):
         item_metadata: Additional metadata about the content
         creator_id: Foreign key to the user who created/requested the content
         created_at: Timestamp when content was created
-        tags: Array of tag UUIDs (foreign keys to tags table)
         quality_score: Quality score assigned to the content
+
+    Note:
+        Tags are stored in the content_tags junction table for normalized many-to-many relationships.
     """
     __tablename__ = 'content_items'
     

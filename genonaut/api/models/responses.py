@@ -50,7 +50,12 @@ class UserActivityStatsResponse(BaseModel):
 
 
 class ContentResponse(BaseModel):
-    """Response model for content data."""
+    """Response model for content data.
+
+    Note:
+        Tags are stored in the content_tags junction table and should be fetched
+        separately when needed. They are no longer directly on the content model.
+    """
     id: int = Field(..., description="Content ID")
     title: str = Field(..., description="Content title")
     content_type: ContentType = Field(..., description="Content type")
@@ -65,7 +70,6 @@ class ContentResponse(BaseModel):
     creator_id: UUID = Field(..., description="Creator user ID")
     creator_username: Optional[str] = Field(None, description="Creator username")
     created_at: datetime = Field(..., description="Content creation timestamp")
-    tags: List[str] = Field(..., description="Content tags")
     quality_score: float = Field(..., description="Content quality score")
     is_private: bool = Field(..., description="Private status")
 

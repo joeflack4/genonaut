@@ -55,35 +55,47 @@ def sample_user(test_db_session):
 @pytest.fixture
 def sample_content(test_db_session, sample_user):
     """Create sample content for testing."""
+    from test.conftest import sync_content_tags_for_tests
+
+    tags = ["test", "sample"]
     content = ContentItem(
         title="Test Content",
         content_type="text",
         content_data="This is test content",
         creator_id=sample_user.id,
         item_metadata={"category": "test"},
-        tags=["test", "sample"],
         prompt="Test prompt"
     )
     test_db_session.add(content)
     test_db_session.commit()
     test_db_session.refresh(content)
+
+    # Populate content_tags junction table for SQLite tests
+    sync_content_tags_for_tests(test_db_session, content.id, 'regular', tags)
+
     return content
 
 
 @pytest.fixture
 def sample_auto_content(test_db_session, sample_user):
     """Create sample automated content for testing."""
+    from test.conftest import sync_content_tags_for_tests
+
+    tags = ["auto"]
     content = ContentItemAuto(
         title="Automated Content",
         content_type="text",
         content_data="Automated payload",
         creator_id=sample_user.id,
         item_metadata={"source": "system"},
-        tags=["auto"],
     )
     test_db_session.add(content)
     test_db_session.commit()
     test_db_session.refresh(content)
+
+    # Populate content_tags junction table for SQLite tests
+    sync_content_tags_for_tests(test_db_session, content.id, 'auto', tags)
+
     return content
 
 

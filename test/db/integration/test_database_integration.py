@@ -82,24 +82,36 @@ class TestDatabaseIntegration:
         session.commit()
         
         # Create content items for this user
+        from test.conftest import sync_content_tags_for_tests
+
+        tags_one = ["integration", "test"]
         content1 = ContentItem(
             title="Integration Test Content 1",
             content_type="text",
             content_data="Test content 1",
             creator_id=user.id,
-            tags=["integration", "test"],
             prompt="Test prompt"
         )
-        
+        session.add(content1)
+        session.commit()
+        session.refresh(content1)
+        sync_content_tags_for_tests(session, content1.id, 'regular', tags_one)
+
+        tags_two = []
         content2 = ContentItem(
-            title="Integration Test Content 2", 
+            title="Integration Test Content 2",
             content_type="image",
             content_data="/path/to/test/image.jpg",
             creator_id=user.id,
             item_metadata={"size": "1024x768"},
             prompt="Test prompt"
         )
-        
+        session.add(content2)
+        session.commit()
+        session.refresh(content2)
+        sync_content_tags_for_tests(session, content2.id, 'regular', tags_two)
+
+        tags_auto = ["automation"]
         auto_item = ContentItemAuto(
             title="Automated Content",
             content_type="text",
@@ -107,11 +119,11 @@ class TestDatabaseIntegration:
             creator_id=user.id,
             prompt="Test prompt",
             item_metadata={"source": "auto"},
-            tags=["automation"]
         )
-
-        session.add_all([content1, content2, auto_item])
+        session.add(auto_item)
         session.commit()
+        session.refresh(auto_item)
+        sync_content_tags_for_tests(session, auto_item.id, 'auto', tags_auto)
         
         # Test forward relationships (user -> content)
         user_content = session.query(ContentItem).filter_by(creator_id=user.id).all()

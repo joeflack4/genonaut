@@ -244,7 +244,6 @@ class TestDatabaseEndToEnd:
             'creator_id',
             'created_at',
             'updated_at',
-            'tags',
             'quality_score',
             'is_private',
         ]
@@ -258,6 +257,9 @@ class TestDatabaseEndToEnd:
 
         for col in expected_content_columns:
             assert col in auto_columns
+
+        # Verify content_tags junction table exists (tags now stored separately)
+        assert 'content_tags' in inspector
         
         engine.dispose()
     

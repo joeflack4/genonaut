@@ -435,7 +435,7 @@ export function GalleryPage() {
             </CardContent>
           </Card>
 
-          <Box display="flex" justifyContent="flex-end" data-testid="gallery-pagination">
+          <Box display="flex" justifyContent="flex-start" data-testid="gallery-pagination">
             <Pagination
               count={totalPages}
               page={filters.page + 1}

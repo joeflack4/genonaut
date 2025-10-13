@@ -65,8 +65,9 @@ def _compile_jsonb_sqlite(element, compiler, **_):
     return "TEXT"
 
 from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
-from genonaut.db.schema import Base
+from genonaut.db.schema import Base, ContentTag
 
 get_settings.cache_clear()
 get_database_manager.cache_clear()
@@ -104,3 +105,63 @@ def _patched_request(self, method, url, *args, **kwargs):
 
 
 requests.Session.request = _patched_request  # type: ignore[assignment]
+
+
+# ---------------------------------------------------------------------------
+# Test utility for populating content_tags junction table (SQLite support)
+# ---------------------------------------------------------------------------
+
+def sync_content_tags_for_tests(session: Session, content_id: int, content_source: str, tags: list) -> None:
+    """
+    Populate content_tags junction table from a list of tags (slugs or UUIDs).
+
+    This helper is used in SQLite tests to ensure the junction table is populated
+    since we no longer store tags as arrays in the content tables.
+
+    Args:
+        session: Database session
+        content_id: Content item ID
+        content_source: 'regular' or 'auto'
+        tags: List of tag slugs or UUIDs (can be strings or UUID objects)
+    """
+    if not tags:
+        return
+
+    from uuid import UUID
+    from genonaut.api.utils.tag_identifiers import get_uuid_for_slug
+
+    for tag in tags:
+        # Convert to UUID
+        tag_uuid = None
+        if isinstance(tag, UUID):
+            tag_uuid = tag
+        elif isinstance(tag, str):
+            # Try to parse as UUID first
+            try:
+                tag_uuid = UUID(tag)
+            except ValueError:
+                # If not a UUID, try to convert from slug
+                uuid_str = get_uuid_for_slug(tag)
+                if uuid_str:
+                    tag_uuid = UUID(uuid_str)
+
+        if not tag_uuid:
+            # Skip invalid tags
+            continue
+
+        # Create junction table entry (skip if already exists)
+        existing = session.query(ContentTag).filter(
+            ContentTag.content_id == content_id,
+            ContentTag.content_source == content_source,
+            ContentTag.tag_id == tag_uuid
+        ).first()
+
+        if not existing:
+            content_tag = ContentTag(
+                content_id=content_id,
+                content_source=content_source,
+                tag_id=tag_uuid
+            )
+            session.add(content_tag)
+
+    session.commit()

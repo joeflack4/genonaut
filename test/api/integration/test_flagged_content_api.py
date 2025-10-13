@@ -78,7 +78,6 @@ class TestFlaggedContentAPI:
             "prompt": "Create a scene with violence and weapon combat",
             "creator_id": test_user["id"],
             "item_metadata": {},
-            "tags": ["action"],
             "is_private": False
         }
 
@@ -101,7 +100,6 @@ class TestFlaggedContentAPI:
                 "prompt": f"violence hatred destruction scene {i}",
                 "creator_id": test_user["id"],
                 "item_metadata": {},
-                "tags": ["test"],
                 "is_private": False
             }
             response = make_request("POST", "/api/v1/content", json=content_data)
@@ -371,7 +369,6 @@ class TestFlaggedContentWorkflow:
             "prompt": "A scene with violence and weapons",
             "creator_id": test_user["id"],
             "item_metadata": {},
-            "tags": ["workflow"],
             "is_private": False
         }
 

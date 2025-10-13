@@ -56,25 +56,34 @@ def sample_user(test_db_session):
 @pytest.fixture
 def sample_content(test_db_session, sample_user):
     """Create sample content for testing."""
+    from test.conftest import sync_content_tags_for_tests
+
+    tags = ["test", "sample"]
     content = ContentItem(
         title="Test Content",
         content_type="text",
         content_data="This is test content",
         creator_id=sample_user.id,
         item_metadata={"category": "test"},
-        tags=["test", "sample"],
         prompt="Test prompt",
         path_thumb="/thumbs/test-content.png",
     )
     test_db_session.add(content)
     test_db_session.commit()
     test_db_session.refresh(content)
+
+    # Populate content_tags junction table for SQLite tests
+    sync_content_tags_for_tests(test_db_session, content.id, 'regular', tags)
+
     return content
 
 
 @pytest.fixture
 def sample_auto_content(test_db_session, sample_user):
     """Create sample automated content for testing."""
+    from test.conftest import sync_content_tags_for_tests
+
+    tags = ["auto"]
     content = ContentItemAuto(
         title="Auto Test Content",
         content_type="text",
@@ -82,12 +91,15 @@ def sample_auto_content(test_db_session, sample_user):
         creator_id=sample_user.id,
         prompt="Test prompt",
         item_metadata={"generator": "system"},
-        tags=["auto"],
         path_thumb="/thumbs/auto-content.png",
     )
     test_db_session.add(content)
     test_db_session.commit()
     test_db_session.refresh(content)
+
+    # Populate content_tags junction table for SQLite tests
+    sync_content_tags_for_tests(test_db_session, content.id, 'auto', tags)
+
     return content
 
 
@@ -270,6 +282,9 @@ class TestContentService:
 
     def test_content_response_handles_missing_path_thumb(self, test_db_session, sample_user):
         """Ensure ContentResponse gracefully handles missing thumbnail paths."""
+        from test.conftest import sync_content_tags_for_tests
+
+        tags = ["none"]
         content_without_thumb = ContentItem(
             title="No Thumb",
             content_type="text",
@@ -277,18 +292,21 @@ class TestContentService:
             creator_id=sample_user.id,
             prompt="Test prompt",
             item_metadata={},
-            tags=["none"],
         )
         test_db_session.add(content_without_thumb)
         test_db_session.commit()
         test_db_session.refresh(content_without_thumb)
+        sync_content_tags_for_tests(test_db_session, content_without_thumb.id, 'regular', tags)
 
         response = ContentResponse.model_validate(content_without_thumb)
         assert response.path_thumb is None
 
     def test_get_unified_content_paginated_includes_path_thumb(self, test_db_session, sample_content, sample_auto_content, sample_user):
         """Unified content payloads should include thumbnail paths and support null values."""
+        from test.conftest import sync_content_tags_for_tests
+
         # Create an additional record without a thumbnail to verify null handling.
+        tags = []
         no_thumb_content = ContentItem(
             title="Missing Thumb",
             content_type="image",
@@ -296,11 +314,12 @@ class TestContentService:
             creator_id=sample_user.id,
             prompt="Test prompt",
             item_metadata={},
-            tags=[],
             path_thumb=None,
         )
         test_db_session.add(no_thumb_content)
         test_db_session.commit()
+        test_db_session.refresh(no_thumb_content)
+        sync_content_tags_for_tests(test_db_session, no_thumb_content.id, 'regular', tags)
 
         service = ContentService(test_db_session)
         pagination = PaginationRequest(page=1, page_size=10)
@@ -317,7 +336,10 @@ class TestContentService:
 
     def test_path_thumbs_alt_res_included_in_unified_content(self, test_db_session, sample_user):
         """Verify path_thumbs_alt_res field is returned in unified content queries."""
+        from test.conftest import sync_content_tags_for_tests
+
         # Create content with alternate resolution thumbnails
+        tags = []
         content_with_alt_res = ContentItem(
             title="Multi-Res Content",
             content_type="image",
@@ -331,10 +353,11 @@ class TestContentService:
                 "512x768": "/thumbs/512x768.png"
             },
             item_metadata={},
-            tags=[],
         )
         test_db_session.add(content_with_alt_res)
         test_db_session.commit()
+        test_db_session.refresh(content_with_alt_res)
+        sync_content_tags_for_tests(test_db_session, content_with_alt_res.id, 'regular', tags)
 
         service = ContentService(test_db_session)
         pagination = PaginationRequest(page=1, page_size=10)
@@ -354,6 +377,9 @@ class TestContentService:
 
     def test_get_unified_content_tag_match_any(self, test_db_session, sample_user):
         """Tag filtering with 'any' logic should return items that match any tag."""
+        from test.conftest import sync_content_tags_for_tests
+
+        tags_one = ["fantasy", "dragon"]
         content_one = ContentItem(
             title="Forest Dragon",
             content_type="image",
@@ -361,8 +387,13 @@ class TestContentService:
             creator_id=sample_user.id,
             item_metadata={},
             prompt="Generated",
-            tags=["fantasy", "dragon"],
         )
+        test_db_session.add(content_one)
+        test_db_session.commit()
+        test_db_session.refresh(content_one)
+        sync_content_tags_for_tests(test_db_session, content_one.id, 'regular', tags_one)
+
+        tags_two = ["fantasy", "spirit"]
         content_two = ContentItem(
             title="Forest Spirit",
             content_type="image",
@@ -370,10 +401,11 @@ class TestContentService:
             creator_id=sample_user.id,
             item_metadata={},
             prompt="Generated",
-            tags=["fantasy", "spirit"],
         )
-        test_db_session.add_all([content_one, content_two])
+        test_db_session.add(content_two)
         test_db_session.commit()
+        test_db_session.refresh(content_two)
+        sync_content_tags_for_tests(test_db_session, content_two.id, 'regular', tags_two)
 
         service = ContentService(test_db_session)
         pagination = PaginationRequest(page=1, page_size=10)
@@ -391,6 +423,9 @@ class TestContentService:
 
     def test_get_unified_content_tag_match_all(self, test_db_session, sample_user):
         """Tag filtering with 'all' logic should require all tags to be present."""
+        from test.conftest import sync_content_tags_for_tests
+
+        tags_all = ["fantasy", "dragon", "crystal"]
         content_all = ContentItem(
             title="Crystal Dragon",
             content_type="image",
@@ -398,8 +433,13 @@ class TestContentService:
             creator_id=sample_user.id,
             item_metadata={},
             prompt="Generated",
-            tags=["fantasy", "dragon", "crystal"],
         )
+        test_db_session.add(content_all)
+        test_db_session.commit()
+        test_db_session.refresh(content_all)
+        sync_content_tags_for_tests(test_db_session, content_all.id, 'regular', tags_all)
+
+        tags_partial = ["fantasy", "crystal"]
         content_partial = ContentItem(
             title="Crystal Cave",
             content_type="image",
@@ -407,10 +447,11 @@ class TestContentService:
             creator_id=sample_user.id,
             item_metadata={},
             prompt="Generated",
-            tags=["fantasy", "crystal"],
         )
-        test_db_session.add_all([content_all, content_partial])
+        test_db_session.add(content_partial)
         test_db_session.commit()
+        test_db_session.refresh(content_partial)
+        sync_content_tags_for_tests(test_db_session, content_partial.id, 'regular', tags_partial)
 
         service = ContentService(test_db_session)
         pagination = PaginationRequest(page=1, page_size=10)
@@ -428,7 +469,9 @@ class TestContentService:
 
     def test_get_unified_content_tag_uuid_filter(self, test_db_session, sample_user):
         """UUID-identifiers should resolve to legacy slugs for tag filtering."""
+        from test.conftest import sync_content_tags_for_tests
 
+        tags = ['4k']
         tagged_content = ContentItem(
             title="4K Landscape",
             content_type="image",
@@ -436,10 +479,11 @@ class TestContentService:
             creator_id=sample_user.id,
             item_metadata={},
             prompt="High resolution",
-            tags=['4k'],
         )
         test_db_session.add(tagged_content)
         test_db_session.commit()
+        test_db_session.refresh(tagged_content)
+        sync_content_tags_for_tests(test_db_session, tagged_content.id, 'regular', tags)
 
         uuid_identifier = get_uuid_for_slug('4k')
         assert uuid_identifier is not None
@@ -459,10 +503,18 @@ class TestContentService:
 
     def test_get_unified_content_tag_objects_filter(self, test_db_session, sample_user):
         """Content tagged with object structures should be filterable."""
+        from test.conftest import sync_content_tags_for_tests
 
         uuid_identifier = get_uuid_for_slug('4k')
         assert uuid_identifier is not None
 
+        tags = [
+            {
+                'id': uuid_identifier,
+                'slug': '4k',
+                'name': '4K',
+            }
+        ]
         tagged_content = ContentItem(
             title="4K Portrait",
             content_type="image",
@@ -470,16 +522,11 @@ class TestContentService:
             creator_id=sample_user.id,
             item_metadata={},
             prompt="High resolution portrait",
-            tags=[
-                {
-                    'id': uuid_identifier,
-                    'slug': '4k',
-                    'name': '4K',
-                }
-            ],
         )
         test_db_session.add(tagged_content)
         test_db_session.commit()
+        test_db_session.refresh(tagged_content)
+        sync_content_tags_for_tests(test_db_session, tagged_content.id, 'regular', tags)
 
         service = ContentService(test_db_session)
         pagination = PaginationRequest(page=1, page_size=10)

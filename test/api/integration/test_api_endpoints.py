@@ -192,7 +192,6 @@ def test_content_data():
         "content_data": "This is test content created via API",
         "prompt": "Test prompt for API content",
         "item_metadata": {"category": "test", "source": "api_test"},
-        "tags": ["test", "api", "integration"],
         "is_public": True,
         "is_private": False
     }

@@ -110,6 +110,9 @@ class TestSchemaModels:
     
     def test_content_item_creation(self):
         """Test ContentItem model creation and relationships."""
+        from test.conftest import sync_content_tags_for_tests
+
+        tags = ["test", "sample"]
         content = ContentItem(
             title="Test Content",
             content_type="text",
@@ -117,21 +120,24 @@ class TestSchemaModels:
             prompt="Test prompt for schema test",
             creator_id=self.test_user1.id,
             item_metadata={"word_count": 4},
-            tags=["test", "sample"]
         )
-        
+
         self.session.add(content)
         self.session.commit()
-        
+        self.session.refresh(content)
+        sync_content_tags_for_tests(self.session, content.id, 'regular', tags)
+
         assert content.title == "Test Content"
         assert content.content_type == "text"
         assert content.creator_id == self.test_user1.id
         assert content.item_metadata["word_count"] == 4
-        assert "test" in content.tags
         assert content.quality_score == 0.0
 
     def test_content_item_auto_creation(self):
         """Test ContentItemAuto mirrors ContentItem defaults and columns."""
+        from test.conftest import sync_content_tags_for_tests
+
+        tags = ["auto", "system"]
         auto_item = ContentItemAuto(
             title="Auto Content",
             content_type="text",
@@ -139,17 +145,17 @@ class TestSchemaModels:
             prompt="Test prompt for auto content",
             creator_id=self.test_user1.id,
             item_metadata={"generator": "system"},
-            tags=["auto", "system"],
         )
 
         self.session.add(auto_item)
         self.session.commit()
+        self.session.refresh(auto_item)
+        sync_content_tags_for_tests(self.session, auto_item.id, 'auto', tags)
 
         assert auto_item.title == "Auto Content"
         assert auto_item.content_type == "text"
         assert auto_item.creator_id == self.test_user1.id
         assert auto_item.item_metadata["generator"] == "system"
-        assert "auto" in auto_item.tags
         assert auto_item.quality_score == 0.0
         assert not auto_item.is_private
         assert hasattr(auto_item, "updated_at")

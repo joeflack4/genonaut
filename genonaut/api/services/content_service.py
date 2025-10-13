@@ -147,39 +147,6 @@ class ContentService:
         ).exists()
         return query.filter(exists_clause)
 
-    def _sync_tags_to_junction_table(
-        self,
-        content_id: int,
-        content_source: str,
-        tag_ids: Optional[List[UUID]]
-    ) -> None:
-        """Sync tags from UUID array to junction table (dual-write).
-
-        This ensures the content_tags junction table stays in sync with the
-        tags UUID[] array column for optimized querying.
-
-        Args:
-            content_id: ID of content item
-            content_source: 'regular' or 'auto'
-            tag_ids: List of tag UUIDs (None or empty list removes all tags)
-        """
-        # Delete existing tag relationships for this content
-        self.db.query(ContentTag).filter(
-            ContentTag.content_id == content_id,
-            ContentTag.content_source == content_source
-        ).delete(synchronize_session=False)
-
-        # Insert new tag relationships if any
-        if tag_ids:
-            for tag_id in tag_ids:
-                self.db.add(ContentTag(
-                    content_id=content_id,
-                    content_source=content_source,
-                    tag_id=tag_id
-                ))
-
-        # Commit happens in the calling method
-
     # ------------------------------------------------------------------
     # CRUD helpers
     # ------------------------------------------------------------------
@@ -281,23 +248,6 @@ class ContentService:
         # Create the content item
         content_item = self.repository.create(payload)
 
-        # Sync tags to junction table for optimized querying
-        content_source = "auto" if self.model == ContentItemAuto else "regular"
-        if final_tags:
-            # Convert tag strings to UUIDs
-            tag_uuids = []
-            for tag in final_tags:
-                try:
-                    if isinstance(tag, UUID):
-                        tag_uuids.append(tag)
-                    else:
-                        tag_uuids.append(UUID(str(tag)))
-                except (ValueError, AttributeError):
-                    # Skip invalid UUIDs
-                    pass
-            if tag_uuids:
-                self._sync_tags_to_junction_table(content_item.id, content_source, tag_uuids)
-
         # Automatically check for problematic words and flag if needed
         if self.flagging_service:
             try:
@@ -363,23 +313,6 @@ class ContentService:
             update_data["is_private"] = is_private
 
         updated_content = self.repository.update(content_id, update_data)
-
-        # Sync tags to junction table if tags were updated
-        if tags is not None:
-            content_source = "auto" if self.model == ContentItemAuto else "regular"
-            # Convert tag strings to UUIDs
-            tag_uuids = []
-            for tag in tags:
-                try:
-                    if isinstance(tag, UUID):
-                        tag_uuids.append(tag)
-                    else:
-                        tag_uuids.append(UUID(str(tag)))
-                except (ValueError, AttributeError):
-                    # Skip invalid UUIDs
-                    pass
-            self._sync_tags_to_junction_table(content_id, content_source, tag_uuids)
-
         return updated_content
 
     def delete_content(self, content_id: int) -> bool:

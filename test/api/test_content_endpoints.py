@@ -14,6 +14,7 @@ def _create_content(
     tags,
 ):
     """Utility to insert a ContentItem with common defaults."""
+    from test.conftest import sync_content_tags_for_tests
 
     content = ContentItem(
         title=title,
@@ -23,13 +24,13 @@ def _create_content(
         prompt=f"Prompt for {title}",
         creator_id=creator_id,
         item_metadata={"source": "test"},
-        tags=tags,
         is_private=False,
         quality_score=0.8,
     )
     db_session.add(content)
     db_session.commit()
     db_session.refresh(content)
+    sync_content_tags_for_tests(db_session, content.id, 'regular', tags)
     return content
 
 
