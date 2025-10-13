@@ -118,6 +118,9 @@ def sync_content_tags_for_tests(session: Session, content_id: int, content_sourc
     This helper is used in SQLite tests to ensure the junction table is populated
     since we no longer store tags as arrays in the content tables.
 
+    For test tags that don't exist in the hierarchy, this function will create
+    simple tag entries in the tags table.
+
     Args:
         session: Database session
         content_id: Content item ID
@@ -127,14 +130,22 @@ def sync_content_tags_for_tests(session: Session, content_id: int, content_sourc
     if not tags:
         return
 
-    from uuid import UUID
-    from genonaut.api.utils.tag_identifiers import get_uuid_for_slug
+    from uuid import UUID, uuid5, NAMESPACE_DNS
+    from genonaut.api.utils.tag_identifiers import get_uuid_for_slug, TAG_UUID_NAMESPACE
+    from genonaut.db.schema import Tag
 
     for tag in tags:
         # Convert to UUID
         tag_uuid = None
         if isinstance(tag, UUID):
             tag_uuid = tag
+        elif isinstance(tag, dict):
+            # Handle tag objects with 'id', 'slug', 'name' fields
+            if 'id' in tag:
+                try:
+                    tag_uuid = UUID(str(tag['id']))
+                except (ValueError, KeyError):
+                    pass
         elif isinstance(tag, str):
             # Try to parse as UUID first
             try:
@@ -144,6 +155,20 @@ def sync_content_tags_for_tests(session: Session, content_id: int, content_sourc
                 uuid_str = get_uuid_for_slug(tag)
                 if uuid_str:
                     tag_uuid = UUID(uuid_str)
+                else:
+                    # For test tags not in hierarchy, generate UUID from slug
+                    tag_uuid = uuid5(TAG_UUID_NAMESPACE, tag)
+
+                    # Create tag if it doesn't exist (for tests only)
+                    existing_tag = session.query(Tag).filter(Tag.id == tag_uuid).first()
+                    if not existing_tag:
+                        new_tag = Tag(
+                            id=tag_uuid,
+                            name=tag.replace('_', ' ').title(),
+                            tag_metadata={"test_tag": True, "slug": tag}
+                        )
+                        session.add(new_tag)
+                        session.flush()
 
         if not tag_uuid:
             # Skip invalid tags

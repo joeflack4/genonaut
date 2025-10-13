@@ -37,6 +37,8 @@ backup/
 *.code-workspace
 *.dmp
 .log
+tmp/
+temp/
 
 # Environment files
 .env
@@ -57,6 +59,7 @@ node_modules
 /frontend/playwright/.cache/
 /frontend/tests/playwright/performance/*
 !/frontend/tests/playwright/performance/.keep
+test/_analysis/input
 # production
 /build
 # misc

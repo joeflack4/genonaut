@@ -29,15 +29,37 @@ except ModuleNotFoundError:  # pragma: no cover - only used in test environments
     # Expose a stub current_app similar to Celery's global
     current_app = Celery()
 
+import sys
 from genonaut.api.config import get_settings
 
 # Get settings instance
 settings = get_settings()
 
-# Print configuration info on startup
-print(f"[Celery Worker] Environment: {settings.env_target or 'unknown'}")
-print(f"[Celery Worker] ComfyUI URL: {settings.comfyui_url}")
-print(f"[Celery Worker] Redis Namespace: {settings.redis_ns}")
+# Only print configuration when actually running as a celery worker
+# (not during import for tests or other uses)
+def _is_celery_worker_process():
+    """Check if this process is a celery worker.
+
+    Returns True if:
+    1. 'worker' is in command line arguments (celery worker command), OR
+    2. Running in a celery worker context (detected via argv)
+    """
+    import os
+
+    # Method 1: Check if CELERY_WORKER environment variable is set
+    # (can be set explicitly when starting workers)
+    if os.environ.get('CELERY_WORKER') == '1':
+        return True
+
+    # Method 2: Check command line arguments
+    # celery -A genonaut.worker.queue_app:celery_app worker
+    argv_str = ' '.join(sys.argv)
+    return 'worker' in sys.argv and ('celery' in argv_str or __name__ in argv_str)
+
+if _is_celery_worker_process():
+    print(f"[Celery Worker] Environment: {settings.env_target or 'unknown'}")
+    print(f"[Celery Worker] ComfyUI URL: {settings.comfyui_url}")
+    print(f"[Celery Worker] Redis Namespace: {settings.redis_ns}")
 
 # Initialize Celery app
 celery_app = Celery(

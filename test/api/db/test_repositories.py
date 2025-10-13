@@ -241,7 +241,10 @@ class TestContentRepository:
     """Test ContentRepository database operations."""
 
     def test_create_content(self, test_db_session, sample_user):
+        from test.conftest import sync_content_tags_for_tests
+
         repo = ContentRepository(test_db_session)
+        tags = ["new", "content"]
         content = repo.create(
             {
                 "title": "New Content",
@@ -250,9 +253,11 @@ class TestContentRepository:
                 "creator_id": sample_user.id,
                 "prompt": "Test prompt",
                 "item_metadata": {"category": "new"},
-                "tags": ["new", "content"],
             }
         )
+
+        # Sync tags to junction table
+        sync_content_tags_for_tests(test_db_session, content.id, 'regular', tags)
 
         assert content.id is not None
         assert content.title == "New Content"
@@ -287,7 +292,10 @@ class TestContentAutoRepository:
     """Ensure ContentRepository supports ContentItemAuto."""
 
     def test_create_auto_content(self, test_db_session, sample_user):
+        from test.conftest import sync_content_tags_for_tests
+
         repo = ContentRepository(test_db_session, model=ContentItemAuto)
+        tags = ["auto", "story"]
         content = repo.create(
             {
                 "title": "Generated Story",
@@ -296,9 +304,11 @@ class TestContentAutoRepository:
                 "creator_id": sample_user.id,
                 "prompt": "Test prompt",
                 "item_metadata": {"generator": "system"},
-                "tags": ["auto", "story"],
             }
         )
+
+        # Sync tags to junction table
+        sync_content_tags_for_tests(test_db_session, content.id, 'auto', tags)
 
         assert isinstance(content, ContentItemAuto)
 

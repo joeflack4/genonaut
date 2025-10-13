@@ -1,8 +1,8 @@
 # Common development tasks and utilities
 .PHONY: help init-all init-dev init-demo init-test reset-db-1-data--demo reset-db-1-data--test reset-db-2-schema--demo \
 reset-db-2-schema--test reset-db-3-schema-and-history--demo reset-db-3-schema-and-history--test re-seed-demo \
-re-seed-demo-force seed-from-gen-demo seed-from-gen-test seed-static-demo seed-static-test export-demo-data test test-quick test-verbose test-specific test-unit test-db \
-test-db-unit test-db-integration test-api test-all clear-excess-test-schemas install install-dev \
+re-seed-demo-force seed-from-gen-demo seed-from-gen-test seed-static-demo seed-static-test export-demo-data test \
+test-quick test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-all clear-excess-test-schemas install install-dev \
 lint format clean migrate-all migrate-prep migrate-dev migrate-demo migrate-test backup backup-dev backup-demo \
 backup-test api-dev api-demo api-test celery-dev celery-demo celery-test flower-dev flower-demo flower-test \
 redis-flush-dev redis-flush-demo redis-flush-test redis-keys-dev redis-keys-demo redis-keys-test \
@@ -12,7 +12,8 @@ frontend-test-unit frontend-test-watch frontend-test-coverage frontend-test-e2e 
 frontend-test-e2e-ui frontend-test-e2e-real-api frontend-test-e2e-real-api-headed frontend-test-e2e-real-api-ui \
 frontend-lint frontend-type-check frontend-format frontend-format-write \
 test-frontend test-frontend-unit test-frontend-watch test-frontend-coverage test-frontend-e2e test-frontend-e2e-headed \
-test-frontend-e2e-ui test-frontend-e2e-real-api test-frontend-e2e-real-api-headed test-frontend-e2e-real-api-ui db-wal-buffers-reset db-wal-buffers-set init-db init-db-drop test-long-running test-coverage docs \
+test-frontend-e2e-ui test-frontend-e2e-real-api test-frontend-e2e-real-api-headed test-frontend-e2e-real-api-ui \
+db-wal-buffers-reset db-wal-buffers-set init-db init-db-drop test-long-running test-coverage docs \
 check-env api-dev-profile api-dev-load-test api-production-sim api-demo-load-test api-test-load-test \
 clear-excess-test-schemas-keep-3 migrate-down-dev migrate-heads-dev migrate-down-demo migrate-heads-demo \
 ontology-refresh ontology-generate ontology-validate ontology-stats ontology-test ontology-json \
@@ -90,6 +91,7 @@ help:
 	@echo "  test-db-unit             Run database unit tests"
 	@echo "  test-db-integration      Run database integration tests"
 	@echo "  test-api                 Run API integration tests (requires web server)"
+	@echo "  test-performance         Run performance tests (requires live demo server on port 8001)"
 	@echo "  test-all                 Run all tests (quick + long-running)"
 	@echo "  test-coverage            Run tests with coverage report"
 	@echo ""
@@ -324,42 +326,65 @@ db-wal-buffers-set:
 	@echo "⚠️  Please restart PostgreSQL for changes to take effect!"
 
 # Tests
+# - "not manual": Manual
 test:
-	@echo "Running quick tests (excluding long-running tests)..."
-	pytest test/ -v -m "not longrunning"
+	@echo "Running quick tests (excluding long-running, manual, and performance tests)..."
+	pytest test/ -v -m "not longrunning and not manual and not performance"
 
 test-quick: test
+
+#test-verbose:
+#	@echo "Running quick tests with verbose output..."
+#	pytest test/ -v -s -m "not longrunning and not manual and not performance"
 
 test-long-running:
 	@echo "Running long-running tests (performance, stress, large datasets)..."
 	@echo "⚠️  Warning: These tests may take 5-15 minutes to complete"
+	@echo "Includes: comfyui_poll, comfyui_e2e, api_server, ontology_perf, and other longrunning tests"
 	pytest test/ -v -m "longrunning"
+
+test-performance:
+	@echo "Running performance tests against live demo server..."
+	@echo "⚠️  Prerequisites: Demo server must be running on port 8001"
+	@echo "   Start with: make api-demo"
+	pytest test/ -v -s -m "performance"
 
 test-comfyui-poll:
 	@echo "Running mock ComfyUI polling tests (wait-for-completion scenarios)..."
+	@echo "Note: These are also included in 'make test-long-running'"
 	pytest test/ -v -m "comfyui_poll"
 
 test-comfyui-e2e:
 	@echo "Running ComfyUI end-to-end workflow tests (Celery-style processing)..."
+	@echo "Note: These are also included in 'make test-long-running'"
 	pytest test/ -v -m "comfyui_e2e"
 
 test-api-server:
 	@echo "Running API server integration suites (uvicorn startup, HTTP flows)..."
+	@echo "Note: These are also included in 'make test-long-running' (some tests have both markers)"
 	pytest test/ -v -m "api_server"
 
 test-ontology-perf:
 	@echo "Running ontology performance/CLI tests (large datasets & subprocess calls)..."
+	@echo "Note: These are standalone tests, not in 'make test-long-running'"
 	pytest test/ -v -m "ontology_perf"
 
-test-verbose:
-	@echo "Running quick tests with verbose output..."
-	pytest test/ -v -s -m "not longrunning"
-
-test-specific:
-	@echo "Running specific test: $(TEST)"
-	pytest $(TEST) -v
+test-all:
+	@echo "Running ALL test suites (excluding manual tests)..."
+	@echo "⚠️  Note: This may take 15-20 minutes and requires demo server on port 8001"
+	@echo ""
+	pytest test/ -v -m "not manual"
+	@echo ""
+	@echo "✅ All test suites completed successfully!"
+	@echo "Summary:"
+	@echo "  ✓ Quick tests (not longrunning and not performance)"
+	@echo "  ✓ Long-running tests (longrunning marker)"
+	@echo "  ✓ Performance tests (performance marker - requires demo server)"
+	@echo "  ✓ Ontology performance tests (ontology_perf marker)"
+	@echo "  ✓ API server tests (api_server marker)"
 
 # Three-tier testing approach
+# - these are not exclusive sets of marked test sets (pytest.mark). These are just subsets of 'make test'
 test-unit:
 	@echo "Running unit tests (no external dependencies required)..."
 	@echo "Testing: Pydantic models, utilities, exceptions, configuration"
@@ -388,14 +413,6 @@ test-api:
 	@echo "Prerequisites: API server should be running on http://0.0.0.0:8001. (it's probably running; this is just a reminder)"
 	@echo "Start with: make api-test"
 	API_BASE_URL=http://0.0.0.0:8001 pytest test/api/integration/ -v
-
-test-all: test-quick test-long-running
-	t@echo "✅ All test suites completed successfully!"
-	@echo "Summary:"
-	@echo "  ✓ Quick tests (fast feedback)"
-	@echo "  ✓ Long-running tests (performance & stress)"
-	@echo "  ✓ Database tests (DB required)"
-	@echo "  ✓ API integration tests (web server required)"
 
 # Database management
 clear-excess-test-schemas:

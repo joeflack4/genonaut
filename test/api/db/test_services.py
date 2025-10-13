@@ -195,7 +195,10 @@ class TestContentService:
 
     def test_create_content_success(self, test_db_session, sample_user):
         """Test successful content creation."""
+        from test.conftest import sync_content_tags_for_tests
+
         service = ContentService(test_db_session)
+        tags = ["new", "content"]
         content_data = {
             "title": "New Content",
             "content_type": "text",
@@ -203,10 +206,13 @@ class TestContentService:
             "creator_id": sample_user.id,
             "prompt": "Test prompt",
             "item_metadata": {"category": "new"},
-            "tags": ["new", "content"]
         }
 
         content = service.create_content(content_data)
+
+        # Sync tags to junction table
+        sync_content_tags_for_tests(test_db_session, content.id, 'regular', tags)
+
         assert content.id is not None
         assert content.title == "New Content"
         assert content.creator_id == sample_user.id
@@ -546,7 +552,10 @@ class TestContentAutoService:
     """Verify automated content is handled separately."""
 
     def test_create_auto_content_success(self, test_db_session, sample_user):
+        from test.conftest import sync_content_tags_for_tests
+
         service = ContentAutoService(test_db_session)
+        tags = ["auto"]
         content = service.create_content(
             {
                 "title": "Auto Generated",
@@ -555,9 +564,11 @@ class TestContentAutoService:
                 "creator_id": sample_user.id,
                 "prompt": "Test prompt",
                 "item_metadata": {"source": "automation"},
-                "tags": ["auto"],
             }
         )
+
+        # Sync tags to junction table
+        sync_content_tags_for_tests(test_db_session, content.id, 'auto', tags)
 
         assert isinstance(content, ContentItemAuto)
         assert content.title == "Auto Generated"

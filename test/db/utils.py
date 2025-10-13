@@ -286,9 +286,10 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
         # Load and create content items
         content_data = load_tsv_data(content_items_path)
         content_items = []
+        content_items_tags = []  # Store tags separately for junction table
         title_to_content = {}
         content_id_map: Dict[str, ContentItem] = {}
-        
+
         for i, content_row in enumerate(content_data):
             # Handle both creator_username (old format) and creator_id (new format)
             if 'creator_username' in content_row:
@@ -322,15 +323,15 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
                 prompt=content_row.get('prompt', 'Seeded content'),  # Default for TSV data
                 item_metadata=content_row.get('item_metadata', {}),
                 creator_id=creator.id,
-                tags=content_row.get('tags', []),
                 quality_score=content_row.get('quality_score', 0.0),
                 is_private=content_row.get('is_private', False)
             )
             content_items.append(content)
+            content_items_tags.append(content_row.get('tags', []))  # Store tags separately
             title_to_content[content.title] = content
             if content_row.get('id') is not None:
                 content_id_map[str(content_row['id'])] = content
-        
+
         session.add_all(content_items)
         session.flush()  # Get content IDs
 
@@ -339,10 +340,17 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
             title_to_content[content.title] = content
             content_id_map[str(content.id)] = content
 
+        # Sync tags to junction table
+        from test.conftest import sync_content_tags_for_tests
+        for content, tags in zip(content_items, content_items_tags):
+            if tags:
+                sync_content_tags_for_tests(session, content.id, 'regular', tags)
+
         # Load and create auto content items
         if os.path.exists(content_items_auto_path):
             auto_content_data = load_tsv_data(content_items_auto_path)
             auto_content_items = []
+            auto_content_items_tags = []  # Store tags separately for junction table
 
             for i, auto_content_row in enumerate(auto_content_data):
                 # Handle both creator_username (old format) and creator_id (new format)
@@ -377,11 +385,11 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
                     prompt=auto_content_row.get('prompt', 'Auto-generated content'),  # Default for TSV data
                     item_metadata=_normalize_json_field(auto_content_row.get('item_metadata'), {}),
                     creator_id=creator.id,
-                    tags=_normalize_json_field(auto_content_row.get('tags'), []),
                     quality_score=float(auto_content_row.get('quality_score', 0.0)),
                     is_private=auto_content_row.get('is_private', False)
                 )
                 auto_content_items.append(auto_content)
+                auto_content_items_tags.append(_normalize_json_field(auto_content_row.get('tags'), []))  # Store tags
                 # Add to title mapping for potential references
                 title_to_content[auto_content.title] = auto_content
                 if auto_content_row.get('id') is not None:
@@ -393,6 +401,11 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
             for auto_content in auto_content_items:
                 title_to_content[auto_content.title] = auto_content
                 content_id_map[str(auto_content.id)] = auto_content
+
+            # Sync tags to junction table
+            for auto_content, tags in zip(auto_content_items, auto_content_items_tags):
+                if tags:
+                    sync_content_tags_for_tests(session, auto_content.id, 'auto', tags)
         
         # Load and create user interactions
         interactions_data = load_tsv_data(interactions_path)

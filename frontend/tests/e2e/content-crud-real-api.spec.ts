@@ -41,6 +41,7 @@ test.describe('Content CRUD Operations (Real API)', () => {
   })
 
   test('creates new content via generation interface', async ({ page }) => {
+    test.setTimeout(30000) // Increase timeout for generation operations
     // Navigate to generation page
     await page.goto('/generate')
     await waitForPageLoad(page, 'generate')
