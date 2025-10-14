@@ -639,9 +639,17 @@ make frontend-test-unit    # Same via Makefile
 npm run test               # Run both unit and e2e tests
 make frontend-test         # Same via Makefile
 
-# E2E tests only
-npm run test:e2e           # Run Playwright tests
+# E2E tests (excludes performance tests by default)
+npm run test:e2e           # Run Playwright tests (excludes @performance)
 make frontend-test-e2e     # Same via Makefile
+
+# E2E Performance tests only
+npm run test:e2e:performance              # Run performance tests only
+make frontend-test-e2e-performance        # Same via Makefile
+npm run test:e2e:performance:headed       # Performance tests with browser UI
+make frontend-test-e2e-performance-headed # Same via Makefile
+npm run test:e2e:performance:ui           # Performance tests in Playwright UI
+make frontend-test-e2e-performance-ui     # Same via Makefile
 
 # E2E tests with debug logging
 npm run test:e2e:debug              # Run with verbose console/network logging
@@ -649,12 +657,44 @@ make frontend-test-e2e-debug        # Same via Makefile
 npm run test:e2e:debug:headed       # Debug mode with browser UI
 make frontend-test-e2e-debug-headed # Same via Makefile
 
+# E2E performance tests with debug logging
+npm run test:e2e:performance:debug              # Performance tests with debug logging
+make frontend-test-e2e-performance-debug        # Same via Makefile
+npm run test:e2e:performance:debug:headed       # Performance tests with debug + browser UI
+make frontend-test-e2e-performance-debug-headed # Same via Makefile
+
 # Additional test options
 npm run test:watch         # Unit tests in watch mode
 npm run test:coverage      # Unit tests with coverage
 npm run test:e2e:headed    # E2E tests with browser UI
 npm run test:e2e:ui        # Playwright UI mode
 ```
+
+#### Frontend E2E Test Categories
+
+Frontend E2E tests are split into two categories:
+
+**1. Standard E2E Tests (Functional/Sanity)**
+- Run with: `make frontend-test-e2e` or `npm run test:e2e`
+- Focus on verifying correct functionality without time constraints
+- Test user workflows, UI behavior, data integrity, navigation, etc.
+- Faster execution (no performance measurement overhead)
+- Excludes tests tagged with `@performance`
+
+**2. Performance E2E Tests**
+- Run with: `make frontend-test-e2e-performance` or `npm run test:e2e:performance`
+- Focus on measuring performance with explicit time thresholds
+- Test page load times, render times, interaction responsiveness, memory usage, etc.
+- Includes only tests tagged with `@performance`
+- Examples:
+  - `performance.spec.ts` - All tests (page load, rendering, scrolling, memory, bundle size)
+  - `search-filtering-real-api.spec.ts` - One test: "filter performance with large datasets @performance"
+
+**Why the separation?**
+- Performance tests are slower and can be flaky in CI/CD environments
+- Standard tests run faster for quick feedback during development
+- Performance tests can be run separately on dedicated hardware or as part of nightly builds
+- Allows focusing on functional correctness vs. performance characteristics
 
 ### Debug Logging in E2E Tests
 

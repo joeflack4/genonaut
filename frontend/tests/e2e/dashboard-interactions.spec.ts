@@ -18,22 +18,25 @@ test.describe('Dashboard Page Interactions', () => {
     const listToggle = page.locator('[data-testid="dashboard-view-toggle-list"]')
     const gridToggle = page.locator('[data-testid="dashboard-view-toggle-grid"]')
 
-    await expect(listView).toBeVisible()
-    await expect(gridView).toHaveCount(0)
-
-    await gridToggle.click()
+    // Default view is now grid
     await expect(gridView).toBeVisible()
     await expect(listView).toHaveCount(0)
 
-    const storedGridMode = await page.evaluate(() => window.localStorage.getItem('dashboard-view-mode'))
-    expect(storedGridMode).toBe('grid-256x384')
-
+    // Switch to list view
     await listToggle.click()
     await expect(listView).toBeVisible()
     await expect(gridView).toHaveCount(0)
 
     const storedListMode = await page.evaluate(() => window.localStorage.getItem('dashboard-view-mode'))
     expect(storedListMode).toBe('list')
+
+    // Switch back to grid view
+    await gridToggle.click()
+    await expect(gridView).toBeVisible()
+    await expect(listView).toHaveCount(0)
+
+    const storedGridMode = await page.evaluate(() => window.localStorage.getItem('dashboard-view-mode'))
+    expect(storedGridMode).toBe('grid-256x384')
   })
 
   test('should persist dashboard grid view after reload', async ({ page }) => {

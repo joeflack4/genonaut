@@ -3,7 +3,7 @@
 from typing import Optional, List, Dict, Any, Generic, TypeVar
 from datetime import datetime
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 T = TypeVar('T')
 
@@ -372,6 +372,7 @@ class PaginationMeta(BaseModel):
     next_cursor: Optional[str] = Field(None, description="Cursor for next page")
     prev_cursor: Optional[str] = Field(None, description="Cursor for previous page")
 
+    @computed_field
     @property
     def total_pages(self) -> int:
         """Calculate total number of pages."""

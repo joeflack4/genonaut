@@ -35,7 +35,10 @@ TodoWrite and TodoRead functionality. You can utilize those tools here.
    - Unit tests (`make test-unit`) for individual functions/methods
    - Database tests (`make test-db`) for repository and service layer functionality
    - API integration tests (`make test-api`) for complete workflows and endpoints
-4. Whenever you touch frontend or UI-adjacent code, add or update stable `data-testid` attributes on new layouts, sections, list items, loading/empty states, and interactive controls. Follow the conventions documented in `frontend/AGENTS.md#data-test-ids` (e.g. `page-or-component-element` naming, using MUI `inputProps`/`slotProps`), and update affected unit/E2E tests.
+4. Whenever you touch frontend or UI-adjacent code, add or update stable `data-testid` attributes on new layouts, 
+sections, list items, loading/empty states, and interactive controls. Follow the conventions documented in 
+`frontend/AGENTS.md#data-test-ids` (e.g. `page-or-component-element` naming, using MUI `inputProps`/`slotProps`), and 
+update affected unit/E2E tests.
 5. Add documentation: Module level docstrings, class level docstrings, function level docstrings, and method / function
 level docstrings. Function / method docstrings should include information about parameters and returns, and a 
 description. 
@@ -52,6 +55,29 @@ feature, and either do those updates or ask for input.
 11. If there is a command involved that needs to work, but for which it does not make sense to have a test (like if you 
 are asked to fix a one-off script or command), then make sure to run the command to ensure that it works, unless asked 
 not to or otherwise if you think it is inadvisable to do so.
+
+### When adding new tests
+There are various different categories of backend (pytest.mark.*) and frontend tests (mainly the playwright ones).
+Specifically, when adding new tests, you should consider "does this test performance?". If so, then mark the tests
+appropriately:
+
+**Backend (pytest):**
+- Use `@pytest.mark.performance` decorator for performance-related tests
+- Example: Tests that measure response times, throughput, memory usage, etc.
+
+**Frontend Playwright E2E tests:**
+- Add `@performance` tag to test names or describe blocks
+- For entire test suites: `test.describe('My Test Suite @performance', () => { ... })`
+- For individual tests: `test('my test name @performance', async ({ page }) => { ... })`
+- Performance tests should include explicit time-based assertions (e.g., `expect(time).toBeLessThan(threshold)`)
+- Examples of performance tests:
+  - Page load time measurements
+  - Component rendering performance
+  - User interaction responsiveness
+  - Memory usage monitoring
+  - Bundle size validation
+- Run performance tests separately with: `make frontend-test-e2e-performance`
+- Standard functional tests run with: `make frontend-test-e2e` (excludes @performance tests) 
 
 ### Documentation updates
 When adding documentation:

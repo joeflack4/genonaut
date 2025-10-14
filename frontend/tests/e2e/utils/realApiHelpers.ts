@@ -94,8 +94,8 @@ export async function waitForGalleryLoad(page: Page, timeout = 10000) {
   // Wait for navigation to complete
   await page.waitForSelector('nav', { timeout })
 
-  // Wait for any API calls to settle
-  await page.waitForLoadState('networkidle')
+  // Wait for app to be ready (critical data loaded)
+  await page.locator('[data-app-ready="1"]').waitFor({ timeout: 5000 })
 
   // Ensure pagination info is loaded
   const paginationLocator = page.locator('text=/\\d+ pages showing [\\d,]+ results/')

@@ -11,6 +11,7 @@ import {
   Select,
   Skeleton,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
@@ -63,6 +64,10 @@ export function TagFilter({
   const [pendingTags, setPendingTags] = useState<string[]>(selectedTags)
   const isMultiSelectActive = useRef(false)
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
+
   const apiSort = useMemo(() => sortOption, [sortOption])
 
   // Fetch tags with pagination
@@ -85,6 +90,16 @@ export function TagFilter({
       })
     }
   }, [tags])
+
+  // Debounce search query (1 second delay)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery)
+      setPage(1) // Reset to first page when search changes
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
   // Listen for keyup events to commit pending changes
   useEffect(() => {
@@ -174,6 +189,49 @@ export function TagFilter({
     setPopoverAnchor(null)
   }
 
+  // Filter tags based on search query
+  const filteredTags = useMemo(() => {
+    if (!debouncedSearchQuery.trim()) {
+      return tags
+    }
+
+    const query = debouncedSearchQuery.trim()
+
+    // Check if query is wrapped in quotes for exact match
+    const isExactMatch = query.startsWith('"') && query.endsWith('"') && query.length > 2
+
+    if (isExactMatch) {
+      // Exact match search - strip quotes and search anywhere in tag name
+      const searchText = query.slice(1, -1).toLowerCase()
+      return tags.filter(tag => tag.name.toLowerCase().includes(searchText))
+    } else {
+      // Word-based search
+      const queryWords = query.toLowerCase().split(/\s+/).filter(word => word.length > 0)
+
+      return tags.filter(tag => {
+        const tagWords = tag.name.toLowerCase().split(/[\s-]+/).filter(word => word.length > 0)
+
+        // Check if any tag word starts with any query word
+        return queryWords.some(queryWord =>
+          tagWords.some(tagWord => tagWord.startsWith(queryWord))
+        )
+      })
+    }
+  }, [tags, debouncedSearchQuery])
+
+  // Paginate filtered tags
+  const paginatedTags = useMemo(() => {
+    const startIndex = (page - 1) * pageSize
+    const endIndex = startIndex + pageSize
+    return filteredTags.slice(startIndex, endIndex)
+  }, [filteredTags, page, pageSize])
+
+  // Calculate total pages for filtered results
+  const filteredTotalPages = useMemo(() => {
+    if (filteredTags.length === 0) return 1
+    return Math.ceil(filteredTags.length / pageSize)
+  }, [filteredTags.length, pageSize])
+
   // Find selected tag objects for display (use pending tags if in multi-select mode)
   const displayTags = isMultiSelectActive.current ? pendingTags : selectedTags
 
@@ -223,6 +281,19 @@ export function TagFilter({
           ))}
         </Select>
       </FormControl>
+
+      {/* Search tags input */}
+      <TextField
+        fullWidth
+        size="small"
+        label="Search tags"
+        placeholder='Type to filter (or "exact match")'
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        sx={{ mb: 2 }}
+        inputProps={{ 'data-testid': 'tag-filter-search-input' }}
+        data-testid="tag-filter-search"
+      />
 
       {/* Info text */}
       <Typography
@@ -274,17 +345,17 @@ export function TagFilter({
               />
             ))}
           </Stack>
-        ) : tags.length === 0 ? (
+        ) : paginatedTags.length === 0 ? (
           <Typography
             variant="body2"
             color="text.secondary"
             data-testid="tag-filter-empty"
           >
-            No tags found
+            {debouncedSearchQuery ? 'No tags match your search' : 'No tags found'}
           </Typography>
         ) : (
           <Stack direction="row" spacing={1} flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
-            {tags.map((tag) => {
+            {paginatedTags.map((tag) => {
               const isSelected = displayTags.includes(tag.id)
               return (
                 <Chip
@@ -306,10 +377,10 @@ export function TagFilter({
       </Box>
 
       {/* Pagination */}
-      {!isLoading && totalPages > 1 && (
+      {!isLoading && paginatedTags.length > 0 && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
           <Pagination
-            count={totalPages}
+            count={filteredTotalPages}
             page={page}
             onChange={(_, newPage) => setPage(newPage)}
             color="primary"

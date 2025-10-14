@@ -8,8 +8,8 @@ test.describe('Gallery Page Interactions', () => {
       ...getCommonApiMocks(),
       ...getTagHierarchyMocks(),
     ])
-    await page.goto('/gallery')
-    await page.waitForSelector('main', { timeout: 10000 })
+    await page.goto('/gallery', { waitUntil: 'domcontentloaded' })
+    await page.locator('[data-app-ready="1"]').waitFor({ timeout: 5000 })
   })
 
   test('should switch between list and grid views', async ({ page }) => {
@@ -18,29 +18,32 @@ test.describe('Gallery Page Interactions', () => {
     const listToggle = page.locator('[data-testid="gallery-view-toggle-list"]')
     const gridToggle = page.locator('[data-testid="gallery-view-toggle-grid"]')
 
-    await expect(listView).toBeVisible()
-    await expect(gridView).toHaveCount(0)
+    // Default view is now grid
+    await expect(gridView).toBeVisible()
+    await expect(listView).toHaveCount(0)
 
-    // Close options drawer if it's open to avoid blocking the grid toggle
+    // Close options drawer if it's open to avoid blocking the list toggle
     const closeButton = page.locator('[data-testid="gallery-options-close-button"]').first()
     if (await closeButton.isVisible()) {
       await closeButton.click()
       await page.waitForTimeout(300)
     }
 
-    await gridToggle.click()
-    await expect(gridView).toBeVisible()
-    await expect(listView).toHaveCount(0)
-
-    const storedGridMode = await page.evaluate(() => window.localStorage.getItem('gallery-view-mode'))
-    expect(storedGridMode).toBe('grid-256x384')
-
+    // Switch to list view
     await listToggle.click()
     await expect(listView).toBeVisible()
     await expect(gridView).toHaveCount(0)
 
     const storedListMode = await page.evaluate(() => window.localStorage.getItem('gallery-view-mode'))
     expect(storedListMode).toBe('list')
+
+    // Switch back to grid view
+    await gridToggle.click()
+    await expect(gridView).toBeVisible()
+    await expect(listView).toHaveCount(0)
+
+    const storedGridMode = await page.evaluate(() => window.localStorage.getItem('gallery-view-mode'))
+    expect(storedGridMode).toBe('grid-256x384')
   })
 
   test('should open image detail from grid view and return back', async ({ page }) => {
@@ -254,13 +257,13 @@ test.describe('Gallery Page Interactions', () => {
   })
 
   test('should handle pagination navigation', async ({ page }) => {
-    // Look for pagination component
-    const pagination = page.locator('.MuiPagination-root, .pagination, [role="navigation"]')
+    // Look for gallery pagination component specifically (not tag filter pagination)
+    const pagination = page.locator('[data-testid="gallery-pagination-control"]')
 
-    if (await pagination.isVisible()) {
-      // Look for next/previous buttons
-      const nextButton = page.locator('button[aria-label*="next"], button[aria-label*="Go to next page"]')
-      const prevButton = page.locator('button[aria-label*="previous"], button[aria-label*="Go to previous page"]')
+    if (await pagination.isVisible().catch(() => false)) {
+      // Look for next/previous buttons within the gallery pagination
+      const nextButton = pagination.locator('button[aria-label*="next"], button[aria-label*="Go to next page"]')
+      const prevButton = pagination.locator('button[aria-label*="previous"], button[aria-label*="Go to previous page"]')
 
       if (await nextButton.count() > 0 && await nextButton.isEnabled()) {
         await nextButton.click()

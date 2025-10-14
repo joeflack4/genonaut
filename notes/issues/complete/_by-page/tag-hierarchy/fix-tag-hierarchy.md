@@ -65,7 +65,7 @@ Answer: because we're going to redo it and we haven't yet
    - Or should database be authoritative?
    - How do we keep them in sync?
 
-Answer: read [tags-db-and-gallery-and-view.md](./tags-db-and-gallery-and-view.md). database is the new authority. no more json
+Answer: read [tags-db-and-gallery-and-view.md](../../../../tags-db-and-gallery-and-view.md). database is the new authority. no more json
 
 3. **Q3**: Are there any scripts/tools that modify tag hierarchy?
    - Check `genonaut/ontologies/tags/` directory
@@ -79,7 +79,7 @@ Answer: No. if there are, they are defunct. this will be done in the future. you
    - Check if `TagTreeView.convertToTree()` fails with empty hierarchy
    - Identify exact line/component where crash occurs
 
-Answer: that is really for you to figure out if this isn't sufficient, but i forgot to give you a log earlier. here it is: [fix-tag-hierarchy-log.txt](./fix-tag-hierarchy-log.txt). this is what happens when you open the page.
+Answer: that is really for you to figure out if this isn't sufficient, but i forgot to give you a log earlier. here it is: [fix-tag-hierarchy-log.txt](fix-tag-hierarchy-log.txt). this is what happens when you open the page.
 
 ## Related Files
 

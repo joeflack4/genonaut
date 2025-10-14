@@ -110,32 +110,11 @@
   - Excluded from regular test suite (make test) ✓
   - Run with: make test-performance ✓
   - Tests: test_canonical_tag_query_performance, baseline (no tag), multi-tag query ✓
-  - Manual detailed performance test available ✓ 
+  - Manual detailed performance test available ✓
 
-### Phase 3: Verify with EXPLAIN ANALYZE
+### Phase 3: Cutover and Cleanup
 
-- [ ] Run baseline benchmarks (before changes)
-  - Document current query plans
-  - Record execution times
-  - Save for comparison
-- [ ] Benchmark after Phase 2 changes
-  - Single tag filter queries
-  - Multiple tag queries
-  - User-only, community-only, both filters
-  - Tag + search term combination
-  - Various page sizes
-- [ ] Verify index usage
-  - Check pg_stat_user_indexes
-  - Confirm content_tags indexes being used
-  - Confirm creator_created indexes being used
-- [ ] Document results
-  - Before/after comparison
-  - Identify any remaining bottlenecks
-  - Verify performance targets met (p50 < 1s, p95 < 3s, p99 < 5s)
-
-### Phase 4: Cutover and Cleanup
-
-- [ ] Remove dual-write logic
+- [ ] Remove dual-write logic (done?)
   - Stop writing to tags array in content_items
   - Stop writing to tags array in content_items_auto
   - Keep arrays for backward compatibility (read-only)
@@ -144,25 +123,3 @@
   - Review SQLite test fixture setup (should auto-create/destroy DB)
   - Consider switching unit tests to use postgres test DB if issues persist
   - Un-skip ~28 tests that failed on SQLite ARRAY type
-- [ ] Update documentation
-  - Document tag normalization in docs/db.md
-  - Explain content_tags junction table
-  - Document query patterns in docs/api.md
-  - Update configuration.md if needed
-- [ ] Set up monitoring
-  - Configure pg_stat_statements
-  - Set up alerts for slow queries (> 5s)
-  - Track content_tags table growth
-  - Monitor index usage over time
-
-### Future: Performance Enhancements (See notes/gallery-tag-query-performance.md)
-
-- [ ] Create notes/gallery-tag-query-performance.md
-  - Document Option 2 (materialized view) details
-  - Document Option 4 (Redis caching) details
-  - Include when to consider each approach
-  - Document Redis cache age checking (per requirement)
-- [ ] Consider Redis caching if needed
-  - Only if Phase 1-2 insufficient
-  - 5-10 minute TTL acceptable
-  - Document cache invalidation strategy

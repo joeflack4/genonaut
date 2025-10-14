@@ -169,7 +169,18 @@ describe('TagFilter', () => {
   })
 
   it('supports pagination when multiple pages are available', async () => {
-    mockedUseTags.mockReturnValue(createTagsResponse({ totalPages: 2 }))
+    // Create enough items to span 2 pages (with pageSize=20, need 21+ items)
+    const manyItems = Array.from({ length: 25 }, (_, i) => ({
+      id: `tag-${i + 1}`,
+      name: `Tag ${i + 1}`,
+      metadata: {},
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
+      average_rating: 4.5,
+      rating_count: 12,
+    }))
+
+    mockedUseTags.mockReturnValue(createTagsResponse({ totalPages: 2, items: manyItems }))
 
     renderTagFilterHarness()
 

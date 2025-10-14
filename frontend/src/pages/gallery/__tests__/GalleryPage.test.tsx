@@ -126,7 +126,7 @@ describe('GalleryPage', () => {
     expect(screen.getByText('Neon Cityscape')).toBeInTheDocument()
     expect(screen.getByTestId('tag-filter')).toBeInTheDocument()
 
-    const searchInput = screen.getByLabelText(/search/i)
+    const searchInput = screen.getByTestId('gallery-search-input')
     const filterForm = screen.getByRole('form', { name: /gallery filters/i })
 
     fireEvent.change(searchInput, { target: { value: 'portrait' } })

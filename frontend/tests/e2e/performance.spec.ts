@@ -16,7 +16,7 @@ const PERFORMANCE_THRESHOLDS = {
   userInteractionTime: 200,  // 200ms max for user interaction response
 }
 
-test.describe('Frontend Performance Tests', () => {
+test.describe('Frontend Performance Tests @performance', () => {
 
   test.describe.configure({ mode: 'serial' })
 

@@ -218,6 +218,9 @@ export function GalleryPage() {
   const data = unifiedData
   const items = data?.items ?? []
 
+  // Track if critical data has loaded for E2E tests
+  const isAppReady = !isLoading && data !== undefined
+
   const totalPages = useMemo(() => {
     if (!data?.total) {
       return 1
@@ -268,6 +271,7 @@ export function GalleryPage() {
       component="section"
       sx={{ position: 'relative', display: 'flex', flexDirection: 'column' }}
       data-testid="gallery-page-root"
+      data-app-ready={isAppReady ? '1' : '0'}
     >
       <Box
         sx={{
@@ -465,7 +469,24 @@ export function GalleryPage() {
         data-testid="gallery-options-drawer"
         data-open={optionsOpen ? 'true' : 'false'}
       >
-        <Stack spacing={3} sx={{ height: '100%' }} data-testid="gallery-options-stack">
+        <Stack spacing={3} sx={{ height: '100%', pb: 4 }} data-testid="gallery-options-stack">
+          <Box
+            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+            data-testid="gallery-options-header"
+          >
+            <Typography component="h2" variant="h6" fontWeight={600} data-testid="gallery-options-title">
+              Options
+            </Typography>
+            <Tooltip title="Hide options" enterDelay={300} arrow>
+              <IconButton
+                aria-label="Close options"
+                onClick={() => setOptionsOpen(false)}
+                data-testid="gallery-options-close-button"
+              >
+                <CloseIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
           <Box sx={{ textAlign: 'center' }} data-testid="gallery-options-summary">
             {!isLoading && (
               <>
@@ -497,23 +518,6 @@ export function GalleryPage() {
               </>
             )}
           </Box>
-          <Box
-            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-            data-testid="gallery-options-header"
-          >
-            <Typography component="h2" variant="h6" fontWeight={600} data-testid="gallery-options-title">
-              Options
-            </Typography>
-            <Tooltip title="Hide options" enterDelay={300} arrow>
-              <IconButton
-                aria-label="Close options"
-                onClick={() => setOptionsOpen(false)}
-                data-testid="gallery-options-close-button"
-              >
-                <CloseIcon />
-              </IconButton>
-            </Tooltip>
-          </Box>
           <Stack
             component="form"
             spacing={2}
@@ -522,7 +526,7 @@ export function GalleryPage() {
             data-testid="gallery-filter-form"
           >
             <TextField
-              label="Search"
+              label="Search (by prompt & title)"
               variant="outlined"
               fullWidth
               value={searchInput}

@@ -1,6 +1,7 @@
 # Gallery Tag Query Performance - Future Enhancements
 
-This document covers additional performance optimization strategies that are deferred until after the core tag normalization work (documented in `notes/fix-gallery-tag-query.md`) is complete.
+This document covers additional performance optimization strategies that are deferred until after the core tag 
+normalization work (documented in `./fix-gallery-tag-query-and-performance--tasks1-non-performance.md`) is complete.
 
 ## When to Consider These Options
 
@@ -14,7 +15,8 @@ Implement these enhancements if:
 
 ### Overview
 
-Create a materialized view that pre-joins content with users and includes denormalized tag data. This eliminates UNION overhead and JOIN costs at query time.
+Create a materialized view that pre-joins content with users and includes denormalized tag data. This eliminates UNION 
+overhead and JOIN costs at query time.
 
 ### Implementation
 
@@ -532,3 +534,31 @@ When implementing these options, update the following:
   - Document Redis configuration options
   - Document cache TTL settings
   - Document materialized view refresh settings
+
+## Additional tasks
+## 1. Monitoring
+- [ ] Set up monitoring
+  - Configure pg_stat_statements
+  - Set up alerts for slow queries (> 5s)
+  - Track content_tags table growth
+  - Monitor index usage over time
+
+### 2.Verify with EXPLAIN ANALYZE
+- [ ] Run baseline benchmarks (before changes)
+  - Document current query plans
+  - Record execution times
+  - Save for comparison
+- [ ] Benchmark after Phase 2 changes
+  - Single tag filter queries
+  - Multiple tag queries
+  - User-only, community-only, both filters
+  - Tag + search term combination
+  - Various page sizes
+- [ ] Verify index usage
+  - Check pg_stat_user_indexes
+  - Confirm content_tags indexes being used
+  - Confirm creator_created indexes being used
+- [ ] Document results
+  - Before/after comparison
+  - Identify any remaining bottlenecks
+  - Verify performance targets met (p50 < 1s, p95 < 3s, p99 < 5s)

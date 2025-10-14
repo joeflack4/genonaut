@@ -9,10 +9,22 @@ redis-flush-dev redis-flush-demo redis-flush-test redis-keys-dev redis-keys-demo
 redis-info-dev redis-info-demo redis-info-test redis-start celery-check-running-workers \
 frontend-install frontend-dev frontend-dev-debug frontend-build frontend-preview frontend-test \
 frontend-test-unit frontend-test-watch frontend-test-coverage frontend-test-e2e frontend-test-e2e-headed \
-frontend-test-e2e-ui frontend-test-e2e-real-api frontend-test-e2e-real-api-headed frontend-test-e2e-real-api-ui \
+frontend-test-e2e-ui frontend-test-e2e-debug frontend-test-e2e-debug-headed \
+frontend-test-e2e-w frontend-test-e2e-headed-w frontend-test-e2e-debug-w frontend-test-e2e-debug-headed-w \
+frontend-test-e2e-performance frontend-test-e2e-performance-headed frontend-test-e2e-performance-ui \
+frontend-test-e2e-performance-debug frontend-test-e2e-performance-debug-headed \
+frontend-test-e2e-performance-w frontend-test-e2e-performance-headed-w frontend-test-e2e-performance-debug-w frontend-test-e2e-performance-debug-headed-w \
+frontend-test-e2e-real-api frontend-test-e2e-real-api-headed frontend-test-e2e-real-api-ui frontend-test-e2e-real-api-debug frontend-test-e2e-real-api-debug-headed \
+frontend-test-e2e-real-api-w frontend-test-e2e-real-api-headed-w frontend-test-e2e-real-api-debug-w frontend-test-e2e-real-api-debug-headed-w \
 frontend-lint frontend-type-check frontend-format frontend-format-write \
 test-frontend test-frontend-unit test-frontend-watch test-frontend-coverage test-frontend-e2e test-frontend-e2e-headed \
-test-frontend-e2e-ui test-frontend-e2e-real-api test-frontend-e2e-real-api-headed test-frontend-e2e-real-api-ui \
+test-frontend-e2e-ui test-frontend-e2e-debug test-frontend-e2e-debug-headed \
+test-frontend-e2e-w test-frontend-e2e-headed-w test-frontend-e2e-debug-w test-frontend-e2e-debug-headed-w \
+test-frontend-e2e-performance test-frontend-e2e-performance-headed test-frontend-e2e-performance-ui \
+test-frontend-e2e-performance-debug test-frontend-e2e-performance-debug-headed \
+test-frontend-e2e-performance-w test-frontend-e2e-performance-headed-w test-frontend-e2e-performance-debug-w test-frontend-e2e-performance-debug-headed-w \
+test-frontend-e2e-real-api test-frontend-e2e-real-api-headed test-frontend-e2e-real-api-ui test-frontend-e2e-real-api-debug test-frontend-e2e-real-api-debug-headed \
+test-frontend-e2e-real-api-w test-frontend-e2e-real-api-headed-w test-frontend-e2e-real-api-debug-w test-frontend-e2e-real-api-debug-headed-w \
 db-wal-buffers-reset db-wal-buffers-set init-db init-db-drop test-long-running test-coverage docs \
 check-env api-dev-profile api-dev-load-test api-production-sim api-demo-load-test api-test-load-test \
 clear-excess-test-schemas-keep-3 migrate-down-dev migrate-heads-dev migrate-down-demo migrate-heads-demo \
@@ -155,11 +167,16 @@ help:
 	@echo "  frontend-test-unit       Run frontend unit tests only"
 	@echo "  frontend-test-watch      Run frontend tests in watch mode"
 	@echo "  frontend-test-coverage   Run frontend tests with coverage"
-	@echo "  frontend-test-e2e        Run frontend Playwright e2e tests"
+	@echo "  frontend-test-e2e        Run frontend Playwright e2e tests (excludes performance tests)"
 	@echo "  frontend-test-e2e-headed Run Playwright tests in headed mode"
 	@echo "  frontend-test-e2e-ui     Run Playwright UI mode"
 	@echo "  frontend-test-e2e-debug  Run Playwright tests with verbose debug logging"
 	@echo "  frontend-test-e2e-debug-headed Run Playwright tests with debug + browser UI"
+	@echo "  frontend-test-e2e-performance Run Playwright performance tests only"
+	@echo "  frontend-test-e2e-performance-headed Run performance tests in headed mode"
+	@echo "  frontend-test-e2e-performance-ui Run performance tests in UI mode"
+	@echo "  frontend-test-e2e-performance-debug Run performance tests with debug logging"
+	@echo "  frontend-test-e2e-performance-debug-headed Run performance tests with debug + browser UI"
 	@echo "  frontend-test-e2e-real-api Run Playwright tests with real API server"
 	@echo "  frontend-test-e2e-real-api-headed Run real API tests in headed mode"
 	@echo "  frontend-test-e2e-real-api-ui Run real API tests in UI mode"
@@ -176,6 +193,11 @@ help:
 	@echo "  test-frontend-e2e-ui     Alias for frontend-test-e2e-ui"
 	@echo "  test-frontend-e2e-debug  Alias for frontend-test-e2e-debug"
 	@echo "  test-frontend-e2e-debug-headed Alias for frontend-test-e2e-debug-headed"
+	@echo "  test-frontend-e2e-performance Alias for frontend-test-e2e-performance"
+	@echo "  test-frontend-e2e-performance-headed Alias for frontend-test-e2e-performance-headed"
+	@echo "  test-frontend-e2e-performance-ui Alias for frontend-test-e2e-performance-ui"
+	@echo "  test-frontend-e2e-performance-debug Alias for frontend-test-e2e-performance-debug"
+	@echo "  test-frontend-e2e-performance-debug-headed Alias for frontend-test-e2e-performance-debug-headed"
 	@echo "  test-frontend-e2e-real-api Alias for frontend-test-e2e-real-api"
 	@echo "  test-frontend-e2e-real-api-headed Alias for frontend-test-e2e-real-api-headed"
 	@echo "  test-frontend-e2e-real-api-ui Alias for frontend-test-e2e-real-api-ui"
@@ -774,8 +796,11 @@ frontend-preview:
 	npm --prefix frontend run preview
 
 # ============================================
-# Frontend tewsts
+# Frontend tests
 # ============================================
+# Configuration for parallel test execution
+STRESS_FRONTEND_N_WORKERS ?= 5
+
 frontend-test-unit:
 	@echo "Running frontend unit tests..."
 	npm --prefix frontend run test-unit
@@ -793,32 +818,86 @@ frontend-test-coverage:
 	npm --prefix frontend run test:coverage
 
 frontend-test-e2e:
-	@echo "Running frontend Playwright tests..."
-	npm --prefix frontend run test:e2e
+	@echo "Running frontend Playwright tests (excluding performance tests)..."
+	npm --prefix frontend run test:e2e -- --workers=1
 
 frontend-test-e2e-headed:
-	@echo "Running frontend Playwright tests in headed mode..."
-	npm --prefix frontend run test:e2e:headed
+	@echo "Running frontend Playwright tests in headed mode (excluding performance tests)..."
+	npm --prefix frontend run test:e2e:headed -- --workers=1
 
 frontend-test-e2e-ui:
-	@echo "Running Playwright UI mode..."
+	@echo "Running Playwright UI mode (excluding performance tests)..."
 	npm --prefix frontend run test:e2e:ui
 
 frontend-test-e2e-debug:
-	@echo "Running frontend Playwright tests with debug logging..."
-	npm --prefix frontend run test:e2e:debug
+	@echo "Running frontend Playwright tests with debug logging (excluding performance tests)..."
+	npm --prefix frontend run test:e2e:debug -- --workers=1
 
 frontend-test-e2e-debug-headed:
-	@echo "Running frontend Playwright tests with debug logging in headed mode..."
-	npm --prefix frontend run test:e2e:debug:headed
+	@echo "Running frontend Playwright tests with debug logging in headed mode (excluding performance tests)..."
+	npm --prefix frontend run test:e2e:debug:headed -- --workers=1
+
+# Multi-worker variants (-w suffix)
+frontend-test-e2e-w:
+	@echo "Running frontend Playwright tests with $(STRESS_FRONTEND_N_WORKERS) workers (excluding performance tests)..."
+	npm --prefix frontend run test:e2e -- --workers=$(STRESS_FRONTEND_N_WORKERS)
+
+frontend-test-e2e-headed-w:
+	@echo "Running frontend Playwright tests in headed mode with $(STRESS_FRONTEND_N_WORKERS) workers (excluding performance tests)..."
+	npm --prefix frontend run test:e2e:headed -- --workers=$(STRESS_FRONTEND_N_WORKERS)
+
+frontend-test-e2e-debug-w:
+	@echo "Running frontend Playwright tests with debug logging and $(STRESS_FRONTEND_N_WORKERS) workers (excluding performance tests)..."
+	npm --prefix frontend run test:e2e:debug -- --workers=$(STRESS_FRONTEND_N_WORKERS)
+
+frontend-test-e2e-debug-headed-w:
+	@echo "Running frontend Playwright tests with debug logging in headed mode and $(STRESS_FRONTEND_N_WORKERS) workers (excluding performance tests)..."
+	npm --prefix frontend run test:e2e:debug:headed -- --workers=$(STRESS_FRONTEND_N_WORKERS)
+
+frontend-test-e2e-performance:
+	@echo "Running frontend Playwright performance tests..."
+	npm --prefix frontend run test:e2e:performance -- --workers=1
+
+frontend-test-e2e-performance-headed:
+	@echo "Running frontend Playwright performance tests in headed mode..."
+	npm --prefix frontend run test:e2e:performance:headed -- --workers=1
+
+frontend-test-e2e-performance-ui:
+	@echo "Running Playwright performance tests in UI mode..."
+	npm --prefix frontend run test:e2e:performance:ui
+
+frontend-test-e2e-performance-debug:
+	@echo "Running frontend Playwright performance tests with debug logging..."
+	npm --prefix frontend run test:e2e:performance:debug -- --workers=1
+
+frontend-test-e2e-performance-debug-headed:
+	@echo "Running frontend Playwright performance tests with debug logging in headed mode..."
+	npm --prefix frontend run test:e2e:performance:debug:headed -- --workers=1
+
+# Multi-worker variants (-w suffix)
+frontend-test-e2e-performance-w:
+	@echo "Running frontend Playwright performance tests with $(STRESS_FRONTEND_N_WORKERS) workers..."
+	npm --prefix frontend run test:e2e:performance -- --workers=$(STRESS_FRONTEND_N_WORKERS)
+
+frontend-test-e2e-performance-headed-w:
+	@echo "Running frontend Playwright performance tests in headed mode with $(STRESS_FRONTEND_N_WORKERS) workers..."
+	npm --prefix frontend run test:e2e:performance:headed -- --workers=$(STRESS_FRONTEND_N_WORKERS)
+
+frontend-test-e2e-performance-debug-w:
+	@echo "Running frontend Playwright performance tests with debug logging and $(STRESS_FRONTEND_N_WORKERS) workers..."
+	npm --prefix frontend run test:e2e:performance:debug -- --workers=$(STRESS_FRONTEND_N_WORKERS)
+
+frontend-test-e2e-performance-debug-headed-w:
+	@echo "Running frontend Playwright performance tests with debug logging in headed mode and $(STRESS_FRONTEND_N_WORKERS) workers..."
+	npm --prefix frontend run test:e2e:performance:debug:headed -- --workers=$(STRESS_FRONTEND_N_WORKERS)
 
 frontend-test-e2e-real-api:
 	@echo "Running Playwright tests with real API server..."
-	npm --prefix frontend run test:e2e:real-api
+	npm --prefix frontend run test:e2e:real-api -- --workers=1
 
 frontend-test-e2e-real-api-headed:
 	@echo "Running real API Playwright tests in headed mode..."
-	npm --prefix frontend run test:e2e:real-api:headed
+	npm --prefix frontend run test:e2e:real-api:headed -- --workers=1
 
 frontend-test-e2e-real-api-ui:
 	@echo "Running real API Playwright tests in UI mode..."
@@ -826,11 +905,28 @@ frontend-test-e2e-real-api-ui:
 
 frontend-test-e2e-real-api-debug:
 	@echo "Running real API Playwright tests with debug logging..."
-	npm --prefix frontend run test:e2e:real-api:debug
+	npm --prefix frontend run test:e2e:real-api:debug -- --workers=1
 
 frontend-test-e2e-real-api-debug-headed:
 	@echo "Running real API Playwright tests with debug logging in headed mode..."
-	npm --prefix frontend run test:e2e:real-api:debug:headed
+	npm --prefix frontend run test:e2e:real-api:debug:headed -- --workers=1
+
+# Multi-worker variants (-w suffix)
+frontend-test-e2e-real-api-w:
+	@echo "Running Playwright tests with real API server and $(STRESS_FRONTEND_N_WORKERS) workers..."
+	npm --prefix frontend run test:e2e:real-api -- --workers=$(STRESS_FRONTEND_N_WORKERS)
+
+frontend-test-e2e-real-api-headed-w:
+	@echo "Running real API Playwright tests in headed mode with $(STRESS_FRONTEND_N_WORKERS) workers..."
+	npm --prefix frontend run test:e2e:real-api:headed -- --workers=$(STRESS_FRONTEND_N_WORKERS)
+
+frontend-test-e2e-real-api-debug-w:
+	@echo "Running real API Playwright tests with debug logging and $(STRESS_FRONTEND_N_WORKERS) workers..."
+	npm --prefix frontend run test:e2e:real-api:debug -- --workers=$(STRESS_FRONTEND_N_WORKERS)
+
+frontend-test-e2e-real-api-debug-headed-w:
+	@echo "Running real API Playwright tests with debug logging in headed mode and $(STRESS_FRONTEND_N_WORKERS) workers..."
+	npm --prefix frontend run test:e2e:real-api:debug:headed -- --workers=$(STRESS_FRONTEND_N_WORKERS)
 
 frontend-lint:
 	@echo "Linting frontend code..."
@@ -858,11 +954,28 @@ test-frontend-e2e-headed: frontend-test-e2e-headed
 test-frontend-e2e-ui: frontend-test-e2e-ui
 test-frontend-e2e-debug: frontend-test-e2e-debug
 test-frontend-e2e-debug-headed: frontend-test-e2e-debug-headed
+test-frontend-e2e-w: frontend-test-e2e-w
+test-frontend-e2e-headed-w: frontend-test-e2e-headed-w
+test-frontend-e2e-debug-w: frontend-test-e2e-debug-w
+test-frontend-e2e-debug-headed-w: frontend-test-e2e-debug-headed-w
+test-frontend-e2e-performance: frontend-test-e2e-performance
+test-frontend-e2e-performance-headed: frontend-test-e2e-performance-headed
+test-frontend-e2e-performance-ui: frontend-test-e2e-performance-ui
+test-frontend-e2e-performance-debug: frontend-test-e2e-performance-debug
+test-frontend-e2e-performance-debug-headed: frontend-test-e2e-performance-debug-headed
+test-frontend-e2e-performance-w: frontend-test-e2e-performance-w
+test-frontend-e2e-performance-headed-w: frontend-test-e2e-performance-headed-w
+test-frontend-e2e-performance-debug-w: frontend-test-e2e-performance-debug-w
+test-frontend-e2e-performance-debug-headed-w: frontend-test-e2e-performance-debug-headed-w
 test-frontend-e2e-real-api: frontend-test-e2e-real-api
 test-frontend-e2e-real-api-headed: frontend-test-e2e-real-api-headed
 test-frontend-e2e-real-api-ui: frontend-test-e2e-real-api-ui
 test-frontend-e2e-real-api-debug: frontend-test-e2e-real-api-debug
 test-frontend-e2e-real-api-debug-headed: frontend-test-e2e-real-api-debug-headed
+test-frontend-e2e-real-api-w: frontend-test-e2e-real-api-w
+test-frontend-e2e-real-api-headed-w: frontend-test-e2e-real-api-headed-w
+test-frontend-e2e-real-api-debug-w: frontend-test-e2e-real-api-debug-w
+test-frontend-e2e-real-api-debug-headed-w: frontend-test-e2e-real-api-debug-headed-w
 
 # todo: find a better place in file
 # ============================================

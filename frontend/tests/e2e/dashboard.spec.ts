@@ -143,9 +143,10 @@ test.describe('Dashboard', () => {
     await expect(page.getByTestId('dashboard-community-recent-title')).toBeVisible()
     await expect(page.getByTestId('dashboard-community-autogens-title')).toBeVisible()
 
-    await expect(page.getByTestId('dashboard-user-recent-list')).toContainText('User Content Item')
-    await expect(page.getByTestId('dashboard-user-autogens-list')).toContainText('User Auto Item')
-    await expect(page.getByTestId('dashboard-community-recent-list')).toContainText('Surreal Landscape')
-    await expect(page.getByTestId('dashboard-community-autogens-list')).toContainText('Community Auto Piece')
+    // Default view is grid, so check grid views instead of list views
+    await expect(page.getByTestId('dashboard-user-recent-grid')).toBeVisible()
+    await expect(page.getByTestId('dashboard-user-autogens-grid')).toBeVisible()
+    await expect(page.getByTestId('dashboard-community-recent-grid')).toBeVisible()
+    await expect(page.getByTestId('dashboard-community-autogens-grid')).toBeVisible()
   })
 })

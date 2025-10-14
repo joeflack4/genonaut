@@ -497,7 +497,7 @@ test.describe('Search and Filtering (Real API)', () => {
     }
   })
 
-  test('filter performance with large datasets', async ({ page }) => {
+  test('filter performance with large datasets @performance', async ({ page }) => {
     await page.goto('/gallery')
     await waitForGalleryLoad(page)
 

@@ -192,7 +192,8 @@ describe('DashboardPage', () => {
 
     expect(screen.getByTestId('dashboard-page-root')).toBeInTheDocument()
     expect(screen.getByTestId('dashboard-stat-grid')).toBeInTheDocument()
-    expect(screen.getByTestId('dashboard-user-recent-list')).toBeInTheDocument()
+    // Default view is grid view, so check for grid instead of list
+    expect(screen.getByTestId('dashboard-user-recent-grid')).toBeInTheDocument()
 
     expect(mockedUseGalleryStats).toHaveBeenCalledWith('121e194b-4caa-4b81-ad4f-86ca3919d5b9')
     expect(mockedUseGalleryList).toHaveBeenCalledWith({ limit: 5, sort: 'recent', creator_id: '121e194b-4caa-4b81-ad4f-86ca3919d5b9' })
