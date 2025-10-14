@@ -110,7 +110,7 @@ describe('TagTreeView', () => {
       </TestWrapper>
     );
 
-    expect(screen.getByText('No tag hierarchy data available.')).toBeInTheDocument();
+    expect(screen.getByText(/No tag hierarchy data available/i)).toBeInTheDocument();
   });
 
   it.skip('renders tree structure with data', async () => {

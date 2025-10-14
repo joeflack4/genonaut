@@ -60,7 +60,8 @@ export default function TagTreeView({
 
   // Convert tree structure to react-accessible-treeview format
   const treeData = useMemo((): TreeNodeData[] => {
-    if (!treeStructure || !flatNodes) {
+    // Return empty if data not loaded yet or if there are no nodes
+    if (!treeStructure || !flatNodes || flatNodes.length === 0) {
       return [];
     }
 
@@ -326,8 +327,8 @@ export default function TagTreeView({
 
   if (!treeData.length) {
     return (
-      <Alert severity="info" sx={{ m: 2 }}>
-        No tag hierarchy data available.
+      <Alert severity="info" sx={{ m: 2 }} data-testid="tag-tree-view-empty">
+        No tag hierarchy data available. The tag tree is empty or still being built.
       </Alert>
     );
   }

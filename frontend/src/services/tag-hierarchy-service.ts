@@ -92,6 +92,9 @@ class TagHierarchyService {
 
   /**
    * Convert flat node array to hierarchical tree structure
+   *
+   * Handles orphaned nodes (nodes with parent references that don't exist)
+   * by treating them as root nodes.
    */
   convertToTree(nodes: TagHierarchyNode[]): TreeNode[] {
     // Create a map for quick lookup
@@ -123,6 +126,13 @@ class TagHierarchyService {
           }
           parentNode.children.push(treeNode);
           treeNode.parent = parentNode;
+        } else {
+          // Orphaned node: parent doesn't exist in the tree
+          // Treat as root node to prevent crashes
+          console.warn(
+            `Tag "${node.name}" (${node.id}) references non-existent parent "${node.parent}". Treating as root node.`
+          );
+          rootNodes.push(treeNode);
         }
       }
     });

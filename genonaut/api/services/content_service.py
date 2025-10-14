@@ -1080,6 +1080,9 @@ class ContentService:
             has_next = pagination.page < total_pages
             has_previous = pagination.page > 1 and total_pages > 0
         else:
+            # If we used the 999999 estimate but got no results, correct the count
+            if total_count == 999999 and len(items) == 0 and pagination.page == 1:
+                total_count = 0
             total_pages = (total_count + pagination.page_size - 1) // pagination.page_size if pagination.page_size else 0
             has_next = pagination.page < total_pages
             has_previous = pagination.page > 1

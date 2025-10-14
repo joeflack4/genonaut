@@ -31,6 +31,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import TagTreeView from '../../components/tags/TagTreeView';
 import TagSearchFilter from '../../components/tags/TagSearchFilter';
+import { ErrorBoundary } from '../../components/common/ErrorBoundary';
 import { useTagHierarchy, useRefreshHierarchy } from '../../hooks/useTagHierarchy';
 import { usePersistedSetState } from '../../hooks/usePersistedState';
 
@@ -160,35 +161,45 @@ export default function TagsPage() {
             <Skeleton variant="rectangular" width={100} height={32} data-testid="tags-page-stats-skeleton-1" />
             <Skeleton variant="rectangular" width={140} height={32} data-testid="tags-page-stats-skeleton-2" />
           </Box>
-        ) : hierarchy ? (
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }} data-testid="tags-page-stats">
-            <Chip
-              icon={<InfoIcon />}
-              label={`${hierarchy.metadata.totalNodes} total tags`}
-              variant="outlined"
-              size="small"
-              data-testid="tags-page-stats-total-tags"
-            />
-            <Chip
-              label={`${hierarchy.metadata.rootCategories} root categories`}
-              variant="outlined"
-              size="small"
-              data-testid="tags-page-stats-root-categories"
-            />
-            <Chip
-              label={`${hierarchy.metadata.totalRelationships} relationships`}
-              variant="outlined"
-              size="small"
-              data-testid="tags-page-stats-relationships"
-            />
-            <Chip
-              label={`Updated: ${new Date(hierarchy.metadata.lastUpdated).toLocaleDateString()}`}
-              variant="outlined"
-              size="small"
-              data-testid="tags-page-stats-updated"
-            />
-          </Box>
-        ) : null}
+        ) : (
+          <>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }} data-testid="tags-page-stats">
+              <Chip
+                icon={<InfoIcon />}
+                label={`${hierarchy?.metadata.totalNodes ?? 0} total tags`}
+                variant="outlined"
+                size="small"
+                data-testid="tags-page-stats-total-tags"
+              />
+              <Chip
+                label={`${hierarchy?.metadata.rootCategories ?? 0} root categories`}
+                variant="outlined"
+                size="small"
+                data-testid="tags-page-stats-root-categories"
+              />
+              <Chip
+                label={`${hierarchy?.metadata.totalRelationships ?? 0} relationships`}
+                variant="outlined"
+                size="small"
+                data-testid="tags-page-stats-relationships"
+              />
+              <Chip
+                label={hierarchy?.metadata.lastUpdated
+                  ? `Updated: ${new Date(hierarchy.metadata.lastUpdated).toLocaleDateString()}`
+                  : 'Updated: N/A'
+                }
+                variant="outlined"
+                size="small"
+                data-testid="tags-page-stats-updated"
+              />
+            </Box>
+            {hierarchy && hierarchy.metadata.totalRelationships === 0 && (
+              <Alert severity="info" sx={{ mt: 2 }} data-testid="tags-page-empty-hierarchy-info">
+                Tag hierarchy is being built. All tags are currently shown as root nodes without parent-child relationships.
+              </Alert>
+            )}
+          </>
+        )}
       </Box>
 
       <Grid container spacing={3} data-testid="tags-page-layout">
@@ -215,15 +226,22 @@ export default function TagsPage() {
               </Box>
             ) : (
               <Box data-testid="tags-page-tree-mode">
-                <TagTreeView
-                  onNodeClick={handleNodeClick}
-                  selectedNodeId={selectedNodeId || undefined}
-                  selectedTagIds={selectedTagIds}
-                  onSelectionChange={handleSelectionChange}
-                  onDirtyStateChange={handleDirtyStateChange}
-                  showNodeCounts={false}
-                  maxHeight={600}
-                />
+                <ErrorBoundary
+                  fallbackMessage="Failed to render tag hierarchy tree. This may be due to inconsistent tag data. Please try refreshing the page."
+                  onReset={() => {
+                    refreshMutation.mutate();
+                  }}
+                >
+                  <TagTreeView
+                    onNodeClick={handleNodeClick}
+                    selectedNodeId={selectedNodeId || undefined}
+                    selectedTagIds={selectedTagIds}
+                    onSelectionChange={handleSelectionChange}
+                    onDirtyStateChange={handleDirtyStateChange}
+                    showNodeCounts={false}
+                    maxHeight={600}
+                  />
+                </ErrorBoundary>
               </Box>
             )}
           </Paper>

@@ -26,7 +26,7 @@ interface TagDetailLocationState {
   fallbackPath?: string;
 }
 
-const DEFAULT_FALLBACK_PATH = '/tags';
+const DEFAULT_FALLBACK_PATH = '/gallery';
 
 /**
  * TagDetailPage Component

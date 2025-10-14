@@ -93,3 +93,74 @@ def test_children_endpoint_returns_direct_descendants(
     assert len(children) == 1
     assert children[0]["id"] == str(child_tag.id)
     assert children[0]["name"] == child_tag.name
+
+
+def test_hierarchy_metadata_all_fields(
+    api_client: TestClient,
+    db_session,
+    sample_tags,
+):
+    """GET /api/v1/tags/hierarchy validates all metadata fields are present and correct."""
+    response = api_client.get("/api/v1/tags/hierarchy")
+
+    assert response.status_code == 200
+    hierarchy = response.json()
+
+    # Validate metadata structure
+    assert "metadata" in hierarchy
+    metadata = hierarchy["metadata"]
+
+    # Validate all required fields are present
+    assert "totalNodes" in metadata
+    assert "totalRelationships" in metadata
+    assert "rootCategories" in metadata
+    assert "lastUpdated" in metadata
+    assert "format" in metadata
+    assert "version" in metadata
+
+    # Validate values are correct (sample_tags has 3 tags: root, child, leaf)
+    # root -> child -> leaf (2 relationships)
+    assert metadata["totalNodes"] == 3
+    assert metadata["totalRelationships"] == 2  # root -> child, child -> leaf
+    assert metadata["rootCategories"] == 1  # only root has no parent
+
+    # Validate data types
+    assert isinstance(metadata["totalNodes"], int)
+    assert isinstance(metadata["totalRelationships"], int)
+    assert isinstance(metadata["rootCategories"], int)
+    assert isinstance(metadata["lastUpdated"], str)
+    assert isinstance(metadata["format"], str)
+    assert isinstance(metadata["version"], str)
+
+    # Validate format values
+    assert metadata["format"] == "flat_array"
+    assert metadata["version"] == "2.0"
+
+
+def test_hierarchy_empty_state(
+    api_client: TestClient,
+    db_session,
+):
+    """GET /api/v1/tags/hierarchy handles empty hierarchy gracefully."""
+    # No tags in database (no sample_tags fixture used)
+
+    response = api_client.get("/api/v1/tags/hierarchy")
+
+    assert response.status_code == 200
+    hierarchy = response.json()
+
+    # Validate response structure
+    assert "nodes" in hierarchy
+    assert "metadata" in hierarchy
+
+    # Validate empty state
+    assert hierarchy["nodes"] == []
+    metadata = hierarchy["metadata"]
+    assert metadata["totalNodes"] == 0
+    assert metadata["totalRelationships"] == 0
+    assert metadata["rootCategories"] == 0
+
+    # Validate required fields still present
+    assert "lastUpdated" in metadata
+    assert "format" in metadata
+    assert "version" in metadata

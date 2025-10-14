@@ -252,4 +252,154 @@ test.describe('Tag Hierarchy Tests', () => {
     // (This is implicit - if the page reloaded, the expansion would be lost)
     await expect(page.locator('[aria-label="Tag hierarchy tree"]')).toBeVisible();
   });
+
+});
+
+test.describe('Tag Hierarchy Empty States', () => {
+  // Don't use setupMockApi for these tests - we need custom mocks
+  test.beforeEach(async ({ page }) => {
+    page.setDefaultNavigationTimeout(10_000);
+    // Set up basic auth/user mocks that are needed
+    await page.route('**/api/v1/user/auth/session', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: '121e194b-4caa-4b81-ad4f-86ca3919d5b9',
+          name: 'Admin User',
+          email: 'admin@example.test',
+        }),
+      });
+    });
+  });
+
+  test('should display gracefully when hierarchy has no relationships (empty hierarchy)', async ({ page }) => {
+    // Set up API mock to return hierarchy with 0 relationships
+    await page.route('**/api/v1/tags/hierarchy', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          nodes: [
+            { id: 'tag1', name: 'Tag 1', parent: null },
+            { id: 'tag2', name: 'Tag 2', parent: null },
+            { id: 'tag3', name: 'Tag 3', parent: null },
+          ],
+          metadata: {
+            totalNodes: 3,
+            rootCategories: 3,
+            totalRelationships: 0,
+            lastUpdated: new Date().toISOString(),
+            format: 'flat_array',
+            version: '2.0',
+          },
+        }),
+      });
+    });
+
+    await page.goto('/tags', { waitUntil: 'domcontentloaded' });
+
+    // Page should load without crashing
+    await expect(page.locator('h1')).toContainText('Tag Hierarchy');
+
+    // Stats should display with 0 relationships
+    await expect(page.locator('text=3 total tags')).toBeVisible();
+    await expect(page.locator('text=3 root categories')).toBeVisible();
+    await expect(page.locator('text=0 relationships')).toBeVisible();
+
+    // Should show informative message about empty hierarchy
+    await expect(page.locator('[data-testid="tags-page-empty-hierarchy-info"]')).toBeVisible();
+    await expect(page.locator('text=/Tag hierarchy is being built/i')).toBeVisible();
+
+    // Tree should still render (all nodes as roots)
+    await expect(page.locator('[aria-label="Tag hierarchy tree"]')).toBeVisible();
+    await expect(page.locator('text=Tag 1')).toBeVisible();
+    await expect(page.locator('text=Tag 2')).toBeVisible();
+    await expect(page.locator('text=Tag 3')).toBeVisible();
+  });
+
+  test('should display empty state when no tags exist', async ({ page }) => {
+    // Set up API mock to return empty hierarchy
+    await page.route('**/api/v1/tags/hierarchy', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          nodes: [],
+          metadata: {
+            totalNodes: 0,
+            rootCategories: 0,
+            totalRelationships: 0,
+            lastUpdated: new Date().toISOString(),
+            format: 'flat_array',
+            version: '2.0',
+          },
+        }),
+      });
+    });
+
+    await page.goto('/tags', { waitUntil: 'domcontentloaded' });
+
+    // Page should load without crashing
+    await expect(page.locator('h1')).toContainText('Tag Hierarchy');
+
+    // Stats should show 0 for all values
+    await expect(page.locator('text=0 total tags')).toBeVisible();
+    await expect(page.locator('text=0 root categories')).toBeVisible();
+    await expect(page.locator('text=0 relationships')).toBeVisible();
+
+    // Should show empty state message in tree view
+    await expect(page.locator('[data-testid="tag-tree-view-empty"]')).toBeVisible();
+    await expect(page.locator('text=/No tag hierarchy data available/i')).toBeVisible();
+  });
+
+  test('should handle orphaned nodes gracefully (nodes with non-existent parents)', async ({ page }) => {
+    // Set up API mock to return hierarchy with orphaned nodes
+    await page.route('**/api/v1/tags/hierarchy', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          nodes: [
+            { id: 'root1', name: 'Root Category', parent: null },
+            { id: 'orphan1', name: 'Orphaned Tag', parent: 'non_existent_parent' },
+            { id: 'child1', name: 'Valid Child', parent: 'root1' },
+          ],
+          metadata: {
+            totalNodes: 3,
+            rootCategories: 2,
+            totalRelationships: 1,
+            lastUpdated: new Date().toISOString(),
+            format: 'flat_array',
+            version: '2.0',
+          },
+        }),
+      });
+    });
+
+    await page.goto('/tags', { waitUntil: 'domcontentloaded' });
+
+    // Page should load without crashing
+    await expect(page.locator('h1')).toContainText('Tag Hierarchy');
+
+    // Tree should render with orphaned node treated as root
+    await expect(page.locator('[aria-label="Tag hierarchy tree"]')).toBeVisible();
+    await expect(page.locator('text=Root Category')).toBeVisible();
+    await expect(page.locator('text=Orphaned Tag')).toBeVisible();
+
+    // Expand Root Category to see Valid Child
+    // Find the expand button next to Root Category (first button in tree)
+    const expandButtons = page.locator('[aria-label="Tag hierarchy tree"] button');
+    const firstExpandButton = expandButtons.first();
+    await firstExpandButton.click(); // Expand Root Category
+
+    // Wait a moment for expansion animation
+    await page.waitForTimeout(300);
+
+    // Valid Child should now be visible (nested under Root Category)
+    await expect(page.locator('text=Valid Child')).toBeVisible();
+
+    // Should log warning in console (checked via browser console monitoring)
+    // Note: Playwright can capture console warnings but we won't fail the test on warnings
+  });
 });

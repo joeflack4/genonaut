@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import {
   Box,
   Button,
@@ -59,6 +59,10 @@ export function TagFilter({
   // Cache of all tags we've seen (to display names for Selected tags)
   const [tagCache, setTagCache] = useState<Map<string, ApiTag>>(new Map())
 
+  // Track pending tag changes during multi-select mode
+  const [pendingTags, setPendingTags] = useState<string[]>(selectedTags)
+  const isMultiSelectActive = useRef(false)
+
   const apiSort = useMemo(() => sortOption, [sortOption])
 
   // Fetch tags with pagination
@@ -82,19 +86,61 @@ export function TagFilter({
     }
   }, [tags])
 
+  // Listen for keyup events to commit pending changes
+  useEffect(() => {
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if ((event.key === 'Meta' || event.key === 'Alt') && isMultiSelectActive.current) {
+        // Commit the pending tags when modifier key is released
+        isMultiSelectActive.current = false
+        onTagsChange(pendingTags)
+      }
+    }
+
+    window.addEventListener('keyup', handleKeyUp)
+    return () => window.removeEventListener('keyup', handleKeyUp)
+  }, [pendingTags, onTagsChange])
+
+  // Sync pendingTags with selectedTags when not in multi-select mode
+  useEffect(() => {
+    if (!isMultiSelectActive.current) {
+      setPendingTags(selectedTags)
+    }
+  }, [selectedTags])
+
   // Handle tag selection with keyboard modifiers
   const handleTagSelect = (tagId: string, event: React.MouseEvent) => {
+    // Check if shift key is pressed - if so, navigate to tag page instead
+    if (event.shiftKey && onTagClick) {
+      event.preventDefault()
+      event.stopPropagation()
+      onTagClick(tagId)
+      return
+    }
+
     const isMultiSelect = event.metaKey || event.altKey // Cmd on Mac, Alt on Windows
 
-    if (selectedTags.includes(tagId)) {
+    // Determine which list to work with
+    const currentTags = isMultiSelectActive.current ? pendingTags : selectedTags
+
+    if (currentTags.includes(tagId)) {
       // Deselect tag
-      onTagsChange(selectedTags.filter((id) => id !== tagId))
-    } else {
-      // Select tag
+      const newTags = currentTags.filter((id) => id !== tagId)
       if (isMultiSelect) {
-        onTagsChange([...selectedTags, tagId])
+        isMultiSelectActive.current = true
+        setPendingTags(newTags)
       } else {
-        onTagsChange([tagId])
+        isMultiSelectActive.current = false
+        onTagsChange(newTags)
+      }
+    } else {
+      // Select tag - always append
+      const newTags = [...currentTags, tagId]
+      if (isMultiSelect) {
+        isMultiSelectActive.current = true
+        setPendingTags(newTags)
+      } else {
+        isMultiSelectActive.current = false
+        onTagsChange(newTags)
       }
     }
   }
@@ -102,7 +148,12 @@ export function TagFilter({
   // Handle deselect from selected chips
   const handleDeselectTag = (tagId: string, event: React.MouseEvent) => {
     event.stopPropagation()
-    onTagsChange(selectedTags.filter((id) => id !== tagId))
+    const newTags = displayTags.filter((id) => id !== tagId)
+    if (isMultiSelectActive.current) {
+      setPendingTags(newTags)
+    } else {
+      onTagsChange(newTags)
+    }
   }
 
   // Handle selected chip click (navigate to tag detail)
@@ -123,9 +174,11 @@ export function TagFilter({
     setPopoverAnchor(null)
   }
 
-  // Find selected tag objects for display
+  // Find selected tag objects for display (use pending tags if in multi-select mode)
+  const displayTags = isMultiSelectActive.current ? pendingTags : selectedTags
+
   const selectedTagObjects = useMemo(() => {
-    return selectedTags.map((id) => {
+    return displayTags.map((id) => {
       const cached = tagCache.get(id)
       if (cached) {
         return cached
@@ -146,7 +199,7 @@ export function TagFilter({
         is_favorite: false,
       } as ApiTag
     })
-  }, [selectedTags, tagCache])
+  }, [displayTags, tagCache])
 
   return (
     <Box data-testid="tag-filter">
@@ -178,11 +231,11 @@ export function TagFilter({
         sx={{ display: 'block', mb: 2 }}
         data-testid="tag-filter-info"
       >
-        Click to select/deselect. Hold Command (Mac) or Alt (Windows) for multiple selections.
+        Click to add tags. Hold Command (Mac) or Alt (Windows) to select multiple before querying. Shift+click to open tag page.
       </Typography>
 
       {/* Selected tags section */}
-      {selectedTags.length > 0 && (
+      {displayTags.length > 0 && (
         <Box sx={{ mb: 2 }} data-testid="tag-filter-selected">
           <Typography variant="subtitle2" sx={{ mb: 1 }}>
             Selected tags:
@@ -232,7 +285,7 @@ export function TagFilter({
         ) : (
           <Stack direction="row" spacing={1} flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
             {tags.map((tag) => {
-              const isSelected = selectedTags.includes(tag.id)
+              const isSelected = displayTags.includes(tag.id)
               return (
                 <Chip
                   key={tag.id}
@@ -266,13 +319,17 @@ export function TagFilter({
         </Box>
       )}
 
-      {selectedTags.length > 0 && (
+      {displayTags.length > 0 && (
         <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
           <Button
             variant="outlined"
             color="secondary"
             size="small"
-            onClick={() => onTagsChange([])}
+            onClick={() => {
+              isMultiSelectActive.current = false
+              onTagsChange([])
+              setPendingTags([])
+            }}
             data-testid="tag-filter-clear-all-button"
           >
             Clear All Tags

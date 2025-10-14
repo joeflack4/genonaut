@@ -467,28 +467,34 @@ export function GalleryPage() {
       >
         <Stack spacing={3} sx={{ height: '100%' }} data-testid="gallery-options-stack">
           <Box sx={{ textAlign: 'center' }} data-testid="gallery-options-summary">
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ fontStyle: 'italic', display: 'inline' }}
-              data-testid="gallery-options-summary-text"
-            >
-              {totalPages.toLocaleString()} pages showing {data?.total?.toLocaleString() || 0} results matching filters.
-            </Typography>
-            {data?.stats && (
-              <IconButton
-                size="small"
-                sx={{
-                  ml: 0.5,
-                  p: 0.25,
-                  color: 'text.secondary'
-                }}
-                onMouseEnter={(event) => setStatsAnchorEl(event.currentTarget)}
-                onMouseLeave={() => setStatsAnchorEl(null)}
-                data-testid="gallery-options-stats-info-button"
-              >
-                <InfoOutlinedIcon sx={{ fontSize: 14 }} />
-              </IconButton>
+            {!isLoading && (
+              <>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontStyle: 'italic', display: 'inline' }}
+                  data-testid="gallery-options-summary-text"
+                >
+                  {(data?.total ?? 0) === 0
+                    ? '0 results matching filters.'
+                    : `${totalPages.toLocaleString()} pages showing ${data?.total?.toLocaleString() || 0} results matching filters.`}
+                </Typography>
+                {data?.stats && (
+                  <IconButton
+                    size="small"
+                    sx={{
+                      ml: 0.5,
+                      p: 0.25,
+                      color: 'text.secondary'
+                    }}
+                    onMouseEnter={(event) => setStatsAnchorEl(event.currentTarget)}
+                    onMouseLeave={() => setStatsAnchorEl(null)}
+                    data-testid="gallery-options-stats-info-button"
+                  >
+                    <InfoOutlinedIcon sx={{ fontSize: 14 }} />
+                  </IconButton>
+                )}
+              </>
             )}
           </Box>
           <Box

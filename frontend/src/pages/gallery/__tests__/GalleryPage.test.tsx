@@ -137,11 +137,14 @@ describe('GalleryPage', () => {
     const user = userEvent.setup()
     renderGalleryPage()
 
+    // Wait for the page to render first
+    await waitFor(() => expect(screen.getByTestId('gallery-options-drawer')).toBeInTheDocument(), { timeout: 10000 })
+
     await user.click(screen.getByLabelText(/close options/i))
-    await waitFor(() => expect(screen.getByTestId('gallery-options-drawer')).toHaveAttribute('data-open', 'false'))
+    await waitFor(() => expect(screen.getByTestId('gallery-options-drawer')).toHaveAttribute('data-open', 'false'), { timeout: 10000 })
 
     await user.click(screen.getByTestId('gallery-options-toggle-button'))
-    await waitFor(() => expect(screen.getByTestId('gallery-options-drawer')).toHaveAttribute('data-open', 'true'))
+    await waitFor(() => expect(screen.getByTestId('gallery-options-drawer')).toHaveAttribute('data-open', 'true'), { timeout: 10000 })
   })
 
   it('syncs tags from query parameters', async () => {

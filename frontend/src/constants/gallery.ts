@@ -3,9 +3,11 @@ import type { ThumbnailResolution, ThumbnailResolutionId, ViewMode } from '../ty
 export const GALLERY_VIEW_MODE_STORAGE_KEY = 'gallery-view-mode'
 export const DASHBOARD_VIEW_MODE_STORAGE_KEY = 'dashboard-view-mode'
 
-export const DEFAULT_VIEW_MODE: ViewMode = 'list'
-
 export const DEFAULT_THUMBNAIL_RESOLUTION_ID: ThumbnailResolutionId = '256x384'
+
+export const DEFAULT_GRID_VIEW_MODE: ViewMode = `grid-${DEFAULT_THUMBNAIL_RESOLUTION_ID}`
+
+export const DEFAULT_VIEW_MODE: ViewMode = DEFAULT_GRID_VIEW_MODE
 
 export const GRID_COLUMN_BREAKPOINTS = {
   xs: 1,
@@ -31,5 +33,3 @@ export const THUMBNAIL_RESOLUTION_OPTIONS: ThumbnailResolution[] = [
 export const DEFAULT_THUMBNAIL_RESOLUTION: ThumbnailResolution =
   THUMBNAIL_RESOLUTION_OPTIONS.find((option) => option.id === DEFAULT_THUMBNAIL_RESOLUTION_ID)
   ?? THUMBNAIL_RESOLUTION_OPTIONS[0]
-
-export const DEFAULT_GRID_VIEW_MODE: ViewMode = `grid-${DEFAULT_THUMBNAIL_RESOLUTION_ID}`
