@@ -13,8 +13,34 @@ source env/python_venv/bin/activate
 This must be done at the beginning of every session before running any Python commands, tests, or other project operations.
 
 ## How to familiarize yourself with the project
-- Read the `README.md` file in the root of the repository. Follow any links in that file, or any other files it links
-to, e.g. [full dev docs](docs/developer.md), and read those files as well.
+- Read `README.md` in the root of the repository, then follow links to detailed docs
+- Key documentation: [developer.md](docs/developer.md), [testing.md](docs/testing.md), [api.md](docs/api.md), [db.md](docs/db.md)
+- For frontend work, also read [frontend/AGENTS.md](frontend/AGENTS.md)
+
+## Quick Reference
+
+### Essential Commands
+```bash
+# Database
+make init-demo              # Initialize demo database
+make api-demo               # Start API server (demo DB)
+make migrate-demo           # Generate and apply DB migration
+
+# Testing
+make test-unit              # Unit tests (backend)
+make test-db                # Database tests
+make test-api               # API integration tests
+make test-all               # All backend tests
+make frontend-test          # All frontend tests
+
+# Services
+make celery-dev             # Start Celery worker
+make flower-dev             # Celery monitoring UI
+make frontend-dev           # Start frontend dev server
+
+# Redis
+make redis-flush-dev        # Clear Redis data
+```
 
 ## Code / architecture style
 - Whenever possible, functions / methods should be pure functions.
@@ -31,10 +57,13 @@ current task at hand. If any todos seem like they should belong in the note docu
 there. If they are already done, check them off. Example: It may be that a test is currently being skipped, but when you
 implement some functionality you are planning, you will want to enable these tests. Claude specifically: You have 
 TodoWrite and TodoRead functionality. You can utilize those tools here.
-3. Add tests following the three-tier testing approach:
-   - Unit tests (`make test-unit`) for individual functions/methods
-   - Database tests (`make test-db`) for repository and service layer functionality
-   - API integration tests (`make test-api`) for complete workflows and endpoints
+3. Add tests following the three-tier testing approach (see [docs/testing.md](docs/testing.md)):
+   - **Unit tests** (`make test-unit`) - No dependencies, fastest (<10s)
+   - **Database tests** (`make test-db`) - Requires DB running, medium speed (30-60s)
+   - **API integration tests** (`make test-api`) - Requires API server + DB, slowest (2-5min)
+   - Run all: `make test-all`
+
+   Before database/API tests, initialize test DB: `make init-test` and start test server: `make api-test`
 4. Whenever you touch frontend or UI-adjacent code, add or update stable `data-testid` attributes on new layouts, 
 sections, list items, loading/empty states, and interactive controls. Follow the conventions documented in 
 `frontend/AGENTS.md#data-test-ids` (e.g. `page-or-component-element` naming, using MUI `inputProps`/`slotProps`), and 
@@ -56,28 +85,35 @@ feature, and either do those updates or ask for input.
 are asked to fix a one-off script or command), then make sure to run the command to ensure that it works, unless asked 
 not to or otherwise if you think it is inadvisable to do so.
 
-### When adding new tests
-There are various different categories of backend (pytest.mark.*) and frontend tests (mainly the playwright ones).
-Specifically, when adding new tests, you should consider "does this test performance?". If so, then mark the tests
-appropriately:
+### Frontend Testing
+Frontend uses Vitest for unit tests and Playwright for E2E tests (see [docs/testing.md](docs/testing.md)):
+
+**Commands:**
+- `make frontend-test-unit` or `npm run test-unit` - Unit tests only (fastest)
+- `make frontend-test-e2e` or `npm run test:e2e` - E2E tests (excludes @performance tests)
+- `make frontend-test-e2e-performance` - Performance E2E tests only
+- `make frontend-test-e2e-debug` - E2E with verbose logging
+- `make frontend-test` or `npm run test` - All frontend tests
+
+**Prerequisites for E2E:**
+- Backend API running (for real API tests)
+- Playwright browsers installed: `npx playwright install`
+
+**Test types:**
+- **Mock tests** - For edge cases (extreme pagination, network failures, error simulation)
+- **Real API tests** - For business logic (user workflows, CRUD operations, integration testing)
+
+### Performance Test Marking
+When adding tests that measure performance (not just functional correctness), mark them appropriately:
 
 **Backend (pytest):**
-- Use `@pytest.mark.performance` decorator for performance-related tests
-- Example: Tests that measure response times, throughput, memory usage, etc.
+- Use `@pytest.mark.performance` decorator
 
-**Frontend Playwright E2E tests:**
-- Add `@performance` tag to test names or describe blocks
-- For entire test suites: `test.describe('My Test Suite @performance', () => { ... })`
-- For individual tests: `test('my test name @performance', async ({ page }) => { ... })`
-- Performance tests should include explicit time-based assertions (e.g., `expect(time).toBeLessThan(threshold)`)
-- Examples of performance tests:
-  - Page load time measurements
-  - Component rendering performance
-  - User interaction responsiveness
-  - Memory usage monitoring
-  - Bundle size validation
-- Run performance tests separately with: `make frontend-test-e2e-performance`
-- Standard functional tests run with: `make frontend-test-e2e` (excludes @performance tests) 
+**Frontend Playwright E2E:**
+- Add `@performance` tag to test names: `test('my test @performance', async ({ page }) => { ... })`
+- Include explicit time-based assertions
+- Run separately with: `make frontend-test-e2e-performance`
+- Standard functional tests (excludes @performance): `make frontend-test-e2e` 
 
 ### Documentation updates
 When adding documentation:
@@ -96,31 +132,54 @@ During development, the following processes should always be running:
 - Frontend (port 5173)
 
 ### Database FYIs
-#### Different databases and canonical database
-Locally, there are the following databases: dev, test, and demo
+#### Multiple database environments
+Locally, there are three databases: dev, demo, and test
+- **demo** is the canonical database for local development
+- **dev** is an alternative development database
+- **test** is isolated for automated testing (gets reset frequently)
 
-The canonical one for local development is: demo
-
-That's the one that's most important that we do DB migrations on, do investigations, etc. During development, the web 
-API will almost always be running on port 8001, and it will be set to use this canonical DB.
+During development, the web API runs on port 8001 and typically uses the demo database. Commands follow the pattern `make api-demo`, `make init-demo`, `make migrate-demo`, etc.
 
 ### Configuration
-Variables are configured in config/. Can be overriden by env/. The frontend, backend, and test servers may also have 
-some localized configuration files. More on this mentioned in docs/configuration.md. 
+Configuration uses a two-tier system:
+- **JSON config files** (`config/*.json`) - Non-sensitive application settings (committed to git)
+- **.env files** (`env/.env.*`) - Sensitive credentials and secrets (excluded from git)
 
-#### When changing DB schema
-Caution!: DO NOT edit existing files Alembic version files!: `genonaut/db/migrations/versions/`. Treat them as immutable
-history. Always generate a new revision with `alembic revision -m "..."` and put upgrade/downgrade code there. If you 
-need to change the schema, add it in a new migration file rather than modifying or deleting old ones.
+Load order (lowest to highest priority):
+1. `config/base.json` - Base config
+2. `config/{ENV_TARGET}.json` - Environment-specific config (e.g., `local-dev`, `local-demo`)
+3. `env/.env.shared` - Shared secrets
+4. `env/.env.{ENV_TARGET}` - Environment-specific secrets
+5. Process environment variables
+6. `env/.env` - Local developer overrides (gitignored)
 
-Read this too: [DB migrations docs](./docs/db_migrations.md), particularly the "SOP: Changing database schema" section.
+Frontend configuration lives in `frontend/src/config/`. See [docs/configuration.md](docs/configuration.md) for details. 
+
+### Database Migrations (Alembic)
+**CRITICAL**: DO NOT edit existing Alembic version files in `genonaut/db/migrations/versions/`. Treat them as immutable history.
+
+**SOP for schema changes:**
+1. Modify SQLAlchemy models (do not write raw SQL)
+2. Generate migration: `make migrate-demo` (or `migrate-dev`, `migrate-test`, `migrate-all`)
+   - This runs `alembic revision --autogenerate -m "description"` and `alembic upgrade head`
+3. Before creating new migrations, verify single head: `alembic heads` should show only one revision
+4. Apply to all environments: `make migrate-demo`, `make migrate-dev`, `make migrate-test`
+5. Test suite should pass after all environments are upgraded
+
+**Important notes:**
+- Forward-only in prod; rollbacks are for local/dev only
+- For non-null columns: add with `server_default`, backfill, then remove default
+- For indexes on large tables: use `postgresql_concurrently=True` with `autocommit_block()`
+- See [docs/db_migrations.md](docs/db_migrations.md) for detailed procedures and troubleshooting
 
 ### Service Management
 If at any point you need a service to be running (e.g. database, backend web API, frontend, or other services), you should:
 
-1. **Start required services**: Go ahead and try to start the process as a background process using appropriate commands (e.g., `make start-db`, `npm run dev`, `python -m uvicorn app:app`, etc.).
+1. **Start required services**: Go ahead and try to start the process as a background process using appropriate commands
+(e.g., `make start-db`, `npm run dev`, `python -m uvicorn app:app`, etc.).
 
-2. **Restart existing services**: If you need to restart a service that is already running, try to stop and start the process again. Use commands like:
+2. **Restart existing services**: If you need to restart a service that is already running, try to stop and start the 
+process again. Use commands like:
    - `pkill -f <process_name>` or `killall <service>` to stop
    - Then start the service again with the appropriate command
    
@@ -128,18 +187,68 @@ If at any point you need a service to be running (e.g. database, backend web API
    - `ps aux | grep <service_name>`
    - `lsof -i :<port_number>` for services running on specific ports
    
-4. **Use project-specific commands**: Look for Makefile targets, npm scripts, or other project-specific commands for service management (e.g., `make start-services`, `docker-compose up -d`, etc.).
+4. **Use project-specific commands**: Look for Makefile targets, npm scripts, or other project-specific commands for 
+service management (e.g., `make start-services`, `docker-compose up -d`, etc.).
 
-Always prioritize using project-specific service management commands when available, as they are likely configured with the correct parameters and dependencies.
+Always prioritize using project-specific service management commands when available, as they are likely configured with
+the correct parameters and dependencies.
+
+### Async Task Processing (Celery + Redis)
+Genonaut uses Celery with Redis for asynchronous tasks (primarily image generation via ComfyUI).
+
+**Running workers:**
+- `make celery-dev` (or `celery-demo`, `celery-test`) - Start Celery worker
+- `make flower-dev` - Monitoring dashboard at http://localhost:5555
+
+**Typical workflow:**
+```bash
+# Terminal 1: API server
+make api-demo
+
+# Terminal 2: Celery worker
+make celery-dev
+
+# Terminal 3: (Optional) Flower monitoring
+make flower-dev
+```
+
+**Redis management:**
+- `make redis-keys-dev` - List all keys
+- `make redis-flush-dev` - Clear Redis data (use with caution!)
+
+See [docs/queuing.md](docs/queuing.md) for details on WebSocket real-time updates and job monitoring.
+
+### API Server
+FastAPI backend with 77 endpoints across users, content, tags, interactions, recommendations, generation jobs, and system health.
+
+**Running API:**
+- `make api-dev`, `make api-demo`, or `make api-test`
+- Access docs at http://localhost:8001/docs (Swagger) or http://localhost:8001/redoc
+
+**Pagination:** All list endpoints support both offset-based and cursor-based pagination. Use cursor pagination for 
+large datasets (>10K items) for consistent performance. See [docs/api.md](docs/api.md) for details.
+
+**Statement timeouts:** The API enforces a PostgreSQL `statement_timeout` (default 15s dev, 30s prod) to prevent runaway
+queries. Timeout errors return HTTP 504 with `error_type: "statement_timeout"`. Configure in `config/*.json` as `statement-timeout`.
+
+### Database (PostgreSQL)
+**Schema:** Core tables include `users`, `content_items`, `content_items_auto`, `user_interactions`, `recommendations`, 
+`generation_jobs`, `tags`, `tag_parents`, `tag_ratings`.
+
+**Performance:**
+- Target: <200ms for any pagination query, <100ms for optimized queries
+
+See [docs/db.md](docs/db.md) for detailed schema, JSONB patterns, and performance monitoring queries.
 
 ### File Writing and Character Encoding
 
 When using the `Write` tool to create or update files:
 
-1. **Use plain ASCII characters whenever possible**: Stick to standard alphanumeric characters, basic punctuation, and common symbols
+1. **Use plain ASCII characters whenever possible**: Stick to standard alphanumeric characters, basic punctuation, and 
+common symbols
 2. **Avoid special Unicode characters**: Do not use:
    - Arrow symbols: `→` `←` `↑` `↓` `⇒` `⇐` (use `-` or `->` instead)
-   - Checkmarks and X marks: `✓` `✗` `✅` `❌` (use `[YES]`/`[NO]` or `[X]` instead)
+   - Checkmarks and X marks: `✓` `✗` `✅` `❌` (use `[YES]`/`[NO]` or `[X]` or `[ ]` instead)
    - Fancy bullets: `•` `◦` `▪` (use `-` or `*` instead)
    - Emoji or decorative Unicode characters
 3. **Stick to markdown-safe characters**: Use standard markdown formatting:
@@ -148,30 +257,20 @@ When using the `Write` tool to create or update files:
    - Emphasis: `*` or `_`
    - Bold: `**` or `__`
 
-**Why this matters**: The Write tool can sometimes corrupt special Unicode characters during file creation, leading to:
-- Mojibake (garbled text like `�` appearing in place of arrows)
-- Control characters appearing in files (like `ENQ` / `\005`)
-- IDE encoding detection issues (file not recognized as UTF-8)
-- Rendering problems in terminals and editors
+**Why this matters**: The Write tool can sometimes corrupt special Unicode characters during file creation.
 
 **Example - Good**:
 ```markdown
-- [YES] Feature implemented
-- [NO] Not yet completed
+- [x] Feature implemented
+- [ ] Not yet completed
 - Step 1 -> Step 2 -> Step 3
-```
-
-**Example - Avoid**:
-```markdown
-- ✅ Feature implemented
-- ❌ Not yet completed
-- Step 1 → Step 2 → Step 3
 ```
 
 ### Web Requests
 When making web requests:
 
-1. **External domains**: Always ask for user permission before making web requests to domains outside of localhost, 0.0.0.0, or 127.0.0.1
+1. **External domains**: Always ask for user permission before making web requests to domains outside of localhost, 
+0.0.0.0, or 127.0.0.1
 2. **Local development**: You may proceed without asking for permission when making requests to:
    - localhost
    - 0.0.0.0

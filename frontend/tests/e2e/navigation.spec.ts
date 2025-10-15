@@ -9,20 +9,18 @@ test.describe('Navigation Tests', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 5_000 })
     await page.waitForURL(/\/(dashboard)?$/)
 
-    // Navigate to each main page
-    await page.click('[href="/dashboard"]')
+    // Navigate to each main page using data-testid
+    await page.click('[data-testid="app-layout-nav-link-dashboard"]')
     await expect(page).toHaveURL('/dashboard')
 
-    await page.click('[href="/gallery"]')
+    // Gallery uses custom navigation (button, not link) to preserve query params
+    await page.click('[data-testid="app-layout-nav-link-gallery"]')
     await expect(page).toHaveURL('/gallery')
 
-    await page.click('[href="/recommendations"]')
-    await expect(page).toHaveURL('/recommendations')
-
-    await page.click('[href="/settings"]')
+    await page.click('[data-testid="app-layout-nav-link-settings"]')
     await expect(page).toHaveURL('/settings')
 
-    await page.click('[href="/generate"]')
+    await page.click('[data-testid="app-layout-nav-link-generate"]')
     await expect(page).toHaveURL('/generate')
   })
 
@@ -32,12 +30,13 @@ test.describe('Navigation Tests', () => {
     // Wait for navigation to load
     await page.waitForSelector('nav')
 
-    // Check all main navigation items are visible
-    await expect(page.locator('[href="/dashboard"]')).toBeVisible()
-    await expect(page.locator('[href="/gallery"]')).toBeVisible()
-    await expect(page.locator('[href="/recommendations"]')).toBeVisible()
-    await expect(page.locator('[href="/settings"]')).toBeVisible()
-    await expect(page.locator('[href="/generate"]')).toBeVisible()
+    // Check visible navigation items (by default: dashboard, gallery, generate, tags, settings)
+    // Note: recommendations and flagged-content are hidden by default
+    await expect(page.locator('[data-testid="app-layout-nav-link-dashboard"]')).toBeVisible()
+    await expect(page.locator('[data-testid="app-layout-nav-link-gallery"]')).toBeVisible()
+    await expect(page.locator('[data-testid="app-layout-nav-link-generate"]')).toBeVisible()
+    await expect(page.locator('[data-testid="app-layout-nav-link-tags"]')).toBeVisible()
+    await expect(page.locator('[data-testid="app-layout-nav-link-settings"]')).toBeVisible()
   })
 
   test('should support keyboard navigation', async ({ page }) => {

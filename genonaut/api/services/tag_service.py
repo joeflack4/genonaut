@@ -236,9 +236,9 @@ class TagService:
                         break
 
             node = {
-                "id": tag.name,  # Use name as ID for compatibility
+                "id": str(tag.id),  # Use UUID as ID
                 "name": tag.name,
-                "parent": parent_name
+                "parent": str(parent_id) if parent_id else None
             }
 
             if include_ratings:

@@ -4,6 +4,7 @@ import {
   Button,
   Chip,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Pagination,
@@ -12,9 +13,11 @@ import {
   Skeleton,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
+import AccountTreeIcon from '@mui/icons-material/AccountTree'
 import { useTags } from '../../hooks'
 import type { ApiTag } from '../../types/api'
 
@@ -22,6 +25,7 @@ interface TagFilterProps {
   selectedTags: string[]
   onTagsChange: (tagIds: string[]) => void
   onTagClick?: (tagId: string) => void
+  onNavigateToHierarchy?: () => void
   pageSize?: number
 }
 
@@ -48,6 +52,7 @@ export function TagFilter({
   selectedTags,
   onTagsChange,
   onTagClick,
+  onNavigateToHierarchy,
   pageSize = 20,
 }: TagFilterProps) {
   const [page, setPage] = useState(1)
@@ -261,49 +266,70 @@ export function TagFilter({
 
   return (
     <Box data-testid="tag-filter">
-      {/* Sort dropdown */}
-      <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-        <InputLabel id="tag-sort-label">Sort Tags</InputLabel>
-        <Select
-          labelId="tag-sort-label"
-          value={sortOption}
-          label="Sort Tags"
-          onChange={(e) => {
-            setSortOption(e.target.value as TagSortOption)
-            setPage(1) // Reset to first page on sort change
-          }}
-          data-testid="tag-filter-sort"
-        >
-          {sortOptions.map((option) => (
-            <MenuItem key={option.value} value={option.value} data-testid={`tag-sort-${option.value}`}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      {/* Search tags input with hierarchy nav button */}
+      <Box sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'flex-start' }}>
+        <TextField
+          fullWidth
+          size="small"
+          label="Search tags"
+          placeholder='Type to filter (or "exact match")'
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          inputProps={{ 'data-testid': 'tag-filter-search-input' }}
+          data-testid="tag-filter-search"
+        />
+        {onNavigateToHierarchy && (
+          <Tooltip title="Go to tag hierarchy page" enterDelay={300} arrow>
+            <IconButton
+              size="small"
+              onClick={onNavigateToHierarchy}
+              sx={{ mt: 0.5 }}
+              data-testid="tag-filter-hierarchy-button"
+            >
+              <AccountTreeIcon />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
 
-      {/* Search tags input */}
-      <TextField
-        fullWidth
-        size="small"
-        label="Search tags"
-        placeholder='Type to filter (or "exact match")'
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        sx={{ mb: 2 }}
-        inputProps={{ 'data-testid': 'tag-filter-search-input' }}
-        data-testid="tag-filter-search"
-      />
-
-      {/* Info text */}
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ display: 'block', mb: 2 }}
-        data-testid="tag-filter-info"
-      >
-        Click to add tags. Hold Command (Mac) or Alt (Windows) to select multiple before querying. Shift+click to open tag page.
-      </Typography>
+      {/* Sort dropdown and clear button */}
+      <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+        <FormControl size="small" sx={{ flex: displayTags.length > 0 ? '2 1 0%' : '1 1 100%' }}>
+          <InputLabel id="tag-sort-label">Sort Tags</InputLabel>
+          <Select
+            labelId="tag-sort-label"
+            value={sortOption}
+            label="Sort Tags"
+            onChange={(e) => {
+              setSortOption(e.target.value as TagSortOption)
+              setPage(1) // Reset to first page on sort change
+            }}
+            data-testid="tag-filter-sort"
+          >
+            {sortOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value} data-testid={`tag-sort-${option.value}`}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        {displayTags.length > 0 && (
+          <Button
+            variant="outlined"
+            color="secondary"
+            size="small"
+            onClick={() => {
+              isMultiSelectActive.current = false
+              onTagsChange([])
+              setPendingTags([])
+            }}
+            sx={{ flex: '1 1 0%', minWidth: '80px' }}
+            data-testid="tag-filter-clear-all-button"
+          >
+            Clear All
+          </Button>
+        )}
+      </Box>
 
       {/* Selected tags section */}
       {displayTags.length > 0 && (
@@ -390,23 +416,15 @@ export function TagFilter({
         </Box>
       )}
 
-      {displayTags.length > 0 && (
-        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button
-            variant="outlined"
-            color="secondary"
-            size="small"
-            onClick={() => {
-              isMultiSelectActive.current = false
-              onTagsChange([])
-              setPendingTags([])
-            }}
-            data-testid="tag-filter-clear-all-button"
-          >
-            Clear All Tags
-          </Button>
-        </Box>
-      )}
+      {/* Info text */}
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ display: 'block', mt: 2 }}
+        data-testid="tag-filter-info"
+      >
+        (1) Click to add tags. (2) Hold Command (Mac) or Alt (Windows) to select multiple before querying. (3) Shift+click to open tag's info page.
+      </Typography>
 
       {/* Popover for full tag names */}
       <Popover

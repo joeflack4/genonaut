@@ -101,11 +101,17 @@ describe('AppLayout', () => {
       </Routes>
     )
 
-    // Check that navigation items have icons
+    // Check that visible navigation items have icons (by default: Dashboard, Gallery, Generate, Tags, Settings)
     expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /gallery/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /recommendations/i })).toBeInTheDocument()
+    // Gallery is a button (not a link) because it uses custom navigation to preserve query params
+    expect(screen.getByRole('button', { name: /gallery/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /generate/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /tags/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /settings/i })).toBeInTheDocument()
+
+    // Check that hidden pages are not visible (by default: Recommendations, Flagged Content)
+    expect(screen.queryByRole('link', { name: /recommendations/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /flagged content/i })).not.toBeInTheDocument()
   })
 
   it('navigates to settings when user icon is clicked', async () => {

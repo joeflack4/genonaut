@@ -16,11 +16,22 @@ import { useCurrentUser, useUpdateUser } from '../../hooks'
 import { useThemeMode } from '../../app/providers/theme'
 import { useUiSettings } from '../../app/providers/ui'
 
+// Define sidebar pages metadata
+const sidebarPages = [
+  { key: 'dashboard', label: 'Dashboard', canToggle: true },
+  { key: 'gallery', label: 'Gallery', canToggle: true },
+  { key: 'generate', label: 'Generate', canToggle: true },
+  { key: 'tags', label: 'Tag Hierarchy', canToggle: true },
+  { key: 'recommendations', label: 'Recommendations', canToggle: true },
+  { key: 'flagged-content', label: 'Flagged Content', canToggle: true },
+  { key: 'settings', label: 'Account Settings', canToggle: false },
+]
+
 export function SettingsPage() {
   const { data: currentUser } = useCurrentUser()
   const { mutateAsync: updateUser, isPending, isSuccess } = useUpdateUser()
   const { mode, toggleMode } = useThemeMode()
-  const { showButtonLabels, toggleButtonLabels } = useUiSettings()
+  const { showButtonLabels, toggleButtonLabels, visibleSidebarPages, toggleSidebarPage } = useUiSettings()
 
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
@@ -141,6 +152,39 @@ export function SettingsPage() {
             <Typography variant="body2" color="text.secondary" data-testid="settings-button-labels-description">
               When disabled, only icons will be shown for navigation buttons. Hover tooltips will still be available.
             </Typography>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Card data-testid="settings-sidebar-pages-card">
+        <CardContent>
+          <Stack spacing={3} data-testid="settings-sidebar-pages-section">
+            <Typography variant="h6" component="h2" fontWeight={600} data-testid="settings-sidebar-pages-title">
+              Show/Hide sidebar pages
+            </Typography>
+
+            <Typography variant="body2" color="text.secondary" data-testid="settings-sidebar-pages-description">
+              Because some pages are under development, they have been toggled off here. You can toggle them on to see them, and also toggle off other pages--customize the sidebar as you like.
+            </Typography>
+
+            <Stack spacing={1.5} data-testid="settings-sidebar-pages-list">
+              {sidebarPages.map((page) => (
+                <FormControlLabel
+                  key={page.key}
+                  control={
+                    <Switch
+                      checked={visibleSidebarPages[page.key] ?? true}
+                      onChange={() => toggleSidebarPage(page.key)}
+                      name={`sidebarPage-${page.key}`}
+                      disabled={!page.canToggle}
+                      inputProps={{ 'data-testid': `settings-sidebar-page-${page.key}-switch` }}
+                    />
+                  }
+                  label={page.label}
+                  data-testid={`settings-sidebar-page-${page.key}-control`}
+                />
+              ))}
+            </Stack>
           </Stack>
         </CardContent>
       </Card>

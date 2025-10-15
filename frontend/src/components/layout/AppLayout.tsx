@@ -1,6 +1,6 @@
 import { forwardRef, useState, useEffect } from 'react'
 import type { NavLinkProps } from 'react-router-dom'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   AppBar,
   Box,
@@ -39,13 +39,13 @@ import { NotificationBell } from '../notifications/NotificationBell'
 import { TimeoutNotification } from '../notifications/TimeoutNotification'
 
 const navItems = [
-  { label: 'Dashboard', to: '/dashboard', icon: DashboardIcon },
-  { label: 'Gallery', to: '/gallery', icon: ArticleIcon },
-  { label: 'Generate', to: '/generate', icon: AutoFixHighIcon },
-  { label: 'Tags', to: '/tags', icon: AccountTreeIcon },
-  { label: 'Recommendations', to: '/recommendations', icon: RecommendIcon },
-  { label: 'Flagged Content', to: '/admin/flagged-content', icon: FlagIcon },
-  { label: 'Settings', to: '/settings', icon: SettingsIcon },
+  { label: 'Dashboard', to: '/dashboard', icon: DashboardIcon, key: 'dashboard' },
+  { label: 'Gallery', to: '/gallery', icon: ArticleIcon, key: 'gallery' },
+  { label: 'Generate', to: '/generate', icon: AutoFixHighIcon, key: 'generate' },
+  { label: 'Tag Hierarchy', to: '/tags', icon: AccountTreeIcon, key: 'tags' },
+  { label: 'Recommendations', to: '/recommendations', icon: RecommendIcon, key: 'recommendations' },
+  { label: 'Flagged Content', to: '/admin/flagged-content', icon: FlagIcon, key: 'flagged-content' },
+  { label: 'Settings', to: '/settings', icon: SettingsIcon, key: 'settings' },
 ]
 
 const NavLinkButton = forwardRef<HTMLAnchorElement, NavLinkProps>((props, ref) => (
@@ -54,13 +54,19 @@ const NavLinkButton = forwardRef<HTMLAnchorElement, NavLinkProps>((props, ref) =
 
 NavLinkButton.displayName = 'NavLinkButton'
 
+const LAST_GALLERY_URL_KEY = 'lastGalleryUrl'
+
 export function AppLayout() {
   const { data: currentUser, isLoading: isUserLoading } = useCurrentUser()
   const { mode, toggleMode } = useThemeMode()
-  const { showButtonLabels } = useUiSettings()
+  const { showButtonLabels, visibleSidebarPages } = useUiSettings()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Filter nav items based on visibility settings
+  const visibleNavItems = navItems.filter((item) => visibleSidebarPages[item.key] ?? true)
 
   // Dynamic drawer width based on whether labels are shown
   const drawerWidth = showButtonLabels ? 220 : 72
@@ -76,6 +82,14 @@ export function AppLayout() {
   useEffect(() => {
     setSidebarOpen(!isMobile)
   }, [isMobile])
+
+  // Save gallery URL with query params whenever we're on the gallery page
+  useEffect(() => {
+    if (location.pathname === '/gallery') {
+      const fullGalleryUrl = location.pathname + location.search
+      sessionStorage.setItem(LAST_GALLERY_URL_KEY, fullGalleryUrl)
+    }
+  }, [location])
 
   const handleSidebarToggle = () => {
     setSidebarOpen(!sidebarOpen)
@@ -253,19 +267,36 @@ export function AppLayout() {
             data-testid="app-layout-drawer"
           >
             <List data-testid="app-layout-nav-list">
-              {navItems.map((item) => {
+              {visibleNavItems.map((item) => {
                 const IconComponent = item.icon
+                const isGallery = item.key === 'gallery'
+
+                const handleNavClick = (e: React.MouseEvent) => {
+                  if (isGallery) {
+                    e.preventDefault()
+                    const lastGalleryUrl = sessionStorage.getItem(LAST_GALLERY_URL_KEY)
+                    navigate(lastGalleryUrl || '/gallery')
+                  }
+                  if (isMobile) {
+                    handleSidebarToggle()
+                  }
+                }
+
                 return (
                   <ListItem key={item.to} disablePadding data-testid={`app-layout-nav-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}>
                     <Tooltip title={item.label} enterDelay={1500} arrow placement="right">
                       <ListItemButton
-                        component={NavLinkButton}
-                        to={item.to}
-                        onClick={isMobile ? handleSidebarToggle : undefined}
+                        component={isGallery ? 'div' : NavLinkButton}
+                        to={isGallery ? undefined : item.to}
+                        onClick={handleNavClick}
                         sx={{
                           '&.active': {
                             bgcolor: 'action.selected',
                           },
+                          ...(isGallery && location.pathname === '/gallery' ? {
+                            bgcolor: 'action.selected',
+                          } : {}),
+                          cursor: 'pointer',
                         }}
                         data-testid={`app-layout-nav-link-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                       >

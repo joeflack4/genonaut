@@ -158,8 +158,8 @@ test.describe('Auth pages (Real API)', () => {
     await waitForPageLoad(page, 'dashboard')
     await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible()
 
-    // Navigate to gallery
-    await page.click('[href="/gallery"]')
+    // Navigate to gallery (using data-testid since it's a button, not a link)
+    await page.click('[data-testid="app-layout-nav-link-gallery"]')
     await waitForPageLoad(page, 'gallery')
     await expect(page).toHaveURL('/gallery')
 
@@ -167,7 +167,7 @@ test.describe('Auth pages (Real API)', () => {
     await expect(page.locator('main')).toBeVisible()
 
     // Navigate to settings
-    await page.click('[href="/settings"]')
+    await page.click('[data-testid="app-layout-nav-link-settings"]')
     await waitForPageLoad(page, 'settings')
     await expect(page).toHaveURL('/settings')
 
@@ -175,7 +175,7 @@ test.describe('Auth pages (Real API)', () => {
     await expect(page.locator('main')).toBeVisible()
 
     // Navigate back to dashboard
-    await page.click('[href="/dashboard"]')
+    await page.click('[data-testid="app-layout-nav-link-dashboard"]')
     await waitForPageLoad(page, 'dashboard')
     await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible()
   })

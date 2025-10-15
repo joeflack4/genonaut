@@ -107,6 +107,7 @@ export function GalleryPage() {
 
   // Popover state for stats
   const [statsAnchorEl, setStatsAnchorEl] = useState<HTMLElement | null>(null)
+  const [genSourceInfoAnchorEl, setGenSourceInfoAnchorEl] = useState<HTMLElement | null>(null)
   const [contentToggles, setContentToggles] = useState<ContentToggles>({
     yourGens: true,
     yourAutoGens: true,
@@ -264,6 +265,10 @@ export function GalleryPage() {
 
   const handleTagClick = (tagId: string) => {
     navigate(`/tags/${tagId}`)
+  }
+
+  const handleNavigateToHierarchy = () => {
+    navigate('/tags')
   }
 
   return (
@@ -557,12 +562,23 @@ export function GalleryPage() {
           </Stack>
 
           <Stack spacing={2} data-testid="gallery-content-toggles">
-            <Typography variant="h6" component="h2" data-testid="gallery-content-toggles-title">
-              Filter by gen source
-            </Typography>
-            <Typography variant="body2" color="text.secondary" data-testid="gallery-content-toggles-description">
-              Choose which types of content to include in your gallery view.
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Typography variant="h6" component="h2" data-testid="gallery-content-toggles-title">
+                Filter by gen source
+              </Typography>
+              <IconButton
+                size="small"
+                sx={{
+                  p: 0.25,
+                  color: 'text.secondary'
+                }}
+                onMouseEnter={(event) => setGenSourceInfoAnchorEl(event.currentTarget)}
+                onMouseLeave={() => setGenSourceInfoAnchorEl(null)}
+                data-testid="gallery-content-toggles-info-button"
+              >
+                <InfoOutlinedIcon sx={{ fontSize: 14 }} />
+              </IconButton>
+            </Box>
             <Stack spacing={1} data-testid="gallery-content-toggles-switches">
               <FormControlLabel
                 control={
@@ -619,10 +635,48 @@ export function GalleryPage() {
               selectedTags={selectedTags}
               onTagsChange={handleTagFilterChange}
               onTagClick={handleTagClick}
+              onNavigateToHierarchy={handleNavigateToHierarchy}
             />
           </Stack>
         </Stack>
       </Drawer>
+
+      {/* Gen Source Info Popover */}
+      <Popover
+        open={Boolean(genSourceInfoAnchorEl)}
+        anchorEl={genSourceInfoAnchorEl}
+        onClose={() => setGenSourceInfoAnchorEl(null)}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'center',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'center',
+        }}
+        disableRestoreFocus
+        disableAutoFocus
+        disableEnforceFocus
+        sx={{
+          pointerEvents: 'none',
+        }}
+        slotProps={{
+          paper: {
+            sx: {
+              p: 1.5,
+              pointerEvents: 'auto',
+              maxWidth: 300,
+            },
+          },
+        }}
+        onMouseEnter={() => setGenSourceInfoAnchorEl(genSourceInfoAnchorEl)}
+        onMouseLeave={() => setGenSourceInfoAnchorEl(null)}
+        data-testid="gallery-gen-source-info-popover"
+      >
+        <Typography variant="body2" color="text.secondary">
+          Choose which types of content to include in your gallery view.
+        </Typography>
+      </Popover>
 
       {/* Stats Popover */}
       <Popover
@@ -638,6 +692,8 @@ export function GalleryPage() {
           horizontal: 'center',
         }}
         disableRestoreFocus
+        disableAutoFocus
+        disableEnforceFocus
         sx={{
           pointerEvents: 'none',
         }}

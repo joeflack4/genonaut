@@ -220,26 +220,25 @@ test.describe('Dashboard (Real API)', () => {
     await expect(page.locator('main')).toBeVisible()
 
     // Should be able to navigate from dashboard to other sections
-    const navigationLinks = [
-      { href: '/gallery', label: 'Gallery' },
-      { href: '/settings', label: 'Settings' },
-      { href: '/recommendations', label: 'Recommendations' }
+    // Check navigation items that are visible by default (not recommendations - hidden by default)
+    const navigationItems = [
+      { testId: 'app-layout-nav-link-gallery', label: 'Gallery' },
+      { testId: 'app-layout-nav-link-settings', label: 'Settings' },
+      { testId: 'app-layout-nav-link-generate', label: 'Generate' }
     ]
 
-    for (const { href, label } of navigationLinks) {
-      const link = page.locator(`[href="${href}"]`)
-      if (await link.count() > 0) {
-        await expect(link).toBeVisible()
-        await expect(link).toBeEnabled()
-      }
+    for (const { testId, label } of navigationItems) {
+      const navItem = page.locator(`[data-testid="${testId}"]`)
+      await expect(navItem).toBeVisible()
+      await expect(navItem).toBeEnabled()
     }
 
-    // Test clicking on one navigation item
-    await page.click('[href="/gallery"]')
+    // Test clicking on one navigation item (Gallery is a button, not a link)
+    await page.click('[data-testid="app-layout-nav-link-gallery"]')
     await expect(page).toHaveURL('/gallery')
 
     // Navigate back to dashboard
-    await page.click('[href="/dashboard"]')
+    await page.click('[data-testid="app-layout-nav-link-dashboard"]')
     await expect(page).toHaveURL('/dashboard')
     await waitForPageLoad(page, 'dashboard')
     await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible()

@@ -43,8 +43,8 @@ test.describe('Loading and Error State Tests', () => {
   test('should show loading states during navigation', async ({ page }) => {
     await page.goto('/')
 
-    // Navigate to a page that might show loading
-    await page.click('[href="/gallery"]')
+    // Navigate to a page that might show loading (Gallery is a button, not a link)
+    await page.click('[data-testid="app-layout-nav-link-gallery"]')
 
     // Look for common loading indicators
     const loadingIndicators = [
@@ -159,7 +159,7 @@ test.describe('Loading and Error State Tests', () => {
     await page.context().setOffline(true)
 
     // Try to navigate - page should still work for client-side navigation
-    await page.click('[href="/settings"]')
+    await page.click('[data-testid="app-layout-nav-link-settings"]')
     await expect(page).toHaveURL('/settings')
 
     // Page should still be functional for static content

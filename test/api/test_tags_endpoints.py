@@ -71,7 +71,8 @@ def test_hierarchy_endpoint_optionally_includes_ratings(
     hierarchy = response.json()
 
     assert hierarchy["metadata"]["totalNodes"] == 3
-    child_node = next(node for node in hierarchy["nodes"] if node["id"] == child_tag.name)
+    # API now returns UUID as id instead of name
+    child_node = next(node for node in hierarchy["nodes"] if node["id"] == str(child_tag.id))
     assert child_node["average_rating"] == 3.5
     assert child_node["rating_count"] == 1
 

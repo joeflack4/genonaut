@@ -3,11 +3,14 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
 interface UiSettings {
   showButtonLabels: boolean
+  visibleSidebarPages: Record<string, boolean>
 }
 
 interface UiSettingsContextValue extends UiSettings {
   toggleButtonLabels: () => void
   setShowButtonLabels: (show: boolean) => void
+  toggleSidebarPage: (pageKey: string) => void
+  setSidebarPageVisibility: (pageKey: string, visible: boolean) => void
 }
 
 const UiSettingsContext = createContext<UiSettingsContextValue | undefined>(undefined)
@@ -31,8 +34,20 @@ const getStoredSettings = (): Partial<UiSettings> => {
 const getInitialSettings = (): UiSettings => {
   const storedSettings = getStoredSettings()
 
+  // Default visibility
+  const defaultVisibility: Record<string, boolean> = {
+    dashboard: true,
+    gallery: true,
+    generate: true,
+    tags: true,  // tag hierarchy
+    recommendations: false,
+    'flagged-content': false,
+    settings: true,
+  }
+
   return {
     showButtonLabels: storedSettings.showButtonLabels ?? false, // Default is off
+    visibleSidebarPages: storedSettings.visibleSidebarPages ?? defaultVisibility,
   }
 }
 
@@ -69,11 +84,33 @@ export function UiSettingsProvider({ children }: PropsWithChildren) {
     }))
   }
 
+  const toggleSidebarPage = (pageKey: string) => {
+    setSettings((current) => ({
+      ...current,
+      visibleSidebarPages: {
+        ...current.visibleSidebarPages,
+        [pageKey]: !current.visibleSidebarPages[pageKey],
+      },
+    }))
+  }
+
+  const setSidebarPageVisibility = (pageKey: string, visible: boolean) => {
+    setSettings((current) => ({
+      ...current,
+      visibleSidebarPages: {
+        ...current.visibleSidebarPages,
+        [pageKey]: visible,
+      },
+    }))
+  }
+
   const contextValue = useMemo<UiSettingsContextValue>(
     () => ({
       ...settings,
       toggleButtonLabels,
       setShowButtonLabels,
+      toggleSidebarPage,
+      setSidebarPageVisibility,
     }),
     [settings]
   )
