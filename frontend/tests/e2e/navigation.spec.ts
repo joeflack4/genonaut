@@ -30,12 +30,12 @@ test.describe('Navigation Tests', () => {
     // Wait for navigation to load
     await page.waitForSelector('nav')
 
-    // Check visible navigation items (by default: dashboard, gallery, generate, tags, settings)
+    // Check visible navigation items (by default: dashboard, gallery, generate, tag-hierarchy, settings)
     // Note: recommendations and flagged-content are hidden by default
     await expect(page.locator('[data-testid="app-layout-nav-link-dashboard"]')).toBeVisible()
     await expect(page.locator('[data-testid="app-layout-nav-link-gallery"]')).toBeVisible()
     await expect(page.locator('[data-testid="app-layout-nav-link-generate"]')).toBeVisible()
-    await expect(page.locator('[data-testid="app-layout-nav-link-tags"]')).toBeVisible()
+    await expect(page.locator('[data-testid="app-layout-nav-link-tag-hierarchy"]')).toBeVisible()
     await expect(page.locator('[data-testid="app-layout-nav-link-settings"]')).toBeVisible()
   })
 

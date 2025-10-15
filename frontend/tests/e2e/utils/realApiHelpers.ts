@@ -90,12 +90,13 @@ async function getApiBaseUrl(page: Page): Promise<string> {
 /**
  * Wait for the gallery page to fully load with real API data
  */
-export async function waitForGalleryLoad(page: Page, timeout = 10000) {
+export async function waitForGalleryLoad(page: Page, timeout = 15000) {
   // Wait for navigation to complete
   await page.waitForSelector('nav', { timeout })
 
   // Wait for app to be ready (critical data loaded)
-  await page.locator('[data-app-ready="1"]').waitFor({ timeout: 5000 })
+  // Use longer timeout for real API tests as they may be slower
+  await page.locator('[data-app-ready="1"]').waitFor({ timeout: Math.max(timeout, 10000) })
 
   // Ensure pagination info is loaded
   const paginationLocator = page.locator('text=/\\d+ pages showing [\\d,]+ results/')

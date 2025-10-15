@@ -68,6 +68,57 @@ describe('TimeoutNotification', () => {
     warnSpy.mockRestore()
   })
 
+  it('displays timeout duration in helper text', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(createTimeoutResponse())
+    const client = new ApiClient({ baseUrl: 'http://test', fetchFn: fetchMock })
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    render(
+      <TimeoutNotificationProvider>
+        <TimeoutNotification />
+      </TimeoutNotificationProvider>
+    )
+
+    await act(async () => {
+      await expect(client.get('/api/v1/example')).rejects.toBeDefined()
+    })
+
+    const helperText = await screen.findByTestId('timeout-notification-helper')
+    expect(helperText).toHaveTextContent('Timeout: 12s')
+    expect(helperText).toHaveTextContent('Endpoint: /api/v1/example')
+
+    warnSpy.mockRestore()
+  })
+
+  it('displays retry guidance in message', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(createTimeoutResponse())
+    const client = new ApiClient({ baseUrl: 'http://test', fetchFn: fetchMock })
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    render(
+      <TimeoutNotificationProvider>
+        <TimeoutNotification />
+      </TimeoutNotificationProvider>
+    )
+
+    await act(async () => {
+      await expect(client.get('/api/v1/example')).rejects.toBeDefined()
+    })
+
+    const title = await screen.findByTestId('timeout-notification-title')
+    const message = screen.getByTestId('timeout-notification-message')
+
+    // Verify title mentions timeout
+    expect(title).toHaveTextContent(/timed out/i)
+
+    // Verify message provides guidance
+    expect(message).toHaveTextContent(/Query timed out/)
+
+    warnSpy.mockRestore()
+  })
+
   it.skip('auto-dismisses after delay @skipped-autohide-test', () => {
     // TODO: requires reliable control over MUI transition timers with fake timers.
   })
