@@ -27,7 +27,8 @@ check-env api-dev-profile api-dev-load-test api-production-sim api-demo-load-tes
 clear-excess-test-schemas-keep-3 migrate-down-dev migrate-heads-dev migrate-down-demo migrate-heads-demo \
 ontology-refresh ontology-generate ontology-validate ontology-stats ontology-test ontology-json \
 md-collate md-export-tsv md-test md-github-sync-down md-github-sync-up md-github-sync \
-tf-bootstrap-init tf-bootstrap-apply tf-bootstrap-destroy tf-init tf-plan tf-apply tf-destroy tf-fmt tf-validate tf-console
+tf-bootstrap-init tf-bootstrap-apply tf-bootstrap-destroy tf-init tf-plan tf-apply tf-destroy tf-fmt tf-validate \
+tf-console aws-login tf-login
 
 # Load environment variables
 ifneq (,$(wildcard ./env/.env.shared))
@@ -939,9 +940,33 @@ check-comfyui-create-img:
 # ============================================
 # Infrastructure
 # ============================================
+# Note: If terraform gives error like "│ Error: No valid credential sources found", run: `make aws login`
+
 # Terraform directories
 DEPLOY_TF_BOOTSTRAP_DIR := infra/bootstrap
 DEPLOY_MAIN_DIR := infra/main
+DEPLOY_ENVS := dev test demo prod
+DEPLOY_RECONFIGURE ?= 1  # add this flag so switching envs doesn't error
+INIT_FLAGS := $(if $(DEPLOY_RECONFIGURE),-reconfigure,)
+
+# Login
+# This goal is used to make sure your local CLI session is authenticated
+# with AWS via SSO before running Terraform or other AWS CLI commands.
+# `aws sts get-caller-identity` is a diagnostic command — it prints
+# the current authenticated AWS account ID, user ARN, and user ID.
+# If this succeeds, Terraform will also have valid credentials.
+aws-login:
+#	@echo ">>> Logging in with AWS SSO for profile: $(DEPLOY_AWS_PROFILE)"
+#	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) AWS_SDK_LOAD_CONFIG=1 \
+#		aws sso login
+	@echo ">>> Verifying AWS identity..."
+	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) AWS_SDK_LOAD_CONFIG=1 \
+		aws sso login --profile $(DEPLOY_AWS_PROFILE)
+	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) AWS_SDK_LOAD_CONFIG=1 \
+		aws sts get-caller-identity  --profile $(DEPLOY_AWS_PROFILE)
+	@echo "✅ Login complete — credentials are valid."
+
+tf-login: aws-login
 
 # Bootstrap commands: 1-time setup
 tf-bootstrap-init:
@@ -954,6 +979,7 @@ tf-bootstrap-apply:
 	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) \
 	terraform apply -auto-approve \
 	  -var="state_bucket_name=$(DEPLOY_TF_STATE_BUCKET_NAME)" \
+	  -var="dynamodb_table_name=$(DEPLOY_TF_DYNAMO_DB_TABLE)" \
 	  -var="region=$(DEPLOY_AWS_REGION)"
 
 tf-bootstrap-destroy:
@@ -961,33 +987,52 @@ tf-bootstrap-destroy:
 	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) \
 	terraform destroy -auto-approve \
 	  -var="state_bucket_name=$(DEPLOY_TF_STATE_BUCKET_NAME)" \
+	  -var="dynamodb_table_name=$(DEPLOY_TF_DYNAMO_DB_TABLE)" \
 	  -var="region=$(DEPLOY_AWS_REGION)"
 
 # Main commands
-tf-init:
+# - generator for per-env terraform targets
+define TF_ENV_RULES
+.PHONY: tf-init-$(1) tf-plan-$(1) tf-apply-$(1) tf-destroy-$(1)
+tf-init-$(1):
 	cd $(DEPLOY_MAIN_DIR) && \
 	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) \
-	terraform init \
+	terraform init $(INIT_FLAGS) \
 	  -backend-config="bucket=$(DEPLOY_TF_STATE_BUCKET_NAME)" \
-	  -backend-config="key=envs/dev/terraform.tfstate" \
+	  -backend-config="key=envs/$(1)/terraform.tfstate" \
 	  -backend-config="region=$(DEPLOY_AWS_REGION)" \
 	  -backend-config="dynamodb_table=$(DEPLOY_TF_DYNAMO_DB_TABLE)" \
 	  -backend-config="encrypt=true"
 
-tf-plan:
+tf-plan-$(1):
 	cd $(DEPLOY_MAIN_DIR) && \
 	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) \
-	terraform plan
+	terraform plan \
+		-var="env=$(1)" \
+		-var="region=$(DEPLOY_AWS_REGION)"
 
-tf-apply:
+tf-apply-$(1):
 	cd $(DEPLOY_MAIN_DIR) && \
 	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) \
-	terraform apply -auto-approve
+	terraform apply -auto-approve \
+		-var="env=$(1)" \
+		-var="region=$(DEPLOY_AWS_REGION)"
 
-tf-destroy:
+tf-destroy-$(1):
 	cd $(DEPLOY_MAIN_DIR) && \
 	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) \
-	terraform destroy -auto-approve
+	terraform destroy -auto-approve \
+	  -var="env=$(1)" \
+	  -var="region=$(DEPLOY_AWS_REGION)"
+endef
+
+$(foreach e,$(DEPLOY_ENVS),$(eval $(call TF_ENV_RULES,$(e))))
+
+# default: demo
+tf-init:   tf-init-demo
+tf-plan:   tf-plan-demo
+tf-apply:  tf-apply-demo
+tf-destroy: tf-destroy-demo
 
 # Utility commands
 tf-fmt:

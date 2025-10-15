@@ -39,6 +39,8 @@ backup/
 .log
 tmp/
 temp/
+.terraform*
+terraform*
 
 # Environment files
 .env

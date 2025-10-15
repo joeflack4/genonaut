@@ -42,6 +42,7 @@ This directory contains the main infrastructure code for the application.
 
 The following `make` commands are available for managing the infrastructure:
 
+- `aws-login`: Use if you have invalid credentials error when running terraform commands.
 - `tf-bootstrap-init`: Initializes the Terraform bootstrap directory.
 - `tf-bootstrap-apply`: Applies the Terraform bootstrap configuration.
 - `tf-bootstrap-destroy`: Destroys the Terraform bootstrap resources.
