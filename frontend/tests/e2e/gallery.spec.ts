@@ -53,16 +53,17 @@ test.describe('Gallery page', () => {
       // Check that large total count is displayed
       await expect(page.getByText(/47,000 pages showing 1,175,000 results/)).toBeVisible()
 
-      // Check pagination component shows correct page numbers
-      await expect(page.getByRole('button', { name: 'page 1' })).toBeVisible()
-      await expect(page.getByRole('button', { name: 'Go to page 2' })).toBeVisible()
+      // Check pagination component shows correct page numbers (scoped to gallery pagination)
+      const galleryPagination = page.getByTestId('gallery-pagination-control')
+      await expect(galleryPagination.getByRole('button', { name: 'page 1' })).toBeVisible()
+      await expect(galleryPagination.getByRole('button', { name: 'Go to page 2' })).toBeVisible()
 
       // Check next page button is enabled
-      const nextButton = page.getByRole('button', { name: 'Go to next page' })
+      const nextButton = galleryPagination.getByRole('button', { name: 'Go to next page' })
       await expect(nextButton).toBeEnabled()
 
       // Check previous page button is disabled on first page
-      const prevButton = page.getByRole('button', { name: 'Go to previous page' })
+      const prevButton = galleryPagination.getByRole('button', { name: 'Go to previous page' })
       await expect(prevButton).toBeDisabled()
     })
 

@@ -1,7 +1,8 @@
 # Long-Running and Performance-Related Tests Analysis
 
 ## Overview
-This document provides a comprehensive analysis of all long-running and performance-related tests in the Genonaut test suite, categorizing them by their purpose and characteristics.
+This document provides a comprehensive analysis of all long-running and performance-related tests in the Genonaut test 
+suite, categorizing them by their purpose and characteristics.
 
 ## Test Statistics
 
@@ -12,7 +13,8 @@ This document provides a comprehensive analysis of all long-running and performa
 - **Ontology performance tests** (`make test-ontology-perf`): 18 tests
 - **API server tests** (`make test-api-server`): 56 tests
 
-**Note**: Some tests have multiple markers (e.g., both `longrunning` and `comfyui_poll`), so individual category counts may overlap.
+**Note**: Some tests have multiple markers (e.g., both `longrunning` and `comfyui_poll`), so individual category counts 
+may overlap.
 
 ## Test Categories
 
@@ -58,7 +60,8 @@ These tests explicitly measure performance metrics like response time, throughpu
 
 **Location**: test/integrations/comfyui/
 
-These tests are long-running due to polling delays, waiting for completion, or end-to-end workflows, but do NOT explicitly measure performance metrics:
+These tests are long-running due to polling delays, waiting for completion, or end-to-end workflows, but do NOT 
+explicitly measure performance metrics:
 
 **ComfyUI Polling Tests** (@pytest.mark.comfyui_poll) - 8 tests:
 - `test_get_history_pending` - Wait for job processing (0.6s delay)
@@ -94,7 +97,8 @@ These tests are long-running due to polling delays, waiting for completion, or e
 
 **Location**: test/api/performance/, test/api/integration/
 
-These tests measure performance against a **live demo server** (port 8001) and require the server to be running before tests execute.
+These tests measure performance against a **live demo server** (port 8001) and require the server to be running before 
+tests execute.
 
 **Requirement**: `make api-demo` must be running
 
@@ -330,4 +334,5 @@ The test suite has a clear separation of concerns:
 - **Ontology performance**: Tag system performance and CLI validation
 - **API server tests**: Integration tests with test server
 
-The current organization is appropriate and well-structured. The only overlap is intentional (comfyui_poll and comfyui_e2e are subsets of longrunning), which makes sense given their execution characteristics.
+The current organization is appropriate and well-structured. The only overlap is intentional (comfyui_poll and 
+comfyui_e2e are subsets of longrunning), which makes sense given their execution characteristics.

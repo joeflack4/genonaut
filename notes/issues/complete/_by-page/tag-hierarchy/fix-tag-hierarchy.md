@@ -65,7 +65,7 @@ Answer: because we're going to redo it and we haven't yet
    - Or should database be authoritative?
    - How do we keep them in sync?
 
-Answer: read [tags-db-and-gallery-and-view.md](../../../../tags-db-and-gallery-and-view.md). database is the new authority. no more json
+Answer: read [tags-db-and-gallery-and-view.md](../../uncategorized/tags-db-and-gallery-and-view.md). database is the new authority. no more json
 
 3. **Q3**: Are there any scripts/tools that modify tag hierarchy?
    - Check `genonaut/ontologies/tags/` directory
