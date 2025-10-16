@@ -11,6 +11,7 @@ import { FlaggedContentService } from './flagged-content-service'
 import { CheckpointModelService } from './checkpoint-model-service'
 import { LoraModelService } from './lora-model-service'
 import { TagService } from './tag-service'
+import { searchHistoryService } from './search-history-service'
 
 const apiClient = new ApiClient()
 
@@ -26,6 +27,7 @@ export const flaggedContentService = new FlaggedContentService(apiClient)
 export const checkpointModelService = new CheckpointModelService(apiClient)
 export const loraModelService = new LoraModelService(apiClient)
 export const tagService = new TagService(apiClient)
+export { searchHistoryService }
 
 export type { GalleryListParams } from './gallery-service'
 export type { GalleryAutoListParams } from './gallery-auto-service'
@@ -55,3 +57,11 @@ export type {
   TagRatingsParams,
   TagSortOption
 } from './tag-service'
+export type {
+  SearchHistoryItem,
+  SearchHistoryListResponse,
+  SearchHistoryPaginatedResponse,
+  PaginationMetadata,
+  DeleteResponse,
+  ClearHistoryResponse
+} from './search-history-service'

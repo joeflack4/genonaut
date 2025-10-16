@@ -87,9 +87,6 @@ class TestErrorScenarios:
             checkpoint_model=test_model.name,
             width=512,
             height=512,
-            steps=20,
-            cfg_scale=7.0,
-            seed=42,
             batch_size=1
         )
 

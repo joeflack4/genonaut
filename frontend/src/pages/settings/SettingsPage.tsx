@@ -12,6 +12,8 @@ import {
 } from '@mui/material'
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import { useNavigate } from 'react-router-dom'
 import { useCurrentUser, useUpdateUser } from '../../hooks'
 import { useThemeMode } from '../../app/providers/theme'
 import { useUiSettings } from '../../app/providers/ui'
@@ -28,6 +30,7 @@ const sidebarPages = [
 ]
 
 export function SettingsPage() {
+  const navigate = useNavigate()
   const { data: currentUser } = useCurrentUser()
   const { mutateAsync: updateUser, isPending, isSuccess } = useUpdateUser()
   const { mode, toggleMode } = useThemeMode()
@@ -184,6 +187,31 @@ export function SettingsPage() {
                   data-testid={`settings-sidebar-page-${page.key}-control`}
                 />
               ))}
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Card data-testid="settings-search-history-card">
+        <CardContent>
+          <Stack spacing={3} data-testid="settings-search-history-section">
+            <Typography variant="h6" component="h2" fontWeight={600} data-testid="settings-search-history-title">
+              Search history
+            </Typography>
+
+            <Typography variant="body2" color="text.secondary" data-testid="settings-search-history-description">
+              View and manage your search history. You can review past searches, execute them again, or delete them.
+            </Typography>
+
+            <Stack direction="row" justifyContent="flex-start">
+              <Button
+                variant="outlined"
+                endIcon={<ArrowForwardIcon />}
+                onClick={() => navigate('/settings/search-history')}
+                data-testid="settings-search-history-link"
+              >
+                View search history
+              </Button>
             </Stack>
           </Stack>
         </CardContent>

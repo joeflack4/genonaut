@@ -81,6 +81,8 @@ class TestErrorRecovery:
         """Create a test generation request."""
         return ComfyUIGenerationCreateRequest(
             user_id=test_user.id,
+            content_type="image",
+            content_data="path/to/test.jpg",
             prompt="Test error recovery",
             negative_prompt="",
             checkpoint_model=test_model.name,

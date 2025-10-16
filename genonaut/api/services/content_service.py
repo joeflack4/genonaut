@@ -147,6 +147,56 @@ class ContentService:
         ).exists()
         return query.filter(exists_clause)
 
+    @staticmethod
+    def _apply_enhanced_search_filter(query, content_model, search_term: Optional[str]):
+        """Apply enhanced search filter with phrase and word matching.
+
+        Uses search_parser to detect quoted phrases and individual words.
+        Phrases use ILIKE for exact substring matching.
+        Words use standard ILIKE for flexible matching (simpler than FTS for now).
+
+        Args:
+            query: SQLAlchemy query to filter
+            content_model: ContentItem or ContentItemAuto model class
+            search_term: Search query string (may contain quoted phrases)
+
+        Returns:
+            Filtered query
+        """
+        if not search_term or not search_term.strip():
+            return query
+
+        from genonaut.api.services.search_parser import parse_search_query
+
+        parsed = parse_search_query(search_term)
+
+        # Build search conditions
+        search_conditions = []
+
+        # Add phrase matching conditions - exact substring match
+        for phrase in parsed.phrases:
+            if phrase:
+                phrase_condition = or_(
+                    content_model.title.ilike(f"%{phrase}%"),
+                    content_model.prompt.ilike(f"%{phrase}%")
+                )
+                search_conditions.append(phrase_condition)
+
+        # Add word matching conditions - any word matches
+        for word in parsed.words:
+            if word:
+                word_condition = or_(
+                    content_model.title.ilike(f"%{word}%"),
+                    content_model.prompt.ilike(f"%{word}%")
+                )
+                search_conditions.append(word_condition)
+
+        # Combine all conditions with AND (all phrases and words must match)
+        if search_conditions:
+            query = query.filter(*search_conditions)
+
+        return query
+
     # ------------------------------------------------------------------
     # CRUD helpers
     # ------------------------------------------------------------------
@@ -738,7 +788,7 @@ class ContentService:
                 ).join(User, ContentItem.creator).filter(ContentItem.creator_id == user_id)
 
                 if search_term:
-                    user_regular_query = user_regular_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
+                    user_regular_query = self._apply_enhanced_search_filter(user_regular_query, ContentItem, search_term)
                 if not use_python_tag_filter:
                     user_regular_query = self._apply_tag_filter_via_junction(
                         user_regular_query,
@@ -771,7 +821,7 @@ class ContentService:
                 ).join(User, ContentItem.creator).filter(ContentItem.creator_id != user_id)
 
                 if search_term:
-                    community_regular_query = community_regular_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
+                    community_regular_query = self._apply_enhanced_search_filter(community_regular_query, ContentItem, search_term)
                 if not use_python_tag_filter:
                     community_regular_query = self._apply_tag_filter_via_junction(
                         community_regular_query,
@@ -804,7 +854,7 @@ class ContentService:
                 ).join(User, ContentItemAuto.creator).filter(ContentItemAuto.creator_id == user_id)
 
                 if search_term:
-                    user_auto_query = user_auto_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
+                    user_auto_query = self._apply_enhanced_search_filter(user_auto_query, ContentItemAuto, search_term)
                 if not use_python_tag_filter:
                     user_auto_query = self._apply_tag_filter_via_junction(
                         user_auto_query,
@@ -837,7 +887,7 @@ class ContentService:
                 ).join(User, ContentItemAuto.creator).filter(ContentItemAuto.creator_id != user_id)
 
                 if search_term:
-                    community_auto_query = community_auto_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
+                    community_auto_query = self._apply_enhanced_search_filter(community_auto_query, ContentItemAuto, search_term)
                 if not use_python_tag_filter:
                     community_auto_query = self._apply_tag_filter_via_junction(
                         community_auto_query,
@@ -881,7 +931,7 @@ class ContentService:
                     regular_query = regular_query.filter(ContentItem.creator_id != user_id)
 
                 if search_term:
-                    regular_query = regular_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
+                    regular_query = self._apply_enhanced_search_filter(regular_query, ContentItem, search_term)
 
                 # Apply tag filtering - match if content has at least 1 of the specified tags
                 if not use_python_tag_filter:
@@ -922,7 +972,7 @@ class ContentService:
                     auto_query = auto_query.filter(ContentItemAuto.creator_id != user_id)
 
                 if search_term:
-                    auto_query = auto_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
+                    auto_query = self._apply_enhanced_search_filter(auto_query, ContentItemAuto, search_term)
 
                 # Apply tag filtering - match if content has at least 1 of the specified tags
                 if not use_python_tag_filter:

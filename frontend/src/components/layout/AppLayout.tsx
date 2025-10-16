@@ -32,11 +32,12 @@ import SettingsIcon from '@mui/icons-material/Settings'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import AccountTreeIcon from '@mui/icons-material/AccountTree'
 import FlagIcon from '@mui/icons-material/Flag'
-import { useCurrentUser } from '../../hooks'
+import { useCurrentUser, useRecentSearches, useAddSearchHistory, useDeleteSearchHistory } from '../../hooks'
 import { useThemeMode } from '../../app/providers/theme'
 import { useUiSettings } from '../../app/providers/ui'
 import { NotificationBell } from '../notifications/NotificationBell'
 import { TimeoutNotification } from '../notifications/TimeoutNotification'
+import { SearchHistoryDropdown } from '../search/SearchHistoryDropdown'
 
 const navItems = [
   { label: 'Dashboard', to: '/dashboard', icon: DashboardIcon, key: 'dashboard' },
@@ -77,6 +78,13 @@ export function AppLayout() {
   // State for search functionality
   const [searchExpanded, setSearchExpanded] = useState(false)
   const [searchValue, setSearchValue] = useState('')
+  const [showSearchHistory, setShowSearchHistory] = useState(false)
+
+  // Search history hooks
+  const userId = currentUser?.id || ''
+  const { data: recentSearches } = useRecentSearches(userId, 3)
+  const addSearchHistory = useAddSearchHistory(userId)
+  const deleteSearchHistory = useDeleteSearchHistory(userId)
 
   // Set default sidebar state based on screen size
   useEffect(() => {
@@ -105,15 +113,41 @@ export function AppLayout() {
 
   const handleSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault()
-    navigate('/gallery')
+    const trimmedSearch = searchValue.trim()
+
+    // Save to history if non-empty
+    if (trimmedSearch) {
+      addSearchHistory.mutate(trimmedSearch)
+    }
+
+    // Navigate to gallery with search param
+    const searchParam = trimmedSearch ? `?search=${encodeURIComponent(trimmedSearch)}` : ''
+    navigate(`/gallery${searchParam}`)
+
     setSearchExpanded(false)
     setSearchValue('')
+    setShowSearchHistory(false)
   }
 
   const handleSearchBlur = () => {
-    if (!searchValue.trim()) {
-      setSearchExpanded(false)
-    }
+    // Delay to allow clicks on dropdown
+    setTimeout(() => {
+      if (!searchValue.trim()) {
+        setSearchExpanded(false)
+      }
+      setShowSearchHistory(false)
+    }, 200)
+  }
+
+  const handleHistoryItemClick = (searchQuery: string) => {
+    setSearchValue(searchQuery)
+    navigate(`/gallery?search=${encodeURIComponent(searchQuery)}`)
+    setSearchExpanded(false)
+    setShowSearchHistory(false)
+  }
+
+  const handleHistoryItemDelete = (historyId: number) => {
+    deleteSearchHistory.mutate(historyId)
   }
 
   return (
@@ -145,56 +179,67 @@ export function AppLayout() {
             sx={{ display: 'flex', alignItems: 'center', gap: 2, flexGrow: 1, justifyContent: 'flex-end' }}
             data-testid="app-layout-header-controls"
           >
-            <Box
-              component="form"
-              onSubmit={handleSearchSubmit}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                bgcolor: searchExpanded ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
-                borderRadius: 1,
-                transition: (theme) => theme.transitions.create(['background-color', 'width'], {
-                  duration: theme.transitions.duration.short,
-                }),
-                width: searchExpanded ? 250 : 'auto',
-                mr: 1,
-              }}
-              data-testid="app-layout-search-form"
-            >
-              {!searchExpanded ? (
-                <Tooltip title="Search" enterDelay={1500} arrow>
-                  <IconButton
-                    color="inherit"
-                    onClick={handleSearchClick}
-                    sx={{ p: 1 }}
-                    data-testid="app-layout-search-trigger"
-                  >
-                    <SearchIcon />
-                  </IconButton>
-                </Tooltip>
-              ) : (
-                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', px: 1 }} data-testid="app-layout-search-active">
-                  <SearchIcon sx={{ color: 'inherit', mr: 1 }} />
-                  <InputBase
-                    placeholder="Search..."
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    onBlur={handleSearchBlur}
-                    autoFocus
-                    sx={{
-                      color: 'inherit',
-                      flex: 1,
-                      '& .MuiInputBase-input': {
-                        padding: '8px 0',
-                        '&::placeholder': {
-                          color: 'inherit',
-                          opacity: 0.7,
+            <Box sx={{ position: 'relative' }}>
+              <Box
+                component="form"
+                onSubmit={handleSearchSubmit}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  bgcolor: searchExpanded ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
+                  borderRadius: 1,
+                  transition: (theme) => theme.transitions.create(['background-color', 'width'], {
+                    duration: theme.transitions.duration.short,
+                  }),
+                  width: searchExpanded ? 250 : 'auto',
+                  mr: 1,
+                }}
+                data-testid="app-layout-search-form"
+              >
+                {!searchExpanded ? (
+                  <Tooltip title="Search" enterDelay={1500} arrow>
+                    <IconButton
+                      color="inherit"
+                      onClick={handleSearchClick}
+                      sx={{ p: 1 }}
+                      data-testid="app-layout-search-trigger"
+                    >
+                      <SearchIcon />
+                    </IconButton>
+                  </Tooltip>
+                ) : (
+                  <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', px: 1 }} data-testid="app-layout-search-active">
+                    <SearchIcon sx={{ color: 'inherit', mr: 1 }} />
+                    <InputBase
+                      placeholder="Search..."
+                      value={searchValue}
+                      onChange={(e) => setSearchValue(e.target.value)}
+                      onFocus={() => setShowSearchHistory(true)}
+                      onBlur={handleSearchBlur}
+                      autoFocus
+                      sx={{
+                        color: 'inherit',
+                        flex: 1,
+                        '& .MuiInputBase-input': {
+                          padding: '8px 0',
+                          '&::placeholder': {
+                            color: 'inherit',
+                            opacity: 0.7,
+                          },
                         },
-                      },
-                    }}
-                    inputProps={{ 'data-testid': 'app-layout-search-input' }}
-                  />
-                </Box>
+                      }}
+                      inputProps={{ 'data-testid': 'app-layout-search-input' }}
+                    />
+                  </Box>
+                )}
+              </Box>
+              {searchExpanded && (
+                <SearchHistoryDropdown
+                  items={recentSearches || []}
+                  onItemClick={handleHistoryItemClick}
+                  onItemDelete={handleHistoryItemDelete}
+                  show={showSearchHistory && (recentSearches?.length || 0) > 0}
+                />
               )}
             </Box>
             <Tooltip title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} enterDelay={1500} arrow>

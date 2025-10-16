@@ -232,7 +232,9 @@ class TestUserErrorExperience:
         """Test how generation errors are communicated through status endpoints."""
         # Create a failed generation
         failed_generation = GenerationJob(
-            user_id=test_user.id,
+            creator_id=test_user.id,
+            content_type="image",
+            content_data="path/to/test.jpg",
             prompt="Test failed generation",
             checkpoint_model=test_model.name,
             width=512,

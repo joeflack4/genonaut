@@ -189,6 +189,35 @@ class UserNotification(Base):
     )
 
 
+class UserSearchHistory(Base):
+    """User search history model for tracking user search queries.
+
+    Stores user search queries to enable search history features including
+    recent searches dropdown and search history page.
+
+    Attributes:
+        id: Primary key
+        user_id: Foreign key to users
+        search_query: The search query string entered by the user
+        created_at: Timestamp when search was performed
+    """
+    __tablename__ = 'user_search_history'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
+    search_query = Column(String(500), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    user = relationship("User", backref="search_history")
+
+    # Indexes for efficient queries
+    __table_args__ = (
+        Index("idx_user_search_history_user_created", user_id, created_at.desc()),
+        Index("idx_user_search_history_user_query", user_id, search_query),
+    )
+
+
 class ContentItemColumns:
     """Shared column definitions for content item style tables."""
 

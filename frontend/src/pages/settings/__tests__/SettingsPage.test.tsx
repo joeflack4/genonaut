@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 import { ThemeModeProvider } from '../../../app/providers/theme'
 import { UiSettingsProvider } from '../../../app/providers/ui'
 import { SettingsPage } from '../SettingsPage'
@@ -37,11 +38,13 @@ const useThemeModeMock = vi.mocked(useThemeMode)
 const renderSettingsPage = () => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>
-      <UiSettingsProvider>
-        <ThemeModeProvider>{children}</ThemeModeProvider>
-      </UiSettingsProvider>
-    </QueryClientProvider>
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <UiSettingsProvider>
+          <ThemeModeProvider>{children}</ThemeModeProvider>
+        </UiSettingsProvider>
+      </QueryClientProvider>
+    </MemoryRouter>
   )
 
   return render(<SettingsPage />, { wrapper })

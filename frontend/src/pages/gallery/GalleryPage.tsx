@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { SelectChangeEvent } from '@mui/material/Select'
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
@@ -10,6 +11,7 @@ import {
   FormControl,
   FormControlLabel,
   IconButton,
+  InputAdornment,
   InputLabel,
   List,
   ListItem,
@@ -27,11 +29,12 @@ import {
   Typography,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
+import SearchIcon from '@mui/icons-material/Search'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import GridViewIcon from '@mui/icons-material/GridView'
-import { useUnifiedGallery, useCurrentUser } from '../../hooks'
+import { useUnifiedGallery, useCurrentUser, useRecentSearches, useAddSearchHistory, useDeleteSearchHistory } from '../../hooks'
 import { ADMIN_USER_ID } from '../../constants/config'
 import type { GalleryItem, ThumbnailResolutionId, ViewMode } from '../../types/domain'
 import {
@@ -45,6 +48,7 @@ import {
 import { loadViewMode, persistViewMode } from '../../utils/viewModeStorage'
 import { GridView as GalleryGridView, ResolutionDropdown } from '../../components/gallery'
 import { TagFilter } from '../../components/gallery/TagFilter'
+import { SearchHistoryDropdown } from '../../components/search/SearchHistoryDropdown'
 
 const PAGE_SIZE = 25
 const PANEL_WIDTH = 360
@@ -82,12 +86,17 @@ function arraysEqualIgnoreOrder(a: string[], b: string[]): boolean {
 
 export function GalleryPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [searchInput, setSearchInput] = useState('')
+
+  // Initialize search input from URL parameter
+  const [searchInput, setSearchInput] = useState(() => searchParams.get('search') || '')
+  const [showSearchHistory, setShowSearchHistory] = useState(false)
+  const [searchFocused, setSearchFocused] = useState(false)
 
   // Initialize filters from URL parameters
   const [filters, setFilters] = useState<FiltersState>(() => {
+    const searchFromUrl = searchParams.get('search') || ''
     return {
-      search: '',
+      search: searchFromUrl,
       sort: 'recent' as SortOption,
       page: 0,
     }
@@ -173,6 +182,20 @@ export function GalleryPage() {
   const { data: currentUser } = useCurrentUser()
   const userId = currentUser?.id ?? DEFAULT_USER_ID
 
+  // Search history hooks
+  const { data: recentSearches } = useRecentSearches(userId, 3)
+  const addSearchHistory = useAddSearchHistory(userId)
+  const deleteSearchHistory = useDeleteSearchHistory(userId)
+
+  // Sync search input with URL and filters
+  useEffect(() => {
+    const searchFromUrl = searchParams.get('search') || ''
+    if (searchFromUrl !== filters.search) {
+      setFilters((prev) => ({ ...prev, search: searchFromUrl, page: 0 }))
+      setSearchInput(searchFromUrl)
+    }
+  }, [searchParams])
+
   // Sync Selected tags with URL parameters (supports navigation/back links)
   useEffect(() => {
     const tagsFromParams = searchParams.getAll('tag')
@@ -232,7 +255,26 @@ export function GalleryPage() {
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setFilters((prev) => ({ ...prev, search: searchInput.trim(), page: 0 }))
+    const trimmedSearch = searchInput.trim()
+
+    // Save to history if non-empty
+    if (trimmedSearch) {
+      addSearchHistory.mutate(trimmedSearch)
+    }
+
+    // Update URL params with search
+    setSearchParams((params) => {
+      const newParams = new URLSearchParams(params)
+      if (trimmedSearch) {
+        newParams.set('search', trimmedSearch)
+      } else {
+        newParams.delete('search')
+      }
+      return newParams
+    })
+
+    setFilters((prev) => ({ ...prev, search: trimmedSearch, page: 0 }))
+    setShowSearchHistory(false)
   }
 
   const handleSortChange = (event: SelectChangeEvent<SortOption>) => {
@@ -269,6 +311,61 @@ export function GalleryPage() {
 
   const handleNavigateToHierarchy = () => {
     navigate('/tags')
+  }
+
+  const handleHistoryItemClick = (searchQuery: string) => {
+    setSearchInput(searchQuery)
+    setSearchParams((params) => {
+      const newParams = new URLSearchParams(params)
+      newParams.set('search', searchQuery)
+      return newParams
+    })
+    setFilters((prev) => ({ ...prev, search: searchQuery, page: 0 }))
+    setShowSearchHistory(false)
+  }
+
+  const handleHistoryItemDelete = (historyId: number) => {
+    deleteSearchHistory.mutate(historyId)
+  }
+
+  const handleClearSearch = () => {
+    // Clear the search input
+    setSearchInput('')
+
+    // Remove search param from URL (preserving other params like tags)
+    setSearchParams((params) => {
+      const newParams = new URLSearchParams(params)
+      newParams.delete('search')
+      return newParams
+    })
+
+    // Clear search from filters and reset to first page
+    setFilters((prev) => ({ ...prev, search: '', page: 0 }))
+    setShowSearchHistory(false)
+  }
+
+  const handleSearchButtonClick = () => {
+    // Trigger the same logic as form submit
+    const trimmedSearch = searchInput.trim()
+
+    // Save to history if non-empty
+    if (trimmedSearch) {
+      addSearchHistory.mutate(trimmedSearch)
+    }
+
+    // Update URL params with search
+    setSearchParams((params) => {
+      const newParams = new URLSearchParams(params)
+      if (trimmedSearch) {
+        newParams.set('search', trimmedSearch)
+      } else {
+        newParams.delete('search')
+      }
+      return newParams
+    })
+
+    setFilters((prev) => ({ ...prev, search: trimmedSearch, page: 0 }))
+    setShowSearchHistory(false)
   }
 
   return (
@@ -530,35 +627,88 @@ export function GalleryPage() {
             aria-label="gallery filters"
             data-testid="gallery-filter-form"
           >
-            <TextField
-              label="Search (by prompt & title)"
-              variant="outlined"
-              fullWidth
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              inputProps={{ 'data-testid': 'gallery-search-input' }}
-            />
+            <Box sx={{ position: 'relative' }}>
+              <TextField
+                label="Search (by prompt & title)"
+                variant="outlined"
+                fullWidth
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    const formElement = event.currentTarget.closest('form')
+                    if (formElement) {
+                      formElement.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+                    }
+                  }
+                }}
+                onFocus={() => {
+                  setShowSearchHistory(true)
+                  setSearchFocused(true)
+                }}
+                onBlur={() => {
+                  setTimeout(() => setShowSearchHistory(false), 200)
+                  setSearchFocused(false)
+                }}
+                InputProps={{
+                  endAdornment: (searchFocused || searchInput) && (
+                    <InputAdornment position="end">
+                      <Tooltip title="Execute search" enterDelay={500} arrow>
+                        <IconButton
+                          aria-label="execute search"
+                          onClick={handleSearchButtonClick}
+                          edge="end"
+                          data-testid="gallery-search-button"
+                        >
+                          <SearchIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </InputAdornment>
+                  )
+                }}
+                inputProps={{ 'data-testid': 'gallery-search-input' }}
+              />
+              <SearchHistoryDropdown
+                items={recentSearches || []}
+                onItemClick={handleHistoryItemClick}
+                onItemDelete={handleHistoryItemDelete}
+                show={showSearchHistory && (recentSearches?.length || 0) > 0}
+              />
+            </Box>
 
-            <FormControl fullWidth>
-              <InputLabel id="gallery-sort-label">Sort by</InputLabel>
-              <Select
-                labelId="gallery-sort-label"
-                label="Sort by"
-                value={filters.sort}
-                onChange={handleSortChange}
-                data-testid="gallery-sort-select"
-              >
-                {sortOptions.map((option) => (
-                  <MenuItem
-                    key={option.value}
-                    value={option.value}
-                    data-testid={`gallery-sort-option-${option.value}`}
-                  >
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <FormControl fullWidth>
+                <InputLabel id="gallery-sort-label">Sort by</InputLabel>
+                <Select
+                  labelId="gallery-sort-label"
+                  label="Sort by"
+                  value={filters.sort}
+                  onChange={handleSortChange}
+                  data-testid="gallery-sort-select"
+                >
+                  {sortOptions.map((option) => (
+                    <MenuItem
+                      key={option.value}
+                      value={option.value}
+                      data-testid={`gallery-sort-option-${option.value}`}
+                    >
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              {filters.search && (
+                <Button
+                  variant="outlined"
+                  onClick={handleClearSearch}
+                  sx={{ height: '56px', minWidth: '100px' }}
+                  data-testid="gallery-search-clear-button"
+                >
+                  Clear search
+                </Button>
+              )}
+            </Stack>
           </Stack>
 
           <Stack spacing={2} data-testid="gallery-content-toggles">

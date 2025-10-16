@@ -7,6 +7,7 @@ import { DashboardPage } from './pages/dashboard'
 import { ImageViewPage } from './pages/view'
 import { RecommendationsPage } from './pages/recommendations'
 import { SettingsPage } from './pages/settings'
+import { SearchHistoryPage } from './pages/settings/SearchHistoryPage'
 import { GenerationPage } from './pages/generation'
 import { TagsPage, TagDetailPage } from './pages/tags'
 import { AdminFlaggedContentPage } from './pages/admin'
@@ -31,6 +32,7 @@ const routes: RouteObject[] = [
       { path: 'notifications', element: <NotificationsPage /> },
       { path: 'notification/:id', element: <NotificationDetailPage /> },
       { path: 'settings', element: <SettingsPage /> },
+      { path: 'settings/search-history', element: <SearchHistoryPage /> },
       { path: 'admin/flagged-content', element: <AdminFlaggedContentPage /> },
     ],
   },
