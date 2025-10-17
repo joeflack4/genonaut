@@ -6,15 +6,15 @@
 import { Box, List, ListItem, ListItemText, IconButton, Typography, Paper, Button, Divider } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import { useNavigate } from 'react-router-dom'
-import type { SearchHistoryItem } from '../../services'
+import type { SearchHistoryRecord } from '../../services'
 
 interface SearchHistoryDropdownProps {
-  /** Recent search history items */
-  items: SearchHistoryItem[]
+  /** Recent search history items (non-aggregated) */
+  items: SearchHistoryRecord[]
   /** Callback when user clicks on a history item */
   onItemClick: (searchQuery: string) => void
   /** Callback when user deletes a history item */
-  onItemDelete: (historyId: number) => void
+  onItemDelete: (searchQuery: string) => void
   /** Whether to show the dropdown */
   show: boolean
 }
@@ -78,7 +78,7 @@ export function SearchHistoryDropdown({
                 data-testid={`search-history-delete-${item.id}`}
                 onClick={(e) => {
                   e.stopPropagation()
-                  onItemDelete(item.id)
+                  onItemDelete(item.search_query)
                 }}
                 size="small"
               >

@@ -111,17 +111,17 @@ class UserSearchHistoryService:
             }
         }
 
-    def delete_search(self, user_id: UUID, history_id: int) -> bool:
-        """Delete a specific search history entry.
+    def delete_search(self, user_id: UUID, search_query: str) -> bool:
+        """Delete all instances of a specific search query from user's history.
 
         Args:
             user_id: UUID of the user (for authorization check)
-            history_id: ID of the history entry to delete
+            search_query: The search query text to delete
 
         Returns:
-            True if deleted, False if not found or unauthorized
+            True if at least one entry deleted, False if not found or unauthorized
         """
-        return self.repository.delete_search(user_id, history_id)
+        return self.repository.delete_search(user_id, search_query)
 
     def clear_all_history(self, user_id: UUID) -> int:
         """Clear all search history for a user.

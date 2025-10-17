@@ -214,7 +214,6 @@ class UserSearchHistory(Base):
     # Indexes for efficient queries
     __table_args__ = (
         Index("idx_user_search_history_user_created", user_id, created_at.desc()),
-        Index("idx_user_search_history_user_query", user_id, search_query),
     )
 
 

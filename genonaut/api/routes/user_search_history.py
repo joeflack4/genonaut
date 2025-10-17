@@ -21,8 +21,8 @@ class AddSearchRequest(BaseModel):
     search_query: str = Field(..., min_length=1, max_length=500)
 
 
-class SearchHistoryItem(BaseModel):
-    """Response model for a single search history item."""
+class SearchHistoryRecord(BaseModel):
+    """Response model for a single search history record (non-aggregated)."""
     id: int
     user_id: str
     search_query: str
@@ -32,9 +32,20 @@ class SearchHistoryItem(BaseModel):
         from_attributes = True
 
 
+class SearchHistoryItem(BaseModel):
+    """Response model for a single aggregated search history item."""
+    search_query: str
+    search_count: int
+    last_searched_at: str
+    user_id: str
+
+    class Config:
+        from_attributes = True
+
+
 class SearchHistoryListResponse(BaseModel):
-    """Response model for list of search history items."""
-    items: List[SearchHistoryItem]
+    """Response model for list of recent search history records (non-aggregated)."""
+    items: List[SearchHistoryRecord]
 
 
 class PaginationMetadata(BaseModel):
@@ -67,7 +78,7 @@ class ClearHistoryResponse(BaseModel):
 
 
 # Endpoints
-@router.post("", response_model=SearchHistoryItem, status_code=201)
+@router.post("", response_model=SearchHistoryRecord, status_code=201)
 def add_search_to_history(
     user_id: UUID,
     request: AddSearchRequest,
@@ -81,7 +92,7 @@ def add_search_to_history(
         db: Database session
 
     Returns:
-        Created search history item
+        Created search history record
 
     Raises:
         HTTPException: 400 if validation fails
@@ -90,7 +101,7 @@ def add_search_to_history(
         service = UserSearchHistoryService(db)
         history_item = service.add_search(user_id, request.search_query)
 
-        return SearchHistoryItem(
+        return SearchHistoryRecord(
             id=history_item.id,
             user_id=str(history_item.user_id),
             search_query=history_item.search_query,
@@ -106,7 +117,7 @@ def get_recent_searches(
     limit: int = Query(default=3, ge=1, le=100),
     db: Session = Depends(get_database_session)
 ):
-    """Get user's most recent search queries.
+    """Get user's most recent search queries (non-aggregated).
 
     Args:
         user_id: UUID of the user
@@ -114,7 +125,7 @@ def get_recent_searches(
         db: Database session
 
     Returns:
-        List of recent search history items
+        List of recent search history records
 
     Raises:
         HTTPException: 400 if validation fails
@@ -125,7 +136,7 @@ def get_recent_searches(
 
         return SearchHistoryListResponse(
             items=[
-                SearchHistoryItem(
+                SearchHistoryRecord(
                     id=item.id,
                     user_id=str(item.user_id),
                     search_query=item.search_query,
@@ -145,7 +156,9 @@ def get_search_history(
     page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_database_session)
 ):
-    """Get user's search history with pagination.
+    """Get user's search history with pagination, aggregated by unique query.
+
+    Returns one row per unique search_query with count and most recent timestamp.
 
     Args:
         user_id: UUID of the user
@@ -154,7 +167,7 @@ def get_search_history(
         db: Database session
 
     Returns:
-        Paginated search history
+        Paginated aggregated search history
 
     Raises:
         HTTPException: 400 if validation fails
@@ -166,10 +179,10 @@ def get_search_history(
         return SearchHistoryPaginatedResponse(
             items=[
                 SearchHistoryItem(
-                    id=item.id,
-                    user_id=str(item.user_id),
-                    search_query=item.search_query,
-                    created_at=item.created_at.isoformat()
+                    search_query=item['search_query'],
+                    search_count=item['search_count'],
+                    last_searched_at=item['last_searched_at'].isoformat(),
+                    user_id=str(item['user_id'])
                 )
                 for item in result["items"]
             ],
@@ -179,17 +192,22 @@ def get_search_history(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{history_id}", response_model=DeleteResponse)
+class DeleteSearchRequest(BaseModel):
+    """Request model for deleting search history by query."""
+    search_query: str = Field(..., min_length=1, max_length=500)
+
+
+@router.delete("/by-query", response_model=DeleteResponse, status_code=200)
 def delete_search_history_item(
     user_id: UUID,
-    history_id: int,
+    request: DeleteSearchRequest,
     db: Session = Depends(get_database_session)
 ):
-    """Delete a specific search history entry.
+    """Delete all instances of a specific search query from user's history.
 
     Args:
         user_id: UUID of the user
-        history_id: ID of the history entry to delete
+        request: Request containing search_query to delete
         db: Database session
 
     Returns:
@@ -199,7 +217,7 @@ def delete_search_history_item(
         HTTPException: 404 if not found or unauthorized
     """
     service = UserSearchHistoryService(db)
-    success = service.delete_search(user_id, history_id)
+    success = service.delete_search(user_id, request.search_query)
 
     if not success:
         raise HTTPException(
@@ -209,11 +227,11 @@ def delete_search_history_item(
 
     return DeleteResponse(
         success=True,
-        message="Search history item deleted successfully"
+        message="Search history deleted successfully"
     )
 
 
-@router.delete("", response_model=ClearHistoryResponse)
+@router.delete("/clear", response_model=ClearHistoryResponse)
 def clear_all_search_history(
     user_id: UUID,
     db: Session = Depends(get_database_session)
