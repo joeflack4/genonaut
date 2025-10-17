@@ -100,8 +100,8 @@ class TestSearchHistoryCRUD:
         assert recent == []
 
     def test_get_search_history_paginated(self, repository, test_user, db_session):
-        """Test paginated search history retrieval."""
-        # Add 25 searches
+        """Test paginated search history retrieval (aggregated by query)."""
+        # Add 25 unique searches
         for i in range(25):
             repository.add_search(test_user.id, f"search {i}")
 
@@ -112,8 +112,14 @@ class TestSearchHistoryCRUD:
 
         assert total_count == 25
         assert len(items) == 10
+        # Items should be dicts with aggregated data
+        assert isinstance(items[0], dict)
+        assert 'search_query' in items[0]
+        assert 'search_count' in items[0]
+        assert 'last_searched_at' in items[0]
         # Most recent first
-        assert items[0].search_query == "search 24"
+        assert items[0]['search_query'] == "search 24"
+        assert items[0]['search_count'] == 1
 
     def test_get_search_history_paginated_second_page(self, repository, test_user, db_session):
         """Test retrieving second page of search history."""
@@ -126,7 +132,7 @@ class TestSearchHistoryCRUD:
 
         assert total_count == 25
         assert len(items) == 10
-        assert items[0].search_query == "search 14"
+        assert items[0]['search_query'] == "search 14"
 
     def test_get_search_history_paginated_last_page(self, repository, test_user, db_session):
         """Test retrieving last partial page."""
@@ -141,22 +147,26 @@ class TestSearchHistoryCRUD:
         assert len(items) == 5
 
     def test_delete_search(self, repository, test_user, db_session):
-        """Test deleting a search history entry."""
-        entry = repository.add_search(test_user.id, "search to delete")
-        entry_id = entry.id
+        """Test deleting all instances of a search query."""
+        search_query = "search to delete"
+        repository.add_search(test_user.id, search_query)
+        repository.add_search(test_user.id, search_query)  # Add duplicate
 
-        # Delete the entry
-        success = repository.delete_search(test_user.id, entry_id)
+        # Delete all instances
+        success = repository.delete_search(test_user.id, search_query)
 
         assert success is True
 
-        # Verify it's gone
-        result = db_session.query(UserSearchHistory).filter_by(id=entry_id).first()
-        assert result is None
+        # Verify both are gone
+        remaining = db_session.query(UserSearchHistory).filter_by(
+            user_id=test_user.id,
+            search_query=search_query
+        ).count()
+        assert remaining == 0
 
     def test_delete_search_nonexistent(self, repository, test_user, db_session):
         """Test deleting a non-existent search returns False."""
-        success = repository.delete_search(test_user.id, 99999)
+        success = repository.delete_search(test_user.id, "nonexistent query")
 
         assert success is False
 
@@ -171,15 +181,19 @@ class TestSearchHistoryCRUD:
         db_session.commit()
 
         # Add search for test_user
-        entry = repository.add_search(test_user.id, "test search")
+        search_query = "test search"
+        repository.add_search(test_user.id, search_query)
 
         # Try to delete with wrong user_id
-        success = repository.delete_search(other_user.id, entry.id)
+        success = repository.delete_search(other_user.id, search_query)
 
         assert success is False
 
         # Verify entry still exists
-        result = db_session.query(UserSearchHistory).filter_by(id=entry.id).first()
+        result = db_session.query(UserSearchHistory).filter_by(
+            user_id=test_user.id,
+            search_query=search_query
+        ).first()
         assert result is not None
 
     def test_clear_all_history(self, repository, test_user, db_session):

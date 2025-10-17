@@ -759,7 +759,7 @@ class ContentService:
         include_community_regular = False
         include_community_auto = False
 
-        # NEW APPROACH: Use content_source_types if provided
+        # Use content_source_types if provided
         if content_source_types is not None:
             # Parse content_source_types to determine which queries to build
             include_user_regular = 'user-regular' in content_source_types

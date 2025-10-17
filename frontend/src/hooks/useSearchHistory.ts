@@ -5,6 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   searchHistoryService,
+  type SearchHistoryRecord,
   type SearchHistoryItem,
   type SearchHistoryPaginatedResponse,
 } from '../services'
@@ -18,10 +19,10 @@ export const searchHistoryQueryKeys = {
 }
 
 /**
- * Hook to fetch recent search history (for dropdown).
+ * Hook to fetch recent search history (for dropdown, non-aggregated).
  */
 export function useRecentSearches(userId: string, limit: number = 3) {
-  return useQuery<SearchHistoryItem[]>({
+  return useQuery<SearchHistoryRecord[]>({
     queryKey: searchHistoryQueryKeys.recent(userId, limit),
     queryFn: () => searchHistoryService.getRecentSearches(userId, limit),
     enabled: !!userId,
@@ -55,14 +56,14 @@ export function useAddSearchHistory(userId: string) {
 }
 
 /**
- * Hook to delete a search history item.
+ * Hook to delete all instances of a search query from history.
  */
 export function useDeleteSearchHistory(userId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (historyId: number) =>
-      searchHistoryService.deleteSearchHistoryItem(userId, historyId),
+    mutationFn: (searchQuery: string) =>
+      searchHistoryService.deleteSearchHistoryItem(userId, searchQuery),
     onSuccess: () => {
       // Invalidate all search history queries for this user
       queryClient.invalidateQueries({ queryKey: searchHistoryQueryKeys.all(userId) })

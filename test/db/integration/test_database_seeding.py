@@ -64,7 +64,8 @@ class TestDatabaseSeeding:
             os.unlink(self.temp_db_file.name)
         except OSError:
             pass
-    
+
+    @pytest.mark.longrunning
     def test_seed_database_from_tsv_files(self):
         """Test seeding database with data from TSV files."""
         # Seed the database
@@ -168,7 +169,8 @@ class TestDatabaseSeeding:
             assert pending_job.job_type in ["image", "text"]
             # Pending jobs should not have result content
             assert pending_job.result_content_id is None
-    
+
+    @pytest.mark.longrunning
     def test_seed_database_with_custom_input_dir(self):
         """Test seeding database with custom input directory."""
         # Get the test input directory
@@ -183,7 +185,8 @@ class TestDatabaseSeeding:
         
         content_items = self.session.query(ContentItem).all()
         assert len(content_items) > 0
-    
+
+    @pytest.mark.longrunning
     def test_database_relationships_after_seeding(self):
         """Test that all database relationships work correctly after seeding."""
         # Seed the database
@@ -214,7 +217,8 @@ class TestDatabaseSeeding:
         if user_with_recs:
             rec = user_with_recs.recommendations[0]
             assert rec.user.id == user_with_recs.id
-    
+
+    @pytest.mark.longrunning
     def test_json_field_parsing(self):
         """Test that JSON fields in TSV files are parsed correctly."""
         # Seed the database
@@ -251,7 +255,8 @@ class TestDatabaseSeeding:
         ).first()
         if interaction and interaction.interaction_metadata:
             assert isinstance(interaction.interaction_metadata, dict)
-    
+
+    @pytest.mark.longrunning
     def test_boolean_field_parsing(self):
         """Test that boolean fields in TSV files are parsed correctly."""
         # Seed the database
@@ -274,7 +279,8 @@ class TestDatabaseSeeding:
         for rec in recommendations:
             assert isinstance(rec.is_served, bool)
             assert not rec.is_served  # All test recommendations should not be served
-    
+
+    @pytest.mark.longrunning
     def test_numeric_field_parsing(self):
         """Test that numeric fields in TSV files are parsed correctly."""
         # Seed the database

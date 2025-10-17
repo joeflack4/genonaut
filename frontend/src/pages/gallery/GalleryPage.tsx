@@ -34,7 +34,7 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import GridViewIcon from '@mui/icons-material/GridView'
-import { useUnifiedGallery, useCurrentUser, useRecentSearches, useAddSearchHistory, useDeleteSearchHistory } from '../../hooks'
+import { useUnifiedGallery, useCurrentUser, useRecentSearches, useAddSearchHistory, useDeleteSearchHistory, useTags } from '../../hooks'
 import { ADMIN_USER_ID } from '../../constants/config'
 import type { GalleryItem, ThumbnailResolutionId, ViewMode } from '../../types/domain'
 import {
@@ -102,7 +102,10 @@ export function GalleryPage() {
     }
   })
 
-  const [selectedTags, setSelectedTags] = useState<string[]>(() => searchParams.getAll('tag'))
+  // Initialize selected tags from URL (tags parameter contains comma-delimited tag names)
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [tagNameToIdMap, setTagNameToIdMap] = useState<Map<string, string>>(new Map())
+  const [tagIdToNameMap, setTagIdToNameMap] = useState<Map<string, string>>(new Map())
 
   // Initialize optionsOpen state from localStorage
   const [optionsOpen, setOptionsOpen] = useState(() => {
@@ -117,11 +120,18 @@ export function GalleryPage() {
   // Popover state for stats
   const [statsAnchorEl, setStatsAnchorEl] = useState<HTMLElement | null>(null)
   const [genSourceInfoAnchorEl, setGenSourceInfoAnchorEl] = useState<HTMLElement | null>(null)
-  const [contentToggles, setContentToggles] = useState<ContentToggles>({
-    yourGens: true,
-    yourAutoGens: true,
-    communityGens: true,
-    communityAutoGens: true,
+
+  // Initialize contentToggles from URL params
+  const [contentToggles, setContentToggles] = useState<ContentToggles>(() => {
+    const notGenSource = searchParams.get('notGenSource')
+    const disabledSources = notGenSource ? notGenSource.split(',') : []
+
+    return {
+      yourGens: !disabledSources.includes('your-g'),
+      yourAutoGens: !disabledSources.includes('your-ag'),
+      communityGens: !disabledSources.includes('comm-g'),
+      communityAutoGens: !disabledSources.includes('comm-ag'),
+    }
   })
 
   const [viewMode, setViewMode] = useState<ViewMode>(() =>
@@ -187,6 +197,39 @@ export function GalleryPage() {
   const addSearchHistory = useAddSearchHistory(userId)
   const deleteSearchHistory = useDeleteSearchHistory(userId)
 
+  // Fetch all tags to build name/ID mappings (used for URL param conversion)
+  // Note: API max page_size is 100
+  const { data: allTagsData } = useTags({ page: 1, page_size: 100 })
+
+  // Build tag name/ID mappings when tags are loaded
+  useEffect(() => {
+    if (allTagsData?.items) {
+      const nameToId = new Map<string, string>()
+      const idToName = new Map<string, string>()
+
+      allTagsData.items.forEach((tag) => {
+        nameToId.set(tag.name, tag.id)
+        idToName.set(tag.id, tag.name)
+      })
+
+      setTagNameToIdMap(nameToId)
+      setTagIdToNameMap(idToName)
+
+      // Initialize selected tags from URL on first load
+      const tagsParam = searchParams.get('tags')
+      if (tagsParam) {
+        const tagNames = tagsParam.split(',').map(name => name.trim()).filter(name => name)
+        const tagIds = tagNames
+          .map(name => nameToId.get(name))
+          .filter((id): id is string => id !== undefined)
+
+        if (tagIds.length > 0) {
+          setSelectedTags(tagIds)
+        }
+      }
+    }
+  }, [allTagsData])
+
   // Sync search input with URL and filters
   useEffect(() => {
     const searchFromUrl = searchParams.get('search') || ''
@@ -198,12 +241,46 @@ export function GalleryPage() {
 
   // Sync Selected tags with URL parameters (supports navigation/back links)
   useEffect(() => {
-    const tagsFromParams = searchParams.getAll('tag')
-    if (!arraysEqualIgnoreOrder(tagsFromParams, selectedTags)) {
-      setSelectedTags(tagsFromParams)
+    if (tagNameToIdMap.size === 0) return // Wait for tags to load
+
+    const tagsParam = searchParams.get('tags')
+    const tagNamesFromUrl = tagsParam
+      ? tagsParam.split(',').map(name => name.trim()).filter(name => name)
+      : []
+
+    const tagIdsFromUrl = tagNamesFromUrl
+      .map(name => tagNameToIdMap.get(name))
+      .filter((id): id is string => id !== undefined)
+
+    if (!arraysEqualIgnoreOrder(tagIdsFromUrl, selectedTags)) {
+      setSelectedTags(tagIdsFromUrl)
       setFilters((prev) => ({ ...prev, page: 0 }))
     }
-  }, [searchParams, selectedTags])
+  }, [searchParams, selectedTags, tagNameToIdMap])
+
+  // Sync contentToggles with URL parameters (supports navigation/back links)
+  useEffect(() => {
+    const notGenSource = searchParams.get('notGenSource')
+    const disabledSources = notGenSource ? notGenSource.split(',') : []
+
+    const togglesFromParams: ContentToggles = {
+      yourGens: !disabledSources.includes('your-g'),
+      yourAutoGens: !disabledSources.includes('your-ag'),
+      communityGens: !disabledSources.includes('comm-g'),
+      communityAutoGens: !disabledSources.includes('comm-ag'),
+    }
+
+    // Only update if different
+    if (
+      togglesFromParams.yourGens !== contentToggles.yourGens ||
+      togglesFromParams.yourAutoGens !== contentToggles.yourAutoGens ||
+      togglesFromParams.communityGens !== contentToggles.communityGens ||
+      togglesFromParams.communityAutoGens !== contentToggles.communityAutoGens
+    ) {
+      setContentToggles(togglesFromParams)
+      setFilters((prev) => ({ ...prev, page: 0 }))
+    }
+  }, [searchParams])
 
   // Save optionsOpen state to localStorage whenever it changes
   useEffect(() => {
@@ -286,10 +363,31 @@ export function GalleryPage() {
   }
 
   const handleToggleChange = (toggleKey: keyof ContentToggles) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    setContentToggles((prev) => ({
-      ...prev,
+    const newToggles = {
+      ...contentToggles,
       [toggleKey]: event.target.checked,
-    }))
+    }
+    setContentToggles(newToggles)
+
+    // Update URL params based on new toggle state
+    setSearchParams((params) => {
+      const newParams = new URLSearchParams(params)
+      const disabledSources: string[] = []
+
+      if (!newToggles.yourGens) disabledSources.push('your-g')
+      if (!newToggles.yourAutoGens) disabledSources.push('your-ag')
+      if (!newToggles.communityGens) disabledSources.push('comm-g')
+      if (!newToggles.communityAutoGens) disabledSources.push('comm-ag')
+
+      if (disabledSources.length > 0) {
+        newParams.set('notGenSource', disabledSources.join(','))
+      } else {
+        newParams.delete('notGenSource')
+      }
+
+      return newParams
+    })
+
     // Reset page when toggling content types
     setFilters((prev) => ({ ...prev, page: 0 }))
   }
@@ -299,8 +397,18 @@ export function GalleryPage() {
     setFilters((prev) => ({ ...prev, page: 0 }))
     setSearchParams((params) => {
       const newParams = new URLSearchParams(params)
-      newParams.delete('tag')
-      tags.forEach((tagId) => newParams.append('tag', tagId))
+
+      // Convert tag IDs to tag names for URL
+      const tagNames = tags
+        .map(tagId => tagIdToNameMap.get(tagId))
+        .filter((name): name is string => name !== undefined)
+
+      if (tagNames.length > 0) {
+        newParams.set('tags', tagNames.join(','))
+      } else {
+        newParams.delete('tags')
+      }
+
       return newParams
     })
   }

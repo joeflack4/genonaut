@@ -4,15 +4,22 @@
 
 import { apiClient } from './api-client'
 
-export interface SearchHistoryItem {
+export interface SearchHistoryRecord {
   id: number
   user_id: string
   search_query: string
   created_at: string
 }
 
+export interface SearchHistoryItem {
+  search_query: string
+  search_count: number
+  last_searched_at: string
+  user_id: string
+}
+
 export interface SearchHistoryListResponse {
-  items: SearchHistoryItem[]
+  items: SearchHistoryRecord[]
 }
 
 export interface PaginationMetadata {
@@ -44,17 +51,17 @@ export const searchHistoryService = {
   /**
    * Add a search query to user's history.
    */
-  addSearch: async (userId: string, searchQuery: string): Promise<SearchHistoryItem> => {
-    return apiClient.post<SearchHistoryItem>(
+  addSearch: async (userId: string, searchQuery: string): Promise<SearchHistoryRecord> => {
+    return apiClient.post<SearchHistoryRecord>(
       `/api/v1/users/${userId}/search-history`,
       { search_query: searchQuery }
     )
   },
 
   /**
-   * Get user's most recent search queries.
+   * Get user's most recent search queries (non-aggregated).
    */
-  getRecentSearches: async (userId: string, limit: number = 3): Promise<SearchHistoryItem[]> => {
+  getRecentSearches: async (userId: string, limit: number = 3): Promise<SearchHistoryRecord[]> => {
     const response = await apiClient.get<SearchHistoryListResponse>(
       `/api/v1/users/${userId}/search-history/recent?limit=${limit}`
     )
@@ -75,11 +82,12 @@ export const searchHistoryService = {
   },
 
   /**
-   * Delete a specific search history entry.
+   * Delete all instances of a specific search query from user's history.
    */
-  deleteSearchHistoryItem: async (userId: string, historyId: number): Promise<DeleteResponse> => {
+  deleteSearchHistoryItem: async (userId: string, searchQuery: string): Promise<DeleteResponse> => {
     return apiClient.delete<DeleteResponse>(
-      `/api/v1/users/${userId}/search-history/${historyId}`
+      `/api/v1/users/${userId}/search-history/by-query`,
+      { search_query: searchQuery }
     )
   },
 
@@ -87,6 +95,6 @@ export const searchHistoryService = {
    * Clear all search history for a user.
    */
   clearAllHistory: async (userId: string): Promise<ClearHistoryResponse> => {
-    return apiClient.delete<ClearHistoryResponse>(`/api/v1/users/${userId}/search-history`)
+    return apiClient.delete<ClearHistoryResponse>(`/api/v1/users/${userId}/search-history/clear`)
   },
 }

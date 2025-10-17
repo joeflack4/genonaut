@@ -1,10 +1,10 @@
 """Repository for user search history operations."""
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from uuid import UUID
 from datetime import datetime
 
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from genonaut.db.schema import UserSearchHistory
@@ -72,8 +72,10 @@ class UserSearchHistoryRepository(BaseRepository):
         user_id: UUID,
         page: int = 1,
         page_size: int = 20
-    ) -> tuple[List[UserSearchHistory], int]:
-        """Get user's search history with pagination.
+    ) -> tuple[List[Dict[str, Any]], int]:
+        """Get user's search history with pagination, aggregated by unique query.
+
+        Returns one row per unique search_query with count and most recent timestamp.
 
         Args:
             user_id: UUID of the user
@@ -81,50 +83,65 @@ class UserSearchHistoryRepository(BaseRepository):
             page_size: Number of items per page
 
         Returns:
-            Tuple of (list of UserSearchHistory records, total count)
+            Tuple of (list of aggregated search history dicts, total count of unique queries)
         """
-        query = self.db.query(UserSearchHistory).filter(
-            UserSearchHistory.user_id == user_id
+        # Subquery to get count of unique search queries for pagination
+        count_query = (
+            self.db.query(UserSearchHistory.search_query)
+            .filter(UserSearchHistory.user_id == user_id)
+            .distinct()
         )
+        total_count = count_query.count()
 
-        total_count = query.count()
-
+        # Main query: aggregate by search_query
         offset = (page - 1) * page_size
-        items = (
-            query
-            .order_by(desc(UserSearchHistory.created_at))
+        aggregated_results = (
+            self.db.query(
+                UserSearchHistory.search_query,
+                func.count(UserSearchHistory.id).label('search_count'),
+                func.max(UserSearchHistory.created_at).label('last_searched_at')
+            )
+            .filter(UserSearchHistory.user_id == user_id)
+            .group_by(UserSearchHistory.search_query)
+            .order_by(desc(func.max(UserSearchHistory.created_at)))
             .offset(offset)
             .limit(page_size)
             .all()
         )
 
+        # Convert to list of dicts
+        items = [
+            {
+                'search_query': row.search_query,
+                'search_count': row.search_count,
+                'last_searched_at': row.last_searched_at,
+                'user_id': user_id
+            }
+            for row in aggregated_results
+        ]
+
         return items, total_count
 
-    def delete_search(self, user_id: UUID, history_id: int) -> bool:
-        """Delete a specific search history entry.
+    def delete_search(self, user_id: UUID, search_query: str) -> bool:
+        """Delete all instances of a specific search query from user's history.
 
         Args:
             user_id: UUID of the user (for authorization check)
-            history_id: ID of the history entry to delete
+            search_query: The search query text to delete all instances of
 
         Returns:
-            True if deleted, False if not found or unauthorized
+            True if at least one entry was deleted, False if none found
         """
-        history_entry = (
+        deleted_count = (
             self.db.query(UserSearchHistory)
             .filter(
-                UserSearchHistory.id == history_id,
-                UserSearchHistory.user_id == user_id
+                UserSearchHistory.user_id == user_id,
+                UserSearchHistory.search_query == search_query
             )
-            .first()
+            .delete()
         )
-
-        if not history_entry:
-            return False
-
-        self.db.delete(history_entry)
         self.db.commit()
-        return True
+        return deleted_count > 0
 
     def clear_all_history(self, user_id: UUID) -> int:
         """Clear all search history for a user.

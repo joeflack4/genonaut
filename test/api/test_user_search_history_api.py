@@ -327,20 +327,21 @@ class TestGetPaginatedSearchHistory:
 
 
 class TestDeleteSearchHistoryItem:
-    """Test DELETE /api/v1/users/{user_id}/search-history/{history_id} endpoint."""
+    """Test DELETE /api/v1/users/{user_id}/search-history/by-query endpoint."""
 
     def test_delete_search_success(self, api_client, user_id_str):
-        """Test successfully deleting a search history item."""
+        """Test successfully deleting all instances of a search query."""
         # Add a search
-        add_response = api_client.post(
+        api_client.post(
             f"/api/v1/users/{user_id_str}/search-history",
             json={"search_query": "test search"}
         )
-        history_id = add_response.json()["id"]
 
-        # Delete it
-        response = api_client.delete(
-            f"/api/v1/users/{user_id_str}/search-history/{history_id}"
+        # Delete it by query (use request() for DELETE with body)
+        response = api_client.request(
+            "DELETE",
+            f"/api/v1/users/{user_id_str}/search-history/by-query",
+            json={"search_query": "test search"}
         )
 
         assert response.status_code == 200
@@ -356,8 +357,10 @@ class TestDeleteSearchHistoryItem:
 
     def test_delete_search_not_found(self, api_client, user_id_str):
         """Test deleting non-existent search returns 404."""
-        response = api_client.delete(
-            f"/api/v1/users/{user_id_str}/search-history/99999"
+        response = api_client.request(
+            "DELETE",
+            f"/api/v1/users/{user_id_str}/search-history/by-query",
+            json={"search_query": "nonexistent search"}
         )
 
         assert response.status_code == 404
@@ -381,15 +384,16 @@ class TestDeleteSearchHistoryItem:
         user2_id = str(user2.id)
 
         # Add search for user1
-        add_response = api_client.post(
+        api_client.post(
             f"/api/v1/users/{user1_id}/search-history",
             json={"search_query": "user1 search"}
         )
-        history_id = add_response.json()["id"]
 
-        # Try to delete with user2's ID
-        response = api_client.delete(
-            f"/api/v1/users/{user2_id}/search-history/{history_id}"
+        # Try to delete with user2's ID (use request() for DELETE with body)
+        response = api_client.request(
+            "DELETE",
+            f"/api/v1/users/{user2_id}/search-history/by-query",
+            json={"search_query": "user1 search"}
         )
 
         assert response.status_code == 404
@@ -402,7 +406,7 @@ class TestDeleteSearchHistoryItem:
 
 
 class TestClearAllSearchHistory:
-    """Test DELETE /api/v1/users/{user_id}/search-history endpoint."""
+    """Test DELETE /api/v1/users/{user_id}/search-history/clear endpoint."""
 
     def test_clear_all_success(self, api_client, user_id_str):
         """Test successfully clearing all search history."""
@@ -414,7 +418,7 @@ class TestClearAllSearchHistory:
             )
 
         # Clear all
-        response = api_client.delete(f"/api/v1/users/{user_id_str}/search-history")
+        response = api_client.delete(f"/api/v1/users/{user_id_str}/search-history/clear")
 
         assert response.status_code == 200
         data = response.json()
@@ -430,7 +434,7 @@ class TestClearAllSearchHistory:
 
     def test_clear_all_when_empty(self, api_client, user_id_str):
         """Test clearing when no history exists."""
-        response = api_client.delete(f"/api/v1/users/{user_id_str}/search-history")
+        response = api_client.delete(f"/api/v1/users/{user_id_str}/search-history/clear")
 
         assert response.status_code == 200
         data = response.json()
@@ -466,7 +470,7 @@ class TestClearAllSearchHistory:
         )
 
         # Clear user1's history
-        response = api_client.delete(f"/api/v1/users/{user1_id}/search-history")
+        response = api_client.delete(f"/api/v1/users/{user1_id}/search-history/clear")
 
         assert response.status_code == 200
         assert response.json()["deleted_count"] == 1
