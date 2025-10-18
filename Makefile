@@ -623,7 +623,7 @@ api-demo:
 
 api-demo-alt:
 	@echo "Starting FastAPI server for demo database on port 8003..."
-	python -m genonaut.cli_main run-api --env-target local-demo-alt
+	python -m genonaut.cli_main run-api --env-target local-alt-demo
 
 api-test:
 	@echo "Starting FastAPI server for test database..."
