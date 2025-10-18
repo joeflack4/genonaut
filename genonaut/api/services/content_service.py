@@ -767,8 +767,47 @@ class ContentService:
             include_community_regular = 'community-regular' in content_source_types
             include_community_auto = 'community-auto' in content_source_types
 
+            # OPTIMIZATION: If both user and community are selected for a table,
+            # just query the entire table without creator filter (more efficient)
+            include_all_regular = include_user_regular and include_community_regular
+            include_all_auto = include_user_auto and include_community_auto
+
+            # Build regular content query - handle optimized "all" case
+            if include_all_regular:
+                # Get all regular content (no creator filter needed)
+                all_regular_query = session.query(
+                    ContentItem.id.label('id'),
+                    ContentItem.title.label('title'),
+                    ContentItem.content_type.label('content_type'),
+                    ContentItem.content_data.label('content_data'),
+                    ContentItem.path_thumb.label('path_thumb'),
+                    ContentItem.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                    ContentItem.prompt.label('prompt'),
+                    ContentItem.creator_id.label('creator_id'),
+                    ContentItem.item_metadata.label('item_metadata'),
+                    ContentItem.is_private.label('is_private'),
+                    ContentItem.quality_score.label('quality_score'),
+                    ContentItem.created_at.label('created_at'),
+                    ContentItem.updated_at.label('updated_at'),
+                    literal('regular').label('source_type'),
+                    User.username.label('creator_username')
+                ).join(User, ContentItem.creator)
+
+                if search_term:
+                    all_regular_query = self._apply_enhanced_search_filter(all_regular_query, ContentItem, search_term)
+                if not use_python_tag_filter:
+                    all_regular_query = self._apply_tag_filter_via_junction(
+                        all_regular_query,
+                        ContentItem,
+                        'regular',
+                        tag_uuids,
+                        tag_match_normalized,
+                    )
+
+                queries.append(all_regular_query)
+
             # Build regular content query for user content
-            if include_user_regular and user_id:
+            elif include_user_regular and user_id:
                 user_regular_query = session.query(
                     ContentItem.id.label('id'),
                     ContentItem.title.label('title'),
@@ -800,8 +839,8 @@ class ContentService:
 
                 queries.append(user_regular_query)
 
-            # Build regular content query for community content
-            if include_community_regular and user_id:
+            # Build regular content query for community content (only if not already handled by "all" case)
+            elif include_community_regular and user_id:
                 community_regular_query = session.query(
                     ContentItem.id.label('id'),
                     ContentItem.title.label('title'),
@@ -833,8 +872,42 @@ class ContentService:
 
                 queries.append(community_regular_query)
 
+            # Build auto content query - handle optimized "all" case
+            if include_all_auto:
+                # Get all auto content (no creator filter needed)
+                all_auto_query = session.query(
+                    ContentItemAuto.id.label('id'),
+                    ContentItemAuto.title.label('title'),
+                    ContentItemAuto.content_type.label('content_type'),
+                    ContentItemAuto.content_data.label('content_data'),
+                    ContentItemAuto.path_thumb.label('path_thumb'),
+                    ContentItemAuto.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                    ContentItemAuto.prompt.label('prompt'),
+                    ContentItemAuto.creator_id.label('creator_id'),
+                    ContentItemAuto.item_metadata.label('item_metadata'),
+                    ContentItemAuto.is_private.label('is_private'),
+                    ContentItemAuto.quality_score.label('quality_score'),
+                    ContentItemAuto.created_at.label('created_at'),
+                    ContentItemAuto.updated_at.label('updated_at'),
+                    literal('auto').label('source_type'),
+                    User.username.label('creator_username')
+                ).join(User, ContentItemAuto.creator)
+
+                if search_term:
+                    all_auto_query = self._apply_enhanced_search_filter(all_auto_query, ContentItemAuto, search_term)
+                if not use_python_tag_filter:
+                    all_auto_query = self._apply_tag_filter_via_junction(
+                        all_auto_query,
+                        ContentItemAuto,
+                        'auto',
+                        tag_uuids,
+                        tag_match_normalized,
+                    )
+
+                queries.append(all_auto_query)
+
             # Build auto content query for user content
-            if include_user_auto and user_id:
+            elif include_user_auto and user_id:
                 user_auto_query = session.query(
                     ContentItemAuto.id.label('id'),
                     ContentItemAuto.title.label('title'),
@@ -866,8 +939,8 @@ class ContentService:
 
                 queries.append(user_auto_query)
 
-            # Build auto content query for community content
-            if include_community_auto and user_id:
+            # Build auto content query for community content (only if not already handled by "all" case)
+            elif include_community_auto and user_id:
                 community_auto_query = session.query(
                     ContentItemAuto.id.label('id'),
                     ContentItemAuto.title.label('title'),
