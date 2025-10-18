@@ -106,6 +106,7 @@ export function GalleryPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [tagNameToIdMap, setTagNameToIdMap] = useState<Map<string, string>>(new Map())
   const [tagIdToNameMap, setTagIdToNameMap] = useState<Map<string, string>>(new Map())
+  const [tagsInitialized, setTagsInitialized] = useState(false) // Track if tags from URL have been loaded
 
   // Initialize optionsOpen state from localStorage
   const [optionsOpen, setOptionsOpen] = useState(() => {
@@ -246,6 +247,9 @@ export function GalleryPage() {
       setSelectedTags(tagIdsFromUrl)
       setFilters((prev) => ({ ...prev, page: 0 }))
     }
+
+    // Mark tags as initialized once we've processed the URL params
+    setTagsInitialized(true)
   }, [searchParams, selectedTags, tagNameToIdMap])
 
   // Sync contentToggles with URL parameters (supports navigation/back links)
@@ -292,6 +296,12 @@ export function GalleryPage() {
     return types
   }, [contentToggles])
 
+  // Determine if we should wait for tags to load before making API calls
+  // Wait if: (1) there are tag params in URL AND (2) tags haven't been initialized yet
+  const hasTagsInUrl = searchParams.get('tags') !== null
+  const shouldWaitForTags = hasTagsInUrl && !tagsInitialized
+  const queryEnabled = !shouldWaitForTags
+
   // Use unified gallery API with new content source types
   const tagFilterParam = selectedTags.length === 0 ? undefined : selectedTags
 
@@ -304,7 +314,7 @@ export function GalleryPage() {
     sortField: filters.sort === 'recent' ? 'created_at' : 'quality_score',
     sortOrder: 'desc',
     tag: tagFilterParam,
-  })
+  }, queryEnabled)
 
   const data = unifiedData
   const items = data?.items ?? []

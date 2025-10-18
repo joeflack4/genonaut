@@ -2,10 +2,11 @@ import { useQuery } from '@tanstack/react-query'
 import { unifiedGalleryService } from '../services'
 import type { UnifiedGalleryParams } from '../services/unified-gallery-service'
 
-export function useUnifiedGallery(params: UnifiedGalleryParams = {}) {
+export function useUnifiedGallery(params: UnifiedGalleryParams = {}, enabled: boolean = true) {
   return useQuery({
     queryKey: ['unified-gallery', params],
     queryFn: () => unifiedGalleryService.getUnifiedContent(params),
+    enabled,
     staleTime: 30000, // 30 seconds
     gcTime: 300000, // 5 minutes
     retry: false,
