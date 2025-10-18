@@ -811,11 +811,11 @@ cursor pagination, and reduces duplicated query code.
 #### Implementation Checklist
 
 **Phase 11.1: Schema Analysis & Planning**
-- [ ] Analyze existing `content_items` and `content_items_auto` schemas
-- [ ] Identify core columns (shared between both tables)
-- [ ] Identify subtype-specific columns to move to sidecar tables
-- [ ] Document schema alignment plan
-- [ ] Create migration rollback plan
+- [x] Analyze existing `content_items` and `content_items_auto` schemas
+- [x] Identify core columns (shared between both tables)
+- [x] Identify subtype-specific columns to move to sidecar tables
+- [x] Document schema alignment plan
+- [x] Create migration rollback plan
 
 **Phase 11.2: Schema Alignment**
 - [ ] Ensure all core columns match between `content_items` and `content_items_auto`
@@ -1078,3 +1078,120 @@ This combination should bring typical queries to < 500ms (cached) and < 2s (unca
 *Questions that arose during implementation, organized by proposal/phase.*
 
 (No questions yet - will be added as needed during implementation)
+
+---
+
+## Implementation Progress: Proposal 11 - Partitioned Parent Table
+
+### Phase 11.1: Schema Analysis & Planning (In Progress)
+
+**Analysis Date:** 2025-10-18
+
+#### Current Schema Comparison
+
+Both `content_items` and `content_items_auto` tables share the following **core columns**:
+
+```
+id                  integer (PK, auto-increment)
+title               varchar(255) NOT NULL
+content_type        varchar(50) NOT NULL
+content_data        text NOT NULL
+item_metadata       jsonb
+creator_id          integer NOT NULL (FK to users.id)
+created_at          timestamp NOT NULL
+updated_at          timestamp NOT NULL
+quality_score       double precision
+is_private          boolean NOT NULL (default false)
+path_thumb          varchar(512)
+prompt              varchar(20000) NOT NULL (immutable via trigger)
+```
+
+#### Schema Differences Identified
+
+**Legacy/Deprecated Columns (both tables):**
+- `tags` (jsonb) - Deprecated; now using `content_tags` junction table
+- `is_public` (boolean) - Redundant with `is_private`
+
+**Column Order Differences:**
+- `content_items`: has columns in slightly different order
+- `content_items_auto`: has identical columns but different ordering
+
+**Missing Columns (for partitioning):**
+- Neither table has `source_type` column (required for PARTITION BY LIST)
+- Neither table has `path_thumbs_alt_res` (defined in SQLAlchemy schema.py but not in DB)
+
+#### Partitioning Strategy
+
+**Parent Table Name:** `content_items_all`
+
+**Partition Key:** `source_type` (TEXT, values: 'items', 'auto')
+
+**Core Columns (for parent and both partitions):**
+```sql
+id                  bigint PRIMARY KEY
+title               text NOT NULL
+content_type        text NOT NULL
+content_data        text NOT NULL
+path_thumb          text
+path_thumbs_alt_res jsonb  -- Add this from schema.py
+prompt              text NOT NULL
+creator_id          integer NOT NULL  -- Note: schema.py has UUID, DB has integer
+item_metadata       jsonb DEFAULT '{}'
+is_private          boolean NOT NULL DEFAULT false
+quality_score       double precision DEFAULT 0.0
+created_at          timestamptz NOT NULL
+updated_at          timestamptz NOT NULL
+source_type         text NOT NULL  -- NEW: 'items' | 'auto'
+```
+
+**Columns to Exclude from Parent (deprecated):**
+- `tags` (jsonb) - Use `content_tags` junction table instead
+- `is_public` (boolean) - Use `is_private` instead
+
+**Sidecar Tables (for subtype-specific fields):**
+- `content_items_more` (FK to content_items.id)
+- `content_items_auto_more` (FK to content_items_auto.id)
+- Structure: `(source_table text, source_id bigint PK, metadata_more jsonb)`
+
+#### Migration Plan
+
+1. **Add `source_type` column** to both child tables as GENERATED column
+2. **Add `path_thumbs_alt_res` column** if needed (check if it's actually used)
+3. **Create parent table** `content_items_all` with core columns only
+4. **Attach existing tables** as partitions (no data movement)
+5. **Create partition-specific indexes** for keyset pagination
+6. **Update application code** to query parent table
+7. **Optional:** Create sidecar tables if subtype-specific fields are needed later
+
+#### Rollback Plan
+
+- Detach partitions: `ALTER TABLE content_items_all DETACH PARTITION content_items;`
+- Drop parent table: `DROP TABLE content_items_all;`
+- Remove `source_type` columns from child tables
+- Application reverts to manual UNION queries
+
+#### Open Questions & Decisions
+
+1. **creator_id type mismatch**: Schema.py defines `UUID(as_uuid=True)`, but DB has `integer`. Which is correct?
+   - **Decision**: Keep as `integer` for now (matches current DB). This is actually correct - users.id is integer in DB.
+
+2. **path_thumbs_alt_res**: Defined in schema.py but missing from DB. Should we add it?
+   - **Investigation**: Migration exists (704ba727e23b) but is on abandoned branch, not in current chain
+   - **Decision**: Add in partitioning migration - column is used in application code (frontend and backend)
+
+3. **Deprecated columns**: Should we migrate data away from `tags` and `is_public` before partitioning?
+   - **Decision**: Leave in child tables, exclude from parent. `tags` column was dropped in recent migration (ae4b946d28dc)
+
+4. **Current column status**:
+   - `tags` (jsonb) - Already removed from both tables via migration ae4b946d28dc
+   - `is_public` - Still present in both tables, will be excluded from parent
+   - `path_thumbs_alt_res` - Missing, will be added
+
+#### Phase 11.1 Status: COMPLETE
+
+**Summary:**
+- Both tables use same ContentItemColumns mixin in schema.py - already aligned
+- Current DB has 14 core columns that match between both tables
+- Need to add: `source_type` (generated column), `path_thumbs_alt_res` (jsonb)
+- Will exclude from parent: `is_public` (deprecated, use `is_private` instead)
+- Sidecar tables not needed immediately (can add later if subtype-specific fields arise)
