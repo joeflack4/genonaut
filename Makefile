@@ -4,10 +4,10 @@ reset-db-2-schema--test reset-db-3-schema-and-history--demo reset-db-3-schema-an
 re-seed-demo-force seed-from-gen-demo seed-from-gen-test seed-static-demo seed-static-test export-demo-data test \
 test-quick test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-all clear-excess-test-schemas install install-dev \
 lint format clean migrate-all migrate-prep migrate-dev migrate-demo migrate-test backup backup-dev backup-demo \
-backup-test api-dev api-demo api-test celery-dev celery-demo celery-test flower-dev flower-demo flower-test \
+backup-test api-dev api-demo api-demo-alt api-test celery-dev celery-demo celery-test flower-dev flower-demo flower-test \
 redis-flush-dev redis-flush-demo redis-flush-test redis-keys-dev redis-keys-demo redis-keys-test \
 redis-info-dev redis-info-demo redis-info-test redis-start celery-check-running-workers \
-frontend-install frontend-dev frontend-dev-debug frontend-build frontend-preview frontend-test \
+frontend-install frontend-dev frontend-dev-debug frontend-dev-debug-alt frontend-build frontend-preview frontend-test \
 frontend-test-unit frontend-test-watch frontend-test-coverage frontend-test-e2e frontend-test-e2e-headed \
 frontend-test-e2e-ui frontend-test-e2e-debug frontend-test-e2e-debug-headed \
 frontend-test-e2e-w frontend-test-e2e-headed-w frontend-test-e2e-debug-w frontend-test-e2e-debug-headed-w \
@@ -120,6 +120,7 @@ help:
 	@echo "API Server:"
 	@echo "  api-dev                  Start FastAPI server for development"
 	@echo "  api-demo                 Start FastAPI server for demo"
+	@echo "  api-demo-alt             Start FastAPI server for demo on port 8003"
 	@echo "  api-test                 Start FastAPI server for testing"
 	@echo "  api-dev-profile          Start FastAPI for development with profiling"
 	@echo "  api-dev-load-test        Start FastAPI for development load testing"
@@ -153,6 +154,7 @@ help:
 	@echo "  frontend-install         Install frontend dependencies"
 	@echo "  frontend-dev             Start frontend dev server"
 	@echo "  frontend-dev-debug       Start frontend dev server with debug logging"
+	@echo "  frontend-dev-debug-alt   Start frontend dev server with debug logging (port 8003 API)"
 	@echo "  frontend-build           Build frontend for production"
 	@echo "  frontend-preview         Preview built frontend"
 	@echo "  frontend-lint            Lint frontend code"
@@ -619,6 +621,10 @@ api-demo:
 	@echo "Starting FastAPI server for demo database..."
 	python -m genonaut.cli_main run-api --env-target local-demo
 
+api-demo-alt:
+	@echo "Starting FastAPI server for demo database on port 8003..."
+	python -m genonaut.cli_main run-api --env-target local-demo-alt
+
 api-test:
 	@echo "Starting FastAPI server for test database..."
 	python -m genonaut.cli_main run-api --env-target local-test
@@ -774,6 +780,10 @@ frontend-dev:
 frontend-dev-debug:
 	@echo "Starting frontend dev server with debug logging..."
 	npm --prefix frontend run dev:debug
+
+frontend-dev-debug-alt:
+	@echo "Starting frontend dev server with debug logging (port 8003 API)..."
+	VITE_API_BASE_URL=http://localhost:8003 npm --prefix frontend run dev:debug
 
 frontend-build:
 	@echo "Building frontend..."

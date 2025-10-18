@@ -7,7 +7,7 @@ from typing import Optional
 import typer
 import uvicorn
 
-from genonaut.config_loader import load_env_for_runtime
+from genonaut.config_loader import load_env_for_runtime, load_config
 
 
 app = typer.Typer(add_completion=False, help="Genonaut CLI for running services")
@@ -50,8 +50,8 @@ def _derive_paths_from_target(
 
 @app.command()
 def run_api(
-    host: str = typer.Option("0.0.0.0", help="Host to bind to"),
-    port: int = typer.Option(8001, help="Port to bind to"),
+    host: Optional[str] = typer.Option(None, help="Host to bind to (overrides config)"),
+    port: Optional[int] = typer.Option(None, help="Port to bind to (overrides config)"),
     reload: bool = typer.Option(True, help="Enable auto-reload"),
     workers: Optional[int] = typer.Option(None, help="Number of worker processes"),
     env_path: Optional[str] = typer.Option(None, help="Path to .env file to load"),
@@ -81,8 +81,12 @@ def run_api(
         typer.echo("Error: Either --config-path or --env-target must be provided", err=True)
         raise typer.Exit(1)
 
-    # Load environment files
-    _load_envs(env_path)
+    # Load configuration to get host/port defaults
+    config = load_config(config_path, env_path)
+
+    # Use config values if not explicitly provided via CLI
+    actual_host = host if host is not None else config.get("api-host", "0.0.0.0")
+    actual_port = port if port is not None else config.get("api-port", 8001)
 
     # Export ENV_TARGET and config path for the app to read on startup
     if env_target:
@@ -94,12 +98,12 @@ def run_api(
     typer.echo(f"  ENV_TARGET: {env_target or 'not set'}")
     typer.echo(f"  Config: {config_path}")
     typer.echo(f"  Env file: {env_path or 'not specified'}")
-    typer.echo(f"  Host: {host}:{port}")
+    typer.echo(f"  Host: {actual_host}:{actual_port}")
     typer.echo(f"  Reload: {reload}")
     typer.echo(f"  Workers: {workers or 'default'}")
 
     # Build uvicorn kwargs
-    uvicorn_kwargs = dict(host=host, port=port, reload=reload)
+    uvicorn_kwargs = dict(host=actual_host, port=actual_port, reload=reload)
     if workers:
         uvicorn_kwargs["workers"] = workers
         # Can't use reload with multiple workers
