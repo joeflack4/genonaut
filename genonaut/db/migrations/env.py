@@ -25,9 +25,33 @@ target_metadata = Base.metadata
 
 # Optional: tweak autogenerate behavior
 def include_object(obj, name, type_, reflected, compare_to):
-    # Example: skip alembic's own version table or materialized views, etc.
-    # if type_ == "table" and name == "alembic_version":
-    #     return False
+    """Filter objects during autogenerate to exclude partition-related structures.
+
+    PostgreSQL table partitioning is managed manually via migrations, not via SQLAlchemy models.
+    We exclude the partitioned parent table and partition-specific indexes to prevent Alembic
+    from trying to drop them during autogenerate.
+
+    Excluded objects:
+    - content_items_all: Partitioned parent table (managed manually)
+    - content_items_all_uidx_id_src: Partitioned unique index on parent
+    - items_uidx_id_src, auto_uidx_id_src: Per-partition unique indexes
+    - idx_content_items_created_id_desc, idx_content_items_auto_created_id_desc: Pagination indexes
+    """
+    # Exclude partitioned parent table
+    if type_ == "table" and name == "content_items_all":
+        return False
+
+    # Exclude partition-related indexes
+    partition_indexes = {
+        "content_items_all_uidx_id_src",  # Parent partitioned unique index
+        "items_uidx_id_src",               # content_items unique index (id, source_type)
+        "auto_uidx_id_src",                # content_items_auto unique index (id, source_type)
+        "idx_content_items_created_id_desc",      # Keyset pagination index
+        "idx_content_items_auto_created_id_desc", # Keyset pagination index
+    }
+    if type_ == "index" and name in partition_indexes:
+        return False
+
     return True
 
 

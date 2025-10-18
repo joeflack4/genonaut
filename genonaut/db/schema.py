@@ -6,7 +6,7 @@ This module contains SQLAlchemy models for the PostgreSQL database.
 from datetime import datetime
 from typing import Optional, Union, Tuple, Dict, Any, List
 from sqlalchemy import (
-    Column, Integer, String, Text, DateTime, Float, Boolean,
+    Column, Identity, Integer, String, Text, DateTime, Float, Boolean,
     ForeignKey, JSON, UniqueConstraint, Index, event, func, literal_column, DDL, ARRAY,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -165,7 +165,7 @@ class UserNotification(Base):
     """
     __tablename__ = 'user_notifications'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, Identity(), primary_key=True, autoincrement=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
@@ -203,7 +203,7 @@ class UserSearchHistory(Base):
     """
     __tablename__ = 'user_search_history'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, Identity(), primary_key=True, autoincrement=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
     search_query = Column(String(500), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -220,7 +220,7 @@ class UserSearchHistory(Base):
 class ContentItemColumns:
     """Shared column definitions for content item style tables."""
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, Identity(), primary_key=True, autoincrement=True)
     title = Column(String(255), nullable=False)
     content_type = Column(String(50), nullable=False, index=True)  # text, image, video, audio
     content_data = Column(Text, nullable=False)
@@ -247,12 +247,17 @@ class ContentItem(ContentItemColumns, Base):
         creator_id: Foreign key to the user who created/requested the content
         created_at: Timestamp when content was created
         quality_score: Quality score assigned to the content
+        source_type: Generated column for partitioning (always 'items')
 
     Note:
         Tags are stored in the content_tags junction table for normalized many-to-many relationships.
     """
     __tablename__ = 'content_items'
-    
+
+    # Partition key (default column for table partitioning)
+    # Note: Using DEFAULT instead of GENERATED for PostgreSQL partitioning compatibility
+    source_type = Column(Text, nullable=False, default='items', server_default='items')
+
     # Relationships
     creator = relationship("User", back_populates="content_items")
     interactions = relationship("UserInteraction", back_populates="content_item")
@@ -303,6 +308,10 @@ class ContentItemAuto(ContentItemColumns, Base):
     """
 
     __tablename__ = 'content_items_auto'
+
+    # Partition key (default column for table partitioning)
+    # Note: Using DEFAULT instead of GENERATED for PostgreSQL partitioning compatibility
+    source_type = Column(Text, nullable=False, default='auto', server_default='auto')
 
     # Relationships
     creator = relationship("User")
@@ -360,7 +369,7 @@ class UserInteraction(Base):
     """
     __tablename__ = 'user_interactions'
     
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, Identity(), primary_key=True, autoincrement=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
     content_item_id = Column(Integer, ForeignKey('content_items.id'), nullable=False, index=True)
     interaction_type = Column(String(50), nullable=False, index=True)  # view, like, share, download, etc.
@@ -403,7 +412,7 @@ class Recommendation(Base):
     """
     __tablename__ = 'recommendations'
     
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, Identity(), primary_key=True, autoincrement=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
     content_item_id = Column(Integer, ForeignKey('content_items.id'), nullable=False, index=True)
     recommendation_score = Column(Float, nullable=False)  # 0-1 confidence score
@@ -464,7 +473,7 @@ class GenerationJob(Base):
     """
     __tablename__ = 'generation_jobs'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, Identity(), primary_key=True, autoincrement=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
     job_type = Column(String(50), nullable=False, index=True)  # text, image, video, audio
     prompt = Column(String(20000), nullable=False)  # Generation prompt (immutable via trigger)
@@ -668,7 +677,7 @@ class AvailableModel(Base):
     """
     __tablename__ = 'available_models'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, Identity(), primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False, index=True)
     type = Column(String(20), nullable=False, index=True)  # checkpoint, lora
     file_path = Column(String(512), nullable=False, unique=True)
@@ -711,7 +720,7 @@ class FlaggedContent(Base):
     """
     __tablename__ = 'flagged_content'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, Identity(), primary_key=True, autoincrement=True)
     content_item_id = Column(Integer, ForeignKey('content_items.id', ondelete='CASCADE'), nullable=True, index=True)
     content_item_auto_id = Column(Integer, ForeignKey('content_items_auto.id', ondelete='CASCADE'), nullable=True, index=True)
     content_source = Column(String(20), nullable=False, index=True)  # 'regular' or 'auto'
@@ -934,7 +943,7 @@ class TagRating(Base):
     """
     __tablename__ = 'tag_ratings'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, Identity(), primary_key=True, autoincrement=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
     tag_id = Column(UUID(as_uuid=True), ForeignKey('tags.id'), nullable=False, index=True)
     rating = Column(Float, nullable=False)  # 1.0-5.0 with 0.5 increments
@@ -966,7 +975,7 @@ class ContentTag(Base):
     """
     __tablename__ = 'content_tags'
 
-    content_id = Column(Integer, primary_key=True, nullable=False)
+    content_id = Column(Integer, Identity(), primary_key=True, nullable=False)
     content_source = Column(String(10), primary_key=True, nullable=False)
     tag_id = Column(UUID(as_uuid=True), ForeignKey('tags.id', ondelete='CASCADE'), primary_key=True, nullable=False)
 
