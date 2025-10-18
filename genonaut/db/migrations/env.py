@@ -1,6 +1,7 @@
 """DB migrations w/ Alembic"""
 from __future__ import annotations
 
+import logging
 import os
 from logging.config import fileConfig
 
@@ -21,6 +22,21 @@ if config.config_file_name is not None:
 
 # Import model
 target_metadata = Base.metadata
+
+
+logger = logging.getLogger("alembic.runtime.migration")
+
+
+def process_revision_directives(context, revision, directives):
+    # Only run when autogenerate is requested
+    if getattr(context.config.cmd_opts, "autogenerate", False):
+        script = directives[0]
+        # In recent Alembic, upgrade_ops has is_empty()
+        if hasattr(script, "upgrade_ops") and script.upgrade_ops.is_empty():
+            directives[:] = []  # cancel creating the file
+            logger.info("No schema changes detected; skipping empty revision. To allow autogenerate to make empty "
+                        "revisions, remove 'process_revision_directives=process_revision_directives,' from the "
+                        "config.context blocks in the process online/offline funcs in migrate env.py.")
 
 
 # Optional: tweak autogenerate behavior
@@ -68,7 +84,6 @@ def _resolved_database_url() -> str:
 
     return get_database_url()
 
-
 # --- Offline mode (generates SQL) ---
 def run_migrations_offline() -> None:
     url = _resolved_database_url()
@@ -82,6 +97,7 @@ def run_migrations_offline() -> None:
         compare_server_default=True,   # detect server default changes
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        process_revision_directives=process_revision_directives,
     )
 
     with context.begin_transaction():
@@ -104,6 +120,7 @@ def run_migrations_online() -> None:
             compare_type=True,
             compare_server_default=True,
             render_as_batch=False,  # keep False for Postgres
+            process_revision_directives=process_revision_directives,
         )
 
         with context.begin_transaction():
