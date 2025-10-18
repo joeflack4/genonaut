@@ -154,7 +154,7 @@ help:
 	@echo "  frontend-install         Install frontend dependencies"
 	@echo "  frontend-dev             Start frontend dev server"
 	@echo "  frontend-dev-debug       Start frontend dev server with debug logging"
-	@echo "  frontend-dev-debug-alt   Start frontend dev server with debug logging (port 8003 API)"
+	@echo "  frontend-dev-debug-alt   Start frontend dev server with debug logging (port 8003 API, port 5174 frontend)"
 	@echo "  frontend-build           Build frontend for production"
 	@echo "  frontend-preview         Preview built frontend"
 	@echo "  frontend-lint            Lint frontend code"
@@ -782,8 +782,8 @@ frontend-dev-debug:
 	npm --prefix frontend run dev:debug
 
 frontend-dev-debug-alt:
-	@echo "Starting frontend dev server with debug logging (port 8003 API)..."
-	VITE_API_BASE_URL=http://localhost:8003 npm --prefix frontend run dev:debug
+	@echo "Starting frontend dev server with debug logging (port 8003 API, port 5174 frontend)..."
+	VITE_API_BASE_URL=http://localhost:8003 npm --prefix frontend run dev:debug -- --port 5174
 
 frontend-build:
 	@echo "Building frontend..."
