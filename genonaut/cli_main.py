@@ -11,6 +11,9 @@ from genonaut.config_loader import load_env_for_runtime, load_config
 
 
 app = typer.Typer(add_completion=False, help="Genonaut CLI for running services")
+CONFIG_ENV_ERR = (
+    "Error: Either --config-path or --env-target must be provided matching the names of config .json files in "
+    "config/, e.g. '--env-target local-demo' for 'config/local-demo.json'.")
 
 
 def _load_envs(explicit_env: Optional[str]):
@@ -78,7 +81,7 @@ def run_api(
 
     # Validate that we have a config path
     if not config_path:
-        typer.echo("Error: Either --config-path or --env-target must be provided", err=True)
+        typer.echo(CONFIG_ENV_ERR, err=True)
         raise typer.Exit(1)
 
     # Load configuration to get host/port defaults
@@ -137,7 +140,7 @@ def init_db(
 
     # Validate that we have a config path
     if not config_path:
-        typer.echo("Error: Either --config-path or --env-target must be provided", err=True)
+        typer.echo(CONFIG_ENV_ERR, err=True)
         raise typer.Exit(1)
 
     # Load environment files

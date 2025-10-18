@@ -3,7 +3,7 @@
 from typing import Any, Dict, List, Optional, Type, Union
 from uuid import UUID
 
-from sqlalchemy import desc, func, text, literal, or_
+from sqlalchemy import desc, func, text, literal, or_, and_
 from sqlalchemy.orm import Session
 
 from genonaut.api.exceptions import EntityNotFoundError, ValidationError
@@ -1085,17 +1085,53 @@ class ContentService:
 
         if sort_field == "created_at":
             if sort_order.lower() == "desc":
-                unified_query = session.query(subquery).order_by(desc(subquery.c.created_at))
+                unified_query = session.query(subquery).order_by(desc(subquery.c.created_at), desc(subquery.c.id))
             else:
-                unified_query = session.query(subquery).order_by(subquery.c.created_at)
+                unified_query = session.query(subquery).order_by(subquery.c.created_at, subquery.c.id)
         elif sort_field == "quality_score":
             if sort_order.lower() == "desc":
-                unified_query = session.query(subquery).order_by(desc(subquery.c.quality_score))
+                unified_query = session.query(subquery).order_by(desc(subquery.c.quality_score), desc(subquery.c.id))
             else:
-                unified_query = session.query(subquery).order_by(subquery.c.quality_score)
+                unified_query = session.query(subquery).order_by(subquery.c.quality_score, subquery.c.id)
         else:
             # Default sort by created_at desc
-            unified_query = session.query(subquery).order_by(desc(subquery.c.created_at))
+            unified_query = session.query(subquery).order_by(desc(subquery.c.created_at), desc(subquery.c.id))
+
+        # Apply cursor-based filtering if cursor is provided
+        if pagination.cursor:
+            from genonaut.api.utils.cursor_pagination import decode_cursor, CursorError
+
+            try:
+                cursor_created_at, cursor_id, cursor_src = decode_cursor(pagination.cursor)
+
+                # Apply cursor filter based on sort order
+                # For DESC ordering: WHERE (created_at, id) < (cursor_created_at, cursor_id)
+                # For ASC ordering: WHERE (created_at, id) > (cursor_created_at, cursor_id)
+                if sort_field == "created_at":
+                    if sort_order.lower() == "desc":
+                        unified_query = unified_query.filter(
+                            or_(
+                                subquery.c.created_at < cursor_created_at,
+                                and_(
+                                    subquery.c.created_at == cursor_created_at,
+                                    subquery.c.id < cursor_id
+                                )
+                            )
+                        )
+                    else:
+                        unified_query = unified_query.filter(
+                            or_(
+                                subquery.c.created_at > cursor_created_at,
+                                and_(
+                                    subquery.c.created_at == cursor_created_at,
+                                    subquery.c.id > cursor_id
+                                )
+                            )
+                        )
+                # For other sort fields, fall back to OFFSET/LIMIT (cursor not supported)
+            except CursorError:
+                # Invalid cursor - ignore and fall back to OFFSET/LIMIT
+                pass
 
         # Get total count for pagination - use a simpler approach
         # Quick optimization: Skip expensive count for tag-filtered junction table queries on PostgreSQL
@@ -1160,10 +1196,18 @@ class ContentService:
                     total_count += auto_count_query.scalar() or 0
 
         # Apply pagination
-        offset = (pagination.page - 1) * pagination.page_size
-        paginated_query = unified_query
-        if not use_python_tag_filter:
-            paginated_query = unified_query.offset(offset).limit(pagination.page_size)
+        # Use cursor pagination if cursor is provided, otherwise use offset pagination
+        use_cursor_pagination = bool(pagination.cursor and sort_field == "created_at")
+
+        if use_cursor_pagination:
+            # Cursor pagination: just apply LIMIT (cursor filter already applied above)
+            paginated_query = unified_query.limit(pagination.page_size)
+        else:
+            # Traditional offset pagination
+            offset = (pagination.page - 1) * pagination.page_size
+            paginated_query = unified_query
+            if not use_python_tag_filter:
+                paginated_query = unified_query.offset(offset).limit(pagination.page_size)
 
         # Execute query
         results = paginated_query.all()
@@ -1210,6 +1254,20 @@ class ContentService:
             has_next = pagination.page < total_pages
             has_previous = pagination.page > 1
 
+        # Generate next/prev cursors if using cursor pagination
+        next_cursor = None
+        prev_cursor = None
+        if use_cursor_pagination and items:
+            from genonaut.api.utils.cursor_pagination import create_next_cursor, create_prev_cursor
+
+            # Create next cursor from last item (if we got full page, there might be more)
+            if len(items) == pagination.page_size:
+                next_cursor = create_next_cursor(items)
+
+            # Create prev cursor from first item (if we have a cursor, there's a previous page)
+            if pagination.cursor:
+                prev_cursor = create_prev_cursor(items)
+
         return {
             "items": items,
             "pagination": {
@@ -1219,6 +1277,8 @@ class ContentService:
                 "total_pages": total_pages,
                 "has_next": has_next,
                 "has_previous": has_previous,
+                "next_cursor": next_cursor,
+                "prev_cursor": prev_cursor,
             },
             "stats": self.get_unified_content_stats(user_id),
         }

@@ -61,6 +61,7 @@ interface FiltersState {
   search: string
   sort: SortOption
   page: number
+  cursor?: string
 }
 
 interface ContentToggles {
@@ -95,10 +96,12 @@ export function GalleryPage() {
   // Initialize filters from URL parameters
   const [filters, setFilters] = useState<FiltersState>(() => {
     const searchFromUrl = searchParams.get('search') || ''
+    const cursorFromUrl = searchParams.get('cursor') || undefined
     return {
       search: searchFromUrl,
       sort: 'recent' as SortOption,
       page: 0,
+      cursor: cursorFromUrl,
     }
   })
 
@@ -224,8 +227,9 @@ export function GalleryPage() {
   // Sync search input with URL and filters
   useEffect(() => {
     const searchFromUrl = searchParams.get('search') || ''
-    if (searchFromUrl !== filters.search) {
-      setFilters((prev) => ({ ...prev, search: searchFromUrl, page: 0 }))
+    const cursorFromUrl = searchParams.get('cursor') || undefined
+    if (searchFromUrl !== filters.search || cursorFromUrl !== filters.cursor) {
+      setFilters((prev) => ({ ...prev, search: searchFromUrl, cursor: cursorFromUrl, page: 0 }))
       setSearchInput(searchFromUrl)
     }
   }, [searchParams])
@@ -308,6 +312,7 @@ export function GalleryPage() {
   const { data: unifiedData, isLoading } = useUnifiedGallery({
     page: filters.page + 1, // Convert from 0-based to 1-based
     pageSize: PAGE_SIZE,
+    cursor: filters.cursor,
     contentSourceTypes,  // NEW: Use specific combinations instead of contentTypes + creatorFilter
     userId,
     searchTerm: filters.search || undefined,
@@ -347,19 +352,56 @@ export function GalleryPage() {
       } else {
         newParams.delete('search')
       }
+      // Clear cursor when search changes
+      newParams.delete('cursor')
       return newParams
     })
 
-    setFilters((prev) => ({ ...prev, search: trimmedSearch, page: 0 }))
+    setFilters((prev) => ({ ...prev, search: trimmedSearch, page: 0, cursor: undefined }))
     setShowSearchHistory(false)
   }
 
   const handleSortChange = (event: SelectChangeEvent<SortOption>) => {
-    setFilters((prev) => ({ ...prev, sort: event.target.value as SortOption, page: 0 }))
+    // Clear cursor when sort changes
+    setSearchParams((params) => {
+      const newParams = new URLSearchParams(params)
+      newParams.delete('cursor')
+      return newParams
+    })
+    setFilters((prev) => ({ ...prev, sort: event.target.value as SortOption, page: 0, cursor: undefined }))
   }
 
   const handlePageChange = (_event: React.ChangeEvent<unknown>, page: number) => {
-    setFilters((prev) => ({ ...prev, page: page - 1 }))
+    const direction = page > (filters.page + 1) ? 'next' : 'prev'
+
+    // Use cursor if available and moving forward/backward by 1 page
+    if (direction === 'next' && data?.nextCursor && page === (filters.page + 1) + 1) {
+      setFilters((prev) => ({ ...prev, page: page - 1, cursor: data.nextCursor }))
+      setSearchParams((params) => {
+        const newParams = new URLSearchParams(params)
+        if (data.nextCursor) {
+          newParams.set('cursor', data.nextCursor)
+        }
+        return newParams
+      })
+    } else if (direction === 'prev' && data?.prevCursor && page === (filters.page + 1) - 1) {
+      setFilters((prev) => ({ ...prev, page: page - 1, cursor: data.prevCursor }))
+      setSearchParams((params) => {
+        const newParams = new URLSearchParams(params)
+        if (data.prevCursor) {
+          newParams.set('cursor', data.prevCursor)
+        }
+        return newParams
+      })
+    } else {
+      // Jump to arbitrary page - clear cursor and use offset pagination
+      setFilters((prev) => ({ ...prev, page: page - 1, cursor: undefined }))
+      setSearchParams((params) => {
+        const newParams = new URLSearchParams(params)
+        newParams.delete('cursor')
+        return newParams
+      })
+    }
   }
 
   const handleToggleChange = (toggleKey: keyof ContentToggles) => (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -385,16 +427,19 @@ export function GalleryPage() {
         newParams.delete('notGenSource')
       }
 
+      // Clear cursor when content toggles change
+      newParams.delete('cursor')
+
       return newParams
     })
 
-    // Reset page when toggling content types
-    setFilters((prev) => ({ ...prev, page: 0 }))
+    // Reset page and cursor when toggling content types
+    setFilters((prev) => ({ ...prev, page: 0, cursor: undefined }))
   }
 
   const handleTagFilterChange = (tags: string[]) => {
     setSelectedTags(tags)
-    setFilters((prev) => ({ ...prev, page: 0 }))
+    setFilters((prev) => ({ ...prev, page: 0, cursor: undefined }))
     setSearchParams((params) => {
       const newParams = new URLSearchParams(params)
 
@@ -408,6 +453,9 @@ export function GalleryPage() {
       } else {
         newParams.delete('tags')
       }
+
+      // Clear cursor when tags change
+      newParams.delete('cursor')
 
       return newParams
     })
@@ -426,9 +474,11 @@ export function GalleryPage() {
     setSearchParams((params) => {
       const newParams = new URLSearchParams(params)
       newParams.set('search', searchQuery)
+      // Clear cursor when executing a search from history
+      newParams.delete('cursor')
       return newParams
     })
-    setFilters((prev) => ({ ...prev, search: searchQuery, page: 0 }))
+    setFilters((prev) => ({ ...prev, search: searchQuery, page: 0, cursor: undefined }))
     setShowSearchHistory(false)
   }
 
@@ -444,11 +494,13 @@ export function GalleryPage() {
     setSearchParams((params) => {
       const newParams = new URLSearchParams(params)
       newParams.delete('search')
+      // Clear cursor when clearing search
+      newParams.delete('cursor')
       return newParams
     })
 
     // Clear search from filters and reset to first page
-    setFilters((prev) => ({ ...prev, search: '', page: 0 }))
+    setFilters((prev) => ({ ...prev, search: '', page: 0, cursor: undefined }))
     setShowSearchHistory(false)
   }
 
@@ -469,10 +521,12 @@ export function GalleryPage() {
       } else {
         newParams.delete('search')
       }
+      // Clear cursor when executing search
+      newParams.delete('cursor')
       return newParams
     })
 
-    setFilters((prev) => ({ ...prev, search: trimmedSearch, page: 0 }))
+    setFilters((prev) => ({ ...prev, search: trimmedSearch, page: 0, cursor: undefined }))
     setShowSearchHistory(false)
   }
 

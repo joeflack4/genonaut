@@ -4,6 +4,7 @@ import type { GalleryItem, PaginatedResult } from '../types/domain'
 export interface UnifiedGalleryParams {
   page?: number
   pageSize?: number
+  cursor?: string  // Cursor for keyset pagination
   contentTypes?: string[]
   creatorFilter?: 'all' | 'user' | 'community'
   contentSourceTypes?: string[]  // NEW: Preferred method - specific combinations like ['user-regular', 'community-auto']
@@ -23,6 +24,8 @@ export interface UnifiedGalleryStats {
 
 export interface UnifiedGalleryResult extends PaginatedResult<GalleryItem> {
   stats: UnifiedGalleryStats
+  nextCursor?: string | null
+  prevCursor?: string | null
 }
 
 export class UnifiedGalleryService {
@@ -41,6 +44,10 @@ export class UnifiedGalleryService {
 
     if (params.pageSize !== undefined) {
       searchParams.set('page_size', String(params.pageSize))
+    }
+
+    if (params.cursor) {
+      searchParams.set('cursor', params.cursor)
     }
 
     // NEW: Use contentSourceTypes if provided (preferred method)
@@ -119,6 +126,8 @@ export class UnifiedGalleryService {
         total_pages: number
         has_next: boolean
         has_previous: boolean
+        next_cursor?: string | null
+        prev_cursor?: string | null
       }
       stats: {
         user_regular_count: number
@@ -133,6 +142,8 @@ export class UnifiedGalleryService {
       total: response.pagination.total_count,
       limit: response.pagination.page_size,
       skip: (response.pagination.page - 1) * response.pagination.page_size,
+      nextCursor: response.pagination.next_cursor,
+      prevCursor: response.pagination.prev_cursor,
       stats: {
         userRegularCount: response.stats.user_regular_count,
         userAutoCount: response.stats.user_auto_count,
