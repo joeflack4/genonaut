@@ -215,18 +215,8 @@ export function GalleryPage() {
       setTagNameToIdMap(nameToId)
       setTagIdToNameMap(idToName)
 
-      // Initialize selected tags from URL on first load
-      const tagsParam = searchParams.get('tags')
-      if (tagsParam) {
-        const tagNames = tagsParam.split(',').map(name => name.trim()).filter(name => name)
-        const tagIds = tagNames
-          .map(name => nameToId.get(name))
-          .filter((id): id is string => id !== undefined)
-
-        if (tagIds.length > 0) {
-          setSelectedTags(tagIds)
-        }
-      }
+      // Note: selectedTags initialization from URL is handled by the sync effect below (lines 243-259)
+      // to avoid duplicate API calls
     }
   }, [allTagsData])
 
