@@ -86,7 +86,7 @@ class TestComfyUILoadTesting:
         )
 
     @pytest.mark.longrunning
-    @pytest.mark.skip(reason="Concurrent threading tests fail with SQLite - requires PostgreSQL with proper connection pooling")
+    @pytest.mark.skip(reason="Requires PostgreSQL setup with proper connection pooling")
     def test_concurrent_generation_requests_small_load(self, generation_service: ComfyUIGenerationService,
                                                       test_user: User, test_model: AvailableModel):
         """Test system with small concurrent load (5 simultaneous requests)."""
@@ -162,7 +162,7 @@ class TestComfyUILoadTesting:
               f"(avg: {avg_time_per_request:.2f}s per request)")
 
     @pytest.mark.longrunning
-    @pytest.mark.skip(reason="Concurrent threading tests fail with SQLite - requires PostgreSQL with proper connection pooling")
+    @pytest.mark.skip(reason="Requires PostgreSQL setup with proper connection pooling")
     def test_concurrent_generation_requests_medium_load(self, generation_service: ComfyUIGenerationService,
                                                        test_user: User, test_model: AvailableModel):
         """Test system with medium concurrent load (20 simultaneous requests)."""
@@ -230,7 +230,7 @@ class TestComfyUILoadTesting:
               f"success rate: {success_rate:.1%})")
 
     @pytest.mark.longrunning
-    @pytest.mark.skip(reason="Concurrent threading tests fail with SQLite - requires PostgreSQL with proper connection pooling")
+    @pytest.mark.skip(reason="Requires PostgreSQL setup with proper connection pooling")
     def test_concurrent_generation_requests_high_load(self, generation_service: ComfyUIGenerationService,
                                                      test_user: User, test_model: AvailableModel):
         """Test system with high concurrent load (50 simultaneous requests)."""
@@ -369,7 +369,7 @@ class TestComfyUILoadTesting:
               f"completion rate: {processing_efficiency:.1%}")
 
     @pytest.mark.longrunning
-    @pytest.mark.skip(reason="SQLite does not support concurrent writes from multiple threads - requires PostgreSQL for proper testing")
+    @pytest.mark.skip(reason="concurrent writes from multiple threads - requires PostgreSQL for proper testing")
     def test_database_performance_under_concurrent_writes(self, db_session: Session,
                                                          test_user: User, test_model: AvailableModel):
         """Test database performance with concurrent generation record writes."""

@@ -3,7 +3,7 @@
 from typing import Any, Dict, List, Optional, Type, Union
 from uuid import UUID
 
-from sqlalchemy import desc, func, text, literal, or_, and_, case
+from sqlalchemy import desc, func, text, literal, or_, and_
 from sqlalchemy.orm import Session
 
 from genonaut.api.exceptions import EntityNotFoundError, ValidationError
@@ -11,7 +11,7 @@ from genonaut.api.repositories.content_repository import ContentRepository
 from genonaut.api.repositories.user_repository import UserRepository
 from genonaut.api.models.requests import PaginationRequest
 from genonaut.api.models.responses import PaginatedResponse
-from genonaut.db.schema import ContentItem, ContentItemAuto, ContentItemAll, UserInteraction, User, ContentTag
+from genonaut.db.schema import ContentItem, ContentItemAuto, ContentItemsAll, UserInteraction, User, ContentTag
 from genonaut.api.services.flagged_content_service import FlaggedContentService
 from genonaut.api.utils.tag_identifiers import expand_tag_identifiers
 
@@ -97,7 +97,7 @@ class ContentService:
         self,
         query,
         content_model,
-        content_source: Optional[str],
+        content_source: str,
         tag_uuids: List[UUID],
         tag_match: str
     ):
@@ -108,18 +108,13 @@ class ContentService:
 
         Args:
             query: SQLAlchemy query to filter
-            content_model: ContentItem, ContentItemAuto, or ContentItemAll model class
-            content_source: 'regular', 'auto', or None (for ContentItemAll with partition already filtered)
+            content_model: ContentItem or ContentItemAuto model class
+            content_source: 'regular' or 'auto' (for content_tags.content_source)
             tag_uuids: List of tag UUIDs to filter by
             tag_match: 'any' or 'all' matching logic
 
         Returns:
             Filtered query
-
-        Note:
-            When using ContentItemAll, content_source should be None since the partition
-            is already filtered by source_type in the main query. For individual table
-            queries (ContentItem/ContentItemAuto), content_source is required.
         """
         if not tag_uuids:
             return query
@@ -135,31 +130,21 @@ class ContentService:
             # For "all" matching: content must have ALL specified tags
             # Add an EXISTS clause for each tag
             for tag_id in unique_tags:
-                subq = self.db.query(ContentTag.content_id).filter(
+                exists_clause = self.db.query(ContentTag.content_id).filter(
                     ContentTag.content_id == content_model.id,
+                    ContentTag.content_source == content_source,
                     ContentTag.tag_id == tag_id
-                )
-
-                # Only add content_source filter if specified (not needed for ContentItemAll)
-                if content_source:
-                    subq = subq.filter(ContentTag.content_source == content_source)
-
-                exists_clause = subq.exists()
+                ).exists()
                 query = query.filter(exists_clause)
             return query
 
         # For "any" matching: content must have AT LEAST ONE of the specified tags
         # Single EXISTS with IN clause
-        subq = self.db.query(ContentTag.content_id).filter(
+        exists_clause = self.db.query(ContentTag.content_id).filter(
             ContentTag.content_id == content_model.id,
+            ContentTag.content_source == content_source,
             ContentTag.tag_id.in_(unique_tags)
-        )
-
-        # Only add content_source filter if specified (not needed for ContentItemAll)
-        if content_source:
-            subq = subq.filter(ContentTag.content_source == content_source)
-
-        exists_clause = subq.exists()
+        ).exists()
         return query.filter(exists_clause)
 
     @staticmethod
@@ -662,37 +647,24 @@ class ContentService:
     # ------------------------------------------------------------------
 
     def get_unified_content_stats(self, user_id: Optional[UUID] = None) -> Dict[str, int]:
-        """Get unified content statistics using partitioned parent table.
-
-        This method queries ContentItemAll with source_type filtering, which enables
-        PostgreSQL partition pruning for better performance compared to separate queries.
-        """
+        """Get unified content statistics across both regular and auto tables."""
         session = self.repository.db
 
-        # Query partitioned table with source_type grouping for user content
+        # Count user's regular content
         user_regular_count = 0
         user_auto_count = 0
         if user_id:
-            # Single query with partition pruning for user's regular content
-            user_regular_count = session.query(func.count(ContentItemAll.id)).filter(
-                ContentItemAll.source_type == 'items',
-                ContentItemAll.creator_id == user_id
+            user_regular_count = session.query(func.count(ContentItem.id)).filter(
+                ContentItem.creator_id == user_id
             ).scalar() or 0
 
-            # Single query with partition pruning for user's auto content
-            user_auto_count = session.query(func.count(ContentItemAll.id)).filter(
-                ContentItemAll.source_type == 'auto',
-                ContentItemAll.creator_id == user_id
+            user_auto_count = session.query(func.count(ContentItemAuto.id)).filter(
+                ContentItemAuto.creator_id == user_id
             ).scalar() or 0
 
-        # Query partitioned table for community totals (partition pruning enabled)
-        community_regular_count = session.query(func.count(ContentItemAll.id)).filter(
-            ContentItemAll.source_type == 'items'
-        ).scalar() or 0
-
-        community_auto_count = session.query(func.count(ContentItemAll.id)).filter(
-            ContentItemAll.source_type == 'auto'
-        ).scalar() or 0
+        # Count total (community) content
+        community_regular_count = session.query(func.count(ContentItem.id)).scalar() or 0
+        community_auto_count = session.query(func.count(ContentItemAuto.id)).scalar() or 0
 
         return {
             "user_regular_count": user_regular_count,
@@ -715,31 +687,25 @@ class ContentService:
         tag_match: str = "any",
     ) -> Dict[str, Any]:
         """
-        Get paginated content from partitioned parent table content_items_all.
-
-        This method now queries the partitioned parent table directly, which eliminates
-        the need for manual UNION operations. PostgreSQL automatically handles partition
-        pruning when filtering by source_type.
+        Get paginated content from both regular and auto tables.
 
         Args:
-            pagination: Pagination parameters (supports both offset and cursor pagination)
-            content_types: List of content types to include ("regular", "auto") - LEGACY
+            pagination: Pagination parameters
+            content_types: List of content types to include ("regular", "auto", or both) - LEGACY
             creator_filter: "all", "user", or "community" - LEGACY
             content_source_types: Specific combinations (e.g., ['user-regular', 'community-auto']) - PREFERRED
             user_id: User ID for filtering
             search_term: Search term for title filtering
-            sort_field: Field to sort by (default: created_at)
+            sort_field: Field to sort by
             sort_order: Sort order ("asc" or "desc")
-            tags: List of tag UUIDs/slugs to filter by
+            tags: List of tags to filter by
             tag_match: Tag matching logic ("any" for OR, "all" for AND)
-
-        Returns:
-            Dict with items, pagination metadata, and stats
         """
         session = self.repository.db
 
-        # Normalize tags and extract UUIDs for junction table queries
         normalized_tags = list(dict.fromkeys(tags)) if tags else []
+
+        # Extract UUIDs from input tags for junction table queries (before expansion)
         tag_uuids = []
         if normalized_tags:
             from uuid import uuid5
@@ -748,63 +714,352 @@ class ContentService:
             for tag in normalized_tags:
                 tag_uuid = None
                 try:
+                    # Tags should be UUIDs (may be strings or UUID objects)
                     if isinstance(tag, UUID):
                         tag_uuid = tag
                     else:
+                        # Try to parse as UUID string
                         tag_uuid = UUID(str(tag))
                 except (ValueError, AttributeError):
+                    # Not a valid UUID string - try to convert from slug
                     if isinstance(tag, str):
                         uuid_str = get_uuid_for_slug(tag)
                         if uuid_str:
                             tag_uuid = UUID(uuid_str)
                         else:
+                            # Generate UUID for unknown tags (same as create/update logic)
                             tag_uuid = uuid5(TAG_UUID_NAMESPACE, tag)
 
                 if tag_uuid:
                     tag_uuids.append(tag_uuid)
 
-        # For backward compatibility with JSONB array queries
+        # For backward compatibility with JSONB array queries, expand to include slugs
         normalized_tags = expand_tag_identifiers(normalized_tags)
 
-        # Use junction table filter (tags column removed from content tables)
+        # Always use junction table now that tags column is removed
         use_junction_table_filter = bool(tag_uuids)
         use_python_tag_filter = False
 
-        # Map content_source_types to source_type values for partition pruning
-        source_type_filters = []
-        creator_filters = []  # List of (source_type, creator_condition) tuples
+        if session.bind is not None:
+            if session.bind.dialect.name != "postgresql":
+                # For SQLite, use junction table if we have UUIDs (tests populate it)
+                use_junction_table_filter = bool(tag_uuids)
+                use_python_tag_filter = False
 
+        # Build unified query using UNION
+        queries = []
+
+        tag_match_normalized = (tag_match or "any").lower()
+        if tag_match_normalized not in {"any", "all"}:
+            tag_match_normalized = "any"
+
+        # Parse content_source_types flags at function level so they're available in exception handlers
+        include_user_regular = False
+        include_user_auto = False
+        include_community_regular = False
+        include_community_auto = False
+
+        # Use content_source_types if provided
         if content_source_types is not None:
-            # NEW APPROACH: Parse content_source_types to determine filters
-            for cst in content_source_types:
-                if cst == 'user-regular':
-                    if user_id:
-                        creator_filters.append(('items', ContentItemAll.creator_id == user_id))
-                elif cst == 'user-auto':
-                    if user_id:
-                        creator_filters.append(('auto', ContentItemAll.creator_id == user_id))
-                elif cst == 'community-regular':
-                    if user_id:
-                        creator_filters.append(('items', ContentItemAll.creator_id != user_id))
-                elif cst == 'community-auto':
-                    if user_id:
-                        creator_filters.append(('auto', ContentItemAll.creator_id != user_id))
+            # Parse content_source_types to determine which queries to build
+            include_user_regular = 'user-regular' in content_source_types
+            include_user_auto = 'user-auto' in content_source_types
+            include_community_regular = 'community-regular' in content_source_types
+            include_community_auto = 'community-auto' in content_source_types
 
-            # Extract unique source_types
-            source_type_filters = list(set(st for st, _ in creator_filters))
+            # OPTIMIZATION: If both user and community are selected for a table,
+            # just query the entire table without creator filter (more efficient)
+            include_all_regular = include_user_regular and include_community_regular
+            include_all_auto = include_user_auto and include_community_auto
 
+            # Build regular content query - handle optimized "all" case
+            if include_all_regular:
+                # Get all regular content (no creator filter needed)
+                all_regular_query = session.query(
+                    ContentItem.id.label('id'),
+                    ContentItem.title.label('title'),
+                    ContentItem.content_type.label('content_type'),
+                    ContentItem.content_data.label('content_data'),
+                    ContentItem.path_thumb.label('path_thumb'),
+                    ContentItem.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                    ContentItem.prompt.label('prompt'),
+                    ContentItem.creator_id.label('creator_id'),
+                    ContentItem.item_metadata.label('item_metadata'),
+                    ContentItem.is_private.label('is_private'),
+                    ContentItem.quality_score.label('quality_score'),
+                    ContentItem.created_at.label('created_at'),
+                    ContentItem.updated_at.label('updated_at'),
+                    literal('regular').label('source_type'),
+                    User.username.label('creator_username')
+                ).join(User, ContentItem.creator)
+
+                if search_term:
+                    all_regular_query = self._apply_enhanced_search_filter(all_regular_query, ContentItem, search_term)
+                if not use_python_tag_filter:
+                    all_regular_query = self._apply_tag_filter_via_junction(
+                        all_regular_query,
+                        ContentItem,
+                        'regular',
+                        tag_uuids,
+                        tag_match_normalized,
+                    )
+
+                queries.append(all_regular_query)
+
+            # Build regular content query for user content
+            elif include_user_regular and user_id:
+                user_regular_query = session.query(
+                    ContentItem.id.label('id'),
+                    ContentItem.title.label('title'),
+                    ContentItem.content_type.label('content_type'),
+                    ContentItem.content_data.label('content_data'),
+                    ContentItem.path_thumb.label('path_thumb'),
+                    ContentItem.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                    ContentItem.prompt.label('prompt'),
+                    ContentItem.creator_id.label('creator_id'),
+                    ContentItem.item_metadata.label('item_metadata'),
+                    ContentItem.is_private.label('is_private'),
+                    ContentItem.quality_score.label('quality_score'),
+                    ContentItem.created_at.label('created_at'),
+                    ContentItem.updated_at.label('updated_at'),
+                    literal('regular').label('source_type'),
+                    User.username.label('creator_username')
+                ).join(User, ContentItem.creator).filter(ContentItem.creator_id == user_id)
+
+                if search_term:
+                    user_regular_query = self._apply_enhanced_search_filter(user_regular_query, ContentItem, search_term)
+                if not use_python_tag_filter:
+                    user_regular_query = self._apply_tag_filter_via_junction(
+                        user_regular_query,
+                        ContentItem,
+                        'regular',
+                        tag_uuids,
+                        tag_match_normalized,
+                    )
+
+                queries.append(user_regular_query)
+
+            # Build regular content query for community content (only if not already handled by "all" case)
+            elif include_community_regular and user_id:
+                community_regular_query = session.query(
+                    ContentItem.id.label('id'),
+                    ContentItem.title.label('title'),
+                    ContentItem.content_type.label('content_type'),
+                    ContentItem.content_data.label('content_data'),
+                    ContentItem.path_thumb.label('path_thumb'),
+                    ContentItem.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                    ContentItem.prompt.label('prompt'),
+                    ContentItem.creator_id.label('creator_id'),
+                    ContentItem.item_metadata.label('item_metadata'),
+                    ContentItem.is_private.label('is_private'),
+                    ContentItem.quality_score.label('quality_score'),
+                    ContentItem.created_at.label('created_at'),
+                    ContentItem.updated_at.label('updated_at'),
+                    literal('regular').label('source_type'),
+                    User.username.label('creator_username')
+                ).join(User, ContentItem.creator).filter(ContentItem.creator_id != user_id)
+
+                if search_term:
+                    community_regular_query = self._apply_enhanced_search_filter(community_regular_query, ContentItem, search_term)
+                if not use_python_tag_filter:
+                    community_regular_query = self._apply_tag_filter_via_junction(
+                        community_regular_query,
+                        ContentItem,
+                        'regular',
+                        tag_uuids,
+                        tag_match_normalized,
+                    )
+
+                queries.append(community_regular_query)
+
+            # Build auto content query - handle optimized "all" case
+            if include_all_auto:
+                # Get all auto content (no creator filter needed)
+                all_auto_query = session.query(
+                    ContentItemAuto.id.label('id'),
+                    ContentItemAuto.title.label('title'),
+                    ContentItemAuto.content_type.label('content_type'),
+                    ContentItemAuto.content_data.label('content_data'),
+                    ContentItemAuto.path_thumb.label('path_thumb'),
+                    ContentItemAuto.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                    ContentItemAuto.prompt.label('prompt'),
+                    ContentItemAuto.creator_id.label('creator_id'),
+                    ContentItemAuto.item_metadata.label('item_metadata'),
+                    ContentItemAuto.is_private.label('is_private'),
+                    ContentItemAuto.quality_score.label('quality_score'),
+                    ContentItemAuto.created_at.label('created_at'),
+                    ContentItemAuto.updated_at.label('updated_at'),
+                    literal('auto').label('source_type'),
+                    User.username.label('creator_username')
+                ).join(User, ContentItemAuto.creator)
+
+                if search_term:
+                    all_auto_query = self._apply_enhanced_search_filter(all_auto_query, ContentItemAuto, search_term)
+                if not use_python_tag_filter:
+                    all_auto_query = self._apply_tag_filter_via_junction(
+                        all_auto_query,
+                        ContentItemAuto,
+                        'auto',
+                        tag_uuids,
+                        tag_match_normalized,
+                    )
+
+                queries.append(all_auto_query)
+
+            # Build auto content query for user content
+            elif include_user_auto and user_id:
+                user_auto_query = session.query(
+                    ContentItemAuto.id.label('id'),
+                    ContentItemAuto.title.label('title'),
+                    ContentItemAuto.content_type.label('content_type'),
+                    ContentItemAuto.content_data.label('content_data'),
+                    ContentItemAuto.path_thumb.label('path_thumb'),
+                    ContentItemAuto.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                    ContentItemAuto.prompt.label('prompt'),
+                    ContentItemAuto.creator_id.label('creator_id'),
+                    ContentItemAuto.item_metadata.label('item_metadata'),
+                    ContentItemAuto.is_private.label('is_private'),
+                    ContentItemAuto.quality_score.label('quality_score'),
+                    ContentItemAuto.created_at.label('created_at'),
+                    ContentItemAuto.updated_at.label('updated_at'),
+                    literal('auto').label('source_type'),
+                    User.username.label('creator_username')
+                ).join(User, ContentItemAuto.creator).filter(ContentItemAuto.creator_id == user_id)
+
+                if search_term:
+                    user_auto_query = self._apply_enhanced_search_filter(user_auto_query, ContentItemAuto, search_term)
+                if not use_python_tag_filter:
+                    user_auto_query = self._apply_tag_filter_via_junction(
+                        user_auto_query,
+                        ContentItemAuto,
+                        'auto',
+                        tag_uuids,
+                        tag_match_normalized,
+                    )
+
+                queries.append(user_auto_query)
+
+            # Build auto content query for community content (only if not already handled by "all" case)
+            elif include_community_auto and user_id:
+                community_auto_query = session.query(
+                    ContentItemAuto.id.label('id'),
+                    ContentItemAuto.title.label('title'),
+                    ContentItemAuto.content_type.label('content_type'),
+                    ContentItemAuto.content_data.label('content_data'),
+                    ContentItemAuto.path_thumb.label('path_thumb'),
+                    ContentItemAuto.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                    ContentItemAuto.prompt.label('prompt'),
+                    ContentItemAuto.creator_id.label('creator_id'),
+                    ContentItemAuto.item_metadata.label('item_metadata'),
+                    ContentItemAuto.is_private.label('is_private'),
+                    ContentItemAuto.quality_score.label('quality_score'),
+                    ContentItemAuto.created_at.label('created_at'),
+                    ContentItemAuto.updated_at.label('updated_at'),
+                    literal('auto').label('source_type'),
+                    User.username.label('creator_username')
+                ).join(User, ContentItemAuto.creator).filter(ContentItemAuto.creator_id != user_id)
+
+                if search_term:
+                    community_auto_query = self._apply_enhanced_search_filter(community_auto_query, ContentItemAuto, search_term)
+                if not use_python_tag_filter:
+                    community_auto_query = self._apply_tag_filter_via_junction(
+                        community_auto_query,
+                        ContentItemAuto,
+                        'auto',
+                        tag_uuids,
+                        tag_match_normalized,
+                    )
+
+                queries.append(community_auto_query)
+
+        # LEGACY APPROACH: Use content_types and creator_filter
         else:
-            # LEGACY APPROACH: Use content_types and creator_filter
             if content_types is None:
                 content_types = ["regular", "auto"]
 
-            # Map legacy content_types to source_type values
+            # Regular content query
             if "regular" in content_types:
-                source_type_filters.append('items')
-            if "auto" in content_types:
-                source_type_filters.append('auto')
+                regular_query = session.query(
+                    ContentItem.id.label('id'),
+                    ContentItem.title.label('title'),
+                    ContentItem.content_type.label('content_type'),
+                    ContentItem.content_data.label('content_data'),
+                    ContentItem.path_thumb.label('path_thumb'),
+                    ContentItem.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                    ContentItem.prompt.label('prompt'),
+                    ContentItem.creator_id.label('creator_id'),
+                    ContentItem.item_metadata.label('item_metadata'),
+                    ContentItem.is_private.label('is_private'),
+                    ContentItem.quality_score.label('quality_score'),
+                    ContentItem.created_at.label('created_at'),
+                    ContentItem.updated_at.label('updated_at'),
+                    literal('regular').label('source_type'),
+                    User.username.label('creator_username')
+                ).join(User, ContentItem.creator)
 
-        if not source_type_filters:
+                # Apply filters
+                if creator_filter == "user" and user_id:
+                    regular_query = regular_query.filter(ContentItem.creator_id == user_id)
+                elif creator_filter == "community" and user_id:
+                    regular_query = regular_query.filter(ContentItem.creator_id != user_id)
+
+                if search_term:
+                    regular_query = self._apply_enhanced_search_filter(regular_query, ContentItem, search_term)
+
+                # Apply tag filtering - match if content has at least 1 of the specified tags
+                if not use_python_tag_filter:
+                    regular_query = self._apply_tag_filter_via_junction(
+                        regular_query,
+                        ContentItem,
+                        'regular',
+                        tag_uuids,
+                        tag_match_normalized,
+                    )
+
+                queries.append(regular_query)
+
+            # Auto content query
+            if "auto" in content_types:
+                auto_query = session.query(
+                    ContentItemAuto.id.label('id'),
+                    ContentItemAuto.title.label('title'),
+                    ContentItemAuto.content_type.label('content_type'),
+                    ContentItemAuto.content_data.label('content_data'),
+                    ContentItemAuto.path_thumb.label('path_thumb'),
+                    ContentItemAuto.path_thumbs_alt_res.label('path_thumbs_alt_res'),
+                    ContentItemAuto.prompt.label('prompt'),
+                    ContentItemAuto.creator_id.label('creator_id'),
+                    ContentItemAuto.item_metadata.label('item_metadata'),
+                    ContentItemAuto.is_private.label('is_private'),
+                    ContentItemAuto.quality_score.label('quality_score'),
+                    ContentItemAuto.created_at.label('created_at'),
+                    ContentItemAuto.updated_at.label('updated_at'),
+                    literal('auto').label('source_type'),
+                    User.username.label('creator_username')
+                ).join(User, ContentItemAuto.creator)
+
+                # Apply filters
+                if creator_filter == "user" and user_id:
+                    auto_query = auto_query.filter(ContentItemAuto.creator_id == user_id)
+                elif creator_filter == "community" and user_id:
+                    auto_query = auto_query.filter(ContentItemAuto.creator_id != user_id)
+
+                if search_term:
+                    auto_query = self._apply_enhanced_search_filter(auto_query, ContentItemAuto, search_term)
+
+                # Apply tag filtering - match if content has at least 1 of the specified tags
+                if not use_python_tag_filter:
+                    auto_query = self._apply_tag_filter_via_junction(
+                        auto_query,
+                        ContentItemAuto,
+                        'auto',
+                        tag_uuids,
+                        tag_match_normalized,
+                    )
+
+                queries.append(auto_query)
+
+        if not queries:
             # Return empty result if no content types specified
             return {
                 "items": [],
@@ -819,174 +1074,147 @@ class ContentService:
                 "stats": self.get_unified_content_stats(user_id),
             }
 
-        # Build query against partitioned parent table (ORM class)
-        query = session.query(
-            ContentItemAll.id,
-            ContentItemAll.title,
-            ContentItemAll.content_type,
-            ContentItemAll.content_data,
-            ContentItemAll.path_thumb,
-            ContentItemAll.path_thumbs_alt_res,
-            ContentItemAll.prompt,
-            ContentItemAll.creator_id,
-            ContentItemAll.item_metadata,
-            ContentItemAll.is_private,
-            ContentItemAll.quality_score,
-            ContentItemAll.created_at,
-            ContentItemAll.updated_at,
-            # Return actual partition values: 'items' for regular content, 'auto' for auto-generated
-            ContentItemAll.source_type,
-            User.username.label('creator_username')
-        ).join(User, ContentItemAll.creator_id == User.id)
+        # Combine queries with UNION
+        if len(queries) == 1:
+            unified_query = queries[0]
+        else:
+            unified_query = queries[0].union_all(*queries[1:])
 
-        # Apply partition pruning filter (CRITICAL for performance)
-        # This enables PostgreSQL to skip scanning irrelevant partitions
-        query = query.filter(ContentItemAll.source_type.in_(source_type_filters))
+        # Add sorting - create a subquery first to be able to order by the labeled columns
+        subquery = unified_query.subquery()
 
-        # Apply creator filters for content_source_types approach
-        if content_source_types is not None and creator_filters:
-            # Build OR conditions for each (source_type, creator_condition) pair
-            creator_conditions = []
-            for source_type, condition in creator_filters:
-                creator_conditions.append(and_(ContentItemAll.source_type == source_type, condition))
-
-            if creator_conditions:
-                query = query.filter(or_(*creator_conditions))
-
-        # LEGACY: Apply creator filter if using old approach
-        elif creator_filter != "all" and user_id:
-            if creator_filter == "user":
-                query = query.filter(ContentItemAll.creator_id == user_id)
-            elif creator_filter == "community":
-                query = query.filter(ContentItemAll.creator_id != user_id)
-
-        # Apply search filter (using ORM class)
-        if search_term:
-            from genonaut.api.services.search_parser import parse_search_query
-            parsed = parse_search_query(search_term)
-            search_conditions = []
-
-            for phrase in parsed.phrases:
-                if phrase:
-                    phrase_condition = or_(
-                        ContentItemAll.title.ilike(f"%{phrase}%"),
-                        ContentItemAll.prompt.ilike(f"%{phrase}%")
-                    )
-                    search_conditions.append(phrase_condition)
-
-            for word in parsed.words:
-                if word:
-                    word_condition = or_(
-                        ContentItemAll.title.ilike(f"%{word}%"),
-                        ContentItemAll.prompt.ilike(f"%{word}%")
-                    )
-                    search_conditions.append(word_condition)
-
-            if search_conditions:
-                query = query.filter(*search_conditions)
-
-        # Apply tag filtering via junction table (using ORM class)
-        tag_match_normalized = (tag_match or "any").lower()
-        if tag_match_normalized not in {"any", "all"}:
-            tag_match_normalized = "any"
-
-        if not use_python_tag_filter and tag_uuids:
-            unique_tags = list(dict.fromkeys(tag_uuids))
-
-            if tag_match_normalized == "all":
-                # For "all" matching: content must have ALL specified tags
-                for tag_id in unique_tags:
-                    exists_clause = session.query(ContentTag.content_id).filter(
-                        ContentTag.content_id == ContentItemAll.id,
-                        ContentTag.tag_id == tag_id
-                    ).exists()
-                    query = query.filter(exists_clause)
-            else:
-                # For "any" matching: content must have AT LEAST ONE of the specified tags
-                exists_clause = session.query(ContentTag.content_id).filter(
-                    ContentTag.content_id == ContentItemAll.id,
-                    ContentTag.tag_id.in_(unique_tags)
-                ).exists()
-                query = query.filter(exists_clause)
-
-        # Apply sorting (enables partition-wise sorting with MergeAppend)
         if sort_field == "created_at":
             if sort_order.lower() == "desc":
-                query = query.order_by(desc(ContentItemAll.created_at), desc(ContentItemAll.id))
+                unified_query = session.query(subquery).order_by(desc(subquery.c.created_at), desc(subquery.c.id))
             else:
-                query = query.order_by(ContentItemAll.created_at, ContentItemAll.id)
+                unified_query = session.query(subquery).order_by(subquery.c.created_at, subquery.c.id)
         elif sort_field == "quality_score":
             if sort_order.lower() == "desc":
-                query = query.order_by(desc(ContentItemAll.quality_score), desc(ContentItemAll.id))
+                unified_query = session.query(subquery).order_by(desc(subquery.c.quality_score), desc(subquery.c.id))
             else:
-                query = query.order_by(ContentItemAll.quality_score, ContentItemAll.id)
+                unified_query = session.query(subquery).order_by(subquery.c.quality_score, subquery.c.id)
         else:
             # Default sort by created_at desc
-            query = query.order_by(desc(ContentItemAll.created_at), desc(ContentItemAll.id))
+            unified_query = session.query(subquery).order_by(desc(subquery.c.created_at), desc(subquery.c.id))
 
         # Apply cursor-based filtering if cursor is provided
-        use_cursor_pagination = bool(pagination.cursor)
         if pagination.cursor:
             from genonaut.api.utils.cursor_pagination import decode_cursor, CursorError
 
             try:
                 cursor_created_at, cursor_id, cursor_src = decode_cursor(pagination.cursor)
 
-                # Apply cursor filter based on sort order (keyset pagination)
+                # Apply cursor filter based on sort order
+                # For DESC ordering: WHERE (created_at, id) < (cursor_created_at, cursor_id)
+                # For ASC ordering: WHERE (created_at, id) > (cursor_created_at, cursor_id)
                 if sort_field == "created_at":
                     if sort_order.lower() == "desc":
-                        query = query.filter(
+                        unified_query = unified_query.filter(
                             or_(
-                                ContentItemAll.created_at < cursor_created_at,
+                                subquery.c.created_at < cursor_created_at,
                                 and_(
-                                    ContentItemAll.created_at == cursor_created_at,
-                                    ContentItemAll.id < cursor_id
+                                    subquery.c.created_at == cursor_created_at,
+                                    subquery.c.id < cursor_id
                                 )
                             )
                         )
                     else:
-                        query = query.filter(
+                        unified_query = unified_query.filter(
                             or_(
-                                ContentItemAll.created_at > cursor_created_at,
+                                subquery.c.created_at > cursor_created_at,
                                 and_(
-                                    ContentItemAll.created_at == cursor_created_at,
-                                    ContentItemAll.id > cursor_id
+                                    subquery.c.created_at == cursor_created_at,
+                                    subquery.c.id > cursor_id
                                 )
                             )
                         )
+                # For other sort fields, fall back to OFFSET/LIMIT (cursor not supported)
             except CursorError:
                 # Invalid cursor - ignore and fall back to OFFSET/LIMIT
                 pass
 
-        # Get total count for pagination
+        # Get total count for pagination - use a simpler approach
+        # Quick optimization: Skip expensive count for tag-filtered junction table queries on PostgreSQL
+        # For SQLite (tests), always compute accurate count
         is_sqlite = session.bind and session.bind.dialect.name != "postgresql"
         if use_junction_table_filter and tag_uuids and not is_sqlite:
-            # Return high estimate for tag-filtered queries on large datasets
-            total_count = 999999
+            # Return a high estimate instead of accurate count to avoid timeout on large PostgreSQL datasets
+            # This is acceptable for pagination UX - users rarely go beyond first few pages
+            total_count = 999999  # High estimate to indicate "many results"
         else:
             try:
-                # Count query - remove ORDER BY for performance
-                count_query = query.order_by(None)
-                total_count = count_query.count()
+                # Count from the original union query (before sorting)
+                original_union = queries[0] if len(queries) == 1 else queries[0].union_all(*queries[1:])
+                count_subquery = original_union.subquery()
+                total_count = session.query(func.count()).select_from(count_subquery).scalar() or 0
             except Exception:
-                # Fallback to simple count
-                count_query = session.query(func.count(ContentItemAll.id)).filter(
-                    ContentItemAll.source_type.in_(source_type_filters)
-                )
-                if search_term:
-                    count_query = count_query.filter(ContentItemAll.title.ilike(f"%{search_term}%"))
-                total_count = count_query.scalar() or 0
+                # Fallback: calculate count separately for each table
+                total_count = 0
+
+            # When using content_source_types, derive what to count from the parsed flags
+            if content_source_types is not None:
+                # NEW APPROACH: Count based on content_source_types
+                if include_user_regular or include_community_regular:
+                    regular_count_query = session.query(func.count(ContentItem.id))
+                    if include_user_regular and not include_community_regular and user_id:
+                        regular_count_query = regular_count_query.filter(ContentItem.creator_id == user_id)
+                    elif include_community_regular and not include_user_regular and user_id:
+                        regular_count_query = regular_count_query.filter(ContentItem.creator_id != user_id)
+                    if search_term:
+                        regular_count_query = regular_count_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
+                    total_count += regular_count_query.scalar() or 0
+
+                if include_user_auto or include_community_auto:
+                    auto_count_query = session.query(func.count(ContentItemAuto.id))
+                    if include_user_auto and not include_community_auto and user_id:
+                        auto_count_query = auto_count_query.filter(ContentItemAuto.creator_id == user_id)
+                    elif include_community_auto and not include_user_auto and user_id:
+                        auto_count_query = auto_count_query.filter(ContentItemAuto.creator_id != user_id)
+                    if search_term:
+                        auto_count_query = auto_count_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
+                    total_count += auto_count_query.scalar() or 0
+            else:
+                # LEGACY APPROACH: Use content_types
+                if content_types and "regular" in content_types:
+                    regular_count_query = session.query(func.count(ContentItem.id))
+                    if creator_filter == "user" and user_id:
+                        regular_count_query = regular_count_query.filter(ContentItem.creator_id == user_id)
+                    elif creator_filter == "community" and user_id:
+                        regular_count_query = regular_count_query.filter(ContentItem.creator_id != user_id)
+                    if search_term:
+                        regular_count_query = regular_count_query.filter(ContentItem.title.ilike(f"%{search_term}%"))
+                    total_count += regular_count_query.scalar() or 0
+
+                if content_types and "auto" in content_types:
+                    auto_count_query = session.query(func.count(ContentItemAuto.id))
+                    if creator_filter == "user" and user_id:
+                        auto_count_query = auto_count_query.filter(ContentItemAuto.creator_id == user_id)
+                    elif creator_filter == "community" and user_id:
+                        auto_count_query = auto_count_query.filter(ContentItemAuto.creator_id != user_id)
+                    if search_term:
+                        auto_count_query = auto_count_query.filter(ContentItemAuto.title.ilike(f"%{search_term}%"))
+                    total_count += auto_count_query.scalar() or 0
 
         # Apply pagination
-        offset = (pagination.page - 1) * pagination.page_size if pagination.page > 0 else 0
-        if not use_cursor_pagination:
-            query = query.offset(offset)
-        query = query.limit(pagination.page_size)
+        # Use cursor pagination if cursor is provided, otherwise use offset pagination
+        use_cursor_pagination = bool(pagination.cursor and sort_field == "created_at")
 
-        # Execute query and format results
-        rows = query.all()
+        if use_cursor_pagination:
+            # Cursor pagination: just apply LIMIT (cursor filter already applied above)
+            paginated_query = unified_query.limit(pagination.page_size)
+        else:
+            # Traditional offset pagination
+            offset = (pagination.page - 1) * pagination.page_size
+            paginated_query = unified_query
+            if not use_python_tag_filter:
+                paginated_query = unified_query.offset(offset).limit(pagination.page_size)
+
+        # Execute query
+        results = paginated_query.all()
+
+        # Convert results to dictionaries
         items = []
-        for row in rows:
+        for row in results:
             items.append({
                 "id": row.id,
                 "title": row.title,
@@ -1005,12 +1233,26 @@ class ContentService:
                 "source_type": row.source_type,
             })
 
-        # Calculate pagination metadata
-        if total_count == 999999 and len(items) == 0 and pagination.page == 1:
-            total_count = 0
-        total_pages = (total_count + pagination.page_size - 1) // pagination.page_size if pagination.page_size else 0
-        has_next = pagination.page < total_pages
-        has_previous = pagination.page > 1
+        if use_python_tag_filter:
+            filtered_items = [
+                item
+                for item in items
+                if self._matches_tag_logic(item.get("tags"), normalized_tags, tag_match_normalized)
+            ]
+            total_count = len(filtered_items)
+            total_pages = (total_count + pagination.page_size - 1) // pagination.page_size if pagination.page_size else 0
+            start = offset
+            end = offset + pagination.page_size
+            items = filtered_items[start:end]
+            has_next = pagination.page < total_pages
+            has_previous = pagination.page > 1 and total_pages > 0
+        else:
+            # If we used the 999999 estimate but got no results, correct the count
+            if total_count == 999999 and len(items) == 0 and pagination.page == 1:
+                total_count = 0
+            total_pages = (total_count + pagination.page_size - 1) // pagination.page_size if pagination.page_size else 0
+            has_next = pagination.page < total_pages
+            has_previous = pagination.page > 1
 
         # Generate next/prev cursors if using cursor pagination
         next_cursor = None
@@ -1018,9 +1260,11 @@ class ContentService:
         if use_cursor_pagination and items:
             from genonaut.api.utils.cursor_pagination import create_next_cursor, create_prev_cursor
 
+            # Create next cursor from last item (if we got full page, there might be more)
             if len(items) == pagination.page_size:
                 next_cursor = create_next_cursor(items)
 
+            # Create prev cursor from first item (if we have a cursor, there's a previous page)
             if pagination.cursor:
                 prev_cursor = create_prev_cursor(items)
 

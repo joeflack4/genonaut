@@ -127,6 +127,19 @@ Seed-data directories for the main and demo databases are configured in `config.
 - Adds a dedicated full-text search index (`cia_title_fts_idx`) for PostgreSQL deployments
 - Exposed through the `/api/v1/content-auto` REST endpoints for CRUD, search, analytics, and statistics
 
+**Partitioned Parent Table (`content_items_all`):**
+- PostgreSQL partitioned parent table combining `content_items` and `content_items_auto`
+- Partitioned by `source_type` column: `'items'` (regular) or `'auto'` (auto-generated)
+- **Benefits**:
+  - Eliminates manual UNION queries for unified content access
+  - Enables PostgreSQL partition pruning when filtering by `source_type`
+  - MergeAppend optimization for sorted queries across partitions
+  - Simplifies cursor pagination (single table instead of multi-table encoding)
+- **Performance**: Sub-millisecond query times with partition pruning (< 0.2ms for single partition, < 0.4ms for both)
+- **Usage**: Query `content_items_all` for unified content; INSERT/UPDATE/DELETE automatically routes to correct partition
+- **Indexes**: Per-partition keyset pagination indexes (`idx_content_items_created_id_desc`, `idx_content_items_auto_created_id_desc`)
+- **Implementation**: Phase 11 performance optimization (see `notes/perf-updates-2025-10-17.md`)
+
 **User Interactions Table (`user_interactions`):**
 - `id` (Primary Key): Unique interaction identifier
 - `user_id` (Foreign Key): Reference to the user

@@ -1,28 +1,25 @@
 """Unit tests for Celery worker tasks."""
 
 import uuid
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Generator
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from genonaut.db.schema import Base, User, GenerationJob, ContentItem
+from sqlalchemy.orm import Session
+from genonaut.db.schema import User, GenerationJob, ContentItem
 from genonaut.worker.tasks import process_comfy_job
+
+# Import PostgreSQL fixtures
+from test.db.postgres_fixtures import postgres_engine, postgres_session
 
 
 @pytest.fixture()
-def db_session():
-    """Provide an in-memory SQLite session for task testing."""
+def db_session(postgres_session) -> Generator[Session, None, None]:
+    """Yield a PostgreSQL session for worker tests.
 
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(bind=engine)
-    session = SessionLocal()
-
-    try:
-        yield session
-    finally:
-        session.close()
+    This fixture uses the PostgreSQL test database with automatic rollback
+    for test isolation. Provides isolation between tests.
+    """
+    yield postgres_session
 
 
 class DummyComfyClient:

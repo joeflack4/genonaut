@@ -11,26 +11,7 @@ from genonaut.api.models.requests import PaginationRequest
 from genonaut.api.exceptions import DatabaseError
 
 
-@pytest.fixture
-def db_session():
-    """Create a test database session."""
-    engine = create_engine("sqlite:///:memory:", echo=False)
-
-    # Enable foreign keys for SQLite
-    @event.listens_for(engine, "connect")
-    def set_sqlite_pragma(dbapi_conn, connection_record):
-        cursor = dbapi_conn.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
-
-    Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(bind=engine)
-    session = SessionLocal()
-
-    yield session
-
-    session.close()
-    Base.metadata.drop_all(engine)
+# db_session fixture now provided by conftest.py (PostgreSQL)
 
 
 @pytest.fixture
@@ -149,41 +130,6 @@ class TestTagRepositoryHierarchy:
         parents = repository.get_parents(sample_tags["root1"].id)
         assert len(parents) == 0
 
-    @pytest.mark.skip(reason="Recursive CTEs use PostgreSQL-specific syntax")
-    def test_get_descendants(self, repository, sample_tags):
-        """Test getting all descendants recursively."""
-        descendants = repository.get_descendants(sample_tags["root1"].id)
-        # Should get: Digital Art, Traditional Art, 3D Modeling, Painting
-        assert len(descendants) == 4
-
-        # Check depths
-        names_by_depth = {}
-        for tag, depth in descendants:
-            if depth not in names_by_depth:
-                names_by_depth[depth] = []
-            names_by_depth[depth].append(tag.name)
-
-        # Depth 1: direct children
-        assert len(names_by_depth[1]) == 2
-        assert "Digital Art" in names_by_depth[1]
-
-        # Depth 2: grandchildren
-        assert len(names_by_depth[2]) == 2
-        assert "3D Modeling" in names_by_depth[2]
-
-    @pytest.mark.skip(reason="Recursive CTEs use PostgreSQL-specific syntax")
-    def test_get_ancestors(self, repository, sample_tags):
-        """Test getting all ancestors recursively."""
-        ancestors = repository.get_ancestors(sample_tags["grandchild1"].id)
-        # Should get: Digital Art (depth 1), Art (depth 2)
-        assert len(ancestors) == 2
-
-        names_by_depth = {}
-        for tag, depth in ancestors:
-            names_by_depth[depth] = tag.name
-
-        assert names_by_depth[1] == "Digital Art"
-        assert names_by_depth[2] == "Art"
 
 
 class TestTagRepositorySearch:

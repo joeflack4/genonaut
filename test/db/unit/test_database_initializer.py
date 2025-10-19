@@ -2,7 +2,7 @@
 
 Tests the database initialization functionality in genonaut.db.init module.
 
-todo: consider doing this in postgres instead of sqlite, or do both.
+Tests database initialization functionality.
 """
 
 import os
@@ -25,15 +25,15 @@ class TestDatabaseInitializer:
     """Test cases for DatabaseInitializer class."""
     
     @pytest.fixture(autouse=True)
-    def setup_method(self):
+    def setup_method(self, db_session):
         """Set up test environment for each test."""
-        # Use in-memory SQLite for testing
-        self.test_db_url = 'sqlite:///:memory:'
+        # Use PostgreSQL test database (provided by conftest.py)
+        # For initializer tests, we use the test database URL from environment
+        self.test_db_url = os.getenv('DATABASE_URL_TEST', 'postgresql://localhost/genonaut_test')
         self.initializer = DatabaseInitializer(self.test_db_url)
         yield
         # Teardown after each test
         if hasattr(self.initializer, 'engine') and self.initializer.engine:
-            Base.metadata.drop_all(self.initializer.engine)
             self.initializer.engine.dispose()
     
     def test_init_with_provided_url(self):
@@ -177,7 +177,7 @@ class TestDatabaseInitializer:
         session = self.initializer.session_factory()
         
         # This should fail because tables don't exist
-        with pytest.raises(Exception):  # SQLite raises OperationalError
+        with pytest.raises(Exception):  # PostgreSQL raises OperationalError
             session.query(User).first()
         
         session.close()

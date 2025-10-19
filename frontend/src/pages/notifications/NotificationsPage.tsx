@@ -332,7 +332,7 @@ export function NotificationsPage() {
         </List>
       )}
 
-      <Dialog open={pendingDeleteId !== null} onClose={handleCancelDelete} data-testid="notifications-delete-dialog">
+      <Dialog open={pendingDeleteId !== null} onClose={handleCancelDelete} data-testid="notifications-delete-dialog" disableRestoreFocus>
         <DialogTitle>Delete notification?</DialogTitle>
         <DialogContent>
           <Typography variant="body2">Are you sure you want to delete this notification?</Typography>

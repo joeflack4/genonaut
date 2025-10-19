@@ -1,8 +1,9 @@
 /**
  * Dropdown component displaying recent search history.
- * Shows the 3 most recent searches with delete buttons.
+ * Shows the 3 most recent UNIQUE searches with delete buttons.
  */
 
+import { useMemo } from 'react'
 import { Box, List, ListItem, ListItemText, IconButton, Typography, Paper, Button, Divider } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import { useNavigate } from 'react-router-dom'
@@ -37,7 +38,19 @@ export function SearchHistoryDropdown({
 }: SearchHistoryDropdownProps) {
   const navigate = useNavigate()
 
-  if (!show || items.length === 0) {
+  // Deduplicate items - keep only the most recent instance of each unique query
+  const uniqueItems = useMemo(() => {
+    const seen = new Set<string>()
+    return items.filter(item => {
+      if (seen.has(item.search_query)) {
+        return false
+      }
+      seen.add(item.search_query)
+      return true
+    })
+  }, [items])
+
+  if (!show || uniqueItems.length === 0) {
     return null
   }
 
@@ -61,7 +74,7 @@ export function SearchHistoryDropdown({
       }}
     >
       <List dense>
-        {items.map((item) => (
+        {uniqueItems.map((item) => (
           <ListItem
             key={item.id}
             data-testid={`search-history-item-${item.id}`}

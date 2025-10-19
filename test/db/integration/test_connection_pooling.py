@@ -19,12 +19,11 @@ def test_connection_pool_exists(db_session):
 
 
 @pytest.mark.db_integration
-def test_connection_pool_size_configured(db_session):
+def test_connection_pool_size_configured(db_session, postgres_engine):
     """Test that connection pool has configured size."""
-    # Verify session has an engine with a pool
-    engine = db_session.get_bind()
-    assert hasattr(engine, 'pool')
-    assert engine.pool is not None
+    # Verify engine has a pool (db_session.get_bind() returns Connection, not Engine)
+    assert hasattr(postgres_engine, 'pool')
+    assert postgres_engine.pool is not None
 
 
 @pytest.mark.db_integration
@@ -88,10 +87,10 @@ def test_connection_pool_doesnt_exhaust(db_session):
 
 
 @pytest.mark.db_integration
-def test_connections_released_after_use(db_session):
+def test_connections_released_after_use(db_session, postgres_engine):
     """Test that connections are properly released back to pool."""
-    engine = db_session.get_bind()
-    pool = engine.pool
+    # Access pool from engine (db_session.get_bind() returns Connection, not Engine)
+    pool = postgres_engine.pool
 
     # Make a query
     count = db_session.query(User).count()

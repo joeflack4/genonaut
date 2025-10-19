@@ -4,7 +4,7 @@ import pytest
 from uuid import uuid4
 
 from genonaut.api.services.notification_service import NotificationService
-from genonaut.db.schema import User
+from genonaut.db.schema import User, ContentItem, GenerationJob
 from genonaut.api.models.enums import NotificationType
 from genonaut.api.exceptions import EntityNotFoundError, ValidationError
 
@@ -41,6 +41,38 @@ def test_user_with_notifications_disabled(test_db_session):
 def notification_service(test_db_session):
     """Create notification service instance."""
     return NotificationService(test_db_session)
+
+
+@pytest.fixture
+def test_content_item(test_db_session, test_user_with_notifications_enabled):
+    """Create a test content item for notifications."""
+    content = ContentItem(
+        title="Test Content",
+        content_type="image",
+        content_data="/path/to/test.jpg",
+        creator_id=test_user_with_notifications_enabled.id,
+        prompt="test prompt"
+    )
+    test_db_session.add(content)
+    test_db_session.commit()
+    test_db_session.refresh(content)
+    return content
+
+
+@pytest.fixture
+def test_generation_job(test_db_session, test_user_with_notifications_enabled):
+    """Create a test generation job for notifications."""
+    job = GenerationJob(
+        user_id=test_user_with_notifications_enabled.id,
+        job_type="image",
+        prompt="test prompt",
+        params={"test": True},
+        status="completed"
+    )
+    test_db_session.add(job)
+    test_db_session.commit()
+    test_db_session.refresh(job)
+    return job
 
 
 class TestNotificationService:
@@ -101,19 +133,19 @@ class TestNotificationService:
                 notification_type=NotificationType.JOB_COMPLETED
             )
 
-    def test_create_job_completion_notification(self, notification_service, test_user_with_notifications_enabled):
+    def test_create_job_completion_notification(self, notification_service, test_user_with_notifications_enabled, test_generation_job, test_content_item):
         """Test creating job completion notification."""
         notification = notification_service.create_job_completion_notification(
             user_id=test_user_with_notifications_enabled.id,
-            job_id=123,
-            content_id=456
+            job_id=test_generation_job.id,
+            content_id=test_content_item.id
         )
 
         assert notification is not None
         assert notification.title == "Generation Complete"
         assert notification.notification_type == NotificationType.JOB_COMPLETED.value
-        assert notification.related_job_id == 123
-        assert notification.related_content_id == 456
+        assert notification.related_job_id == test_generation_job.id
+        assert notification.related_content_id == test_content_item.id
 
     def test_get_user_notifications_filtered(self, notification_service, test_user_with_notifications_enabled):
         """Test listing notifications with type filters."""
@@ -181,11 +213,11 @@ class TestNotificationService:
         with pytest.raises(EntityNotFoundError):
             notification_service.get_notification(99999, test_user_with_notifications_enabled.id)
 
-    def test_create_job_failure_notification(self, notification_service, test_user_with_notifications_enabled):
+    def test_create_job_failure_notification(self, notification_service, test_user_with_notifications_enabled, test_generation_job):
         """Test creating job failure notification."""
         notification = notification_service.create_job_failure_notification(
             user_id=test_user_with_notifications_enabled.id,
-            job_id=123,
+            job_id=test_generation_job.id,
             error_message="Test error"
         )
 
@@ -193,7 +225,7 @@ class TestNotificationService:
         assert notification.title == "Generation Failed"
         assert "Test error" in notification.message
         assert notification.notification_type == NotificationType.JOB_FAILED.value
-        assert notification.related_job_id == 123
+        assert notification.related_job_id == test_generation_job.id
 
     def test_mark_notification_read(self, notification_service, test_user_with_notifications_enabled):
         """Test marking notification as read."""

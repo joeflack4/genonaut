@@ -6,13 +6,14 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import Session
 
 from genonaut.api.main import create_app
 from genonaut.api.dependencies import get_database_session
-from genonaut.db.schema import Base, User, Tag, TagParent
+from genonaut.db.schema import User, Tag, TagParent
+
+# Import PostgreSQL fixtures
+from test.db.postgres_fixtures import postgres_engine, postgres_session
 
 
 # Ensure FastAPI loads the lightweight test configuration once per test session.
@@ -21,35 +22,23 @@ os.environ.setdefault("ENV_TARGET", "local-test")
 
 
 @pytest.fixture()
-def engine() -> Generator:
-    """Provide an in-memory SQLite engine for API tests."""
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(engine)
-    try:
-        yield engine
-    finally:
-        Base.metadata.drop_all(engine)
-        engine.dispose()
+def db_session(postgres_session) -> Generator[Session, None, None]:
+    """Yield a PostgreSQL session for API tests.
 
-
-@pytest.fixture()
-def db_session(engine) -> Generator[Session, None, None]:
-    """Yield a SQLAlchemy session bound to the in-memory database."""
-    SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
-    session = SessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
+    This fixture uses the PostgreSQL test database with automatic rollback
+    for test isolation.
+    """
+    yield postgres_session
 
 
 @pytest.fixture()
 def api_client(db_session: Session) -> Generator[TestClient, None, None]:
-    """Return a FastAPI TestClient with the database dependency overridden."""
+    """Return a FastAPI TestClient with the database dependency overridden.
+
+    With PostgreSQL, the postgres_session fixture already handles transaction
+    rollback, so we don't need to rollback here. Rollback in the override
+    would delete fixture data created before the API call.
+    """
 
     app = create_app()
 
@@ -57,7 +46,9 @@ def api_client(db_session: Session) -> Generator[TestClient, None, None]:
         try:
             yield db_session
         finally:
-            db_session.rollback()
+            # Don't rollback here - postgres_session fixture handles cleanup
+            # Rollback here would undo fixture data (sample_user, sample_tags, etc.)
+            pass
 
     app.dependency_overrides[get_database_session] = override_get_db
     client = TestClient(app)

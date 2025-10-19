@@ -399,6 +399,7 @@ export function SearchHistoryPage() {
         open={clearDialogOpen}
         onClose={() => setClearDialogOpen(false)}
         data-testid="clear-dialog"
+        disableRestoreFocus
       >
         <DialogTitle>Clear All Search History?</DialogTitle>
         <DialogContent>

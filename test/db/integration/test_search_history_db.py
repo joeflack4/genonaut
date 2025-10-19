@@ -1,7 +1,7 @@
 """Database tests for user search history CRUD operations."""
 
 import pytest
-from uuid import UUID
+from uuid import UUID, uuid4
 from datetime import datetime, timedelta
 
 from genonaut.db.schema import UserSearchHistory, User
@@ -10,10 +10,12 @@ from genonaut.api.repositories.user_search_history_repository import UserSearchH
 
 @pytest.fixture
 def test_user(db_session):
-    """Create a test user for search history tests."""
+    """Create a test user for search history tests with unique email."""
+    # Use UUID to ensure unique email for each test
+    unique_id = str(uuid4())[:8]
     user = User(
-        username='test-user',
-        email='test@example.com'
+        username=f'test-user-{unique_id}',
+        email=f'test-{unique_id}@example.com'
     )
     db_session.add(user)
     db_session.commit()

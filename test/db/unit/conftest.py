@@ -1,4 +1,4 @@
-"""Conftest for API unit tests.
+"""Shared fixtures for database unit tests.
 
 These fixtures now use PostgreSQL test database .
 The PostgreSQL test database must be initialized before running tests:
@@ -6,15 +6,19 @@ The PostgreSQL test database must be initialized before running tests:
 """
 
 import pytest
+
+# Import PostgreSQL fixtures from parent conftest
+# These are already available through test/db/conftest.py
 from test.db.postgres_fixtures import postgres_session, postgres_engine
 
 
+# Create alias for backward compatibility
 @pytest.fixture(scope="function")
-def test_db_session(postgres_session):
-    """Database session fixture for API unit tests (now uses PostgreSQL).
+def db_session(postgres_session):
+    """Database session fixture (now uses PostgreSQL).
 
     This is an alias for postgres_session to maintain backward compatibility
-    with existing tests that use test_db_session.
+    with existing tests that use db_session.
 
     The session automatically rolls back after each test for isolation.
     """

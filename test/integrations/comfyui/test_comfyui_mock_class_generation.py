@@ -27,17 +27,7 @@ TEST_OUTPUT_DIR = Path(__file__).parent.parent / "output" / "comfyui_images"
 TEST_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-@pytest.fixture(scope="function")
-def db_session():
-    """Create a test database session with in-memory SQLite."""
-    engine = create_engine("sqlite:///:memory:", echo=False)
-    Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(bind=engine)
-    session = SessionLocal()
-
-    yield session
-
-    session.close()
+# Use PostgreSQL test database via db_session fixture from conftest.py
 
 
 class TestComfyUIIntegration:

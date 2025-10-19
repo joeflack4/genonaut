@@ -276,7 +276,7 @@ export function AdminFlaggedContentPage() {
       </Drawer>
 
       {/* Bulk Delete Confirmation Dialog */}
-      <Dialog open={bulkDeleteDialogOpen} onClose={() => setBulkDeleteDialogOpen(false)} data-testid="admin-flagged-bulk-dialog">
+      <Dialog open={bulkDeleteDialogOpen} onClose={() => setBulkDeleteDialogOpen(false)} data-testid="admin-flagged-bulk-dialog" disableRestoreFocus>
         <DialogTitle data-testid="admin-flagged-bulk-dialog-title">Bulk Delete Flagged Content</DialogTitle>
         <DialogContent>
           <DialogContentText data-testid="admin-flagged-bulk-dialog-text">

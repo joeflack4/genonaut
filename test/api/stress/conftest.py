@@ -1,56 +1,28 @@
 """Shared fixtures for pagination stress tests."""
 
 import pytest
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
 
-from genonaut.db.schema import Base
-
-
-@pytest.fixture(scope="function")
-def db_session():
-    """Create a test database session with in-memory SQLite for stress tests."""
-    engine = create_engine("sqlite:///:memory:", echo=False)
-    Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(bind=engine)
-    session = SessionLocal()
-
-    yield session
-
-    session.close()
+# Import PostgreSQL test database fixture
+from test.db.postgres_fixtures import postgres_session
 
 
 @pytest.fixture(scope="function")
-def large_db_session():
-    """Create a test database session optimized for large datasets."""
-    # Use faster settings for stress tests
-    engine = create_engine(
-        "sqlite:///:memory:",
-        echo=False,
-        connect_args={
-            "check_same_thread": False,
-        },
-        pool_pre_ping=True
-    )
+def db_session(postgres_session):
+    """Database session fixture (now uses PostgreSQL).
 
-    # Create tables
-    Base.metadata.create_all(engine)
+    This is an alias for postgres_session to maintain backward compatibility
+    with existing tests that use db_session.
 
-    # Configure session for bulk operations
-    SessionLocal = sessionmaker(
-        bind=engine,
-        expire_on_commit=False  # Better for bulk operations
-    )
+    The session automatically rolls back after each test for isolation.
+    """
+    return postgres_session
 
-    session = SessionLocal()
 
-    # SQLite optimizations for bulk operations
-    session.execute(text("PRAGMA journal_mode=WAL"))
-    session.execute(text("PRAGMA synchronous=NORMAL"))
-    session.execute(text("PRAGMA cache_size=10000"))
-    session.execute(text("PRAGMA temp_store=MEMORY"))
-    session.commit()
+@pytest.fixture(scope="function")
+def large_db_session(postgres_session):
+    """Database session optimized for large datasets (now uses PostgreSQL).
 
-    yield session
-
-    session.close()
+    This is an alias for postgres_session. PostgreSQL is already optimized
+    for large datasets, so no additional configuration is needed.
+    """
+    return postgres_session

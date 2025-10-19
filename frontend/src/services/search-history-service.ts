@@ -59,11 +59,12 @@ export const searchHistoryService = {
   },
 
   /**
-   * Get user's most recent search queries (non-aggregated).
+   * Get user's most recent unique search queries (aggregated).
+   * Returns the most recent unique searches sorted by last_searched_at descending.
    */
-  getRecentSearches: async (userId: string, limit: number = 3): Promise<SearchHistoryRecord[]> => {
-    const response = await apiClient.get<SearchHistoryListResponse>(
-      `/api/v1/users/${userId}/search-history/recent?limit=${limit}`
+  getRecentSearches: async (userId: string, limit: number = 5): Promise<SearchHistoryItem[]> => {
+    const response = await apiClient.get<SearchHistoryPaginatedResponse>(
+      `/api/v1/users/${userId}/search-history?page=1&page_size=${limit}`
     )
     return response.items
   },

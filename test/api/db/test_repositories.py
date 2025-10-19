@@ -1,11 +1,9 @@
-"""Database tests for API repositories."""
+"""Database tests for API repositories (PostgreSQL)."""
 
 import os
 import uuid
 import pytest
 from datetime import datetime
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from unittest.mock import patch
 
 from genonaut.db.schema import (
@@ -24,18 +22,18 @@ from genonaut.api.repositories.recommendation_repository import RecommendationRe
 from genonaut.api.repositories.generation_job_repository import GenerationJobRepository
 from genonaut.api.exceptions import EntityNotFoundError, DatabaseError
 
+# Import PostgreSQL fixtures
+from test.db.postgres_fixtures import postgres_session
+
 
 @pytest.fixture(scope="function")
-def test_db_session():
-    """Create a test database session with in-memory SQLite."""
-    engine = create_engine("sqlite:///:memory:", echo=False)
-    Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(bind=engine)
-    session = SessionLocal()
-    
-    yield session
-    
-    session.close()
+def test_db_session(postgres_session):
+    """Create a test database session using PostgreSQL test database.
+
+    This is an alias for postgres_session to maintain backward compatibility
+    with existing tests. The session automatically rolls back after each test.
+    """
+    return postgres_session
 
 
 @pytest.fixture
@@ -69,8 +67,6 @@ def sample_content(test_db_session, sample_user):
     test_db_session.add(content)
     test_db_session.commit()
     test_db_session.refresh(content)
-
-    # Populate content_tags junction table for SQLite tests
     sync_content_tags_for_tests(test_db_session, content.id, 'regular', tags)
 
     return content
@@ -92,8 +88,6 @@ def sample_auto_content(test_db_session, sample_user):
     test_db_session.add(content)
     test_db_session.commit()
     test_db_session.refresh(content)
-
-    # Populate content_tags junction table for SQLite tests
     sync_content_tags_for_tests(test_db_session, content.id, 'auto', tags)
 
     return content
@@ -130,24 +124,28 @@ class TestUserRepository:
     def test_get_user_not_found(self, test_db_session):
         """Test getting user that doesn't exist."""
         repo = UserRepository(test_db_session)
-        
-        user = repo.get(999)
+
+        # Use a non-existent UUID instead of integer (PostgreSQL requires UUID type)
+        non_existent_id = uuid.UUID('99999999-9999-9999-9999-999999999999')
+        user = repo.get(non_existent_id)
         assert user is None
-    
+
     def test_get_user_or_404(self, test_db_session, sample_user):
         """Test get_or_404 method with existing user."""
         repo = UserRepository(test_db_session)
-        
+
         user = repo.get_or_404(sample_user.id)
         assert user.id == sample_user.id
-    
+
     def test_get_user_or_404_not_found(self, test_db_session):
         """Test get_or_404 method raises exception for non-existent user."""
         repo = UserRepository(test_db_session)
-        
+
+        # Use a non-existent UUID instead of integer (PostgreSQL requires UUID type)
+        non_existent_id = uuid.UUID('99999999-9999-9999-9999-999999999999')
         with pytest.raises(EntityNotFoundError) as exc_info:
-            repo.get_or_404(999)
-        assert "User with id 999 not found" in str(exc_info.value.detail)
+            repo.get_or_404(non_existent_id)
+        assert f"User with id {non_existent_id} not found" in str(exc_info.value.detail)
     
     def test_update_user(self, test_db_session, sample_user):
         """Test updating user."""
@@ -194,13 +192,8 @@ class TestUserRepository:
         user1 = User(username="user1", email="user1@test.com", preferences={"theme": "dark"})
         user2 = User(username="user2", email="user2@test.com", preferences={"theme": "light"})
         test_db_session.add_all([user1, user2])
-        test_db_session.commit()
-        
-        # Note: SQLite doesn't support JSONB operations like PostgreSQL
-        # This test would work differently in a real PostgreSQL environment
-        users = repo.get_by_preferences_filter({"theme": "dark"})
-        # In SQLite, this might return all users or none depending on implementation
-        # The real test would be in PostgreSQL with proper JSONB support
+        test_db_session.commit()        # This test would work differently in a real PostgreSQL environment
+        users = repo.get_by_preferences_filter({"theme": "dark"})        # The real test would be in PostgreSQL with proper JSONB support
         assert isinstance(users, list)
     
     def test_get_active_users(self, test_db_session, sample_user):

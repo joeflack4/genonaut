@@ -343,6 +343,7 @@ export function GenerationHistory() {
         open={pendingDeleteId !== null}
         onClose={handleCancelDelete}
         data-testid="generation-delete-dialog"
+        disableRestoreFocus
       >
         <DialogTitle>Delete generation?</DialogTitle>
         <DialogContent>

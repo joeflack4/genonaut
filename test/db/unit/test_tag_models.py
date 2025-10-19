@@ -6,8 +6,7 @@ Tests the Tag, TagParent, and TagRating models.
 import pytest
 import uuid
 from datetime import datetime
-from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import event
 from sqlalchemy.exc import IntegrityError
 
 from genonaut.db.schema import Base, User, Tag, TagParent, TagRating
@@ -17,19 +16,10 @@ class TestTagModel:
     """Test cases for Tag model."""
 
     @pytest.fixture(autouse=True)
-    def setup_method(self):
+    def setup_method(self, db_session):
         """Set up test database and session for each test."""
-        # Use in-memory SQLite database for testing
-        self.engine = create_engine('sqlite:///:memory:', echo=False)
-        Base.metadata.create_all(self.engine)
-
-        Session = sessionmaker(bind=self.engine)
-        self.session = Session()
-
-    def teardown_method(self):
-        """Clean up after each test."""
-        self.session.close()
-        Base.metadata.drop_all(self.engine)
+        # Use PostgreSQL test database (provided by conftest.py)
+        self.session = db_session
 
     def test_tag_creation(self):
         """Test Tag model creation and basic attributes."""
@@ -105,21 +95,10 @@ class TestTagParentModel:
     """Test cases for TagParent model (parent-child relationships)."""
 
     @pytest.fixture(autouse=True)
-    def setup_method(self):
+    def setup_method(self, db_session):
         """Set up test database and session for each test."""
-        self.engine = create_engine('sqlite:///:memory:', echo=False)
-
-        # Enable foreign key constraints for SQLite
-        @event.listens_for(self.engine, "connect")
-        def set_sqlite_pragma(dbapi_conn, connection_record):
-            cursor = dbapi_conn.cursor()
-            cursor.execute("PRAGMA foreign_keys=ON")
-            cursor.close()
-
-        Base.metadata.create_all(self.engine)
-
-        Session = sessionmaker(bind=self.engine)
-        self.session = Session()
+        # Use PostgreSQL test database (provided by conftest.py)
+        self.session = db_session
 
         # Create test tags
         self.parent_tag = Tag(name="Art Styles", tag_metadata={})
@@ -127,11 +106,6 @@ class TestTagParentModel:
 
         self.session.add_all([self.parent_tag, self.child_tag])
         self.session.commit()
-
-    def teardown_method(self):
-        """Clean up after each test."""
-        self.session.close()
-        Base.metadata.drop_all(self.engine)
 
     def test_tag_parent_creation(self):
         """Test TagParent model creation."""
@@ -241,21 +215,10 @@ class TestTagRatingModel:
     """Test cases for TagRating model."""
 
     @pytest.fixture(autouse=True)
-    def setup_method(self):
+    def setup_method(self, db_session):
         """Set up test database and session for each test."""
-        self.engine = create_engine('sqlite:///:memory:', echo=False)
-
-        # Enable foreign key constraints for SQLite
-        @event.listens_for(self.engine, "connect")
-        def set_sqlite_pragma(dbapi_conn, connection_record):
-            cursor = dbapi_conn.cursor()
-            cursor.execute("PRAGMA foreign_keys=ON")
-            cursor.close()
-
-        Base.metadata.create_all(self.engine)
-
-        Session = sessionmaker(bind=self.engine)
-        self.session = Session()
+        # Use PostgreSQL test database (provided by conftest.py)
+        self.session = db_session
 
         # Create test user and tag
         self.user = User(username="testuser", email="test@example.com")
@@ -263,11 +226,6 @@ class TestTagRatingModel:
 
         self.session.add_all([self.user, self.tag])
         self.session.commit()
-
-    def teardown_method(self):
-        """Clean up after each test."""
-        self.session.close()
-        Base.metadata.drop_all(self.engine)
 
     def test_tag_rating_creation(self):
         """Test TagRating model creation."""

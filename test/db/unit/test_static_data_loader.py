@@ -12,17 +12,7 @@ from genonaut.db.demo.seed_data_gen.static_data_loader import StaticDataLoader
 from genonaut.db.schema import Base, User, UserNotification
 
 
-@pytest.fixture
-def db_session():
-    """Provide an in-memory SQLite session for testing."""
-    engine = create_engine('sqlite:///:memory:')
-    Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(bind=engine)
-    session = SessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
+# db_session fixture now provided by conftest.py (PostgreSQL)
 
 
 def test_dynamic_model_mapping_includes_user_notifications(db_session, tmp_path):

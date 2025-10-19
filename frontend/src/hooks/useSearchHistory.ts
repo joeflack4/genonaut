@@ -19,10 +19,11 @@ export const searchHistoryQueryKeys = {
 }
 
 /**
- * Hook to fetch recent search history (for dropdown, non-aggregated).
+ * Hook to fetch recent search history (for dropdown, aggregated by unique query).
+ * Returns the most recent unique searches sorted by last_searched_at descending.
  */
-export function useRecentSearches(userId: string, limit: number = 3) {
-  return useQuery<SearchHistoryRecord[]>({
+export function useRecentSearches(userId: string, limit: number = 5) {
+  return useQuery<SearchHistoryItem[]>({
     queryKey: searchHistoryQueryKeys.recent(userId, limit),
     queryFn: () => searchHistoryService.getRecentSearches(userId, limit),
     enabled: !!userId,

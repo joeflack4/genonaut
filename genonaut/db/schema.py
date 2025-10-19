@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Optional, Union, Tuple, Dict, Any, List
 from sqlalchemy import (
     Column, Identity, Integer, String, Text, DateTime, Float, Boolean,
-    ForeignKey, JSON, UniqueConstraint, Index, event, func, literal_column, DDL, ARRAY,
+    ForeignKey, JSON, UniqueConstraint, Index, event, func, literal_column, DDL, ARRAY, Table,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship, declarative_base, declared_attr
@@ -352,6 +352,59 @@ class ContentItemAuto(ContentItemColumns, Base):
             # GIN index for metadata operations (PostgreSQL only)
             Index("idx_content_items_auto_metadata_gin", cls.item_metadata, postgresql_using="gin", info={"postgres_only": True}),
         )
+
+
+class ContentItemAll(ContentItemColumns, Base):
+    """Partitioned parent table for unified content queries.
+
+    This table partitions content_items and content_items_auto by source_type.
+    Querying this table allows PostgreSQL to use partition pruning and eliminates
+    the need for manual UNION queries.
+
+    The table is managed manually via Alembic migrations (Phase 11: Partitioning).
+    - content_items partition: source_type = 'items' (regular user content)
+    - content_items_auto partition: source_type = 'auto' (auto-generated content)
+
+    Note: INSERT/UPDATE/DELETE operations can target this table and will be
+    automatically routed to the correct partition based on source_type.
+
+    Attributes:
+        id: Primary key (composite with source_type in partitioned structure)
+        source_type: Partition key ('items' or 'auto')
+        All other columns inherited from ContentItemColumns
+    """
+    __tablename__ = 'content_items_all'
+
+    # Partition key - routes to correct child table based on value
+    # Values: 'items' (regular content) or 'auto' (auto-generated content)
+    source_type = Column(Text, nullable=False)
+
+    # Relationship to User (for joins in queries)
+    # Note: We don't define backrefs here to avoid conflicts with ContentItem/ContentItemAuto
+    # primaryjoin explicitly defines the join condition since this is a partitioned table
+    creator = relationship(
+        "User",
+        primaryjoin="ContentItemAll.creator_id == User.id",
+        foreign_keys="ContentItemAll.creator_id",
+        viewonly=True
+    )
+
+    @property
+    def creator_username(self) -> Optional[str]:
+        """Get creator username (requires join with User table in query)."""
+        return getattr(self, '_creator_username', None)
+
+    # No additional indexes defined - indexes are defined per-partition
+    # The partitioned unique index (id, source_type) is created in migrations
+    __table_args__ = (
+        # Documentation: Partitioned table structure
+        # - Parent: content_items_all (PARTITION BY LIST (source_type))
+        # - Partition 1: content_items FOR VALUES IN ('items')
+        # - Partition 2: content_items_auto FOR VALUES IN ('auto')
+        # - Primary key: (id, source_type) via content_items_all_uidx_id_src index
+        # - Per-partition indexes: idx_content_items_created_id_desc, idx_content_items_auto_created_id_desc
+        {'extend_existing': True}  # Allow redefinition for migrations
+    )
 
 
 class UserInteraction(Base):

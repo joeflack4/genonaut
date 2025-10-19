@@ -97,6 +97,7 @@ export function ImageViewer({ generation, open, onClose }: ImageViewerProps) {
       onClose={onClose}
       maxWidth="lg"
       fullWidth
+      disableRestoreFocus
       PaperProps={{
         sx: { height: '90vh', maxHeight: '90vh' },
       }}

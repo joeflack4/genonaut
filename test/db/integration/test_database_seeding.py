@@ -35,20 +35,18 @@ class TestDatabaseSeeding:
     @pytest.fixture(autouse=True)
     def setup_method(self):
         """Set up test database for each test."""
-        # Create a temporary SQLite database file for testing
-        self.temp_db_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
-        self.temp_db_file.close()
-        
+        # Use PostgreSQL test database URL from environment
+        base_url = os.getenv('DATABASE_URL_TEST', 'postgresql://localhost/genonaut_test')
+
         # Use incremental test schema naming for real databases
-        base_url = f'sqlite:///{self.temp_db_file.name}'
         test_schema_name = get_next_test_schema_name(base_url)
         self.test_db_url = create_test_database_url(base_url, test_schema_name)
-        
+
         # Initialize database
         self.initializer = DatabaseInitializer(self.test_db_url)
         self.initializer.create_engine_and_session()
         self.initializer.create_tables()
-        
+
         self.session = self.initializer.session_factory()
     
     def teardown_method(self):
@@ -59,11 +57,7 @@ class TestDatabaseSeeding:
         if hasattr(self.initializer, 'engine') and self.initializer.engine:
             self.initializer.engine.dispose()
         
-        # Remove temporary database file
-        try:
-            os.unlink(self.temp_db_file.name)
-        except OSError:
-            pass
+
 
     @pytest.mark.longrunning
     def test_seed_database_from_tsv_files(self):

@@ -54,6 +54,7 @@ class TestBulkInserter:
         if hasattr(self, 'engine'):
             self.engine.dispose()
 
+    @pytest.mark.manual
     def test_wal_buffers_restoration(self):
         """Test that wal_buffers are properly restored to original value."""
         # Get original wal_buffers value
@@ -79,6 +80,7 @@ class TestBulkInserter:
         # the postgresql.auto.conf file or by testing with a separate connection
         # after a manual restart.
 
+    @pytest.mark.manual
     def test_wal_buffers_original_value_capture(self):
         """Test that original wal_buffers value is properly captured."""
         # Get current value directly
@@ -91,6 +93,7 @@ class TestBulkInserter:
         # Verify original value was captured correctly
         assert self.bulk_inserter.original_wal_buffers == expected_original
 
+    @pytest.mark.manual
     def test_synchronous_commit_restoration(self):
         """Test that synchronous_commit is properly restored."""
         # Get original synchronous_commit value

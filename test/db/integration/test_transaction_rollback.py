@@ -12,7 +12,11 @@ from genonaut.db.schema import User, ContentItem, Tag
 
 @pytest.mark.db_integration
 def test_transaction_rollback_on_integrity_error(db_session):
-    """Test that transaction rolls back on integrity constraint violation."""
+    """Test that transaction rolls back on integrity constraint violation.
+
+    Note: With PostgreSQL, we need to use an explicit savepoint before
+    error-prone operations to avoid rolling back the entire transaction.
+    """
     # Create a test tag
     tag1 = Tag(name="test_tag_1", tag_metadata={})
     db_session.add(tag1)
@@ -21,15 +25,15 @@ def test_transaction_rollback_on_integrity_error(db_session):
     initial_count = db_session.query(Tag).count()
 
     # Try to create tag with duplicate name (should fail due to unique constraint)
+    # Use explicit savepoint to isolate the error
+    savepoint = db_session.begin_nested()
     try:
         tag2 = Tag(name="test_tag_1", tag_metadata={})  # Duplicate name
-
         db_session.add(tag2)
         db_session.commit()
-
     except IntegrityError:
-        # Roll back the failed transaction
-        db_session.rollback()
+        # Roll back to the savepoint (not the entire transaction)
+        savepoint.rollback()
 
     # Count should remain unchanged after rollback
     final_count = db_session.query(Tag).count()
@@ -38,8 +42,11 @@ def test_transaction_rollback_on_integrity_error(db_session):
 
 @pytest.mark.db_integration
 def test_transaction_rollback_preserves_data(db_session):
-    """Test that rolled back transactions don't affect existing data."""
+    """Test that rolled back transactions don't affect existing data.
 
+    Note: With PostgreSQL, we need to use an explicit savepoint before
+    error-prone operations to avoid rolling back the entire transaction.
+    """
     # Create initial tag
     tag = Tag(
         name="test_tag",
@@ -52,6 +59,8 @@ def test_transaction_rollback_preserves_data(db_session):
     initial_tag_count = db_session.query(Tag).count()
 
     # Start a transaction that will fail
+    # Use explicit savepoint to isolate the error
+    savepoint = db_session.begin_nested()
     try:
         # Add some operations
         new_tag = Tag(
@@ -70,7 +79,8 @@ def test_transaction_rollback_preserves_data(db_session):
         db_session.commit()
 
     except Exception:
-        db_session.rollback()
+        # Roll back to the savepoint (not the entire transaction)
+        savepoint.rollback()
 
     # Original data should still be intact
     final_tag_count = db_session.query(Tag).count()

@@ -573,6 +573,24 @@ migrate-test:
 	echo "📦 Running database migration..." && \
 	GENONAUT_DB_ENVIRONMENT=test DATABASE_URL="$$DB_URL" DATABASE_URL_TEST="$$DB_URL" ALEMBIC_SQLALCHEMY_URL="$$DB_URL" alembic upgrade head
 
+# Test-init database targets (for initialization/seeding tests)
+init-test-init:
+	@echo "Initializing test-init database (for init/seeding tests)..."
+	python -m genonaut.cli_main init-db --env-target local-test-init
+
+migrate-test-init:
+	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url_by_config; print(get_database_url_by_config('local-test-init'))") && \
+	python -m genonaut.db.schema_extensions install "$$DB_URL" && \
+	echo "📦 Running database migration on test-init..." && \
+	ENV_TARGET=local-test-init APP_CONFIG_PATH=config/local-test-init.json DATABASE_URL="$$DB_URL" ALEMBIC_SQLALCHEMY_URL="$$DB_URL" alembic upgrade head
+
+drop-test-init:
+	@echo "Dropping test-init database..."
+	@DB_PASSWORD=$${DB_PASSWORD_ADMIN} && \
+	PGPASSWORD="$$DB_PASSWORD" psql -h localhost -U genonaut_admin -d postgres -c "DROP DATABASE IF EXISTS genonaut_test_init;"
+
+recreate-test-init: drop-test-init init-test-init
+
 migrate-down-dev:
 	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('dev'))") && \
 	ALEMBIC_SQLALCHEMY_URL="$$DB_URL" DATABASE_URL="$$DB_URL" alembic downgrade -1

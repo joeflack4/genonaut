@@ -38,6 +38,7 @@ import { useUiSettings } from '../../app/providers/ui'
 import { NotificationBell } from '../notifications/NotificationBell'
 import { TimeoutNotification } from '../notifications/TimeoutNotification'
 import { SearchHistoryDropdown } from '../search/SearchHistoryDropdown'
+import { UI_CONFIG } from '../../config/ui'
 
 const navItems = [
   { label: 'Dashboard', to: '/dashboard', icon: DashboardIcon, key: 'dashboard' },
@@ -82,7 +83,8 @@ export function AppLayout() {
 
   // Search history hooks
   const userId = currentUser?.id || ''
-  const { data: recentSearches } = useRecentSearches(userId, 3)
+  // Fetch limited number of recent searches for dropdown display
+  const { data: recentSearches } = useRecentSearches(userId, UI_CONFIG.SEARCH_HISTORY_DROPDOWN_LIMIT)
   const addSearchHistory = useAddSearchHistory(userId)
   const deleteSearchHistory = useDeleteSearchHistory(userId)
 
@@ -146,8 +148,8 @@ export function AppLayout() {
     setShowSearchHistory(false)
   }
 
-  const handleHistoryItemDelete = (historyId: number) => {
-    deleteSearchHistory.mutate(historyId)
+  const handleHistoryItemDelete = (searchQuery: string) => {
+    deleteSearchHistory.mutate(searchQuery)
   }
 
   return (

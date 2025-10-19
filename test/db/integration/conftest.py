@@ -1,20 +1,24 @@
-"""Shared fixtures for database integration tests."""
+"""Shared fixtures for database integration tests.
+
+The PostgreSQL test database must be initialized before running tests:
+    make init-test
+"""
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from genonaut.db.schema import Base
+# Import PostgreSQL fixtures from parent conftest
+# These are already available through test/db/conftest.py
+from test.db.postgres_fixtures import postgres_session, postgres_engine
 
 
+# Create alias for backward compatibility
 @pytest.fixture(scope="function")
-def db_session():
-    """Create a test database session with in-memory SQLite."""
-    engine = create_engine("sqlite:///:memory:", echo=False)
-    Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(bind=engine)
-    session = SessionLocal()
+def db_session(postgres_session):
+    """Database session fixture (now uses PostgreSQL).
 
-    yield session
+    This is an alias for postgres_session to maintain backward compatibility
+    with existing tests that use db_session.
 
-    session.close()
+    The session automatically rolls back after each test for isolation.
+    """
+    return postgres_session

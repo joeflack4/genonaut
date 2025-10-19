@@ -21,6 +21,7 @@ from genonaut.db.schema import (
     Recommendation,
     GenerationJob,
 )
+from ..utils import get_next_test_schema_name, create_test_database_url
 
 
 class TestDatabaseEndToEnd:
@@ -29,18 +30,15 @@ class TestDatabaseEndToEnd:
     @pytest.fixture(autouse=True)
     def setup_method(self):
         """Set up test environment for each test."""
-        # Create a temporary SQLite database file for testing
-        self.temp_db_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
-        self.temp_db_file.close()
-        
-        self.test_db_url = f'sqlite:///{self.temp_db_file.name}'
+        # Use PostgreSQL test database URL from environment
+        # Note: These tests use initialize_database() which runs Alembic migrations.
+        # Alembic's ConfigParser can't handle URL-encoded schema parameters,
+        # so we use the base test database without schema isolation.
+        self.test_db_url = os.getenv('DATABASE_URL_TEST', 'postgresql://localhost/genonaut_test')
+
         yield
-        
-        # Clean up after each test
-        try:
-            os.unlink(self.temp_db_file.name)
-        except OSError:
-            pass
+
+        # Clean up is handled by test infrastructure (truncate tables hook)
     
     @patch('builtins.print')  # Suppress print output during tests
     def test_complete_database_initialization_with_all_options(self, mock_print):

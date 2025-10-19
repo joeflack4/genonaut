@@ -314,6 +314,265 @@ pytest test/api/unit/test_models.py -v
 pytest test/api/unit/ --cov=genonaut.api --cov-report=html
 ```
 
+## PostgreSQL Test Database Setup
+
+### Overview
+
+Genonaut uses PostgreSQL for all database tests (previously used SQLite). This ensures tests run against the same database engine as production, enabling testing of PostgreSQL-specific features like:
+- **JSONB**: Binary JSON storage with rich query capabilities
+- **Table Partitioning**: Testing partitioned tables (e.g., `content_items_all`)
+- **Table Inheritance**: PostgreSQL-specific inheritance features
+- **pg_trgm**: Trigram similarity for text search
+- **Performance Characteristics**: Realistic query performance testing
+
+### Quick Start
+
+**1. Initialize Test Database (One-time setup):**
+```bash
+make init-test
+```
+
+This creates and seeds the `genonaut_test` database with test data.
+
+**2. Run Tests:**
+```bash
+# Database tests (requires PostgreSQL)
+make test-db
+
+# API tests (requires PostgreSQL + API server)
+make api-test           # Terminal 1: Start test API server
+make test-api           # Terminal 2: Run API tests
+```
+
+### Available PostgreSQL Fixtures
+
+All PostgreSQL test fixtures are defined in `test/db/postgres_fixtures.py` and automatically available to all tests:
+
+**Session-scoped fixtures (created once per test session):**
+- `postgres_engine` - SQLAlchemy engine for the test database
+
+**Function-scoped fixtures (created fresh for each test):**
+- `postgres_session` - Database session with automatic rollback after test
+- `postgres_session_no_rollback` - Session without automatic rollback (use with caution)
+
+**Backward-compatible aliases:**
+- `db_session` - Alias for `postgres_session` (used in DB integration tests)
+- `test_db_session` - Alias for `postgres_session` (used in API unit tests)
+
+### Using PostgreSQL Fixtures in Tests
+
+**Basic Usage:**
+```python
+def test_create_user(postgres_session):
+    """Test user creation with automatic rollback."""
+    user = User(username="testuser", email="test@example.com")
+    postgres_session.add(user)
+    postgres_session.commit()
+
+    # Verify user was created
+    found = postgres_session.query(User).filter_by(username="testuser").first()
+    assert found is not None
+
+    # After test completes, changes are automatically rolled back
+```
+
+**Testing JSONB Operations:**
+```python
+def test_jsonb_preferences(postgres_session):
+    """Test PostgreSQL JSONB column operations."""
+    user = User(
+        username="jsonb_user",
+        email="jsonb@example.com",
+        preferences={"theme": "dark", "notifications": {"email": True}}
+    )
+    postgres_session.add(user)
+    postgres_session.commit()
+
+    # Query with JSONB path access
+    result = postgres_session.query(User).filter_by(username="jsonb_user").first()
+    assert result.preferences["theme"] == "dark"
+    assert result.preferences["notifications"]["email"] is True
+```
+
+**Multiple Commits in One Test:**
+```python
+def test_multiple_operations(postgres_session):
+    """Test supports multiple commits within a single test."""
+    # First operation
+    user1 = User(username="user1", email="user1@example.com")
+    postgres_session.add(user1)
+    postgres_session.commit()
+
+    # Second operation
+    user2 = User(username="user2", email="user2@example.com")
+    postgres_session.add(user2)
+    postgres_session.commit()
+
+    # Both users exist in this test
+    assert postgres_session.query(User).count() == 2
+
+    # After test completes, both are rolled back
+```
+
+### How Test Isolation Works
+
+PostgreSQL test fixtures use **nested transactions with automatic rollback** to ensure complete test isolation:
+
+1. **Outer Transaction**: Wraps the entire test (automatically rolled back)
+2. **Nested Savepoints**: Created for each `commit()` call within the test
+3. **Automatic Rollback**: All changes discarded after test completes
+
+**Implementation:**
+```python
+@pytest.fixture(scope="function")
+def postgres_session(postgres_engine):
+    """Function-scoped session with automatic rollback."""
+    connection = postgres_engine.connect()
+    transaction = connection.begin()
+
+    SessionLocal = sessionmaker(bind=connection)
+    session = SessionLocal()
+    session.begin_nested()
+
+    # Recreate savepoint after each commit
+    @event.listens_for(session, "after_transaction_end")
+    def restart_savepoint(session, transaction):
+        if transaction.nested and not transaction._parent.nested:
+            session.begin_nested()
+
+    yield session
+
+    # Cleanup: rollback all changes
+    session.close()
+    transaction.rollback()
+    connection.close()
+```
+
+**Benefits:**
+- Tests can freely call `session.commit()` without affecting other tests
+- Each test starts with a clean database state
+- No manual cleanup required
+- Fast execution (no database recreation between tests)
+
+### Environment Configuration
+
+PostgreSQL test database connection is configured via environment variables:
+
+**Required Variables (in `env/.env` or `env/.env.test`):**
+```bash
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME_TEST=genonaut_test
+DB_USER_ADMIN=genonaut_admin
+DB_PASSWORD_ADMIN=your_password_here
+```
+
+**How It Works:**
+- Tests use `ENV_TARGET=local-test` environment
+- Configuration loaded from `config/local-test.json`
+- Database credentials read from environment variables
+- Connection string: `postgresql://user:pass@host:port/genonaut_test`
+
+### Troubleshooting
+
+**Issue: "relation does not exist" errors**
+- **Cause**: Test database not initialized
+- **Solution**: Run `make init-test` to create and seed test database
+
+**Issue: Tests fail with "database is being accessed by other users"**
+- **Cause**: Test database connections not closed properly
+- **Solution**:
+  ```bash
+  # Force disconnect all sessions
+  make db-force-disconnect-test
+
+  # Reinitialize
+  make init-test
+  ```
+
+**Issue: Test data persists between tests**
+- **Cause**: Using `postgres_session_no_rollback` fixture
+- **Solution**: Use `postgres_session` for automatic rollback
+
+**Issue: "SSL connection" or "password authentication failed"**
+- **Cause**: Database credentials not configured
+- **Solution**:
+  1. Copy `env/env.example` to `env/.env`
+  2. Update `DB_PASSWORD_ADMIN` with correct password
+  3. Verify connection: `make db-connect-test`
+
+**Issue: Tests are slow or hanging**
+- **Cause**: Database connection pool exhaustion
+- **Solution**:
+  - Check for unclosed sessions in test code
+  - Ensure all tests use fixtures (not manual engine creation)
+  - Verify `make init-test` completed successfully
+
+**Issue: "JSONB operations not working"**
+- **Cause**: Using SQLite instead of PostgreSQL
+- **Solution**: Verify `ENV_TARGET=local-test` and database name is `genonaut_test`
+
+### PostgreSQL-Specific Test Features
+
+**Test PostgreSQL Features:**
+```python
+from test.db.postgres_fixtures import verify_postgres_features
+
+def test_postgres_capabilities(postgres_session):
+    """Verify PostgreSQL features are available."""
+    features = verify_postgres_features(postgres_session)
+
+    assert features["jsonb"], "JSONB should be supported"
+    assert features["inheritance"], "Table inheritance should be supported"
+    assert features["partitioning"], "Partitioning should be available"
+```
+
+**Helper Functions:**
+```python
+from test.db.postgres_fixtures import table_exists, count_rows, get_table_columns
+
+def test_database_helpers(postgres_session):
+    """Test database inspection helpers."""
+    # Check if table exists
+    assert table_exists(postgres_session, "users")
+
+    # Get row count
+    user_count = count_rows(postgres_session, "users")
+    assert user_count >= 0
+
+    # Inspect table columns
+    columns = get_table_columns(postgres_session, "users")
+    assert "id" in columns
+    assert "username" in columns
+```
+
+### Migration from SQLite
+
+All database tests have been migrated from SQLite to PostgreSQL. If you encounter legacy SQLite code:
+
+**Before (SQLite):**
+```python
+@pytest.fixture
+def db_session():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    yield session
+    session.close()
+```
+
+**After (PostgreSQL):**
+```python
+def test_my_feature(postgres_session):
+    # Just use the fixture - no manual setup needed
+    user = User(username="test")
+    postgres_session.add(user)
+    postgres_session.commit()
+```
+
+See `notes/sqlite-to-pg.md` for complete migration documentation.
+
 ## Test Organization
 
 ```

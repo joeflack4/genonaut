@@ -19,6 +19,12 @@ export const UI_CONFIG = {
   MIN_SUBMIT_DURATION_MS: 300,
 
   /**
+   * Maximum number of recent search history items to display in dropdown widgets
+   * (navbar and gallery sidebar).
+   */
+  SEARCH_HISTORY_DROPDOWN_LIMIT: 5,
+
+  /**
    * Notification/Toast/Snackbar display configuration
    */
   NOTIFICATIONS: {

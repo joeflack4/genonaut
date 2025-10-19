@@ -227,6 +227,7 @@ export function FlaggedContentTable({
         onClose={() => setDetailDialogOpen(false)}
         maxWidth="md"
         fullWidth
+        disableRestoreFocus
       >
         <DialogTitle>Flagged Content Details</DialogTitle>
         <DialogContent>
@@ -317,7 +318,7 @@ export function FlaggedContentTable({
       </Dialog>
 
       {/* Review Dialog */}
-      <Dialog open={reviewDialogOpen} onClose={() => setReviewDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={reviewDialogOpen} onClose={() => setReviewDialogOpen(false)} maxWidth="sm" fullWidth disableRestoreFocus>
         <DialogTitle>Review Flagged Content</DialogTitle>
         <DialogContent>
           <DialogContentText>
@@ -344,7 +345,7 @@ export function FlaggedContentTable({
       </Dialog>
 
       {/* Delete Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} disableRestoreFocus>
         <DialogTitle>Delete Flagged Content</DialogTitle>
         <DialogContent>
           <DialogContentText>

@@ -109,15 +109,40 @@ def _wait_for_server_ready():
 
 @pytest.fixture(scope="function")
 def db_session():
-    """Create a test database session with in-memory SQLite."""
-    engine = create_engine("sqlite:///:memory:", echo=False)
-    Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(bind=engine)
+    """Database session fixture for API integration tests (now uses PostgreSQL).
+
+    Note: This imports the PostgreSQL session from our fixtures.
+    The PostgreSQL test database must be initialized before running tests:
+        make init-test
+
+    The session automatically rolls back after each test for isolation.
+    """
+    from test.db.postgres_fixtures import create_postgres_test_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy import event
+
+    # Create engine and session with transaction rollback
+    engine = create_postgres_test_engine()
+    connection = engine.connect()
+    transaction = connection.begin()
+
+    SessionLocal = sessionmaker(bind=connection)
     session = SessionLocal()
+    session.begin_nested()
+
+    # Recreate savepoint after each commit
+    @event.listens_for(session, "after_transaction_end")
+    def restart_savepoint(session, transaction):
+        if transaction.nested and not transaction._parent.nested:
+            session.begin_nested()
 
     yield session
 
+    # Cleanup
     session.close()
+    transaction.rollback()
+    connection.close()
+    engine.dispose()
 
 
 class APITestClient:

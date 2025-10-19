@@ -3,10 +3,6 @@
 import pytest
 import sys
 from pathlib import Path
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-from genonaut.db.schema import Base
 
 # Add the mock server directory to the path
 mock_server_dir = Path(__file__).parent.parent.parent / "_infra/mock_services/comfyui"
@@ -19,18 +15,20 @@ from test._infra.mock_services.comfyui.conftest import (
     mock_comfyui_client
 )
 
+# Import PostgreSQL test database fixtures
+from test.db.postgres_fixtures import postgres_session, postgres_engine
+
 
 @pytest.fixture
-def db_session():
-    """Create a test database session with in-memory SQLite."""
-    engine = create_engine("sqlite:///:memory:", echo=False)
-    Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(bind=engine)
-    session = SessionLocal()
+def db_session(postgres_session):
+    """Database session fixture (now uses PostgreSQL).
 
-    yield session
+    This is an alias for postgres_session to maintain backward compatibility
+    with existing tests that use db_session.
 
-    session.close()
+    The session automatically rolls back after each test for isolation.
+    """
+    return postgres_session
 
 
 @pytest.fixture

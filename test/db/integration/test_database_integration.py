@@ -22,23 +22,14 @@ class TestDatabaseIntegration:
     @pytest.fixture(autouse=True)
     def setup_method(self):
         """Set up test database for each test."""
-        # Create a temporary SQLite database file for integration testing
-        self.temp_db_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
-        self.temp_db_file.close()
-        
-        self.test_db_url = f'sqlite:///{self.temp_db_file.name}'
+        # Use PostgreSQL test database URL from environment
+        self.test_db_url = os.getenv('DATABASE_URL_TEST', 'postgresql://localhost/genonaut_test')
         self.initializer = DatabaseInitializer(self.test_db_url)
     
     def teardown_method(self):
         """Clean up after each test."""
         if hasattr(self.initializer, 'engine') and self.initializer.engine:
             self.initializer.engine.dispose()
-        
-        # Remove temporary database file
-        try:
-            os.unlink(self.temp_db_file.name)
-        except OSError:
-            pass
     
     def test_full_database_initialization_workflow(self):
         """Test the complete database initialization workflow."""
@@ -372,7 +363,7 @@ class TestDatabaseIntegration:
         session.add(user1)
         session.commit()
         
-        # Try to create user with duplicate username (should work in SQLite without enforcement)
+        # Try to create user with duplicate username (tests unique constraint enforcement)
         # But we can test the constraint exists in the schema
         user_table = Base.metadata.tables['users']
         username_column = user_table.columns['username']

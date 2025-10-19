@@ -343,7 +343,7 @@ export function ModelSelector({
       </Box>
 
       {/* LoRA Selection Dialog */}
-      <Dialog open={loraDialogOpen} onClose={() => setLoraDialogOpen(false)} maxWidth="lg" fullWidth>
+      <Dialog open={loraDialogOpen} onClose={() => setLoraDialogOpen(false)} maxWidth="lg" fullWidth disableRestoreFocus>
         <DialogTitle>Select LoRA Model</DialogTitle>
         <DialogContent>
           <TextField

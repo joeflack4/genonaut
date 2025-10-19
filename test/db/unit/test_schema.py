@@ -5,8 +5,6 @@ Tests the SQLAlchemy models in genonaut.init.rdbms.schema module.
 
 import pytest
 from datetime import datetime
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
 
 from genonaut.db.schema import (
@@ -24,17 +22,13 @@ from genonaut.db.schema import (
 
 class TestSchemaModels:
     """Test cases for SQLAlchemy schema models."""
-    
+
     @pytest.fixture(autouse=True)
-    def setup_method(self):
+    def setup_method(self, db_session):
         """Set up test database and session for each test."""
-        # Use in-memory SQLite database for testing
-        self.engine = create_engine('sqlite:///:memory:', echo=False)
-        Base.metadata.create_all(self.engine)
-        
-        Session = sessionmaker(bind=self.engine)
-        self.session = Session()
-        
+        # Use PostgreSQL test database (provided by conftest.py)
+        self.session = db_session
+
         # Create test users for use in other model tests
         self.test_user1 = User(
             username="testuser1",
@@ -42,18 +36,13 @@ class TestSchemaModels:
             preferences={"genre": "sci-fi"}
         )
         self.test_user2 = User(
-            username="testuser2", 
+            username="testuser2",
             email="test2@example.com",
             preferences={"content_type": "image"}
         )
-        
+
         self.session.add_all([self.test_user1, self.test_user2])
         self.session.commit()
-    
-    def teardown_method(self):
-        """Clean up after each test."""
-        self.session.close()
-        Base.metadata.drop_all(self.engine)
     
     def test_user_creation(self):
         """Test User model creation and basic attributes."""
@@ -74,28 +63,44 @@ class TestSchemaModels:
         assert user.is_active
     
     def test_user_unique_constraints(self):
-        """Test that User model enforces unique constraints."""
+        """Test that User model enforces unique username constraint."""
+        # First create a user to test against
+        original_user = User(
+            username="original_user",
+            email="original@example.com"
+        )
+        self.session.add(original_user)
+        self.session.commit()
+
         # Try to create user with duplicate username
         duplicate_username_user = User(
-            username="testuser1",  # Duplicate
+            username="original_user",  # Duplicate
             email="different@example.com"
         )
-        
+
         self.session.add(duplicate_username_user)
         with pytest.raises(IntegrityError):
-            self.session.commit()
-        
-        self.session.rollback()
-        
+            self.session.flush()
+
+    def test_user_unique_email_constraint(self):
+        """Test that User model enforces unique email constraint."""
+        # First create a user to test against
+        original_user = User(
+            username="original_user",
+            email="original@example.com"
+        )
+        self.session.add(original_user)
+        self.session.commit()
+
         # Try to create user with duplicate email
         duplicate_email_user = User(
             username="differentuser",
-            email="test1@example.com"  # Duplicate
+            email="original@example.com"  # Duplicate
         )
-        
+
         self.session.add(duplicate_email_user)
         with pytest.raises(IntegrityError):
-            self.session.commit()
+            self.session.flush()
     
     def test_user_defaults(self):
         """Test User model default values."""
