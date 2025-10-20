@@ -26,23 +26,28 @@ There is a configuration example currently in `env/redis.conf.example`. Use this
 
 ### Running Workers
 
-Start a Celery worker to process async tasks:
+Start a Celery worker to process async tasks. The worker includes a Beat scheduler (`-B` flag) for handling periodic tasks:
 
 ```bash
 # Development environment
-make celery-dev              # Start Celery worker for dev
+make celery-dev              # Start Celery worker with Beat scheduler for dev
 
 # Demo/Test environments
-make celery-demo             # Start Celery worker for demo
-make celery-test             # Start Celery worker for test
+make celery-demo             # Start Celery worker with Beat scheduler for demo
+make celery-test             # Start Celery worker with Beat scheduler for test
 ```
+
+**What the worker handles:**
+- **Async tasks**: Image generation jobs via ComfyUI integration (queues: `default`, `generation`)
+- **Scheduled tasks**: Periodic maintenance tasks configured in `config/base.json`:
+  - Tag cardinality stats refresh (daily at midnight UTC)
 
 **Typical Workflow:**
 ```bash
 # Terminal 1: Start API server
 make api-dev
 
-# Terminal 2: Start Celery worker
+# Terminal 2: Start Celery worker with Beat scheduler
 make celery-dev
 
 # Terminal 3: (Optional) Start Flower monitoring dashboard

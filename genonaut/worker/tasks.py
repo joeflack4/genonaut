@@ -343,3 +343,46 @@ def cancel_job(job_id: int) -> Dict[str, Any]:
         raise
     finally:
         db.close()
+
+
+# Scheduled Tasks
+
+@celery_app.task(name="genonaut.worker.tasks.refresh_tag_cardinality_stats")
+def refresh_tag_cardinality_stats() -> Dict[str, Any]:
+    """Refresh tag cardinality statistics for query planning.
+
+    This scheduled task runs daily to update the tag_cardinality_stats table
+    with current counts of content items per (tag_id, content_source) pair.
+    These statistics are used by the adaptive tag query planner to select
+    optimal query strategies.
+
+    Returns:
+        Dict with refresh results
+    """
+    logger.info("Starting scheduled tag cardinality stats refresh")
+
+    db = next(get_database_session())
+
+    try:
+        from genonaut.api.repositories.tag_repository import TagRepository
+
+        repo = TagRepository(db)
+        count = repo.refresh_tag_cardinality_stats()
+
+        logger.info(f"Successfully refreshed {count} tag-source cardinality stats")
+
+        return {
+            "status": "success",
+            "stats_refreshed": count,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to refresh tag cardinality stats: {str(e)}", exc_info=True)
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    finally:
+        db.close()

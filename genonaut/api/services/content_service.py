@@ -9,10 +9,13 @@ from sqlalchemy.orm import Session
 from genonaut.api.exceptions import EntityNotFoundError, ValidationError
 from genonaut.api.repositories.content_repository import ContentRepository
 from genonaut.api.repositories.user_repository import UserRepository
+from genonaut.api.repositories.tag_repository import TagRepository
 from genonaut.api.models.requests import PaginationRequest
 from genonaut.api.models.responses import PaginatedResponse
 from genonaut.db.schema import ContentItem, ContentItemAuto, ContentItemAll, UserInteraction, User, ContentTag
 from genonaut.api.services.flagged_content_service import FlaggedContentService
+from genonaut.api.services.tag_query_planner import TagQueryPlanner
+from genonaut.api.services.tag_query_builder import TagQueryBuilder
 from genonaut.api.utils.tag_identifiers import expand_tag_identifiers
 
 _VALID_CONTENT_TYPES = {"text", "image", "video", "audio"}
@@ -26,6 +29,11 @@ class ContentService:
         self.db = db
         self.repository = ContentRepository(db, model=model)
         self.user_repository = UserRepository(db)
+
+        # Initialize tag filtering components
+        self.tag_repository = TagRepository(db)
+        self.tag_query_planner = TagQueryPlanner(self.tag_repository)
+        self.tag_query_builder = TagQueryBuilder(db, self.tag_query_planner)
 
         # Try to initialize flagging service (optional)
         self.flagging_service = None
@@ -101,10 +109,12 @@ class ContentService:
         tag_uuids: List[UUID],
         tag_match: str
     ):
-        """Apply tag filtering using content_tags junction table.
+        """Apply tag filtering using content_tags junction table with adaptive query strategies.
 
-        This is the optimized approach for tag filtering that uses the normalized
-        content_tags junction table instead of JSONB array operations.
+        Uses TagQueryBuilder which selects optimal query strategy based on tag cardinalities:
+        - Self-join for small K (K <= 3)
+        - Group/HAVING for medium K with selective tags
+        - Two-phase rarest-first for large K or common tags
 
         Args:
             query: SQLAlchemy query to filter
@@ -124,43 +134,26 @@ class ContentService:
         if not tag_uuids:
             return query
 
-        normalized = (tag_match or "any").lower()
-        unique_tags = list(dict.fromkeys(tag_uuids))
-
-        if not unique_tags:
-            return query
-
-        # Use EXISTS for better performance - PostgreSQL optimizes these well
-        if normalized == "all":
-            # For "all" matching: content must have ALL specified tags
-            # Add an EXISTS clause for each tag
-            for tag_id in unique_tags:
-                subq = self.db.query(ContentTag.content_id).filter(
-                    ContentTag.content_id == content_model.id,
-                    ContentTag.tag_id == tag_id
-                )
-
-                # Only add content_source filter if specified (not needed for ContentItemAll)
-                if content_source:
-                    subq = subq.filter(ContentTag.content_source == content_source)
-
-                exists_clause = subq.exists()
-                query = query.filter(exists_clause)
-            return query
-
-        # For "any" matching: content must have AT LEAST ONE of the specified tags
-        # Single EXISTS with IN clause
-        subq = self.db.query(ContentTag.content_id).filter(
-            ContentTag.content_id == content_model.id,
-            ContentTag.tag_id.in_(unique_tags)
-        )
-
-        # Only add content_source filter if specified (not needed for ContentItemAll)
+        # Determine content sources for query planning
+        content_sources = []
         if content_source:
-            subq = subq.filter(ContentTag.content_source == content_source)
+            content_sources = [content_source]
+        elif hasattr(content_model, 'source_type'):
+            # ContentItemAll - determine sources from query filters
+            # For now, assume both sources unless explicitly filtered
+            content_sources = ['regular', 'auto']
+        else:
+            # Fallback
+            content_sources = ['regular', 'auto']
 
-        exists_clause = subq.exists()
-        return query.filter(exists_clause)
+        # Use adaptive query builder
+        return self.tag_query_builder.apply_tag_filter(
+            query,
+            content_model,
+            tag_uuids,
+            content_sources,
+            tag_match
+        )
 
     @staticmethod
     def _apply_enhanced_search_filter(query, content_model, search_term: Optional[str]):

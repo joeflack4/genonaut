@@ -28,7 +28,7 @@ clear-excess-test-schemas-keep-3 migrate-down-dev migrate-heads-dev migrate-down
 ontology-refresh ontology-generate ontology-validate ontology-stats ontology-test ontology-json \
 md-collate md-export-tsv md-test md-github-sync-down md-github-sync-up md-github-sync \
 tf-bootstrap-init tf-bootstrap-apply tf-bootstrap-destroy tf-init tf-plan tf-apply tf-destroy tf-fmt tf-validate \
-tf-console aws-login tf-login
+tf-console aws-login tf-login refresh-tag-stats refresh-tag-stats-dev refresh-tag-stats-demo refresh-tag-stats-test
 
 # Load environment variables
 ifneq (,$(wildcard ./env/.env.shared))
@@ -353,14 +353,14 @@ test-quick: test
 test-long-running:
 	@echo "Running long-running tests (performance, stress, large datasets)..."
 	@echo "⚠️  Warning: These tests may take 5-15 minutes to complete"
-	@echo "Includes: comfyui_poll, comfyui_e2e, api_server, ontology_perf, and other longrunning tests" --durations=0 --durations-max=0.5
-	pytest test/ -v -m "longrunning"
+	@echo "Includes: comfyui_poll, comfyui_e2e, api_server, ontology_perf, and other longrunning tests"
+	pytest test/ -v -m "longrunning"  --durations=0
 
 test-performance:
 	@echo "Running performance tests against live demo server..."
 	@echo "⚠️  Prerequisites: Demo server must be running on port 8001"
 	@echo "   Start with: make api-demo"
-	pytest test/ -v -s -m "performance" --durations=0 --durations-max=0.5
+	pytest test/ -v -s -m "performance" --durations=0
 
 test-comfyui-poll:
 	@echo "Running mock ComfyUI polling tests (wait-for-completion scenarios)..."
@@ -702,19 +702,19 @@ api-test-load-test:
 # Queuing / message broking: Redis & Celery
 # ============================================
 celery-dev:
-	@echo "Starting Celery worker for development environment..."
+	@echo "Starting Celery worker with Beat scheduler for development environment..."
 	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-dev ] && . env/.env.local-dev && set +a && \
-	ENV_TARGET=local-dev APP_CONFIG_PATH=config/local-dev.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation
+	ENV_TARGET=local-dev APP_CONFIG_PATH=config/local-dev.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation -B
 
 celery-demo:
-	@echo "Starting Celery worker for demo environment..."
+	@echo "Starting Celery worker with Beat scheduler for demo environment..."
 	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-demo ] && . env/.env.local-demo && set +a && \
-	ENV_TARGET=local-demo APP_CONFIG_PATH=config/local-demo.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation
+	ENV_TARGET=local-demo APP_CONFIG_PATH=config/local-demo.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation -B
 
 celery-test:
-	@echo "Starting Celery worker for test environment..."
+	@echo "Starting Celery worker with Beat scheduler for test environment..."
 	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-test ] && . env/.env.local-test && set +a && \
-	ENV_TARGET=local-test APP_CONFIG_PATH=config/local-test.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation
+	ENV_TARGET=local-test APP_CONFIG_PATH=config/local-test.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation -B
 
 # alt: python -c "from genonaut.api.services.generation_service import check_celery_workers_available; print('Workers available:', check_celery_workers_available())"
 celery-check-running-workers:
@@ -1130,3 +1130,33 @@ md-github-sync:
 	fi
 	cd libs/md_manager && source env/bin/activate && python -m md_manager.cli --config-path ../../notes/md-manager.json sync-bidirectional || (echo "Error: Bidirectional sync failed"; exit 1)
 	@echo "✅ Bidirectional sync completed successfully"
+
+# ============================================================================
+# Tag Cardinality Stats
+# ============================================================================
+
+refresh-tag-stats: refresh-tag-stats-demo
+
+refresh-tag-stats-dev:
+	@echo "🔄 Refreshing tag cardinality stats (dev database)..."
+	@START=$$(date +%s); \
+	DB_NAME=genonaut_dev python genonaut/db/refresh_tag_stats.py; \
+	END=$$(date +%s); \
+	ELAPSED=$$((END - START)); \
+	echo "⏱️  Completed in $${ELAPSED}s"
+
+refresh-tag-stats-demo:
+	@echo "🔄 Refreshing tag cardinality stats (demo database)..."
+	@START=$$(date +%s); \
+	DB_NAME=genonaut_demo python genonaut/db/refresh_tag_stats.py; \
+	END=$$(date +%s); \
+	ELAPSED=$$((END - START)); \
+	echo "⏱️  Completed in $${ELAPSED}s"
+
+refresh-tag-stats-test:
+	@echo "🔄 Refreshing tag cardinality stats (test database)..."
+	@START=$$(date +%s); \
+	DB_NAME=genonaut_test python genonaut/db/refresh_tag_stats.py; \
+	END=$$(date +%s); \
+	ELAPSED=$$((END - START)); \
+	echo "⏱️  Completed in $${ELAPSED}s"

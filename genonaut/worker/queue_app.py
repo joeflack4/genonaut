@@ -9,7 +9,12 @@ from uuid import uuid4
 
 try:  # pragma: no cover - exercised implicitly during imports
     from celery import Celery
+    from celery.schedules import crontab
+    CELERY_AVAILABLE = True
 except ModuleNotFoundError:  # pragma: no cover - only used in test environments
+    CELERY_AVAILABLE = False
+    crontab = None  # type: ignore[assignment]
+
     class Celery:  # minimal stub mirroring Celery interface
         def __init__(self, *_, **__):
             self.conf = SimpleNamespace(update=lambda *a, **k: None, task_routes={})
@@ -106,3 +111,41 @@ celery_app.conf.task_routes = {
     "genonaut.worker.tasks.run_comfy_job": {"queue": "generation"},
     "genonaut.worker.tasks.*": {"queue": "default"},
 }
+
+# Configure Celery Beat schedule from config
+def _load_beat_schedule():
+    """Load Celery Beat schedule from configuration."""
+    # If Celery is not available (test environment), return empty schedule
+    if not CELERY_AVAILABLE:
+        return {}
+
+    beat_schedule = {}
+
+    # Load schedule configuration
+    celery_config = getattr(settings, 'celery', None)
+    if celery_config and isinstance(celery_config, dict):
+        beat_config = celery_config.get('beat_schedule', {})
+
+        for task_name, task_config in beat_config.items():
+            if not task_config.get('enabled', True):
+                continue
+
+            task_path = task_config.get('task')
+            schedule_config = task_config.get('schedule', {})
+
+            if task_path and schedule_config:
+                # Build crontab from config
+                beat_schedule[task_name] = {
+                    'task': task_path,
+                    'schedule': crontab(
+                        hour=schedule_config.get('hour', 0),
+                        minute=schedule_config.get('minute', 0),
+                        day_of_week=schedule_config.get('day_of_week', '*'),
+                        day_of_month=schedule_config.get('day_of_month', '*'),
+                        month_of_year=schedule_config.get('month_of_year', '*'),
+                    ),
+                }
+
+    return beat_schedule
+
+celery_app.conf.beat_schedule = _load_beat_schedule()

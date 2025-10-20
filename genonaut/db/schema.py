@@ -1079,6 +1079,39 @@ class ContentTag(Base):
         Index("idx_content_tags_tag_content", tag_id, content_id),
         # For "all tags for content Y" queries
         Index("idx_content_tags_content", content_id, content_source),
+        # For "all content with tag X and content_source Y" queries (pre-JOIN tag filtering)
+        # This index supports efficient filtering by tag + content_source before joining to content tables
+        Index("idx_content_tags_tag_src_content", tag_id, content_source, content_id),
+    )
+
+
+class TagCardinalityStats(Base):
+    """Tag cardinality statistics for query planning.
+
+    Tracks the number of distinct content items per tag and content source.
+    Used by the pre-JOIN tag filtering query planner to choose optimal
+    query strategies based on tag selectivity.
+
+    Attributes:
+        tag_id: Foreign key to tags.id
+        content_source: Content source type ('regular' or 'auto')
+        cardinality: Number of distinct content items with this tag + source
+        updated_at: Timestamp of last stats update
+    """
+    __tablename__ = 'tag_cardinality_stats'
+
+    tag_id = Column(UUID(as_uuid=True), ForeignKey('tags.id', ondelete='CASCADE'), primary_key=True, nullable=False)
+    content_source = Column(String(10), primary_key=True, nullable=False)
+    cardinality = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+
+    # Relationships
+    tag = relationship("Tag", foreign_keys=[tag_id])
+
+    # Indexes
+    __table_args__ = (
+        # For quick lookups by tag + source
+        Index("idx_tag_cardinality_stats_tag_src", tag_id, content_source),
     )
 
 

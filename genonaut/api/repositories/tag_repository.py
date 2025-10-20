@@ -9,7 +9,7 @@ from sqlalchemy import func, and_, or_, text, case
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
-from genonaut.db.schema import Tag, TagParent, TagRating, User
+from genonaut.db.schema import Tag, TagParent, TagRating, User, TagCardinalityStats, ContentTag
 from genonaut.api.repositories.base import BaseRepository
 from genonaut.api.models.requests import PaginationRequest
 from genonaut.api.models.responses import PaginatedResponse, PaginationMeta
@@ -657,3 +657,184 @@ class TagRepository(BaseRepository[Tag, Dict[str, Any], Dict[str, Any]]):
             }
         except SQLAlchemyError as e:
             raise DatabaseError(f"Failed to get hierarchy statistics: {str(e)}")
+
+    # Tag Cardinality Stats Methods
+
+    def refresh_tag_cardinality_stats(self) -> int:
+        """Refresh tag cardinality statistics from content_tags table.
+
+        This computes the number of distinct content items per (tag_id, content_source)
+        pair and updates the tag_cardinality_stats table.
+
+        Returns:
+            Number of tag-source pairs updated
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        try:
+            # Delete existing stats
+            self.db.query(TagCardinalityStats).delete()
+
+            # Compute fresh stats from content_tags
+            stats_query = (
+                self.db.query(
+                    ContentTag.tag_id,
+                    ContentTag.content_source,
+                    func.count(func.distinct(ContentTag.content_id)).label('cardinality')
+                )
+                .group_by(ContentTag.tag_id, ContentTag.content_source)
+            )
+
+            # Insert new stats
+            count = 0
+            for tag_id, content_source, cardinality in stats_query:
+                stat = TagCardinalityStats(
+                    tag_id=tag_id,
+                    content_source=content_source,
+                    cardinality=cardinality
+                )
+                self.db.add(stat)
+                count += 1
+
+            self.db.commit()
+            return count
+
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            raise DatabaseError(f"Failed to refresh tag cardinality stats: {str(e)}")
+
+    def get_tag_cardinality(self, tag_id: UUID, content_source: str, default: int = 1000000) -> int:
+        """Get cardinality (distinct content count) for a tag + content_source.
+
+        Args:
+            tag_id: Tag UUID
+            content_source: Content source type ('regular' or 'auto')
+            default: Default value if no stats found
+
+        Returns:
+            Cardinality count or default value
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        try:
+            stat = (
+                self.db.query(TagCardinalityStats)
+                .filter(
+                    TagCardinalityStats.tag_id == tag_id,
+                    TagCardinalityStats.content_source == content_source
+                )
+                .first()
+            )
+
+            return stat.cardinality if stat else default
+
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Failed to get tag cardinality: {str(e)}")
+
+    def get_tags_cardinality_batch(
+        self,
+        tag_ids: List[UUID],
+        content_sources: List[str],
+        default: int = 1000000
+    ) -> Dict[Tuple[UUID, str], int]:
+        """Get cardinalities for multiple tags and content sources.
+
+        Args:
+            tag_ids: List of tag UUIDs
+            content_sources: List of content source types
+            default: Default value for missing stats
+
+        Returns:
+            Dictionary mapping (tag_id, content_source) -> cardinality
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        try:
+            stats = (
+                self.db.query(TagCardinalityStats)
+                .filter(
+                    TagCardinalityStats.tag_id.in_(tag_ids),
+                    TagCardinalityStats.content_source.in_(content_sources)
+                )
+                .all()
+            )
+
+            # Build result dict with found stats
+            result = {(stat.tag_id, stat.content_source): stat.cardinality for stat in stats}
+
+            # Fill in defaults for missing combinations
+            for tag_id in tag_ids:
+                for source in content_sources:
+                    key = (tag_id, source)
+                    if key not in result:
+                        result[key] = default
+
+            return result
+
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Failed to get tags cardinality batch: {str(e)}")
+
+    def get_popular_tags(
+        self,
+        limit: int = 20,
+        content_source: Optional[str] = None,
+        min_cardinality: int = 1
+    ) -> List[Tuple[Tag, int]]:
+        """Get most popular tags by cardinality (content count).
+
+        Args:
+            limit: Maximum number of tags to return
+            content_source: Optional filter by content source ('items' or 'auto')
+            min_cardinality: Minimum cardinality to include
+
+        Returns:
+            List of tuples (Tag, total_cardinality) ordered by cardinality DESC
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        try:
+            # Build query to sum cardinalities across sources or filter by source
+            if content_source:
+                # Filter by specific source
+                query = (
+                    self.db.query(
+                        Tag,
+                        TagCardinalityStats.cardinality
+                    )
+                    .join(TagCardinalityStats, Tag.id == TagCardinalityStats.tag_id)
+                    .filter(TagCardinalityStats.content_source == content_source)
+                    .filter(TagCardinalityStats.cardinality >= min_cardinality)
+                    .order_by(TagCardinalityStats.cardinality.desc(), Tag.name.asc())
+                    .limit(limit)
+                )
+            else:
+                # Sum across all sources
+                stats_subquery = (
+                    self.db.query(
+                        TagCardinalityStats.tag_id,
+                        func.sum(TagCardinalityStats.cardinality).label('total_cardinality')
+                    )
+                    .group_by(TagCardinalityStats.tag_id)
+                    .subquery()
+                )
+
+                query = (
+                    self.db.query(
+                        Tag,
+                        stats_subquery.c.total_cardinality
+                    )
+                    .join(stats_subquery, Tag.id == stats_subquery.c.tag_id)
+                    .filter(stats_subquery.c.total_cardinality >= min_cardinality)
+                    .order_by(stats_subquery.c.total_cardinality.desc(), Tag.name.asc())
+                    .limit(limit)
+                )
+
+            results = query.all()
+            return [(tag, int(count)) for tag, count in results]
+
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Failed to get popular tags: {str(e)}")

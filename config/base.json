@@ -19,5 +19,44 @@
   "storage-dir": "io/storage/",
   "images-dir": "io/storage/images/",
   "_comment_statement-timeout": "PostgreSQL statement_timeout (e.g., 15s, 500ms, 1min) applied to all API connections.",
-  "statement-timeout": "15s"
+  "statement-timeout": "15s",
+  "performance": {
+    "query-planner-tag-prejoin": {
+      "_comment": "Configuration for pre-JOIN tag filtering query strategy selection",
+      "small-k-threshold": 3,
+      "group-having-rarest-ceiling": 50000,
+      "two-phase-min-k-for-dual-seed": 7,
+      "two-phase-dual-seed-floor": 150000,
+      "seed-candidate-cap": 50000,
+      "max-work-mem-mb": 256,
+      "enable-two-phase": true,
+      "enable-group-having": true,
+      "enable-self-join": true,
+      "stats": {
+        "source": "table",
+        "table-name": "tag_cardinality_stats",
+        "freshness-seconds": 3600,
+        "fallback-default-count": 1000000
+      },
+      "telemetry": {
+        "log-strategy-choice": true,
+        "log-estimates": true,
+        "sample-rate": 0.1
+      }
+    }
+  },
+  "celery": {
+    "_comment": "Celery configuration including Beat scheduler for periodic tasks",
+    "beat-schedule": {
+      "refresh-tag-stats": {
+        "_comment": "Refresh tag cardinality statistics for query planner (runs daily at midnight UTC)",
+        "enabled": true,
+        "task": "genonaut.worker.tasks.refresh_tag_cardinality_stats",
+        "schedule": {
+          "hour": 0,
+          "minute": 0
+        }
+      }
+    }
+  }
 }

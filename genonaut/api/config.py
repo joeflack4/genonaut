@@ -107,6 +107,12 @@ class Settings(BaseModel):
     storage_dir: Optional[str] = None
     images_dir: Optional[str] = None
 
+    # Performance configuration
+    performance: Optional[Dict[str, Any]] = None
+
+    # Celery configuration
+    celery: Optional[Dict[str, Any]] = None
+
     class Config:
         case_sensitive = False
         extra = "ignore"
