@@ -1,0 +1,1 @@
+Note that there is an AGENTS.md in the folder directly above this, with instructions applicable to this folder as well.
