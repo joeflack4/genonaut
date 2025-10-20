@@ -50,6 +50,7 @@ class TestMakefileGoals(unittest.TestCase):
         except subprocess.TimeoutExpired:
             self.fail("ontology-stats goal timed out")
 
+    @pytest.mark.longrunning
     def test_ontology_help_integration(self):
         """Test that ontology goals appear in help."""
         try:

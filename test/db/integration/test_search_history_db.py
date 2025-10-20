@@ -284,6 +284,7 @@ class TestSearchHistoryIndexPerformance:
 
         assert composite_indexed, "Composite index should exist"
 
+    @pytest.mark.longrunning
     def test_recent_searches_query_performance(self, repository, test_user, db_session):
         """Test that recent searches query is efficient with many entries."""
         # Add many searches (simulating real usage)

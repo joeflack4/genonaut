@@ -339,9 +339,10 @@ db-wal-buffers-set:
 
 # Tests
 # - "not manual": Manual tests are meant to be run in very specific circumstances, e.g. TestWalBuffersPostRestartVerification: verify wal_buffers after PostgreSQL restart | as of 2025/10/14 there are 100's of tests and only this 1 manual test
+# --durations=0 --durations-min=0.5  - This shows any test taking longer than 500ms
 test:
 	@echo "Running quick tests (excluding long-running, manual, and performance tests)..."
-	pytest test/ -v -m "not manual and not longrunning and not performance"
+	pytest test/ -v -m "not manual and not longrunning and not performance" --durations=0 --durations-min=0.5
 
 test-quick: test
 
@@ -352,40 +353,40 @@ test-quick: test
 test-long-running:
 	@echo "Running long-running tests (performance, stress, large datasets)..."
 	@echo "⚠️  Warning: These tests may take 5-15 minutes to complete"
-	@echo "Includes: comfyui_poll, comfyui_e2e, api_server, ontology_perf, and other longrunning tests"
+	@echo "Includes: comfyui_poll, comfyui_e2e, api_server, ontology_perf, and other longrunning tests" --durations=0 --durations-max=0.5
 	pytest test/ -v -m "longrunning"
 
 test-performance:
 	@echo "Running performance tests against live demo server..."
 	@echo "⚠️  Prerequisites: Demo server must be running on port 8001"
 	@echo "   Start with: make api-demo"
-	pytest test/ -v -s -m "performance"
+	pytest test/ -v -s -m "performance" --durations=0 --durations-max=0.5
 
 test-comfyui-poll:
 	@echo "Running mock ComfyUI polling tests (wait-for-completion scenarios)..."
 	@echo "Note: These are also included in 'make test-long-running'"
-	pytest test/ -v -m "comfyui_poll"
+	pytest test/ -v -m "comfyui_poll" --durations=0 --durations-min=0.5
 
 test-comfyui-e2e:
 	@echo "Running ComfyUI end-to-end workflow tests (Celery-style processing)..."
 	@echo "Note: These are also included in 'make test-long-running'"
-	pytest test/ -v -m "comfyui_e2e"
+	pytest test/ -v -m "comfyui_e2e" --durations=0 --durations-min=0.5
 
 test-api-server:
 	@echo "Running API server integration suites (uvicorn startup, HTTP flows)..."
 	@echo "Note: These are also included in 'make test-long-running' (some tests have both markers)"
-	pytest test/ -v -m "api_server"
+	pytest test/ -v -m "api_server" --durations=0 --durations-min=0.5
 
 test-ontology-perf:
 	@echo "Running ontology performance/CLI tests (large datasets & subprocess calls)..."
 	@echo "Note: These are standalone tests, not in 'make test-long-running'"
-	pytest test/ -v -m "ontology_perf"
+	pytest test/ -v -m "ontology_perf" --durations=0 --durations-min=0.5
 
 test-all:
 	@echo "Running ALL test suites (excluding manual tests)..."
 	@echo "⚠️  Note: This may take 15-20 minutes and requires demo server on port 8001"
 	@echo ""
-	pytest test/ -v -m "not manual"
+	pytest test/ -v -m "not manual" --durations=0 --durations-min=0.5
 	@echo ""
 	@echo "✅ All test suites completed successfully!"
 	@echo "Summary:"
@@ -400,31 +401,31 @@ test-all:
 test-unit:
 	@echo "Running unit tests (no external dependencies required)..."
 	@echo "Testing: Pydantic models, utilities, exceptions, configuration"
-	pytest test/api/unit/ -v
+	pytest test/api/unit/ -v --durations=0 --durations-min=0.5
 
 test-db:
 	@echo "Running database tests (database server required)..."
 	@echo "Testing: repositories, services, database operations"
 	@echo "Make sure your test database is initialized (make init-test) and configured in .env"
-	pytest test/api/db/ test/db/ -v
+	pytest test/api/db/ test/db/ -v --durations=0 --durations-min=0.5
 
 test-db-unit:
 	@echo "Running database unit tests (no external dependencies required)..."
 	@echo "Testing: Database models, utilities, initialization logic"
-	pytest test/db/unit/ -v
+	pytest test/db/unit/ -v --durations=0 --durations-min=0.5
 
 test-db-integration:
 	@echo "Running database integration tests (database server required)..."
 	@echo "Testing: Database operations, seeding, end-to-end workflows"
 	@echo "Make sure your test database is initialized (make init-test) and configured in .env"
-	pytest test/db/integration/ -v
+	pytest test/db/integration/ -v --durations=0 --durations-min=0.5
 
 test-api:
 	@echo "Running API integration tests (web server required)..."
 	@echo "Testing: HTTP endpoints, complete workflows, error handling"
 	@echo "Prerequisites: API server should be running on http://0.0.0.0:8001. (it's probably running; this is just a reminder)"
 	@echo "Start with: make api-test"
-	API_BASE_URL=http://0.0.0.0:8001 pytest test/api/integration/ -v
+	API_BASE_URL=http://0.0.0.0:8001 pytest test/api/integration/ -v --durations=0 --durations-min=0.5
 
 # Database management
 clear-excess-test-schemas:

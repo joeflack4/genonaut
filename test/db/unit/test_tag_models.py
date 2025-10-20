@@ -67,7 +67,7 @@ class TestTagModel:
 
     def test_tag_metadata_can_be_empty(self):
         """Test that tag_metadata can be an empty dict."""
-        tag = Tag(name="Minimalism", tag_metadata={})
+        tag = Tag(name=f"Minimalism-{uuid.uuid4().hex[:8]}", tag_metadata={})
 
         self.session.add(tag)
         self.session.commit()
@@ -220,9 +220,15 @@ class TestTagRatingModel:
         # Use PostgreSQL test database (provided by conftest.py)
         self.session = db_session
 
-        # Create test user and tag
-        self.user = User(username="testuser", email="test@example.com")
-        self.tag = Tag(name="Digital Art", tag_metadata={})
+        # Create test user and tag with unique identifiers to avoid cross-test collisions
+        user_suffix = uuid.uuid4().hex[:8]
+        tag_suffix = uuid.uuid4().hex[:8]
+        self.user_username = f"testuser-{user_suffix}"
+        self.user_email = f"test-{user_suffix}@example.com"
+        self.tag_name = f"Digital Art {tag_suffix}"
+
+        self.user = User(username=self.user_username, email=self.user_email)
+        self.tag = Tag(name=self.tag_name, tag_metadata={})
 
         self.session.add_all([self.user, self.tag])
         self.session.commit()
@@ -305,7 +311,11 @@ class TestTagRatingModel:
 
     def test_multiple_users_can_rate_same_tag(self):
         """Test that multiple users can rate the same tag."""
-        user2 = User(username="testuser2", email="test2@example.com")
+        suffix = uuid.uuid4().hex[:8]
+        user2 = User(
+            username=f"testuser-{suffix}",
+            email=f"test-{suffix}@example.com",
+        )
         self.session.add(user2)
         self.session.commit()
 
@@ -351,6 +361,6 @@ class TestTagRatingModel:
 
         # Test relationships
         assert rating.user is not None
-        assert rating.user.username == "testuser"
+        assert rating.user.username == self.user_username
         assert rating.tag is not None
-        assert rating.tag.name == "Digital Art"
+        assert rating.tag.name == self.tag_name

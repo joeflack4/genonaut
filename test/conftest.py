@@ -185,7 +185,12 @@ def sync_content_tags_for_tests(session: Session, content_id: int, content_sourc
             )
             session.add(content_tag)
 
-    session.commit()
+    # DO NOT commit or flush here - let the test handle it
+    # The postgres_session fixture will automatically handle flushes/commits within savepoints
+    # Explicitly committing or flushing here bypasses the savepoint rollback mechanism
+    # and leaves orphaned tags in the database that pollute subsequent tests
+    # session.flush()
+    # session.commit()
 
 
 def pytest_sessionstart(session):
@@ -206,13 +211,16 @@ def pytest_sessionstart(session):
         db_url = get_postgres_test_url()
         engine = create_engine(db_url)
 
-        # Truncate all tables
+        # Truncate all tables (but preserve alembic_version to keep migration state)
         with engine.connect() as conn:
-            # Get all table names (excluding alembic version table)
+            # Get all table names (excluding alembic_version table)
+            # IMPORTANT: We must preserve alembic_version so that the database retains
+            # its migration state. Without this, Alembic thinks no migrations have run,
+            # and partitioned tables created by migrations will be missing.
             result = conn.execute(text("""
                 SELECT tablename FROM pg_tables
                 WHERE schemaname = 'public'
-                AND tablename NOT LIKE 'alembic%'
+                AND tablename NOT IN ('alembic_version')
                 ORDER BY tablename
             """))
             tables = [row[0] for row in result.fetchall()]

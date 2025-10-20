@@ -23,6 +23,12 @@ def repository(db_session):
 @pytest.fixture
 def sample_tags(db_session):
     """Create sample tag hierarchy."""
+    # Ensure a clean slate for each test run to avoid data leakage across tests
+    db_session.query(TagRating).delete()
+    db_session.query(TagParent).delete()
+    db_session.query(Tag).delete()
+    db_session.commit()
+
     # Root tags
     root1 = Tag(name="Art", tag_metadata={})
     root2 = Tag(name="Science", tag_metadata={})
@@ -60,7 +66,11 @@ def sample_tags(db_session):
 @pytest.fixture
 def sample_user(db_session):
     """Create sample user."""
-    user = User(username="testuser", email="test@example.com")
+    unique_suffix = uuid4().hex[:8]
+    user = User(
+        username=f"testuser-{unique_suffix}",
+        email=f"test-{unique_suffix}@example.com",
+    )
     db_session.add(user)
     db_session.commit()
     return user
@@ -236,7 +246,11 @@ class TestTagRepositoryRatings:
     def test_get_tag_average_rating(self, repository, sample_tags, sample_user, db_session):
         """Test computing average rating."""
         # Create another user
-        user2 = User(username="user2", email="user2@example.com")
+        suffix = uuid4().hex[:8]
+        user2 = User(
+            username=f"user-{suffix}",
+            email=f"user-{suffix}@example.com",
+        )
         db_session.add(user2)
         db_session.commit()
 
@@ -257,7 +271,11 @@ class TestTagRepositoryRatings:
     def test_get_tags_sorted_by_rating(self, repository, sample_tags, sample_user, db_session):
         """Test getting tags sorted by rating."""
         # Create another user
-        user2 = User(username="user2", email="user2@example.com")
+        suffix = uuid4().hex[:8]
+        user2 = User(
+            username=f"user-{suffix}",
+            email=f"user-{suffix}@example.com",
+        )
         db_session.add(user2)
         db_session.commit()
 

@@ -5,6 +5,7 @@ Run with: pytest test/db/test_postgres_fixtures.py -v
 """
 
 import pytest
+from uuid import uuid4
 from sqlalchemy import text
 
 from test.db.postgres_fixtures import (
@@ -88,21 +89,25 @@ class TestPostgresFixtures:
     def test_multiple_commits_in_test(self, postgres_session):
         """Test that multiple commits work within a test."""
         # First commit
-        user1 = User(username="user1", email="user1@test.com")
+        user1_suffix = uuid4().hex[:8]
+        user1_username = f"user-{user1_suffix}"
+        user1 = User(username=user1_username, email=f"{user1_username}@test.com")
         postgres_session.add(user1)
         postgres_session.commit()
 
         # Verify first user exists
-        found1 = postgres_session.query(User).filter_by(username="user1").first()
+        found1 = postgres_session.query(User).filter_by(username=user1_username).first()
         assert found1 is not None
 
         # Second commit
-        user2 = User(username="user2", email="user2@test.com")
+        user2_suffix = uuid4().hex[:8]
+        user2_username = f"user-{user2_suffix}"
+        user2 = User(username=user2_username, email=f"{user2_username}@test.com")
         postgres_session.add(user2)
         postgres_session.commit()
 
         # Verify both users exist
-        found2 = postgres_session.query(User).filter_by(username="user2").first()
+        found2 = postgres_session.query(User).filter_by(username=user2_username).first()
         assert found2 is not None
 
         # Both changes should be rolled back after test
@@ -128,5 +133,3 @@ class TestPostgresFixtures:
         assert result.preferences["language"] == "en"
         assert result.preferences["notifications"]["email"] is True
         assert result.preferences["notifications"]["push"] is False
-
-

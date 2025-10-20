@@ -110,6 +110,7 @@ class TestComfyUIClientIntegration:
         status = mock_comfyui_client.get_workflow_status(prompt_id)
         assert status["status"] == "completed"
 
+    @pytest.mark.longrunning
     def test_health_check(self, mock_comfyui_client: ComfyUIClient):
         """Test health check against mock server."""
         is_healthy = mock_comfyui_client.health_check()
