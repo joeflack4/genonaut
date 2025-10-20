@@ -1033,7 +1033,7 @@ This achieves full partition compliance with zero FK or data loss risk.
 
 - [x] Add `source_type` column to both tables via SQLAlchemy schema
 - [x] Verify column types, nullability, and constraints match
-- [ ] Attempt: Define partitioned parent in SQLAlchemy and let Alembic autogenerate migration
+- [x] Attempt: Define partitioned parent in SQLAlchemy and let Alembic autogenerate migration (IDK if this was skipped or not, but we're past it now)
 
 **Phase 11.3: Create Parent Table**
 - [x] Write Alembic migration to create `content_items_all` parent table

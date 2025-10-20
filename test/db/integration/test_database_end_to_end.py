@@ -21,7 +21,9 @@ from genonaut.db.schema import (
     Recommendation,
     GenerationJob,
 )
-from ..utils import get_next_test_schema_name, create_test_database_url
+
+
+pytestmark = pytest.mark.longrunning
 
 
 class TestDatabaseEndToEnd:
@@ -38,7 +40,17 @@ class TestDatabaseEndToEnd:
 
         yield
 
-        # Clean up is handled by test infrastructure (truncate tables hook)
+        # Restore seeded state to keep subsequent suites consistent
+        try:
+            initialize_database(
+                database_url=self.test_db_url,
+                create_db=False,
+                drop_existing=True,
+                environment="test",
+                auto_seed=True,
+            )
+        except Exception as exc:
+            print(f"Warning: failed to restore test database state: {exc}")
     
     @patch('builtins.print')  # Suppress print output during tests
     def test_complete_database_initialization_with_all_options(self, mock_print):
@@ -49,6 +61,7 @@ class TestDatabaseEndToEnd:
             create_db=True,
             drop_existing=False,
             environment="test",
+            auto_seed=False,
         )
         
         # Verify the initialization was successful by connecting and querying
@@ -96,6 +109,7 @@ class TestDatabaseEndToEnd:
             create_db=True,
             drop_existing=False,
             environment="test",
+            auto_seed=False,
         )
         
         # Verify tables exist but are empty
@@ -132,6 +146,7 @@ class TestDatabaseEndToEnd:
             create_db=True,
             drop_existing=False,
             environment="test",
+            auto_seed=False,
         )
         
         # Verify initial data exists
@@ -149,7 +164,8 @@ class TestDatabaseEndToEnd:
         initialize_database(
             database_url=self.test_db_url,
             create_db=True,
-            drop_existing=True
+            drop_existing=True,
+            auto_seed=False,
         )
         
         # Verify tables were recreated (should still be empty)
@@ -200,6 +216,7 @@ class TestDatabaseEndToEnd:
             create_db=True,
             drop_existing=False,
             environment="test",
+            auto_seed=False,
         )
         
         engine = create_engine(self.test_db_url)
@@ -270,6 +287,7 @@ class TestDatabaseEndToEnd:
             create_db=True,
             drop_existing=False,
             environment="test",
+            auto_seed=False,
         )
         
         engine = create_engine(self.test_db_url)

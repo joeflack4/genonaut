@@ -208,6 +208,73 @@ make test-db-integration  # Database integration tests only (DB required)
 make test-api
 ```
 
+## Database Initialization & Seeding Control
+
+Behind the scenes, most setup commands and database fixtures call `initialize_database()` from `genonaut.db.init`. Its default behaviour is to:
+
+- Detect the appropriate environment config and seed directory
+- Create databases/schemas when missing
+- Apply Alembic migrations (dropping/recreating tables if needed)
+- Seed canonical TSV data (demo/test fixtures)
+
+### `auto_seed` flag (default `True`)
+
+For day-to-day usage—`make init-demo`, `make init-test`, `make migrate-*`, `make api-*`, `make test`, etc.—no changes are required. All of those pathways keep seeding data automatically because the default remains `auto_seed=True`.
+
+You only pass `auto_seed=False` when a specific test needs to start from a truly empty schema. Example:
+
+```python
+initialize_database(
+    database_url=test_db_url,
+    create_db=True,
+    drop_existing=True,
+    environment="test",
+    auto_seed=False,  # Opt-out when the test wants to create every record itself
+)
+```
+
+Common scenarios:
+
+- Verifying raw migration behaviour or Alembic bootstrap logic
+- Suites that want to assert “no data exists until I insert it”
+- Performance or isolation checks that might be skewed by the seed dataset
+
+When you disable seeding, make sure you reseed afterwards if other suites rely on the canonical fixtures. The end-to-end initialization tests demonstrate this pattern (see below).
+
+## Database Initialization Test Suite
+
+`test/db/integration/test_database_end_to_end.py` validates the full bootstrapping pipeline (engine setup, Alembic migrations, seeding, schema sanity checks). We now run each case with `auto_seed=False`, then reseed automatically in the fixture teardown so the rest of the test run continues with the expected dataset.
+
+Helpful commands:
+
+```bash
+source env/python_venv/bin/activate
+ENV_TARGET=local-test pytest test/db/integration/test_database_end_to_end.py::TestDatabaseEndToEnd -q
+```
+
+Because the teardown step calls `initialize_database(..., auto_seed=True)` you do **not** need to rerun `make init-test` after executing this suite; the canonical seed data is restored automatically.
+
+For lower-level coverage, `test/db/unit/test_database_initializer.py` exercises `DatabaseInitializer` directly—creating/dropping tables, enabling extensions, and seeding TSV directories. These tests run quickly against the local PostgreSQL test database (`ENV_TARGET=local-test`) and now expect the `auto_seed` behaviour documented above.
+
+### `local-test-init` Environment
+
+When you need to build or validate seeding/initialization flows without affecting the main test database, use the dedicated `local-test-init` environment. It lives alongside `config/local-test-init.json` and points at the `genonaut_test_init` database.
+
+Handy commands:
+
+```bash
+# Create / reset the test-init database
+make init-test-init
+
+# Apply the latest migrations against test-init
+make migrate-test-init
+
+# Drop and recreate from scratch if needed
+make recreate-test-init
+```
+
+Inside Python or custom scripts you can pass `ENV_TARGET=local-test-init` (or `--env-target local-test-init` to `genonaut.cli_main init-db`) to reuse the same configuration. This keeps the canonical `local-test` database seeded for the rest of the suite while giving you an isolated sandbox for migration + TSV experiments.
+
 ### Comprehensive Testing
 ```bash
 # Run all test suites in sequence

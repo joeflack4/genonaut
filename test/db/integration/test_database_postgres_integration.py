@@ -146,6 +146,7 @@ class TestPostgresDatabaseIntegration:
         self.admin_db_url = self.__class__.admin_db_url
         self.admin_demo_db_url = self.__class__.admin_demo_db_url
     
+    @pytest.mark.longrunning
     def test_database_and_user_creation(self):
         """Test database and user creation using the SQL template."""
         initializer = DatabaseInitializer(self.test_db_url)

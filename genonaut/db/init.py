@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError, ProgrammingError
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.orm import sessionmaker, Session
@@ -535,33 +535,25 @@ class DatabaseInitializer:
             if schema_name and self.database_url.startswith('postgresql://'):
                 # PostgreSQL: Drop tables from specific schema
                 with self.engine.connect() as conn:
-                    # Set the search path to the target schema
-                    conn.execute(text(f"SET search_path TO {schema_name}, public"))
-                    
-                    # Drop all tables
-                    Base.metadata.drop_all(conn)
-                    
-                    # Reset search path
-                    conn.execute(text("SET search_path TO public"))
-                    conn.commit()
-                    
-                print(f"Database tables dropped successfully from schema: {schema_name}")
+                    self._drop_schema_tables(conn, schema_name)
+                    print(f"Database tables dropped successfully from schema: {schema_name}")
             elif self.database_url.startswith('postgresql://'):
                 # PostgreSQL: Drop tables from public schema (and legacy schemas for cleanup)
                 legacy_schemas = ['app', 'demo']
                 with self.engine.connect() as conn:
                     for schema in ['public'] + legacy_schemas:
                         try:
-                            conn.execute(text(f"SET search_path TO {schema}, public"))
-                            Base.metadata.drop_all(conn)
-                            conn.commit()
+                            self._drop_schema_tables(conn, schema)
                             print(f"Dropped tables from schema: {schema}")
                         except Exception as e:
                             print(f"Warning: Could not drop tables from {schema}: {e}")
                     
-                    # Reset search path
-                    conn.execute(text("SET search_path TO public"))
-                    conn.commit()
+                    # Reset search path (safe guard after legacy attempts)
+                    try:
+                        conn.execute(text("SET search_path TO public"))
+                        conn.commit()
+                    except Exception:
+                        conn.rollback()
                     
                 print("Database tables dropped successfully from public schema")
             else:
@@ -573,6 +565,42 @@ class DatabaseInitializer:
                     print("Database tables dropped successfully")
         except SQLAlchemyError as e:
             raise SQLAlchemyError(f"Failed to drop tables: {e}")
+
+    def _drop_schema_tables(self, conn, schema: str) -> None:
+        """Drop tables for the provided schema, tolerating missing tables/schemas."""
+
+        if not schema:
+            raise ValueError("Schema name must be provided")
+
+        try:
+            conn.execute(text(f"SET search_path TO {schema}, public"))
+        except Exception as exc:
+            conn.rollback()
+            raise exc
+
+        try:
+            Base.metadata.drop_all(conn)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+            inspector = inspect(conn)
+            existing_tables = inspector.get_table_names(schema=schema)
+
+            if not existing_tables:
+                raise RuntimeError(f"Schema '{schema}' does not exist or contains no tables to drop")
+
+            for table_name in existing_tables:
+                qualified = f'"{schema}"."{table_name}"'
+                conn.execute(text(f"DROP TABLE IF EXISTS {qualified} CASCADE"))
+
+            conn.commit()
+        finally:
+            try:
+                conn.execute(text("SET search_path TO public"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
 
     def ensure_legacy_full_text_indexes(self) -> None:
         """Ensure legacy full-text indexes exist before running migrations."""
@@ -866,6 +894,7 @@ def initialize_database(
     schema_name: Optional[str] = None,
     seed_data_path: Optional[Path] = None,
     environment: Optional[str] = None,
+    auto_seed: bool = True,
 ) -> None:
     """Initialize the database with schema and optional data seeding.
 
@@ -877,6 +906,7 @@ def initialize_database(
         schema_name: Optional schema name for table creation (primarily for tests).
         seed_data_path: Optional directory containing TSV files for seeding data.
         environment: Explicit environment identifier (``dev``, ``demo``, ``test``).
+        auto_seed: Whether to load seed TSV data when a seed path is available.
 
     Raises:
         SQLAlchemyError: If initialization fails.
@@ -920,13 +950,15 @@ def initialize_database(
         else:
             logger.warning("Seed data path %s is not a valid directory", candidate_path)
 
+    should_auto_seed = bool(resolved_seed_path and auto_seed)
+
     if schema_name:
         if is_postgresql:
             initializer.create_schemas([schema_name])
         if drop_existing:
             initializer.drop_tables(schema_name)
         initializer.create_tables(schema_name)
-        if resolved_seed_path:
+        if should_auto_seed:
             initializer.seed_from_tsv_directory(resolved_seed_path, schema_name)
     else:
         if drop_existing:
@@ -935,6 +967,14 @@ def initialize_database(
                     conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
                     conn.commit()
             initializer.drop_tables()
+        elif initializer.is_test:
+            if is_postgresql:
+                initializer.drop_tables()
+                with initializer.engine.connect() as conn:
+                    conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
+                    conn.commit()
+            else:
+                initializer.drop_tables()
 
         if is_postgresql:
             try:
@@ -953,13 +993,13 @@ def initialize_database(
         else:
             initializer.create_tables()
 
-        if initializer.is_test and resolved_seed_path:
+        if initializer.is_test and should_auto_seed:
             try:
                 initializer.truncate_tables()
             except SQLAlchemyError as exc:
                 logger.warning("Failed to truncate tables before test seeding: %s", exc)
 
-        if resolved_seed_path:
+        if should_auto_seed:
             initializer.seed_from_tsv_directory(resolved_seed_path)
 
     print("Database initialization completed successfully")

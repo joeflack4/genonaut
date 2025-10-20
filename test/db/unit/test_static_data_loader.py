@@ -25,10 +25,12 @@ def test_loads_user_notifications_csv(db_session, tmp_path):
     """CSV rows for user_notifications should be inserted successfully."""
     loader = StaticDataLoader(db_session, Path(tmp_path))
 
+    user_id = uuid4()
+    suffix = uuid4().hex[:8]
     user = User(
-        id=uuid4(),
-        username='test-user',
-        email='test@example.com',
+        id=user_id,
+        username=f'test-user-{suffix}',
+        email=f'test-{suffix}@example.com',
         preferences={'notifications_enabled': True},
     )
     db_session.add(user)

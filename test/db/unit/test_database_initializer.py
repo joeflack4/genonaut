@@ -7,6 +7,7 @@ Tests database initialization functionality.
 
 import os
 import pytest
+from uuid import uuid4
 from unittest.mock import patch, MagicMock
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -141,12 +142,14 @@ class TestDatabaseInitializer:
         
         # Verify tables exist by checking we can create objects
         session = self.initializer.session_factory()
-        user = User(username="testuser", email="test@example.com")
+        suffix = uuid4().hex[:8]
+        username = f"testuser-{suffix}"
+        user = User(username=username, email=f"test-{suffix}@example.com")
         session.add(user)
         session.commit()
         
         # Query should work without error
-        retrieved_user = session.query(User).filter_by(username="testuser").first()
+        retrieved_user = session.query(User).filter_by(username=username).first()
         assert retrieved_user is not None
         session.close()
     
@@ -164,7 +167,8 @@ class TestDatabaseInitializer:
         
         # Verify table exists
         session = self.initializer.session_factory()
-        user = User(username="testuser", email="test@example.com")
+        suffix = uuid4().hex[:8]
+        user = User(username=f"testuser-{suffix}", email=f"test-{suffix}@example.com")
         session.add(user)
         session.commit()
         session.close()
@@ -181,6 +185,9 @@ class TestDatabaseInitializer:
             session.query(User).first()
         
         session.close()
+
+        # Restore tables for subsequent tests
+        self.initializer.create_tables()
     
     def test_drop_tables_without_engine_raises_error(self):
         """Test that dropping tables without engine raises ValueError."""
@@ -260,8 +267,8 @@ class TestDatabaseInitializer:
             mock_initializer.seed_from_tsv_directory.assert_called_once_with(seed_dir)
 
 
-    def test_initialize_database_auto_drops_for_test_environment(self, tmp_path):
-        """Test databases should auto-drop existing tables before seeding."""
+    def test_initialize_database_skips_auto_seed_for_test_environment(self, tmp_path):
+        """Test databases should avoid automatic seeding to keep fixtures isolated."""
         seed_dir = tmp_path / "seed"
         seed_dir.mkdir()
 
@@ -279,13 +286,13 @@ class TestDatabaseInitializer:
             mock_load_config.return_value = {'seed_data': {'test': str(seed_dir)}}
             mock_resolve_seed_path.return_value = seed_dir
 
-            initialize_database(environment="test", create_db=False)
+            initialize_database(environment="test", create_db=False, auto_seed=False)
 
             mock_init_class.assert_called_once()
             mock_initializer.create_database_and_users.assert_not_called()
-            mock_initializer.drop_tables.assert_not_called()
-            mock_initializer.truncate_tables.assert_called_once()
-            mock_initializer.seed_from_tsv_directory.assert_called_once_with(seed_dir)
+            mock_initializer.drop_tables.assert_called_once()
+            mock_initializer.truncate_tables.assert_not_called()
+            mock_initializer.seed_from_tsv_directory.assert_not_called()
             mock_upgrade.assert_called_once_with(mock_initializer.database_url)
 
 

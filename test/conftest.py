@@ -185,7 +185,12 @@ def sync_content_tags_for_tests(session: Session, content_id: int, content_sourc
             )
             session.add(content_tag)
 
-    session.commit()
+    # DO NOT commit or flush here - let the test handle it
+    # The postgres_session fixture will automatically handle flushes/commits within savepoints
+    # Explicitly committing or flushing here bypasses the savepoint rollback mechanism
+    # and leaves orphaned tags in the database that pollute subsequent tests
+    # session.flush()
+    # session.commit()
 
 
 def pytest_sessionstart(session):

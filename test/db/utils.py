@@ -528,7 +528,11 @@ def seed_database_from_tsv(session, test_input_dir: str = None, schema_name: Opt
                 if content:
                     content_id_value = content.id
                 else:
-                    content_id_value = int(content_id_str)
+                    print(
+                        "Warning: Skipping generation job due to missing content reference "
+                        f"'{content_id_str}'"
+                    )
+                    continue
 
             # Set timestamps for completed jobs
             started_at = job_row.get('started_at')

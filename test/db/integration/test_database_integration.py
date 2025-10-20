@@ -8,6 +8,7 @@ todo: datetime.utcnow(): In newer Python versions, seems to be .now(datetime.UTC
 import pytest
 import tempfile
 import os
+import uuid
 from datetime import datetime
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
@@ -289,11 +290,15 @@ class TestDatabaseIntegration:
         """Test complete generation job lifecycle."""
         self.initializer.create_engine_and_session()
         self.initializer.create_tables()
-        
+
         session = self.initializer.session_factory()
-        
+
         # Create user
-        user = User(username="generator", email="generator@example.com")
+        suffix = uuid.uuid4().hex[:8]
+        user = User(
+            username=f"generator-{suffix}",
+            email=f"generator-{suffix}@example.com",
+        )
         session.add(user)
         session.commit()
         
@@ -336,11 +341,11 @@ class TestDatabaseIntegration:
         session.commit()
         
         # Test job queries and relationships
-        completed_jobs = session.query(GenerationJob).filter_by(status="completed").all()
+        completed_jobs = session.query(GenerationJob).filter_by(status="completed", user_id=user.id).all()
         assert len(completed_jobs) == 1
         
         completed_job = completed_jobs[0]
-        assert completed_job.user.username == "generator"
+        assert completed_job.user.username.startswith("generator-")
         assert completed_job.result_content.title == "Generated Creative Story"
         assert completed_job.started_at is not None
         assert completed_job.completed_at is not None
