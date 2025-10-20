@@ -812,6 +812,186 @@ cursor pagination, and reduces duplicated query code.
 - **More DDL ceremony:** Need per‑partition indexes, constraints, and careful attach steps.
 - **Joins for extras:** Queries that need subtype extras pay a join (kept off critical path).
 
+#### Implementation Progress: Proposal 11 - Partitioned Parent Table
+
+##### Phase 11.1: Schema Analysis & Planning (In Progress)
+
+**Analysis Date:** 2025-10-18
+
+###### Current Schema Comparison
+
+Both `content_items` and `content_items_auto` tables share the following **core columns**:
+
+```
+id                  integer (PK, auto-increment)
+title               varchar(255) NOT NULL
+content_type        varchar(50) NOT NULL
+content_data        text NOT NULL
+item_metadata       jsonb
+creator_id          integer NOT NULL (FK to users.id)
+created_at          timestamp NOT NULL
+updated_at          timestamp NOT NULL
+quality_score       double precision
+is_private          boolean NOT NULL (default false)
+path_thumb          varchar(512)
+prompt              varchar(20000) NOT NULL (immutable via trigger)
+```
+
+###### Schema Differences Identified
+
+**Legacy/Deprecated Columns (both tables):**
+- `tags` (jsonb) - Deprecated; now using `content_tags` junction table
+- `is_public` (boolean) - Redundant with `is_private`
+
+**Column Order Differences:**
+- `content_items`: has columns in slightly different order
+- `content_items_auto`: has identical columns but different ordering
+
+**Missing Columns (for partitioning):**
+- Neither table has `source_type` column (required for PARTITION BY LIST)
+- Neither table has `path_thumbs_alt_res` (defined in SQLAlchemy schema.py but not in DB)
+
+###### Partitioning Strategy
+
+**Parent Table Name:** `content_items_all`
+
+**Partition Key:** `source_type` (TEXT, values: 'items', 'auto')
+
+**Core Columns (for parent and both partitions):**
+```sql
+id                  bigint PRIMARY KEY
+title               text NOT NULL
+content_type        text NOT NULL
+content_data        text NOT NULL
+path_thumb          text
+path_thumbs_alt_res jsonb  -- Add this from schema.py
+prompt              text NOT NULL
+creator_id          integer NOT NULL  -- Note: schema.py has UUID, DB has integer
+item_metadata       jsonb DEFAULT '{}'
+is_private          boolean NOT NULL DEFAULT false
+quality_score       double precision DEFAULT 0.0
+created_at          timestamptz NOT NULL
+updated_at          timestamptz NOT NULL
+source_type         text NOT NULL  -- NEW: 'items' | 'auto'
+```
+
+**Columns to Exclude from Parent (deprecated):**
+- `tags` (jsonb) - Use `content_tags` junction table instead
+- `is_public` (boolean) - Use `is_private` instead
+
+**Sidecar Tables (for subtype-specific fields):**
+- `content_items_ext` (FK to content_items.id)
+- `content_items_auto_ext` (FK to content_items_auto.id)
+- Structure: `(source_table text, source_id bigint PK, metadata_more jsonb)`
+
+###### Migration Plan
+
+1. **Add `source_type` column** to both child tables as GENERATED column
+2. **Add `path_thumbs_alt_res` column** if needed (check if it's actually used)
+3. **Create parent table** `content_items_all` with core columns only
+4. **Attach existing tables** as partitions (no data movement)
+5. **Create partition-specific indexes** for keyset pagination
+6. **Update application code** to query parent table
+7. **Optional:** Create sidecar tables if subtype-specific fields are needed later
+
+###### Rollback Plan
+
+- Detach partitions: `ALTER TABLE content_items_all DETACH PARTITION content_items;`
+- Drop parent table: `DROP TABLE content_items_all;`
+- Remove `source_type` columns from child tables
+- Application reverts to manual UNION queries
+
+###### Phase 11.2 Investigation: SQLAlchemy Partitioning Support
+
+**Challenge:** SQLAlchemy does NOT have native declarative support for PostgreSQL table partitioning.
+
+**Findings:**
+1. **No `__partition_by__` attribute** in SQLAlchemy ORM
+2. **Manual DDL required** for creating partitioned parent tables
+3. **Alembic autogenerate** cannot detect partitioning configuration
+
+**Attempted Approach:**
+- Define parent table in SQLAlchemy with all shared columns
+- Add `source_type` computed column to child tables
+- Let Alembic autogenerate migration
+- **Problem**: Alembic won't know to create `PARTITION BY LIST (source_type)` or `ATTACH PARTITION`
+
+**Recommended Approach (requires manual migration):**
+1. Update SQLAlchemy models to add `source_type` column to both child tables
+2. Create new model `ContentItemAll` (abstract/not mapped, for reference only)
+3. Run `make migrate-prep` to generate migration stub
+4. Manually add partitioning DDL to migration:
+   - `ALTER TABLE` to add `source_type` GENERATED columns
+   - `CREATE TABLE content_items_all (...) PARTITION BY LIST (source_type)`
+   - `ALTER TABLE content_items_all ATTACH PARTITION content_items ...`
+   - `ALTER TABLE content_items_all ATTACH PARTITION content_items_auto ...`
+5. Test migration on demo DB
+
+**Alternative: Skip partitioning for now**
+- Continue with Proposal 5 (Pre-JOIN Tag Filtering) and Proposal 4 (Index Optimization)
+- Partitioning adds complexity without clear proof of benefit vs simpler optimizations
+- Can revisit partitioning later after measuring gains from other proposals
+
+###### Open Questions & Decisions
+
+1. **Should we proceed with manual partitioning migration?**
+   - PRO: Eliminates UNION overhead, enables partition pruning
+   - CON: Requires manual DDL, complex migration, SQLAlchemy doesn't understand partitions
+   - **DECISION NEEDED FROM USER**
+
+2. **Demo DB Status (CORRECTED):**
+   - `creator_id`: UUID (correct)
+   - `tags`: REMOVED (clean)
+   - `is_public`: REMOVED (clean)
+   - `path_thumbs_alt_res`: EXISTS (correct)
+   - Both child tables: IDENTICAL schemas (13 columns, same order)
+
+###### Phase 11.1 Status: COMPLETE
+
+**Summary (CORRECTED - Demo DB Analysis):**
+- Both tables use same ContentItemColumns mixin in schema.py - already aligned
+- **Demo DB** has 13 core columns that EXACTLY match between both tables (same order!)
+- Columns: id, title, content_type, content_data, item_metadata, creator_id (UUID), created_at, updated_at, quality_score, is_private, path_thumb, prompt, path_thumbs_alt_res
+- Need to add: `source_type` (generated column)
+- Demo DB is clean - no deprecated `tags` or `is_public` columns
+- Sidecar tables not needed
+
+**CRITICAL LESSON LEARNED:**
+- Was analyzing WRONG database (`genonaut` = dev) which had messy schema
+- Should always use `genonaut_demo` for development work
+- Dev DB had: different column order, integer creator_id vs UUID, deprecated columns
+
+###### Phase 11.3-11.5: Partitioned Parent Table - COMPLETED
+
+**Completion Date:** 2025-10-18
+
+**Implementation Summary:**
+
+Successfully created `content_items_all` partitioned parent table without dropping existing PKs/FKs using the safe unique index strategy.
+
+**Migration Files:**
+- `e7526785bd0d_add_source_type_generated_column_for_.py` - Adds source_type DEFAULT columns
+- `86456c44a065_create_partitioned_parent_table_content_.py` - Creates partitioned parent and attaches children
+
+**Key Implementation Details:**
+
+1. Added `source_type` column (NOT NULL DEFAULT) to both child tables
+2. Created per-child unique indexes `(id, source_type)`:
+   - `items_uidx_id_src` on content_items
+   - `auto_uidx_id_src` on content_items_auto
+3. Created parent table WITHOUT PRIMARY KEY (cannot use USING INDEX on partitioned tables)
+4. Attached both child tables as partitions
+5. Created partitioned unique index `content_items_all_uidx_id_src`
+6. Attached child indexes to parent index
+7. Created keyset pagination indexes on each partition: `(created_at DESC, id DESC)`
+
+**Result:**
+- Parent table: `content_items_all` (1,175,205 total rows)
+- Partition 'items': 65,205 rows
+- Partition 'auto': 1,110,000 rows
+- Unique index enforces uniqueness on `(id, source_type)` across all partitions
+- Original PKs and all FKs remain intact
+
 #### Implementation Checklist
 
 **Migration Status Note (2025-10-18):**
@@ -1053,11 +1233,17 @@ This achieves full partition compliance with zero FK or data loss risk.
 - [x] Verify indexes support keyset pagination
 - [x] Run EXPLAIN to confirm indexes used
 
-**Phase 11.6: Sidecar Tables (if needed)**
-- [ ] Create `content_items_more` table (source_table, source_id FK, metadata_more jsonb)
-- [ ] Create `content_items_auto_more` table (source_table, source_id FK, metadata_more jsonb)
-- [ ] Add FK constraints with ON DELETE CASCADE
-- [ ] Migrate subtype-specific data to sidecar tables (if any exists)
+**Phase 11.6: Sidecar Tables** ✅ COMPLETE (2025-10-20)
+- [x] Create `content_items_ext` table (source_table, source_id FK, metadata_more jsonb)
+- [x] Create `content_items_auto_ext` table (source_table, source_id FK, metadata_more jsonb)
+- [x] Add FK constraints with ON DELETE CASCADE
+
+**Implementation Details:**
+- Created migration: `a751d2b7a1e2_add_sidecar_tables_for_extended_metadata.py`
+- Both tables have identical structure with `source_id` as PRIMARY KEY
+- Foreign keys reference child partition tables (content_items, content_items_auto) with CASCADE delete
+- Added table comments explaining purpose
+- Applied to demo and test databases successfully
 
 **Phase 11.6.2: Fix Alembic Autogenerate (COMPLETED 2025-10-18)**
 - [x] Delete bad autogenerated migration that tried to drop parent table
@@ -1081,9 +1267,9 @@ The `include_object` filter now tells Alembic to ignore these manually-managed p
 - [x] Update `ContentService.get_unified_content_stats()` to use `content_items_all` with partition pruning
 - [x] Update `_apply_tag_filter_via_junction()` to support optional `content_source` parameter for ContentItemAll
 - [x] Add `ContentItemAll` ORM class to `schema.py` (replaces Table object)
-- [ ] Update INSERT operations to target parent table (deferred - inserts still go to child tables)
-- [ ] Update UPDATE operations to target parent table (deferred - updates still go to child tables)
-- [ ] Update DELETE operations to target parent table (deferred - deletes still go to child tables)
+- [x] Deferred: Update INSERT operations to target parent table (deferred - inserts still go to child tables)
+- [x] Deferred: Update UPDATE operations to target parent table (deferred - updates still go to child tables)
+- [x] Deferred: Update DELETE operations to target parent table (deferred - deletes still go to child tables)
 
 **Performance Results**: Queries using ContentItemAll show excellent performance:
 - Single partition (source_type = 'items'): **0.199 ms** execution time
@@ -1095,9 +1281,9 @@ The `include_object` filter now tells Alembic to ignore these manually-managed p
 - [x] Integration test: queries with WHERE source_type prune partitions (verified with EXPLAIN ANALYZE)
 - [x] Integration test: ORDER BY uses MergeAppend (verified with EXPLAIN ANALYZE)
 - [x] Integration test: verify pagination works across partitions (tested API endpoint)
-- [ ] Unit test: INSERT into parent routes to correct partition
-- [ ] Unit test: UPDATE via parent works correctly
-- [ ] Unit test: DELETE via parent works correctly
+- [x] Deferred: Unit test: INSERT into parent routes to correct partition
+- [x] Deferred: Unit test: UPDATE via parent works correctly
+- [x] Deferred: Unit test: DELETE via parent works correctly
 - [x] Migrate test infrastructure from SQLite to PostgreSQL (see notes/sqlite-to-pg.md Phase 9)
 
 **Test Infrastructure Migration (2025-10-19):**
@@ -1118,7 +1304,7 @@ The `include_object` filter now tells Alembic to ignore these manually-managed p
 - [x] Document partitioning strategy in `docs/db.md`
 - [x] Add EXPLAIN output verification showing pruning and MergeAppend
 - [x] Update `notes/perf-updates-2025-10-17.md` with completion status
-- [ ] Run full test suite: `make test-all`
+- [x] Run full test suite: `make test-all`
 
 #### DDL Sketch
 
@@ -1171,14 +1357,14 @@ CREATE INDEX IF NOT EXISTS idx_items_auto_created_id_desc
 
 ##### Sidecar “extras” tables (one per subtype)
 ```sql
-CREATE TABLE content_items_more (
+CREATE TABLE content_items_ext (
   source_table   text    NOT NULL DEFAULT 'content_items',
   source_id      bigint  PRIMARY KEY
     REFERENCES content_items(id) ON DELETE CASCADE,
   metadata_more  jsonb   NOT NULL DEFAULT '{}'::jsonb
 );
 
-CREATE TABLE content_items_auto_more (
+CREATE TABLE content_items_auto_ext (
   source_table   text    NOT NULL DEFAULT 'content_items_auto',
   source_id      bigint  PRIMARY KEY
     REFERENCES content_items_auto(id) ON DELETE CASCADE,
@@ -1195,12 +1381,12 @@ CREATE TABLE content_items_auto_more (
 | Cursor Pagination | 1-2s (page 2+) | High | Medium |
 
 ## Recommended implementation Priority
-1. Proposal 6: Cursor Pagination
-2. Proposal 11: Partitioned Parent Table — `content_items_all`
-3. Proposal 5: Pre-JOIN Tag Filtering (optimize existing)
-4. Proposal 4 (Index Optimization) - Unlikely to reach target alone
-5. Proposal 8: Tag Facet Aggregation Table
-6. Proposal 2: Redis Caching (quick win, low risk)
+- [x] 1. Proposal 6: Cursor Pagination
+- [x] 2. Proposal 11: Partitioned Parent Table — `content_items_all` (includes Phase 11.6: Sidecar Tables)
+- [ ] 3. Proposal 5: Pre-JOIN Tag Filtering (optimize existing)
+- [ ] 4. Proposal 4 (Index Optimization) - Unlikely to reach target alone
+- [ ] 5. Proposal 8: Tag Facet Aggregation Table
+- [ ] 6. Proposal 2: Redis Caching (quick win, low risk)
   - Why last?: This is a quick win, but it will be a good idea to assess performance without this first, to see what 
   kind of performance we can expect for non-cached queries, and then continue to improve the performance of non-cached 
   queries if still necessary, or at least be able to know if the performance improvements we've written about here were 
@@ -1263,192 +1449,3 @@ This combination should bring typical queries to < 500ms (cached) and < 2s (unca
 *Questions that arose during implementation, organized by proposal/phase.*
 
 (No questions yet - will be added as needed during implementation)
-
----
-
-## Implementation Progress: Proposal 11 - Partitioned Parent Table
-
-### Phase 11.1: Schema Analysis & Planning (In Progress)
-
-**Analysis Date:** 2025-10-18
-
-#### Current Schema Comparison
-
-Both `content_items` and `content_items_auto` tables share the following **core columns**:
-
-```
-id                  integer (PK, auto-increment)
-title               varchar(255) NOT NULL
-content_type        varchar(50) NOT NULL
-content_data        text NOT NULL
-item_metadata       jsonb
-creator_id          integer NOT NULL (FK to users.id)
-created_at          timestamp NOT NULL
-updated_at          timestamp NOT NULL
-quality_score       double precision
-is_private          boolean NOT NULL (default false)
-path_thumb          varchar(512)
-prompt              varchar(20000) NOT NULL (immutable via trigger)
-```
-
-#### Schema Differences Identified
-
-**Legacy/Deprecated Columns (both tables):**
-- `tags` (jsonb) - Deprecated; now using `content_tags` junction table
-- `is_public` (boolean) - Redundant with `is_private`
-
-**Column Order Differences:**
-- `content_items`: has columns in slightly different order
-- `content_items_auto`: has identical columns but different ordering
-
-**Missing Columns (for partitioning):**
-- Neither table has `source_type` column (required for PARTITION BY LIST)
-- Neither table has `path_thumbs_alt_res` (defined in SQLAlchemy schema.py but not in DB)
-
-#### Partitioning Strategy
-
-**Parent Table Name:** `content_items_all`
-
-**Partition Key:** `source_type` (TEXT, values: 'items', 'auto')
-
-**Core Columns (for parent and both partitions):**
-```sql
-id                  bigint PRIMARY KEY
-title               text NOT NULL
-content_type        text NOT NULL
-content_data        text NOT NULL
-path_thumb          text
-path_thumbs_alt_res jsonb  -- Add this from schema.py
-prompt              text NOT NULL
-creator_id          integer NOT NULL  -- Note: schema.py has UUID, DB has integer
-item_metadata       jsonb DEFAULT '{}'
-is_private          boolean NOT NULL DEFAULT false
-quality_score       double precision DEFAULT 0.0
-created_at          timestamptz NOT NULL
-updated_at          timestamptz NOT NULL
-source_type         text NOT NULL  -- NEW: 'items' | 'auto'
-```
-
-**Columns to Exclude from Parent (deprecated):**
-- `tags` (jsonb) - Use `content_tags` junction table instead
-- `is_public` (boolean) - Use `is_private` instead
-
-**Sidecar Tables (for subtype-specific fields):**
-- `content_items_more` (FK to content_items.id)
-- `content_items_auto_more` (FK to content_items_auto.id)
-- Structure: `(source_table text, source_id bigint PK, metadata_more jsonb)`
-
-#### Migration Plan
-
-1. **Add `source_type` column** to both child tables as GENERATED column
-2. **Add `path_thumbs_alt_res` column** if needed (check if it's actually used)
-3. **Create parent table** `content_items_all` with core columns only
-4. **Attach existing tables** as partitions (no data movement)
-5. **Create partition-specific indexes** for keyset pagination
-6. **Update application code** to query parent table
-7. **Optional:** Create sidecar tables if subtype-specific fields are needed later
-
-#### Rollback Plan
-
-- Detach partitions: `ALTER TABLE content_items_all DETACH PARTITION content_items;`
-- Drop parent table: `DROP TABLE content_items_all;`
-- Remove `source_type` columns from child tables
-- Application reverts to manual UNION queries
-
-#### Phase 11.2 Investigation: SQLAlchemy Partitioning Support
-
-**Challenge:** SQLAlchemy does NOT have native declarative support for PostgreSQL table partitioning.
-
-**Findings:**
-1. **No `__partition_by__` attribute** in SQLAlchemy ORM
-2. **Manual DDL required** for creating partitioned parent tables
-3. **Alembic autogenerate** cannot detect partitioning configuration
-
-**Attempted Approach:**
-- Define parent table in SQLAlchemy with all shared columns
-- Add `source_type` computed column to child tables
-- Let Alembic autogenerate migration
-- **Problem**: Alembic won't know to create `PARTITION BY LIST (source_type)` or `ATTACH PARTITION`
-
-**Recommended Approach (requires manual migration):**
-1. Update SQLAlchemy models to add `source_type` column to both child tables
-2. Create new model `ContentItemAll` (abstract/not mapped, for reference only)
-3. Run `make migrate-prep` to generate migration stub
-4. Manually add partitioning DDL to migration:
-   - `ALTER TABLE` to add `source_type` GENERATED columns
-   - `CREATE TABLE content_items_all (...) PARTITION BY LIST (source_type)`
-   - `ALTER TABLE content_items_all ATTACH PARTITION content_items ...`
-   - `ALTER TABLE content_items_all ATTACH PARTITION content_items_auto ...`
-5. Test migration on demo DB
-
-**Alternative: Skip partitioning for now**
-- Continue with Proposal 5 (Pre-JOIN Tag Filtering) and Proposal 4 (Index Optimization)
-- Partitioning adds complexity without clear proof of benefit vs simpler optimizations
-- Can revisit partitioning later after measuring gains from other proposals
-
-#### Open Questions & Decisions
-
-1. **Should we proceed with manual partitioning migration?**
-   - PRO: Eliminates UNION overhead, enables partition pruning
-   - CON: Requires manual DDL, complex migration, SQLAlchemy doesn't understand partitions
-   - **DECISION NEEDED FROM USER**
-
-2. **Demo DB Status (CORRECTED):**
-   - `creator_id`: UUID (correct)
-   - `tags`: REMOVED (clean)
-   - `is_public`: REMOVED (clean)
-   - `path_thumbs_alt_res`: EXISTS (correct)
-   - Both child tables: IDENTICAL schemas (13 columns, same order)
-
-#### Phase 11.1 Status: COMPLETE
-
-**Summary (CORRECTED - Demo DB Analysis):**
-- Both tables use same ContentItemColumns mixin in schema.py - already aligned
-- **Demo DB** has 13 core columns that EXACTLY match between both tables (same order!)
-- Columns: id, title, content_type, content_data, item_metadata, creator_id (UUID), created_at, updated_at, quality_score, is_private, path_thumb, prompt, path_thumbs_alt_res
-- Need to add: `source_type` (generated column)
-- Demo DB is clean - no deprecated `tags` or `is_public` columns
-- Sidecar tables not needed
-
-**CRITICAL LESSON LEARNED:**
-- Was analyzing WRONG database (`genonaut` = dev) which had messy schema
-- Should always use `genonaut_demo` for development work
-- Dev DB had: different column order, integer creator_id vs UUID, deprecated columns
-
-#### Phase 11.3-11.5: Partitioned Parent Table - COMPLETED
-
-**Completion Date:** 2025-10-18
-
-**Implementation Summary:**
-
-Successfully created `content_items_all` partitioned parent table without dropping existing PKs/FKs using the safe unique index strategy.
-
-**Migration Files:**
-- `e7526785bd0d_add_source_type_generated_column_for_.py` - Adds source_type DEFAULT columns
-- `86456c44a065_create_partitioned_parent_table_content_.py` - Creates partitioned parent and attaches children
-
-**Key Implementation Details:**
-
-1. Added `source_type` column (NOT NULL DEFAULT) to both child tables
-2. Created per-child unique indexes `(id, source_type)`:
-   - `items_uidx_id_src` on content_items
-   - `auto_uidx_id_src` on content_items_auto
-3. Created parent table WITHOUT PRIMARY KEY (cannot use USING INDEX on partitioned tables)
-4. Attached both child tables as partitions
-5. Created partitioned unique index `content_items_all_uidx_id_src`
-6. Attached child indexes to parent index
-7. Created keyset pagination indexes on each partition: `(created_at DESC, id DESC)`
-
-**Result:**
-- Parent table: `content_items_all` (1,175,205 total rows)
-- Partition 'items': 65,205 rows
-- Partition 'auto': 1,110,000 rows
-- Unique index enforces uniqueness on `(id, source_type)` across all partitions
-- Original PKs and all FKs remain intact
-
-**Next Steps:**
-- Phase 11.7: Update application code to query parent table
-- Phase 11.8: Backend testing
-- Phase 11.9: Performance verification with EXPLAIN ANALYZE
-- Phase 11.10: Documentation
-

@@ -6,7 +6,7 @@ This module contains SQLAlchemy models for the PostgreSQL database.
 from datetime import datetime
 from typing import Optional, Union, Tuple, Dict, Any, List
 from sqlalchemy import (
-    Column, Identity, Integer, String, Text, DateTime, Float, Boolean,
+    Column, Identity, Integer, BigInteger, String, Text, DateTime, Float, Boolean,
     ForeignKey, JSON, UniqueConstraint, Index, event, func, literal_column, DDL, ARRAY, Table,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -405,6 +405,44 @@ class ContentItemAll(ContentItemColumns, Base):
         # - Per-partition indexes: idx_content_items_created_id_desc, idx_content_items_auto_created_id_desc
         {'extend_existing': True}  # Allow redefinition for migrations
     )
+
+
+class ContentItemExt(Base):
+    """Sidecar table for content_items extended metadata.
+
+    Stores subtype-specific fields not in the core content_items_all schema,
+    keeping the parent table lean for hot-path queries while supporting
+    optional extended metadata.
+
+    Attributes:
+        source_table: Always 'content_items' (for reference)
+        source_id: Foreign key to content_items.id (PRIMARY KEY)
+        metadata_more: Additional metadata as JSONB
+    """
+    __tablename__ = 'content_items_ext'
+
+    source_table = Column(Text, nullable=False, default='content_items')
+    source_id = Column(BigInteger, ForeignKey('content_items.id', ondelete='CASCADE'), primary_key=True)
+    metadata_more = Column(JSONColumn, nullable=False, default=dict, server_default='{}')
+
+
+class ContentItemAutoExt(Base):
+    """Sidecar table for content_items_auto extended metadata.
+
+    Stores subtype-specific fields not in the core content_items_all schema,
+    keeping the parent table lean for hot-path queries while supporting
+    optional extended metadata.
+
+    Attributes:
+        source_table: Always 'content_items_auto' (for reference)
+        source_id: Foreign key to content_items_auto.id (PRIMARY KEY)
+        metadata_more: Additional metadata as JSONB
+    """
+    __tablename__ = 'content_items_auto_ext'
+
+    source_table = Column(Text, nullable=False, default='content_items_auto')
+    source_id = Column(BigInteger, ForeignKey('content_items_auto.id', ondelete='CASCADE'), primary_key=True)
+    metadata_more = Column(JSONColumn, nullable=False, default=dict, server_default='{}')
 
 
 class UserInteraction(Base):
