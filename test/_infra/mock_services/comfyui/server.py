@@ -205,7 +205,9 @@ class MockComfyUIServer:
 
 
 # Initialize server state
-BASE_DIR = Path(__file__).parent
+# Use absolute paths to ensure files are created in the correct location
+# even when server runs as subprocess with different working directory
+BASE_DIR = Path(__file__).parent.resolve()
 INPUT_DIR = BASE_DIR / "input"
 OUTPUT_DIR = BASE_DIR / "output"
 

@@ -1,81 +1,71 @@
 """Integration tests for database operations.
 
-Tests the full database initialization and operations with actual database connections.
+Tests database operations with actual database connections using the migrated schema.
 
 todo: datetime.utcnow(): In newer Python versions, seems to be .now(datetime.UTC)
 """
 
 import pytest
-import tempfile
-import os
 import uuid
 from datetime import datetime
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text, inspect
 
-from genonaut.db.init import DatabaseInitializer
 from genonaut.db.schema import Base, User, ContentItem, ContentItemAuto, UserInteraction, Recommendation, GenerationJob
 
 
 class TestDatabaseIntegration:
-    """Integration test cases for database operations."""
-    
-    @pytest.fixture(autouse=True)
-    def setup_method(self):
-        """Set up test database for each test."""
-        # Use PostgreSQL test database URL from environment
-        self.test_db_url = os.getenv('DATABASE_URL_TEST', 'postgresql://localhost/genonaut_test')
-        self.initializer = DatabaseInitializer(self.test_db_url)
-    
-    def teardown_method(self):
-        """Clean up after each test."""
-        if hasattr(self.initializer, 'engine') and self.initializer.engine:
-            self.initializer.engine.dispose()
-    
-    def test_full_database_initialization_workflow(self):
-        """Test the complete database initialization workflow."""
-        # Initialize engine and session
-        self.initializer.create_engine_and_session()
-        
-        # Create tables
-        self.initializer.create_tables()
-        
-        # Verify tables exist by checking metadata
-        table_names = [table.name for table in Base.metadata.tables.values()]
+    """Integration test cases for database operations.
+
+    These tests use the postgres_session fixture which provides:
+    - Properly migrated schema (including partitioned tables)
+    - Automatic rollback after each test
+    - Transaction isolation
+    """
+
+    def test_full_database_initialization_workflow(self, postgres_session):
+        """Test that the database schema is properly initialized via migrations."""
+        # Verify tables exist by inspecting the database
+        inspector = inspect(postgres_session.bind)
+        table_names = inspector.get_table_names()
+
         expected_tables = [
             'users',
             'content_items',
             'content_items_auto',
+            'content_items_all',  # Partitioned parent table from migrations
             'user_interactions',
             'recommendations',
             'generation_jobs'
         ]
-        
+
         for expected_table in expected_tables:
-            assert expected_table in table_names
-        
-        # Note: Sample data seeding is now tested separately in test_database_seeding.py
-        # This test just verifies that tables are created correctly
+            assert expected_table in table_names, f"Expected table '{expected_table}' not found in database"
+
+        # Verify content_items_all is a partitioned table (from migrations)
+        result = postgres_session.execute(text("""
+            SELECT c.relkind
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public' AND c.relname = 'content_items_all'
+        """))
+        row = result.fetchone()
+        assert row is not None, "content_items_all table not found"
+        assert row[0] == 'p', "content_items_all should be partitioned table (created by migrations)"
     
-    def test_user_content_relationship_integrity(self):
+    def test_user_content_relationship_integrity(self, postgres_session):
         """Test that user-content relationships work correctly across operations."""
-        self.initializer.create_engine_and_session()
-        self.initializer.create_tables()
-        
-        session = self.initializer.session_factory()
-        
+        from test.conftest import sync_content_tags_for_tests
+
         # Create a user
         user = User(
             username="integration_user",
             email="integration@example.com",
             preferences={"test": True}
         )
-        session.add(user)
-        session.commit()
-        
-        # Create content items for this user
-        from test.conftest import sync_content_tags_for_tests
+        postgres_session.add(user)
+        postgres_session.commit()
 
+        # Create content items for this user
         tags_one = ["integration", "test"]
         content1 = ContentItem(
             title="Integration Test Content 1",
@@ -84,10 +74,10 @@ class TestDatabaseIntegration:
             creator_id=user.id,
             prompt="Test prompt"
         )
-        session.add(content1)
-        session.commit()
-        session.refresh(content1)
-        sync_content_tags_for_tests(session, content1.id, 'regular', tags_one)
+        postgres_session.add(content1)
+        postgres_session.commit()
+        postgres_session.refresh(content1)
+        sync_content_tags_for_tests(postgres_session, content1.id, 'regular', tags_one)
 
         tags_two = []
         content2 = ContentItem(
@@ -98,10 +88,10 @@ class TestDatabaseIntegration:
             item_metadata={"size": "1024x768"},
             prompt="Test prompt"
         )
-        session.add(content2)
-        session.commit()
-        session.refresh(content2)
-        sync_content_tags_for_tests(session, content2.id, 'regular', tags_two)
+        postgres_session.add(content2)
+        postgres_session.commit()
+        postgres_session.refresh(content2)
+        sync_content_tags_for_tests(postgres_session, content2.id, 'regular', tags_two)
 
         tags_auto = ["automation"]
         auto_item = ContentItemAuto(
@@ -112,19 +102,19 @@ class TestDatabaseIntegration:
             prompt="Test prompt",
             item_metadata={"source": "auto"},
         )
-        session.add(auto_item)
-        session.commit()
-        session.refresh(auto_item)
-        sync_content_tags_for_tests(session, auto_item.id, 'auto', tags_auto)
-        
+        postgres_session.add(auto_item)
+        postgres_session.commit()
+        postgres_session.refresh(auto_item)
+        sync_content_tags_for_tests(postgres_session, auto_item.id, 'auto', tags_auto)
+
         # Test forward relationships (user -> content)
-        user_content = session.query(ContentItem).filter_by(creator_id=user.id).all()
+        user_content = postgres_session.query(ContentItem).filter_by(creator_id=user.id).all()
         assert len(user_content) == 2
-        
+
         # Test backward relationships (content -> user)
         assert content1.creator.username == "integration_user"
         assert content2.creator.email == "integration@example.com"
-        
+
         # Test ORM relationship properties
         assert len(user.content_items) == 2
         assert len(user.auto_content_items) == 1
@@ -134,35 +124,26 @@ class TestDatabaseIntegration:
 
         # Auto item should mirror fields of regular content
         assert auto_item.item_metadata["source"] == "auto"
-        
-        session.close()
     
-    def test_user_interaction_workflow(self):
+    def test_user_interaction_workflow(self, postgres_session):
         """Test complete user interaction workflow."""
-        self.initializer.create_engine_and_session()
-        self.initializer.create_tables()
-        
-        session = self.initializer.session_factory()
-        
         # Create users and content
         creator = User(username="creator", email="creator@example.com")
         viewer = User(username="viewer", email="viewer@example.com")
-        
+
+        postgres_session.add_all([creator, viewer])
+        postgres_session.commit()
+
         content = ContentItem(
             title="Interactive Content",
             content_type="video",
             content_data="/path/to/video.mp4",
-            creator_id=1,  # Will be set after commit
+            creator_id=creator.id,
             prompt="Test prompt"
         )
-        
-        session.add_all([creator, viewer])
-        session.commit()
-        
-        content.creator_id = creator.id
-        session.add(content)
-        session.commit()
-        
+        postgres_session.add(content)
+        postgres_session.commit()
+
         # Create various interactions
         interactions = [
             UserInteraction(
@@ -186,61 +167,52 @@ class TestDatabaseIntegration:
                 interaction_metadata={"device": "desktop"}
             )
         ]
-        
-        session.add_all(interactions)
-        session.commit()
-        
+
+        postgres_session.add_all(interactions)
+        postgres_session.commit()
+
         # Test interaction queries
-        viewer_interactions = session.query(UserInteraction).filter_by(user_id=viewer.id).all()
+        viewer_interactions = postgres_session.query(UserInteraction).filter_by(user_id=viewer.id).all()
         assert len(viewer_interactions) == 2
-        
-        content_interactions = session.query(UserInteraction).filter_by(content_item_id=content.id).all()
+
+        content_interactions = postgres_session.query(UserInteraction).filter_by(content_item_id=content.id).all()
         assert len(content_interactions) == 3
-        
+
         # Test specific interaction data
-        like_interaction = session.query(UserInteraction).filter_by(
+        like_interaction = postgres_session.query(UserInteraction).filter_by(
             interaction_type="like", user_id=viewer.id
         ).first()
         assert like_interaction is not None
         assert like_interaction.rating == 5
-        
-        session.close()
     
-    def test_recommendation_generation_workflow(self):
+    def test_recommendation_generation_workflow(self, postgres_session):
         """Test recommendation generation and tracking workflow."""
-        self.initializer.create_engine_and_session()
-        self.initializer.create_tables()
-        
-        session = self.initializer.session_factory()
-        
         # Create users and content
         user1 = User(username="user1", email="user1@example.com")
         user2 = User(username="user2", email="user2@example.com")
-        
+
+        postgres_session.add_all([user1, user2])
+        postgres_session.commit()
+
         content1 = ContentItem(
             title="Content 1",
             content_type="text",
             content_data="Content 1 data",
-            creator_id=1,  # Will be updated
+            creator_id=user1.id,
             prompt="Test prompt"
         )
-        
+
         content2 = ContentItem(
             title="Content 2",
             content_type="image",
             content_data="/path/to/image.jpg",
-            creator_id=1,  # Will be updated
+            creator_id=user1.id,
             prompt="Test prompt"
         )
-        
-        session.add_all([user1, user2])
-        session.commit()
-        
-        content1.creator_id = user1.id
-        content2.creator_id = user1.id
-        session.add_all([content1, content2])
-        session.commit()
-        
+
+        postgres_session.add_all([content1, content2])
+        postgres_session.commit()
+
         # Generate recommendations
         recommendations = [
             Recommendation(
@@ -258,50 +230,43 @@ class TestDatabaseIntegration:
                 rec_metadata={"reason": "content_based"}
             )
         ]
-        
-        session.add_all(recommendations)
-        session.commit()
-        
+
+        postgres_session.add_all(recommendations)
+        postgres_session.commit()
+
         # Test recommendation queries
-        user_recommendations = session.query(Recommendation).filter_by(user_id=user2.id).all()
+        user_recommendations = postgres_session.query(Recommendation).filter_by(user_id=user2.id).all()
         assert len(user_recommendations) == 2
-        
-        high_score_recs = session.query(Recommendation).filter(
+
+        high_score_recs = postgres_session.query(Recommendation).filter(
             Recommendation.recommendation_score > 0.8
         ).all()
         assert len(high_score_recs) == 1
         assert high_score_recs[0].recommendation_score == 0.85
-        
+
         # Test serving recommendations
-        best_rec = session.query(Recommendation).filter_by(user_id=user2.id).order_by(
+        best_rec = postgres_session.query(Recommendation).filter_by(user_id=user2.id).order_by(
             Recommendation.recommendation_score.desc()
         ).first()
-        
+
         best_rec.is_served = True
-        session.commit()
-        
+        postgres_session.commit()
+
         # Verify served status
-        served_recs = session.query(Recommendation).filter_by(is_served=True).all()
+        served_recs = postgres_session.query(Recommendation).filter_by(is_served=True).all()
         assert len(served_recs) == 1
-        
-        session.close()
     
-    def test_generation_job_lifecycle(self):
+    def test_generation_job_lifecycle(self, postgres_session):
         """Test complete generation job lifecycle."""
-        self.initializer.create_engine_and_session()
-        self.initializer.create_tables()
-
-        session = self.initializer.session_factory()
-
         # Create user
         suffix = uuid.uuid4().hex[:8]
         user = User(
             username=f"generator-{suffix}",
             email=f"generator-{suffix}@example.com",
         )
-        session.add(user)
-        session.commit()
-        
+        postgres_session.add(user)
+        postgres_session.commit()
+
         # Create generation job
         job = GenerationJob(
             user_id=user.id,
@@ -310,15 +275,15 @@ class TestDatabaseIntegration:
             parameters={"model": "test-gpt", "temperature": 0.8},
             status="pending"
         )
-        
-        session.add(job)
-        session.commit()
-        
+
+        postgres_session.add(job)
+        postgres_session.commit()
+
         # Simulate job processing
         job.status = "running"
         # noinspection PyDeprecation
         job.started_at = datetime.utcnow()
-        session.commit()
+        postgres_session.commit()
 
         # Create result content
         result_content = ContentItem(
@@ -330,80 +295,67 @@ class TestDatabaseIntegration:
             prompt="Test prompt"
         )
 
-        session.add(result_content)
-        session.commit()
+        postgres_session.add(result_content)
+        postgres_session.commit()
 
         # Complete the job
         job.status = "completed"
         # noinspection PyDeprecation
         job.completed_at = datetime.utcnow()
         job.result_content_id = result_content.id
-        session.commit()
-        
+        postgres_session.commit()
+
         # Test job queries and relationships
-        completed_jobs = session.query(GenerationJob).filter_by(status="completed", user_id=user.id).all()
+        completed_jobs = postgres_session.query(GenerationJob).filter_by(status="completed", user_id=user.id).all()
         assert len(completed_jobs) == 1
-        
+
         completed_job = completed_jobs[0]
         assert completed_job.user.username.startswith("generator-")
         assert completed_job.result_content.title == "Generated Creative Story"
         assert completed_job.started_at is not None
         assert completed_job.completed_at is not None
-        
+
         # Test user's generation history
-        user_jobs = session.query(GenerationJob).filter_by(user_id=user.id).all()
+        user_jobs = postgres_session.query(GenerationJob).filter_by(user_id=user.id).all()
         assert len(user_jobs) == 1
-        
-        session.close()
     
-    def test_database_constraints_and_indexes(self):
+    def test_database_constraints_and_indexes(self, postgres_session):
         """Test that database constraints and indexes work as expected."""
-        self.initializer.create_engine_and_session()
-        self.initializer.create_tables()
-        
-        session = self.initializer.session_factory()
-        
         # Test unique constraints on User model
         user1 = User(username="unique_user", email="unique@example.com")
-        session.add(user1)
-        session.commit()
-        
-        # Try to create user with duplicate username (tests unique constraint enforcement)
-        # But we can test the constraint exists in the schema
+        postgres_session.add(user1)
+        postgres_session.commit()
+
+        # Test the constraint exists in the schema
         user_table = Base.metadata.tables['users']
         username_column = user_table.columns['username']
         assert username_column.unique
-        
+
         email_column = user_table.columns['email']
         assert email_column.unique
-        
+
         # Test indexes exist
         assert username_column.index
         assert email_column.index
-        
-        session.close()
     
-    def test_data_persistence_across_sessions(self):
-        """Test that data persists correctly across different sessions."""
-        self.initializer.create_engine_and_session()
-        self.initializer.create_tables()
-        
-        # Create data in first session
-        session1 = self.initializer.session_factory()
-        
+    def test_data_persistence_across_sessions(self, postgres_session):
+        """Test that data persists correctly within a transaction.
+
+        Note: This test validates data persistence within the postgres_session fixture's
+        transaction boundary. After the test, all changes are rolled back by the fixture.
+        """
+        # Create data
         user = User(username="persistent_user", email="persistent@example.com")
-        session1.add(user)
-        session1.commit()
-        
+        postgres_session.add(user)
+        postgres_session.commit()
+
         user_id = user.id
-        session1.close()
-        
-        # Access data in second session
-        session2 = self.initializer.session_factory()
-        
-        retrieved_user = session2.query(User).filter_by(id=user_id).first()
+
+        # Expire the object to force a fresh query from the database
+        postgres_session.expire(user)
+
+        # Access data again (simulating a new query in the same transaction)
+        retrieved_user = postgres_session.query(User).filter_by(id=user_id).first()
         assert retrieved_user is not None
         assert retrieved_user.username == "persistent_user"
         assert retrieved_user.email == "persistent@example.com"
-        
-        session2.close()
