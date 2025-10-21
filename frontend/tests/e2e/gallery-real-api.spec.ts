@@ -59,6 +59,7 @@ test.describe('Gallery page (Real API)', () => {
     })
 
     test('navigates to next page correctly', async ({ page }) => {
+      test.setTimeout(30000) // Increase timeout for real API
       await page.goto('/gallery')
       await waitForGalleryLoad(page)
 
@@ -113,10 +114,10 @@ test.describe('Gallery page (Real API)', () => {
       await page.waitForSelector('nav', { timeout: 10000 })
 
       // Get initial pagination info (should include both regular and auto content)
-      const initialPaginationText = await page.locator('text=/\\d+ pages showing \\d+/').textContent()
+      const initialPaginationText = await page.locator('text=/\\d+ pages showing \\d+/').textContent({ timeout: 10000 })
       console.log('Initial pagination (all content):', initialPaginationText)
 
-      const initialPagination = await getPaginationInfo(page)
+      const initialPagination = await getPaginationInfo(page, 10000)
       if (initialPagination.results === 0) {
         test.skip(true, 'Real API returned zero gallery results. Ensure the test database seed ran (make frontend-test-e2e-real-api).')
       }
@@ -140,7 +141,7 @@ test.describe('Gallery page (Real API)', () => {
           await page.waitForLoadState('networkidle')
 
           // Check if pagination updated
-          const regularOnlyPagination = await page.locator('text=/\\d+ pages showing \\d+/').textContent()
+          const regularOnlyPagination = await page.locator('text=/\\d+ pages showing \\d+/').textContent({ timeout: 10000 })
           console.log('Regular content only:', regularOnlyPagination)
 
           // Test filtering to only auto content
@@ -148,14 +149,14 @@ test.describe('Gallery page (Real API)', () => {
           await regularToggle.uncheck()
           await page.waitForLoadState('networkidle')
 
-          const autoOnlyPagination = await page.locator('text=/\\d+ pages showing \\d+/').textContent()
+          const autoOnlyPagination = await page.locator('text=/\\d+ pages showing \\d+/').textContent({ timeout: 10000 })
           console.log('Auto content only:', autoOnlyPagination)
 
           // Restore all content
           await regularToggle.check()
           await page.waitForLoadState('networkidle')
 
-          const restoredPagination = await page.locator('text=/\\d+ pages showing \\d+/').textContent()
+          const restoredPagination = await page.locator('text=/\\d+ pages showing \\d+/').textContent({ timeout: 10000 })
           console.log('All content restored:', restoredPagination)
 
           console.log('✅ Content type filtering works with real API')

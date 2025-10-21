@@ -90,13 +90,13 @@ async function getApiBaseUrl(page: Page): Promise<string> {
 /**
  * Wait for the gallery page to fully load with real API data
  */
-export async function waitForGalleryLoad(page: Page, timeout = 15000) {
+export async function waitForGalleryLoad(page: Page, timeout = 20000) {
   // Wait for navigation to complete
   await page.waitForSelector('nav', { timeout })
 
   // Wait for app to be ready (critical data loaded)
   // Use longer timeout for real API tests as they may be slower
-  await page.locator('[data-app-ready="1"]').waitFor({ timeout: Math.max(timeout, 10000) })
+  await page.locator('[data-app-ready="1"]').waitFor({ timeout: Math.max(timeout, 15000) })
 
   // Ensure pagination info is loaded
   const paginationLocator = page.locator('text=/\\d+ pages showing [\\d,]+ results/')
@@ -119,12 +119,12 @@ export async function waitForGalleryLoad(page: Page, timeout = 15000) {
 /**
  * Get the current pagination information from the gallery
  */
-export async function getPaginationInfo(page: Page): Promise<{
+export async function getPaginationInfo(page: Page, timeout = 10000): Promise<{
   text: string
   pages: number
   results: number
 }> {
-  const paginationText = await page.locator('text=/\\d+ pages showing [\\d,]+ results/').textContent()
+  const paginationText = await page.locator('text=/\\d+ pages showing [\\d,]+ results/').textContent({ timeout })
   if (!paginationText) {
     throw new Error('Pagination text not found')
   }

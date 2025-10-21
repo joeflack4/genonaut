@@ -119,6 +119,7 @@ The API provides **77 endpoints** across 6 main categories:
 - `GET /api/v1/tags/hierarchy` - Fetch the hierarchy, optionally including average ratings
 - `POST /api/v1/tags/hierarchy/refresh` - Refresh cached hierarchy data
 - `GET /api/v1/tags/statistics` - Global hierarchy statistics
+- `GET /api/v1/tags/popular` - Get most popular tags by content count (see details below)
 
 **Hierarchy navigation:**
 - `GET /api/v1/tags/roots` - Root tags
@@ -129,10 +130,51 @@ The API provides **77 endpoints** across 6 main categories:
 
 **Ratings & favorites:**
 - `POST /api/v1/tags/{tag_id}/rate` / `DELETE /api/v1/tags/{tag_id}/rate` - Upsert or remove a rating
-- `GET /api/v1/tags/{tag_id}/rating` - Fetch the current user’s rating value
+- `GET /api/v1/tags/{tag_id}/rating` - Fetch the current user's rating value
 - `GET /api/v1/tags/ratings` - Fetch many ratings for the current user (query `tag_ids[]`)
 - `GET /api/v1/tags/favorites` - Fetch favorites for the current user (query `user_id`)
 - `POST /api/v1/tags/{tag_id}/favorite` / `DELETE /api/v1/tags/{tag_id}/favorite` - Manage favorites
+
+#### Popular Tags Endpoint
+
+Returns tags ordered by their content cardinality (number of associated content items), using pre-computed statistics from the `tag_cardinality_stats` table that is refreshed daily by a Celery background job.
+
+**Endpoint:**
+```
+GET /api/v1/tags/popular
+```
+
+**Query Parameters:**
+- `limit` (optional, integer, 1-100, default: 20) - Maximum number of tags to return
+- `content_source` (optional, string: `items` | `auto`) - Filter by content source; when omitted, aggregates across all sources
+- `min_cardinality` (optional, integer, default: 1) - Minimum content count required to include a tag
+
+**Response:**
+```json
+[
+  {
+    "id": "uuid",
+    "name": "tag-name",
+    "cardinality": 150
+  },
+  ...
+]
+```
+
+**Example Requests:**
+```bash
+# Get top 20 popular tags (aggregated across all sources)
+GET /api/v1/tags/popular
+
+# Get top 10 popular tags from user-created content only
+GET /api/v1/tags/popular?limit=10&content_source=items
+
+# Get popular tags with at least 100 content items
+GET /api/v1/tags/popular?min_cardinality=100
+```
+
+**Data Source:**
+The endpoint queries the `tag_cardinality_stats` table, which is maintained by the `refresh_tag_cardinality_stats` Celery task that runs daily. This provides fast query performance without needing to scan the large `content_tags` junction table.
 
 ### Unified Content Endpoint
 

@@ -456,6 +456,12 @@ class TagRelationResponse(TagSummaryResponse):
     depth: int = Field(..., ge=0, description="Depth relative to the requested tag")
 
 
+class PopularTagResponse(TagSummaryResponse):
+    """Tag summary with content cardinality (popularity count)."""
+
+    cardinality: int = Field(..., ge=0, description="Number of content items associated with this tag")
+
+
 class TagResponse(TagSummaryResponse):
     """Detailed representation of a tag including metadata and ratings."""
 

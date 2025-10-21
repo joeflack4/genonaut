@@ -75,18 +75,26 @@ export default function TagsPage() {
   }, []);
 
   const handleApplyAndQuery = useCallback(() => {
-    if (selectedTagIds.size > 0) {
-      // Build URLSearchParams to properly handle multiple tag parameters
+    if (selectedTagIds.size > 0 && hierarchy) {
+      // Build ID to name mapping
+      const idToName = new Map(hierarchy.nodes.map(node => [node.id, node.name]));
+
+      // Convert tag IDs to names
+      const tagNames = Array.from(selectedTagIds)
+        .map(tagId => idToName.get(tagId))
+        .filter((name): name is string => name !== undefined);
+
+      // Build URL with comma-separated tag names
       const searchParams = new URLSearchParams();
-      Array.from(selectedTagIds).forEach(tagId => {
-        searchParams.append('tag', tagId);
-      });
+      if (tagNames.length > 0) {
+        searchParams.set('tags', tagNames.join(','));
+      }
       navigate(`/gallery?${searchParams.toString()}`);
 
       // Reset dirty state
       setIsDirty(false);
     }
-  }, [selectedTagIds, navigate]);
+  }, [selectedTagIds, hierarchy, navigate]);
 
   const handleRefresh = useCallback(() => {
     refreshMutation.mutate();

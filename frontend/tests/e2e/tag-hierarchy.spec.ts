@@ -227,7 +227,7 @@ test.describe('Tag Hierarchy Tests', () => {
     await applyButton.click();
 
     // Should navigate to gallery with tag filter
-    await expect(page).toHaveURL(/\/gallery\?.*tag=/);
+    await expect(page).toHaveURL(/\/gallery\?.*tags=/);
 
     // Apply button should be hidden after successful navigation
     // (Note: This might not be testable if we navigate away)

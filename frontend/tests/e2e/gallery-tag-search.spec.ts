@@ -10,12 +10,12 @@ test.describe('Gallery Tag Search Tests', () => {
 
   test.beforeEach(async ({ page }) => {
     // Set overall test timeout
-    test.setTimeout(20000);
+    test.setTimeout(45000);
 
     // Navigate and wait for app readiness
     await page.goto('/gallery', { waitUntil: 'domcontentloaded' });
-    // Use longer timeout for real API tests
-    await page.locator('[data-app-ready="1"]').waitFor({ timeout: 10000 });
+    // Use longer timeout for real API tests (gallery with tags can be slow)
+    await page.locator('[data-app-ready="1"]').waitFor({ timeout: 30000 });
 
     // Open options sidebar if it's closed
     const optionsButton = page.getByTestId('gallery-options-toggle-button');

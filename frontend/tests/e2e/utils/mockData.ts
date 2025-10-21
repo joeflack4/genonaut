@@ -164,6 +164,22 @@ export function getCommonApiMocks(): MockDefinition[] {
 }
 
 export function getTagHierarchyMocks(): MockDefinition[] {
+  // Build tags list from hierarchy fixture
+  const tags = tagHierarchyFixture.nodes.map((tag: any) => ({
+    id: tag.id,
+    name: tag.name,
+    created_at: nowIso,
+    updated_at: nowIso,
+    metadata: {},
+    average_rating: null,
+    rating_count: 0,
+    slug: tag.id,
+    description: '',
+    ancestors: [],
+    descendants: [],
+    is_favorite: false,
+  }))
+
   return [
     {
       pattern: '/api/v1/tags/hierarchy',
@@ -176,6 +192,19 @@ export function getTagHierarchyMocks(): MockDefinition[] {
       body: {
         message: 'Hierarchy refreshed',
         metadata: cloneDeep(tagHierarchyFixture.metadata),
+      },
+    },
+    {
+      pattern: '/api/v1/tags\\?.*',
+      method: 'GET',
+      body: {
+        items: cloneDeep(tags),
+        pagination: {
+          page: 1,
+          page_size: 100,
+          total_count: tags.length,
+          total_pages: 1,
+        },
       },
     },
   ]

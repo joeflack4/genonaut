@@ -70,6 +70,7 @@ async def get_unified_content(
         "any",
         description="Tag match logic: 'any' (OR) or 'all' (AND)",
     ),
+    include_stats: bool = Query(False, description="Include statistics counts (adds ~800ms query time)"),
     db: Session = Depends(get_database_session)
 ):
     """Get unified content from both regular and auto tables with pagination."""
@@ -160,6 +161,7 @@ async def get_unified_content(
             sort_order=sort_order,
             tags=combined_tags if combined_tags else None,
             tag_match=normalized_tag_match,
+            include_stats=include_stats,
         )
 
         return result

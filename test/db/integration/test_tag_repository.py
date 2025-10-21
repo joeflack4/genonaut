@@ -5,7 +5,7 @@ from uuid import uuid4
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
-from genonaut.db.schema import Base, Tag, TagParent, TagRating, User
+from genonaut.db.schema import Base, Tag, TagParent, TagRating, TagCardinalityStats, User
 from genonaut.api.repositories.tag_repository import TagRepository
 from genonaut.api.models.requests import PaginationRequest
 from genonaut.api.exceptions import DatabaseError
@@ -309,3 +309,106 @@ class TestTagRepositoryStatistics:
         assert stats["totalNodes"] == 6
         assert stats["totalRelationships"] == 4
         assert stats["rootCategories"] == 2
+
+    def test_get_popular_tags_aggregated(self, repository, sample_tags, db_session):
+        """Test get_popular_tags() aggregating across all sources."""
+        tag1 = sample_tags["root1"]
+        tag2 = sample_tags["child1"]
+        tag3 = sample_tags["grandchild1"]
+
+        # Create cardinality stats
+        stats = [
+            TagCardinalityStats(tag_id=tag1.id, content_source="items", cardinality=100),
+            TagCardinalityStats(tag_id=tag1.id, content_source="auto", cardinality=50),
+            TagCardinalityStats(tag_id=tag2.id, content_source="items", cardinality=30),
+            TagCardinalityStats(tag_id=tag2.id, content_source="auto", cardinality=20),
+            TagCardinalityStats(tag_id=tag3.id, content_source="items", cardinality=10),
+        ]
+        db_session.add_all(stats)
+        db_session.commit()
+
+        # Get top 10 popular tags (aggregated)
+        results = repository.get_popular_tags(limit=10)
+
+        # Should return tags ordered by total cardinality (tag1: 150, tag2: 50, tag3: 10)
+        assert len(results) == 3
+        assert results[0][0].id == tag1.id
+        assert results[0][1] == 150
+
+        assert results[1][0].id == tag2.id
+        assert results[1][1] == 50
+
+        assert results[2][0].id == tag3.id
+        assert results[2][1] == 10
+
+    def test_get_popular_tags_filtered_by_source(self, repository, sample_tags, db_session):
+        """Test get_popular_tags() filtering by content source."""
+        tag1 = sample_tags["root1"]
+        tag2 = sample_tags["child1"]
+
+        stats = [
+            TagCardinalityStats(tag_id=tag1.id, content_source="items", cardinality=50),
+            TagCardinalityStats(tag_id=tag1.id, content_source="auto", cardinality=200),
+            TagCardinalityStats(tag_id=tag2.id, content_source="items", cardinality=100),
+            TagCardinalityStats(tag_id=tag2.id, content_source="auto", cardinality=10),
+        ]
+        db_session.add_all(stats)
+        db_session.commit()
+
+        # Filter by 'items' source
+        results = repository.get_popular_tags(limit=10, content_source="items")
+
+        # When filtering by 'items', tag2 should be first (100 > 50)
+        assert len(results) == 2
+        assert results[0][0].id == tag2.id
+        assert results[0][1] == 100
+        assert results[1][0].id == tag1.id
+        assert results[1][1] == 50
+
+    def test_get_popular_tags_with_limit(self, repository, sample_tags, db_session):
+        """Test get_popular_tags() respects limit parameter."""
+        tag1 = sample_tags["root1"]
+        tag2 = sample_tags["child1"]
+        tag3 = sample_tags["grandchild1"]
+
+        stats = [
+            TagCardinalityStats(tag_id=tag1.id, content_source="items", cardinality=100),
+            TagCardinalityStats(tag_id=tag2.id, content_source="items", cardinality=75),
+            TagCardinalityStats(tag_id=tag3.id, content_source="items", cardinality=50),
+        ]
+        db_session.add_all(stats)
+        db_session.commit()
+
+        # Limit to top 2
+        results = repository.get_popular_tags(limit=2)
+
+        assert len(results) == 2
+        assert results[0][0].id == tag1.id
+        assert results[1][0].id == tag2.id
+
+    def test_get_popular_tags_with_min_cardinality(self, repository, sample_tags, db_session):
+        """Test get_popular_tags() filters by minimum cardinality."""
+        tag1 = sample_tags["root1"]
+        tag2 = sample_tags["child1"]
+        tag3 = sample_tags["grandchild1"]
+
+        stats = [
+            TagCardinalityStats(tag_id=tag1.id, content_source="items", cardinality=100),
+            TagCardinalityStats(tag_id=tag2.id, content_source="items", cardinality=50),
+            TagCardinalityStats(tag_id=tag3.id, content_source="items", cardinality=5),
+        ]
+        db_session.add_all(stats)
+        db_session.commit()
+
+        # Require minimum cardinality of 10
+        results = repository.get_popular_tags(limit=10, min_cardinality=10)
+
+        # Should exclude tag3 (cardinality=5 < min=10)
+        assert len(results) == 2
+        assert results[0][0].id == tag1.id
+        assert results[1][0].id == tag2.id
+
+    def test_get_popular_tags_empty_when_no_stats(self, repository, sample_tags):
+        """Test get_popular_tags() returns empty list when no stats exist."""
+        results = repository.get_popular_tags(limit=10)
+        assert results == []

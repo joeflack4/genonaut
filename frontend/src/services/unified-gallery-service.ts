@@ -13,6 +13,7 @@ export interface UnifiedGalleryParams {
   sortField?: string
   sortOrder?: 'asc' | 'desc'
   tag?: string | string[]  // Tag filter - single tag or multiple tags
+  includeStats?: boolean  // Whether to include count statistics (adds ~20-800ms overhead)
 }
 
 export interface UnifiedGalleryStats {
@@ -23,7 +24,7 @@ export interface UnifiedGalleryStats {
 }
 
 export interface UnifiedGalleryResult extends PaginatedResult<GalleryItem> {
-  stats: UnifiedGalleryStats
+  stats?: UnifiedGalleryStats  // Optional - only present if includeStats=true
   nextCursor?: string | null
   prevCursor?: string | null
 }
@@ -100,6 +101,10 @@ export class UnifiedGalleryService {
       }
     }
 
+    if (params.includeStats !== undefined) {
+      searchParams.set('include_stats', String(params.includeStats))
+    }
+
     const query = searchParams.toString()
 
     const response = await this.api.get<{
@@ -129,7 +134,7 @@ export class UnifiedGalleryService {
         next_cursor?: string | null
         prev_cursor?: string | null
       }
-      stats: {
+      stats?: {
         user_regular_count: number
         user_auto_count: number
         community_regular_count: number
@@ -144,12 +149,12 @@ export class UnifiedGalleryService {
       skip: (response.pagination.page - 1) * response.pagination.page_size,
       nextCursor: response.pagination.next_cursor,
       prevCursor: response.pagination.prev_cursor,
-      stats: {
+      stats: response.stats ? {
         userRegularCount: response.stats.user_regular_count,
         userAutoCount: response.stats.user_auto_count,
         communityRegularCount: response.stats.community_regular_count,
         communityAutoCount: response.stats.community_auto_count,
-      },
+      } : undefined,
     }
   }
 

@@ -706,6 +706,7 @@ class ContentService:
         sort_order: str = "desc",
         tags: Optional[List[str]] = None,
         tag_match: str = "any",
+        include_stats: bool = False,
     ) -> Dict[str, Any]:
         """
         Get paginated content from partitioned parent table content_items_all.
@@ -729,6 +730,12 @@ class ContentService:
         Returns:
             Dict with items, pagination metadata, and stats
         """
+        import time
+        import logging
+        perf_logger = logging.getLogger("genonaut.performance")
+        t_start = time.perf_counter()
+        timings = {}
+
         session = self.repository.db
 
         # Normalize tags and extract UUIDs for junction table queries
@@ -762,6 +769,9 @@ class ContentService:
         # Use junction table filter (tags column removed from content tables)
         use_junction_table_filter = bool(tag_uuids)
         use_python_tag_filter = False
+
+        t_after_tag_processing = time.perf_counter()
+        timings['tag_processing'] = t_after_tag_processing - t_start
 
         # Map content_source_types to source_type values for partition pruning
         source_type_filters = []
@@ -976,8 +986,14 @@ class ContentService:
             query = query.offset(offset)
         query = query.limit(pagination.page_size)
 
+        t_before_query = time.perf_counter()
+        timings['query_building'] = t_before_query - t_after_tag_processing
+
         # Execute query and format results
         rows = query.all()
+
+        t_after_query = time.perf_counter()
+        timings['query_execution'] = t_after_query - t_before_query
         items = []
         for row in rows:
             items.append({
@@ -998,6 +1014,9 @@ class ContentService:
                 "source_type": row.source_type,
             })
 
+        t_after_serialization = time.perf_counter()
+        timings['result_serialization'] = t_after_serialization - t_after_query
+
         # Calculate pagination metadata
         if total_count == 999999 and len(items) == 0 and pagination.page == 1:
             total_count = 0
@@ -1005,19 +1024,38 @@ class ContentService:
         has_next = pagination.page < total_pages
         has_previous = pagination.page > 1
 
-        # Generate next/prev cursors if using cursor pagination
+        # Generate next/prev cursors (always, to support hybrid pagination)
+        # Clients can use offset pagination for page 1, then switch to cursor pagination
         next_cursor = None
         prev_cursor = None
-        if use_cursor_pagination and items:
+        if items:
             from genonaut.api.utils.cursor_pagination import create_next_cursor, create_prev_cursor
 
+            # Generate next cursor if we got a full page (more results likely exist)
             if len(items) == pagination.page_size:
                 next_cursor = create_next_cursor(items)
 
-            if pagination.cursor:
+            # Generate prev cursor only if currently using cursor pagination
+            if use_cursor_pagination and pagination.cursor:
                 prev_cursor = create_prev_cursor(items)
 
-        return {
+        t_end = time.perf_counter()
+        timings['total'] = t_end - t_start
+
+        # Log detailed performance breakdown
+        perf_logger.info(
+            f"[SERVICE PERF] get_unified_content_paginated: "
+            f"tag_proc={timings.get('tag_processing', 0)*1000:.2f}ms "
+            f"query_build={timings.get('query_building', 0)*1000:.2f}ms "
+            f"query_exec={timings.get('query_execution', 0)*1000:.2f}ms "
+            f"serialization={timings.get('result_serialization', 0)*1000:.2f}ms "
+            f"total={timings['total']*1000:.2f}ms "
+            f"items_returned={len(items)}"
+        )
+
+        # Conditionally include stats based on include_stats parameter
+        # Stats queries add ~800ms, so they're opt-in for performance
+        response = {
             "items": items,
             "pagination": {
                 "page": pagination.page,
@@ -1029,8 +1067,12 @@ class ContentService:
                 "next_cursor": next_cursor,
                 "prev_cursor": prev_cursor,
             },
-            "stats": self.get_unified_content_stats(user_id),
         }
+
+        if include_stats:
+            response["stats"] = self.get_unified_content_stats(user_id)
+
+        return response
 
 
 class ContentAutoService(ContentService):

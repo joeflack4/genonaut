@@ -1,8 +1,9 @@
 """Integration tests for tag listing and hierarchy endpoints."""
 
+from uuid import uuid4
 from fastapi.testclient import TestClient
 
-from genonaut.db.schema import TagRating
+from genonaut.db.schema import TagRating, Tag, ContentItem, ContentItemAuto, ContentTag, TagCardinalityStats
 
 
 def test_list_tags_includes_rating_metadata(
@@ -165,3 +166,175 @@ def test_hierarchy_empty_state(
     assert "lastUpdated" in metadata
     assert "format" in metadata
     assert "version" in metadata
+
+
+def test_get_popular_tags_with_stats(
+    api_client: TestClient,
+    db_session,
+    sample_tags,
+    sample_user,
+):
+    """GET /api/v1/tags/popular returns tags ordered by cardinality."""
+
+    # Create content items with tags to populate cardinality stats
+    tag1 = sample_tags["root"]
+    tag2 = sample_tags["child"]
+    tag3 = sample_tags["leaf"]
+
+    # Create sample content items
+    content1 = ContentItem(
+        id=1,
+        title="Content 1",
+        content_type="text",
+        content_data="data",
+        prompt="test",
+        creator_id=sample_user.id,
+        source_type="items"
+    )
+    content2 = ContentItemAuto(
+        id=1,
+        title="Content 2",
+        content_type="text",
+        content_data="data",
+        prompt="test",
+        creator_id=sample_user.id,
+        source_type="auto"
+    )
+    db_session.add_all([content1, content2])
+    db_session.commit()
+
+    # Manually populate tag_cardinality_stats
+    stats = [
+        TagCardinalityStats(tag_id=tag1.id, content_source="items", cardinality=10),
+        TagCardinalityStats(tag_id=tag1.id, content_source="auto", cardinality=5),
+        TagCardinalityStats(tag_id=tag2.id, content_source="items", cardinality=3),
+        TagCardinalityStats(tag_id=tag2.id, content_source="auto", cardinality=2),
+        TagCardinalityStats(tag_id=tag3.id, content_source="items", cardinality=1),
+    ]
+    db_session.add_all(stats)
+    db_session.commit()
+
+    # Test default (aggregate across all sources)
+    response = api_client.get("/api/v1/tags/popular")
+
+    assert response.status_code == 200, response.json()
+    popular_tags = response.json()
+
+    # Should return all 3 tags ordered by total cardinality (tag1: 15, tag2: 5, tag3: 1)
+    assert len(popular_tags) == 3
+    assert popular_tags[0]["id"] == str(tag1.id)
+    assert popular_tags[0]["name"] == tag1.name
+    assert popular_tags[0]["cardinality"] == 15
+
+    assert popular_tags[1]["id"] == str(tag2.id)
+    assert popular_tags[1]["cardinality"] == 5
+
+    assert popular_tags[2]["id"] == str(tag3.id)
+    assert popular_tags[2]["cardinality"] == 1
+
+
+def test_get_popular_tags_filtered_by_source(
+    api_client: TestClient,
+    db_session,
+    sample_tags,
+):
+    """GET /api/v1/tags/popular?content_source=items filters by content source."""
+
+    tag1 = sample_tags["root"]
+    tag2 = sample_tags["child"]
+
+    stats = [
+        TagCardinalityStats(tag_id=tag1.id, content_source="items", cardinality=10),
+        TagCardinalityStats(tag_id=tag1.id, content_source="auto", cardinality=100),
+        TagCardinalityStats(tag_id=tag2.id, content_source="items", cardinality=20),
+        TagCardinalityStats(tag_id=tag2.id, content_source="auto", cardinality=5),
+    ]
+    db_session.add_all(stats)
+    db_session.commit()
+
+    response = api_client.get("/api/v1/tags/popular", params={"content_source": "items"})
+
+    assert response.status_code == 200, response.json()
+    popular_tags = response.json()
+
+    # When filtering by 'items', tag2 should be first (20 > 10)
+    assert len(popular_tags) == 2
+    assert popular_tags[0]["id"] == str(tag2.id)
+    assert popular_tags[0]["cardinality"] == 20
+    assert popular_tags[1]["id"] == str(tag1.id)
+    assert popular_tags[1]["cardinality"] == 10
+
+
+def test_get_popular_tags_with_limit(
+    api_client: TestClient,
+    db_session,
+    sample_tags,
+):
+    """GET /api/v1/tags/popular?limit=2 respects limit parameter."""
+
+    tag1 = sample_tags["root"]
+    tag2 = sample_tags["child"]
+    tag3 = sample_tags["leaf"]
+
+    stats = [
+        TagCardinalityStats(tag_id=tag1.id, content_source="items", cardinality=30),
+        TagCardinalityStats(tag_id=tag2.id, content_source="items", cardinality=20),
+        TagCardinalityStats(tag_id=tag3.id, content_source="items", cardinality=10),
+    ]
+    db_session.add_all(stats)
+    db_session.commit()
+
+    response = api_client.get("/api/v1/tags/popular", params={"limit": 2})
+
+    assert response.status_code == 200, response.json()
+    popular_tags = response.json()
+
+    # Should only return top 2
+    assert len(popular_tags) == 2
+    assert popular_tags[0]["id"] == str(tag1.id)
+    assert popular_tags[1]["id"] == str(tag2.id)
+
+
+def test_get_popular_tags_with_min_cardinality(
+    api_client: TestClient,
+    db_session,
+    sample_tags,
+):
+    """GET /api/v1/tags/popular?min_cardinality=10 filters by minimum count."""
+
+    tag1 = sample_tags["root"]
+    tag2 = sample_tags["child"]
+    tag3 = sample_tags["leaf"]
+
+    stats = [
+        TagCardinalityStats(tag_id=tag1.id, content_source="items", cardinality=50),
+        TagCardinalityStats(tag_id=tag2.id, content_source="items", cardinality=10),
+        TagCardinalityStats(tag_id=tag3.id, content_source="items", cardinality=5),
+    ]
+    db_session.add_all(stats)
+    db_session.commit()
+
+    response = api_client.get("/api/v1/tags/popular", params={"min_cardinality": 10})
+
+    assert response.status_code == 200, response.json()
+    popular_tags = response.json()
+
+    # Should exclude tag3 (cardinality=5 < min=10)
+    assert len(popular_tags) == 2
+    assert popular_tags[0]["id"] == str(tag1.id)
+    assert popular_tags[1]["id"] == str(tag2.id)
+
+
+def test_get_popular_tags_empty_when_no_stats(
+    api_client: TestClient,
+    db_session,
+    sample_tags,
+):
+    """GET /api/v1/tags/popular returns empty list when no cardinality stats exist."""
+
+    response = api_client.get("/api/v1/tags/popular")
+
+    assert response.status_code == 200, response.json()
+    popular_tags = response.json()
+
+    assert popular_tags == []

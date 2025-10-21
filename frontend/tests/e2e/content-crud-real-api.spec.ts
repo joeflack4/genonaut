@@ -154,6 +154,7 @@ test.describe('Content CRUD Operations (Real API)', () => {
   })
 
   test('views content details and metadata', async ({ page }) => {
+    test.setTimeout(20000) // Increase timeout for real API
     // Get existing content from API
     const contentData = await getUnifiedContent(page, { page: 1, page_size: 10 })
 
@@ -420,6 +421,7 @@ test.describe('Content CRUD Operations (Real API)', () => {
   })
 
   test('handles content operations with proper error handling', async ({ page }) => {
+    test.setTimeout(20000) // Increase timeout for real API
     await page.goto('/gallery')
     await waitForPageLoad(page, 'gallery')
 

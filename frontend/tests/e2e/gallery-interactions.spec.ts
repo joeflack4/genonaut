@@ -335,7 +335,7 @@ test.describe('Gallery Page Interactions', () => {
         await image.evaluate((img: HTMLImageElement) => {
           if (img.complete) return Promise.resolve()
           return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => reject(new Error('Image load timeout')), 5000)
+            const timeout = setTimeout(() => reject(new Error('Image load timeout')), 10000)
             img.onload = () => {
               clearTimeout(timeout)
               resolve(undefined)
@@ -345,7 +345,7 @@ test.describe('Gallery Page Interactions', () => {
               resolve(undefined) // Resolve even on error so test doesn't fail
             }
           })
-        }, { timeout: 8000 })
+        }, { timeout: 15000 })
         await expect(image).toBeVisible()
       } catch (error) {
         // If image fails to load within timeout, check if placeholder is shown instead

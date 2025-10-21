@@ -13,7 +13,7 @@ test.describe('Gallery Tag Filters Tests', () => {
 
   test('should display single tag filter in gallery', async ({ page }) => {
     // Navigate directly to gallery with a single tag
-    await page.goto('/gallery?tag=artistic_medium', { waitUntil: 'domcontentloaded' });
+    await page.goto('/gallery?tags=Artistic Medium', { waitUntil: 'domcontentloaded' });
 
     // Should show the selected tag chip within the tag filter
     await expect(page.getByTestId('tag-filter-selected-artistic_medium')).toBeVisible();
@@ -23,8 +23,8 @@ test.describe('Gallery Tag Filters Tests', () => {
   });
 
   test('should display multiple tag filters in gallery', async ({ page }) => {
-    // Navigate directly to gallery with multiple tags (using actual tag IDs)
-    await page.goto('/gallery?tag=artistic_medium&tag=content_classification', { waitUntil: 'domcontentloaded' });
+    // Navigate directly to gallery with multiple tags (using actual tag names)
+    await page.goto('/gallery?tags=Artistic Medium,Content Classification', { waitUntil: 'domcontentloaded' });
 
     // Should show both tags
     await expect(page.getByTestId('tag-filter-selected-artistic_medium')).toBeVisible();
@@ -36,7 +36,7 @@ test.describe('Gallery Tag Filters Tests', () => {
 
   test('should allow removing individual tags from gallery', async ({ page }) => {
     // Navigate directly to gallery with multiple tags
-    await page.goto('/gallery?tag=artistic_medium&tag=content_classification', { waitUntil: 'domcontentloaded' });
+    await page.goto('/gallery?tags=Artistic Medium,Content Classification', { waitUntil: 'domcontentloaded' });
 
     // Should show both tags initially
     await expect(page.getByTestId('tag-filter-selected-artistic_medium')).toBeVisible();
@@ -52,13 +52,13 @@ test.describe('Gallery Tag Filters Tests', () => {
     // The removed tag should not be visible
     await expect(page.locator('[data-testid="tag-filter-selected-artistic_medium"]')).toHaveCount(0);
 
-    // URL should be updated
-    await expect(page).toHaveURL('/gallery?tag=content_classification');
+    // URL should be updated (using tag names, not IDs)
+    await expect(page).toHaveURL('/gallery?tags=Content+Classification');
   });
 
   test('should clear all tags when clear all button is clicked', async ({ page }) => {
     // Navigate directly to gallery with multiple tags
-    await page.goto('/gallery?tag=artistic_medium&tag=content_classification', { waitUntil: 'domcontentloaded' });
+    await page.goto('/gallery?tags=Artistic Medium,Content Classification', { waitUntil: 'domcontentloaded' });
 
     // Should show tag chips
     await expect(page.getByTestId('tag-filter-selected-artistic_medium')).toBeVisible();
@@ -95,7 +95,7 @@ test.describe('Gallery Tag Filters Tests', () => {
     await page.locator('button:has-text("Apply & Query")').click();
 
     // Should navigate to gallery
-    await expect(page).toHaveURL(/\/gallery\?.*tag=/);
+    await expect(page).toHaveURL(/\/gallery\?.*tags=/);
 
     // Should show the selected tag chips and clear all button in gallery
     await expect(page.getByTestId('tag-filter-selected-artistic_medium')).toBeVisible();
@@ -105,7 +105,7 @@ test.describe('Gallery Tag Filters Tests', () => {
 
   test('should maintain tag filters when navigating within gallery', async ({ page }) => {
     // Navigate to gallery with tags
-    await page.goto('/gallery?tag=artistic_medium&tag=content_classification', { waitUntil: 'domcontentloaded' });
+    await page.goto('/gallery?tags=Artistic Medium,Content Classification', { waitUntil: 'domcontentloaded' });
 
     // Verify tag chips are shown
     await expect(page.getByTestId('tag-filter-selected-artistic_medium')).toBeVisible();
@@ -113,7 +113,7 @@ test.describe('Gallery Tag Filters Tests', () => {
 
     // Navigate to a different page and back
     await page.goto('/tags');
-    await page.goto('/gallery?tag=artistic_medium&tag=content_classification');
+    await page.goto('/gallery?tags=Artistic Medium,Content Classification');
 
     // Tag chips should still be shown
     await expect(page.getByTestId('tag-filter-selected-artistic_medium')).toBeVisible();

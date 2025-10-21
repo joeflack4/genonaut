@@ -10,6 +10,7 @@ from genonaut.api.services.tag_service import TagService
 from genonaut.api.models.requests import PaginationRequest
 from genonaut.api.models.responses import (
     PaginatedResponse,
+    PopularTagResponse,
     SuccessResponse,
     TagDetailResponse,
     TagHierarchyResponse,
@@ -162,6 +163,52 @@ async def get_tag_statistics(service: TagService = Depends(get_tag_service)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get statistics: {str(e)}"
+        )
+
+
+@router.get("/popular", response_model=List[PopularTagResponse])
+async def get_popular_tags(
+    limit: int = Query(20, ge=1, le=100, description="Maximum number of tags to return"),
+    content_source: Optional[str] = Query(
+        None,
+        description="Filter by content source ('items' or 'auto'); omit to aggregate across all sources"
+    ),
+    min_cardinality: int = Query(1, ge=1, description="Minimum content count to include"),
+    service: TagService = Depends(get_tag_service)
+):
+    """Get most popular tags by content count.
+
+    Returns tags ordered by their cardinality (number of associated content items), using
+    the tag_cardinality_stats table that is refreshed daily by a Celery background job.
+
+    Args:
+        limit: Maximum number of tags to return (1-100)
+        content_source: Optional filter by 'items' or 'auto'; when omitted, sums across both
+        min_cardinality: Minimum content count to include (useful to filter out rarely-used tags)
+        service: Tag service instance
+
+    Returns:
+        List[PopularTagResponse]: Popular tags with their cardinality counts
+
+    Raises:
+        HTTPException: If database query fails
+    """
+    try:
+        results = service.repository.get_popular_tags(
+            limit=limit,
+            content_source=content_source,
+            min_cardinality=min_cardinality
+        )
+
+        return [
+            PopularTagResponse(id=tag.id, name=tag.name, cardinality=count)
+            for tag, count in results
+        ]
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get popular tags: {str(e)}"
         )
 
 

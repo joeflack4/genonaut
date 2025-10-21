@@ -125,6 +125,7 @@ export function GalleryPage() {
   // Popover state for stats
   const [statsAnchorEl, setStatsAnchorEl] = useState<HTMLElement | null>(null)
   const [genSourceInfoAnchorEl, setGenSourceInfoAnchorEl] = useState<HTMLElement | null>(null)
+  const [shouldLoadStats, setShouldLoadStats] = useState(false)
 
   // Initialize contentToggles from URL params
   const [contentToggles, setContentToggles] = useState<ContentToggles>(() => {
@@ -311,6 +312,7 @@ export function GalleryPage() {
   // Use unified gallery API with new content source types
   const tagFilterParam = selectedTags.length === 0 ? undefined : selectedTags
 
+  // Main query - WITHOUT stats for better performance
   const { data: unifiedData, isLoading } = useUnifiedGallery({
     page: filters.page + 1, // Convert from 0-based to 1-based
     pageSize: PAGE_SIZE,
@@ -321,10 +323,26 @@ export function GalleryPage() {
     sortField: filters.sort === 'recent' ? 'created_at' : 'quality_score',
     sortOrder: 'desc',
     tag: tagFilterParam,
+    includeStats: false,  // Explicitly request no stats for performance
   }, queryEnabled)
+
+  // Lazy-loaded stats query - only runs when shouldLoadStats is true
+  const { data: statsData } = useUnifiedGallery({
+    page: filters.page + 1,
+    pageSize: PAGE_SIZE,
+    cursor: filters.cursor,
+    contentSourceTypes,
+    userId,
+    searchTerm: filters.search || undefined,
+    sortField: filters.sort === 'recent' ? 'created_at' : 'quality_score',
+    sortOrder: 'desc',
+    tag: tagFilterParam,
+    includeStats: true,  // Request stats
+  }, queryEnabled && shouldLoadStats)
 
   const data = unifiedData
   const items = data?.items ?? []
+  const stats = statsData?.stats || unifiedData?.stats  // Use stats from lazy query if available, fallback to main query
 
   // Track if critical data has loaded for E2E tests
   const isAppReady = !isLoading && data !== undefined
@@ -766,21 +784,22 @@ export function GalleryPage() {
                     ? '0 results matching filters.'
                     : `${totalPages.toLocaleString()} pages showing ${data?.total?.toLocaleString() || 0} results matching filters.`}
                 </Typography>
-                {data?.stats && (
-                  <IconButton
-                    size="small"
-                    sx={{
-                      ml: 0.5,
-                      p: 0.25,
-                      color: 'text.secondary'
-                    }}
-                    onMouseEnter={(event) => setStatsAnchorEl(event.currentTarget)}
-                    onMouseLeave={() => setStatsAnchorEl(null)}
-                    data-testid="gallery-options-stats-info-button"
-                  >
-                    <InfoOutlinedIcon sx={{ fontSize: 14 }} />
-                  </IconButton>
-                )}
+                <IconButton
+                  size="small"
+                  sx={{
+                    ml: 0.5,
+                    p: 0.25,
+                    color: 'text.secondary'
+                  }}
+                  onMouseEnter={(event) => {
+                    setShouldLoadStats(true)  // Trigger stats loading
+                    setStatsAnchorEl(event.currentTarget)
+                  }}
+                  onMouseLeave={() => setStatsAnchorEl(null)}
+                  data-testid="gallery-options-stats-info-button"
+                >
+                  <InfoOutlinedIcon sx={{ fontSize: 14 }} />
+                </IconButton>
               </>
             )}
           </Box>
@@ -1023,24 +1042,28 @@ export function GalleryPage() {
         onMouseLeave={() => setStatsAnchorEl(null)}
         data-testid="gallery-stats-popover"
       >
-        {data?.stats && (
+        {stats ? (
           <Stack spacing={1} data-testid="gallery-stats-list">
              {/*<Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
                Content Statistics
              </Typography>*/}
             <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-user-regular">
-              Your gens: {data.stats.userRegularCount.toLocaleString()}
+              Your gens: {stats.userRegularCount.toLocaleString()}
             </Typography>
             <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-user-auto">
-              Your auto-gens: {data.stats.userAutoCount.toLocaleString()}
+              Your auto-gens: {stats.userAutoCount.toLocaleString()}
             </Typography>
             <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-community-regular">
-              Community gens: {data.stats.communityRegularCount.toLocaleString()}
+              Community gens: {stats.communityRegularCount.toLocaleString()}
             </Typography>
             <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-community-auto">
-              Community auto-gens: {data.stats.communityAutoCount.toLocaleString()}
+              Community auto-gens: {stats.communityAutoCount.toLocaleString()}
             </Typography>
           </Stack>
+        ) : (
+          <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-loading">
+            Loading stats...
+          </Typography>
         )}
       </Popover>
     </Box>

@@ -79,9 +79,9 @@ test.describe('Tags Page Interactions', () => {
 
       // Check if we navigated to gallery with tag parameter
       const currentUrl = page.url()
-      if (currentUrl.includes('/gallery') && currentUrl.includes('tag=')) {
+      if (currentUrl.includes('/gallery') && currentUrl.includes('tags=')) {
         expect(currentUrl).toContain('/gallery')
-        expect(currentUrl).toContain('tag=')
+        expect(currentUrl).toContain('tags=')
       }
     } else {
       test.skip()

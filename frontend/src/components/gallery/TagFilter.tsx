@@ -344,11 +344,11 @@ export function TagFilter({
                 label={truncateTagName(tag.name)}
                 onClick={() => handleSelectedChipClick(tag.id)}
                 onDelete={(e) => handleDeselectTag(tag.id, e as React.MouseEvent)}
-                deleteIcon={<CloseIcon data-testid={`tag-filter-selected-${tag.slug || tag.id}-delete`} />}
+                deleteIcon={<CloseIcon data-testid={`tag-filter-selected-${tag.id}-delete`} />}
                 color="primary"
                 size="small"
                 sx={{ cursor: 'pointer' }}
-                data-testid={`tag-filter-selected-${tag.slug || tag.id}`}
+                data-testid={`tag-filter-selected-${tag.id}`}
                 onMouseEnter={(e) => handlePopoverOpen(e, tag.name)}
                 onMouseLeave={handlePopoverClose}
               />

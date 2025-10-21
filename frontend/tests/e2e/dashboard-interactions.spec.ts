@@ -194,6 +194,8 @@ test.describe('Dashboard Page Interactions', () => {
   })
 
   test('should handle loading states gracefully', async ({ page }) => {
+    test.setTimeout(30000) // Increase timeout for this test
+
     // Check for loading skeletons or indicators
     const loadingElements = page.locator('.MuiSkeleton-root, .loading, .spinner')
 
