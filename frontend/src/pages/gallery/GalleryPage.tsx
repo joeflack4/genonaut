@@ -19,7 +19,8 @@ import {
   ListItemText,
   MenuItem,
   Pagination,
-  Popover,
+  Paper,
+  Popper,
   Select,
   Skeleton,
   Stack,
@@ -974,98 +975,77 @@ export function GalleryPage() {
         </Stack>
       </Drawer>
 
-      {/* Gen Source Info Popover */}
-      <Popover
+      {/* Gen Source Info Popper */}
+      <Popper
         open={Boolean(genSourceInfoAnchorEl)}
         anchorEl={genSourceInfoAnchorEl}
-        onClose={() => setGenSourceInfoAnchorEl(null)}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'center',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'center',
-        }}
-        disableRestoreFocus
-        disableAutoFocus
-        disableEnforceFocus
+        placement="bottom"
+        modifiers={[{ name: 'offset', options: { offset: [0, 8] } }]}
         sx={{
           pointerEvents: 'none',
+          zIndex: (theme) => theme.zIndex.tooltip,
         }}
-        slotProps={{
-          paper: {
-            sx: {
-              p: 1.5,
-              pointerEvents: 'auto',
-              maxWidth: 300,
-            },
-          },
-        }}
-        onMouseEnter={() => setGenSourceInfoAnchorEl(genSourceInfoAnchorEl)}
-        onMouseLeave={() => setGenSourceInfoAnchorEl(null)}
         data-testid="gallery-gen-source-info-popover"
       >
-        <Typography variant="body2" color="text.secondary">
-          Choose which types of content to include in your gallery view.
-        </Typography>
-      </Popover>
+        <Paper
+          elevation={3}
+          onMouseEnter={() => setGenSourceInfoAnchorEl(genSourceInfoAnchorEl)}
+          onMouseLeave={() => setGenSourceInfoAnchorEl(null)}
+          sx={{
+            p: 1.5,
+            pointerEvents: 'auto',
+            maxWidth: 300,
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            Choose which types of content to include in your gallery view.
+          </Typography>
+        </Paper>
+      </Popper>
 
-      {/* Stats Popover */}
-      <Popover
+      {/* Stats Popper */}
+      <Popper
         open={Boolean(statsAnchorEl)}
         anchorEl={statsAnchorEl}
-        onClose={() => setStatsAnchorEl(null)}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'center',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'center',
-        }}
-        disableRestoreFocus
-        disableAutoFocus
-        disableEnforceFocus
+        placement="bottom"
+        modifiers={[{ name: 'offset', options: { offset: [0, 8] } }]}
         sx={{
           pointerEvents: 'none',
+          zIndex: (theme) => theme.zIndex.tooltip,
         }}
-        slotProps={{
-          paper: {
-            sx: {
-              p: 1.5,
-              pointerEvents: 'auto',
-            },
-          },
-        }}
-        onMouseEnter={() => setStatsAnchorEl(statsAnchorEl)}
-        onMouseLeave={() => setStatsAnchorEl(null)}
         data-testid="gallery-stats-popover"
       >
-        {stats ? (
-          <Stack spacing={1} data-testid="gallery-stats-list">
-             {/*<Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-               Content Statistics
-             </Typography>*/}
-            <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-user-regular">
-              Your gens: {stats.userRegularCount.toLocaleString()}
+        <Paper
+          elevation={3}
+          onMouseEnter={() => setStatsAnchorEl(statsAnchorEl)}
+          onMouseLeave={() => setStatsAnchorEl(null)}
+          sx={{
+            p: 1.5,
+            pointerEvents: 'auto',
+          }}
+        >
+          {stats ? (
+            <Stack spacing={1} data-testid="gallery-stats-list">
+              <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-user-regular">
+                Your gens: {stats.userRegularCount.toLocaleString()}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-user-auto">
+                Your auto-gens: {stats.userAutoCount.toLocaleString()}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-community-regular">
+                Community gens: {stats.communityRegularCount.toLocaleString()}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-community-auto">
+                Community auto-gens: {stats.communityAutoCount.toLocaleString()}
+              </Typography>
+            </Stack>
+          ) : (
+            <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-loading">
+              Loading stats...
             </Typography>
-            <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-user-auto">
-              Your auto-gens: {stats.userAutoCount.toLocaleString()}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-community-regular">
-              Community gens: {stats.communityRegularCount.toLocaleString()}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-community-auto">
-              Community auto-gens: {stats.communityAutoCount.toLocaleString()}
-            </Typography>
-          </Stack>
-        ) : (
-          <Typography variant="body2" color="text.secondary" data-testid="gallery-stats-loading">
-            Loading stats...
-          </Typography>
-        )}
-      </Popover>
+          )}
+        </Paper>
+      </Popper>
     </Box>
   )
 }

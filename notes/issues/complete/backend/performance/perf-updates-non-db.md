@@ -307,6 +307,7 @@ The frontend ALREADY implements cursor-based pagination correctly. No changes we
    - Invalidate on content creation/deletion
 
 3. **Pre-compute stats in background** (Future optimization)
+Update: It was talking about 'gen source counts'. gonna put this in another doc
 User: I wasn't sure what stats you had in mind. I thought maybe you were talking about `tag_cardinality_stats`, but it 
 looks like you are talking about counts.
    - [ ] Consider: if what is meant by 'stats' here is just counts, then rename the phrasing in this document (and the 

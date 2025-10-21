@@ -2,7 +2,7 @@
 .PHONY: help init-all init-dev init-demo init-test reset-db-1-data--demo reset-db-1-data--test reset-db-2-schema--demo \
 reset-db-2-schema--test reset-db-3-schema-and-history--demo reset-db-3-schema-and-history--test re-seed-demo \
 re-seed-demo-force seed-from-gen-demo seed-from-gen-test seed-static-demo seed-static-test export-demo-data test \
-test-quick test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-all clear-excess-test-schemas install install-dev \
+test-quick test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-tag-queries test-all clear-excess-test-schemas install install-dev \
 lint format clean migrate-all migrate-prep migrate-dev migrate-demo migrate-test backup backup-dev backup-demo \
 backup-test api-dev api-demo api-demo-alt api-test celery-dev celery-demo celery-test flower-dev flower-demo flower-test \
 redis-flush-dev redis-flush-demo redis-flush-test redis-keys-dev redis-keys-demo redis-keys-test \
@@ -361,6 +361,13 @@ test-performance:
 	@echo "⚠️  Prerequisites: Demo server must be running on port 8001"
 	@echo "   Start with: make api-demo"
 	pytest test/ -v -s -m "performance" --durations=0
+
+test-tag-queries:
+	@echo "Running tag query combination tests against demo database..."
+	@echo "⚠️  Prerequisites: Demo server must be running on port 8001"
+	@echo "   Start with: make api-demo"
+	@echo "Note: These tests verify tag filtering correctness with real data"
+	pytest test/ -v -s -m "tag_queries" --durations=0
 
 test-comfyui-poll:
 	@echo "Running mock ComfyUI polling tests (wait-for-completion scenarios)..."

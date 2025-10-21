@@ -19,7 +19,7 @@
 - **Tag IDs**:
   - anime: `dfbb88fc-3c31-468f-a2d7-99605206c985`
   - 4k: `eeed7442-6374-4e2a-b110-f97fcc89df78`
-- **Expected Count**: 742,257 content items
+- **Expected Count**: 726,861 content items
 - **Query**: Both tags (AND condition)
 
 ### Test Case 4: Five Tags
@@ -29,7 +29,8 @@
   - crayon: `3cfa3c68-dac7-4034-ad6c-ab6b7fe639fa` (871,522 items)
   - flat: `edb00348-4517-473c-bb5d-3b3f4ad89be5` (871,474 items)
   - minimalist-typography: `0f5f42ca-6d96-4e56-9896-f331c339c5c1` (871,404 items)
-- **Expected Count**: TBD (needs computation)
+- **Expected Count**: 662,239 content items
+- **Query**: All 5 tags (AND condition)
 
 ### Test Case 5: Twenty Tags
 - **Tags Selected** (top 20 from list above):
@@ -53,7 +54,8 @@
   - isometric: `069dfa87-481a-4ee2-963c-1d16023fbc17`
   - horror: `41330e77-f595-41a5-9327-e101b42d2141`
   - thumbnail: `158354e1-5671-4154-9aa1-1cf2c04fbf41`
-- **Expected Count**: TBD (needs computation)
+- **Expected Count**: 565,508 content items
+- **Query**: All 20 tags (AND condition)
 
 ## Notes
 

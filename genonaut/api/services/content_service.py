@@ -1112,8 +1112,16 @@ class ContentService:
         # Shared pagination metadata calculation (for both strategy and ORM paths)
         if total_count == 999999 and len(items) == 0 and pagination.page == 1:
             total_count = 0
-        total_pages = (total_count + pagination.page_size - 1) // pagination.page_size if pagination.page_size else 0
-        has_next = pagination.page < total_pages
+
+        # Handle unknown count (-1) - occurs when COUNT query is skipped for performance
+        if total_count == -1:
+            total_pages = -1  # Unknown page count
+            # Use cursor/item count to determine if there's more data
+            has_next = len(items) == pagination.page_size  # Full page suggests more data
+        else:
+            total_pages = (total_count + pagination.page_size - 1) // pagination.page_size if pagination.page_size else 0
+            has_next = pagination.page < total_pages
+
         has_previous = pagination.page > 1
 
         # Generate next/prev cursors (always, to support hybrid pagination)

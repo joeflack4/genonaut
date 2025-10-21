@@ -325,12 +325,69 @@ class RawSQLQueryExecutor(ContentQueryExecutor):
         sort_direction = "DESC" if sort_order == "desc" else "ASC"
         order_by = f"content_items_all.{sort_field} {sort_direction}, content_items_all.id {sort_direction}"
 
-        # Count query - skip for tag-filtered queries as it's slow
-        # TODO: Implement efficient tag count via pre-computed stats or cursor pagination
-        if tag_uuids:
-            # Skip expensive COUNT for tag queries - return -1 to indicate unknown
-            total_count = -1
+        # Count query - use efficient strategy based on filters
+        if tag_uuids and len(tag_uuids) == 1:
+            # For single-tag queries, use pre-computed tag_cardinality_stats (fast: ~2ms)
+            stats_sql = """
+                SELECT COALESCE(SUM(cardinality), 0) as total
+                FROM tag_cardinality_stats
+                WHERE tag_id = :tag_id
+            """
+            # Filter by content_source if specific types requested
+            if content_source_types and len(content_source_types) < 4:
+                # Map content_source_types to content_source values
+                source_map = {
+                    'user-regular': 'regular',
+                    'user-auto': 'auto',
+                    'community-regular': 'regular',
+                    'community-auto': 'auto'
+                }
+                sources = list(set(source_map.get(t) for t in content_source_types if t in source_map))
+                if sources:
+                    placeholders = ', '.join(f"'{s}'" for s in sources)
+                    stats_sql += f" AND content_source IN ({placeholders})"
+
+            count_result = session.execute(text(stats_sql), {'tag_id': tag_uuids[0]}).scalar()
+            total_count = count_result or 0
+        elif tag_uuids and len(tag_uuids) > 1:
+            # Multiple tags: Use optimized CTE GROUP BY strategy (~2-3s vs 12s with EXISTS)
+            # Strategy: Find items in content_tags that have ALL specified tags
+            tag_placeholders = ', '.join(f":tag{i}" for i in range(len(tag_uuids)))
+            for i, tag_id in enumerate(tag_uuids):
+                params[f'tag{i}'] = tag_id
+
+            # Build WHERE clause without tag filtering (handled by CTE)
+            # Replace table references with alias
+            count_where_parts = []
+            for condition in conditions:
+                # Skip tag-related conditions (already handled by CTE)
+                if 'content_tags' not in condition and 'tag_' not in condition:
+                    # Replace content_items_all with alias cia
+                    aliased_condition = condition.replace('content_items_all', 'cia')
+                    count_where_parts.append(aliased_condition)
+
+            count_where_clause = " AND ".join(count_where_parts) if count_where_parts else "1=1"
+
+            count_sql = f"""
+                WITH tag_matches AS (
+                    SELECT content_id, content_source
+                    FROM content_tags
+                    WHERE tag_id IN ({tag_placeholders})
+                    GROUP BY content_id, content_source
+                    HAVING COUNT(DISTINCT tag_id) = {len(tag_uuids)}
+                )
+                SELECT COUNT(*)
+                FROM tag_matches tm
+                INNER JOIN content_items_all cia
+                    ON tm.content_id = cia.id
+                    AND tm.content_source = cia.source_type
+                WHERE {count_where_clause}
+            """
+
+            count_result = session.execute(text(count_sql), params).scalar()
+            total_count = count_result or 0
         else:
+            # No tag filters: run COUNT query (fast without tag EXISTS clause)
             count_sql = f"""
                 SELECT COUNT(*)
                 FROM content_items_all
