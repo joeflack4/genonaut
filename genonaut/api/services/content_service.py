@@ -16,7 +16,9 @@ from genonaut.db.schema import ContentItem, ContentItemAuto, ContentItemAll, Use
 from genonaut.api.services.flagged_content_service import FlaggedContentService
 from genonaut.api.services.tag_query_planner import TagQueryPlanner
 from genonaut.api.services.tag_query_builder import TagQueryBuilder
+from genonaut.api.services.content_query_strategies import QueryStrategy, ORMQueryExecutor, RawSQLQueryExecutor
 from genonaut.api.utils.tag_identifiers import expand_tag_identifiers
+from genonaut.api.config import get_settings
 
 _VALID_CONTENT_TYPES = {"text", "image", "video", "audio"}
 
@@ -822,202 +824,292 @@ class ContentService:
                 "stats": self.get_unified_content_stats(user_id),
             }
 
-        # Build query against partitioned parent table (ORM class)
-        query = session.query(
-            ContentItemAll.id,
-            ContentItemAll.title,
-            ContentItemAll.content_type,
-            ContentItemAll.content_data,
-            ContentItemAll.path_thumb,
-            ContentItemAll.path_thumbs_alt_res,
-            ContentItemAll.prompt,
-            ContentItemAll.creator_id,
-            ContentItemAll.item_metadata,
-            ContentItemAll.is_private,
-            ContentItemAll.quality_score,
-            ContentItemAll.created_at,
-            ContentItemAll.updated_at,
-            # Return actual partition values: 'items' for regular content, 'auto' for auto-generated
-            ContentItemAll.source_type,
-            User.username.label('creator_username')
-        ).join(User, ContentItemAll.creator_id == User.id)
+        # Use strategy pattern for query execution (when using new content_source_types approach)
+        # Cursor pagination not yet supported in strategies, so fall back to ORM for that case
+        use_strategy_pattern = (
+            content_source_types is not None and
+            not pagination.cursor and
+            not use_python_tag_filter
+        )
 
-        # Apply partition pruning filter (CRITICAL for performance)
-        # This enables PostgreSQL to skip scanning irrelevant partitions
-        query = query.filter(ContentItemAll.source_type.in_(source_type_filters))
+        if use_strategy_pattern:
+            # Select query strategy from config
+            settings = get_settings()
+            strategy_name = settings.content_query_strategy
+            if strategy_name == QueryStrategy.RAW_SQL.value:
+                executor = RawSQLQueryExecutor()
+            else:
+                executor = ORMQueryExecutor()
 
-        # Apply creator filters for content_source_types approach
-        if content_source_types is not None and creator_filters:
-            # Build OR conditions for each (source_type, creator_condition) pair
-            creator_conditions = []
-            for source_type, condition in creator_filters:
-                creator_conditions.append(and_(ContentItemAll.source_type == source_type, condition))
+            t_before_query = time.perf_counter()
+            timings['query_building'] = t_before_query - t_after_tag_processing
 
-            if creator_conditions:
-                query = query.filter(or_(*creator_conditions))
+            # Execute query using strategy
+            rows, total_count = executor.execute_query(
+                session=session,
+                pagination=pagination,
+                content_source_types=content_source_types,
+                user_id=user_id,
+                tag_uuids=tag_uuids if not use_python_tag_filter else [],
+                tag_match=tag_match,
+                search_term=search_term,
+                sort_field=sort_field,
+                sort_order=sort_order,
+            )
 
-        # LEGACY: Apply creator filter if using old approach
-        elif creator_filter != "all" and user_id:
-            if creator_filter == "user":
-                query = query.filter(ContentItemAll.creator_id == user_id)
-            elif creator_filter == "community":
-                query = query.filter(ContentItemAll.creator_id != user_id)
+            t_after_query = time.perf_counter()
+            timings['query_execution'] = t_after_query - t_before_query
 
-        # Apply search filter (using ORM class)
-        if search_term:
-            from genonaut.api.services.search_parser import parse_search_query
-            parsed = parse_search_query(search_term)
-            search_conditions = []
+            # Format results (raw SQL returns tuples, ORM returns RowProxy)
+            items = []
+            for row in rows:
+                # Handle both tuple and ORM object results
+                if hasattr(row, '_mapping'):
+                    # SQLAlchemy Row object
+                    items.append({
+                        "id": row.id,
+                        "title": row.title,
+                        "content_type": row.content_type,
+                        "content_data": row.content_data,
+                        "path_thumb": row.path_thumb,
+                        "path_thumbs_alt_res": row.path_thumbs_alt_res,
+                        "prompt": row.prompt,
+                        "creator_id": str(row.creator_id),
+                        "creator_username": row.creator_username,
+                        "item_metadata": row.item_metadata,
+                        "is_private": row.is_private,
+                        "quality_score": row.quality_score,
+                        "created_at": row.created_at.isoformat() if row.created_at else None,
+                        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                        "source_type": row.source_type,
+                    })
+                else:
+                    # Raw SQL tuple result (id, title, content_type, ...)
+                    items.append({
+                        "id": row[0],
+                        "title": row[1],
+                        "content_type": row[2],
+                        "content_data": row[3],
+                        "path_thumb": row[4],
+                        "path_thumbs_alt_res": row[5],
+                        "prompt": row[6],
+                        "creator_id": str(row[7]),
+                        "item_metadata": row[8],
+                        "is_private": row[9],
+                        "quality_score": row[10],
+                        "created_at": row[11].isoformat() if row[11] else None,
+                        "updated_at": row[12].isoformat() if row[12] else None,
+                        "source_type": row[13],
+                        "creator_username": row[14],
+                    })
 
-            for phrase in parsed.phrases:
-                if phrase:
-                    phrase_condition = or_(
-                        ContentItemAll.title.ilike(f"%{phrase}%"),
-                        ContentItemAll.prompt.ilike(f"%{phrase}%")
-                    )
-                    search_conditions.append(phrase_condition)
+            t_after_serialization = time.perf_counter()
+            timings['result_serialization'] = t_after_serialization - t_after_query
 
-            for word in parsed.words:
-                if word:
-                    word_condition = or_(
-                        ContentItemAll.title.ilike(f"%{word}%"),
-                        ContentItemAll.prompt.ilike(f"%{word}%")
-                    )
-                    search_conditions.append(word_condition)
+            # No cursor pagination support in strategy pattern yet
+            use_cursor_pagination = False
 
-            if search_conditions:
-                query = query.filter(*search_conditions)
+        else:
+            # Fall back to original ORM implementation for cursor pagination or legacy code paths
+            # Build query against partitioned parent table (ORM class)
+            query = session.query(
+                ContentItemAll.id,
+                ContentItemAll.title,
+                ContentItemAll.content_type,
+                ContentItemAll.content_data,
+                ContentItemAll.path_thumb,
+                ContentItemAll.path_thumbs_alt_res,
+                ContentItemAll.prompt,
+                ContentItemAll.creator_id,
+                ContentItemAll.item_metadata,
+                ContentItemAll.is_private,
+                ContentItemAll.quality_score,
+                ContentItemAll.created_at,
+                ContentItemAll.updated_at,
+                # Return actual partition values: 'items' for regular content, 'auto' for auto-generated
+                ContentItemAll.source_type,
+                User.username.label('creator_username')
+            ).join(User, ContentItemAll.creator_id == User.id)
 
-        # Apply tag filtering via junction table (using ORM class)
-        tag_match_normalized = (tag_match or "any").lower()
-        if tag_match_normalized not in {"any", "all"}:
-            tag_match_normalized = "any"
+            # Apply partition pruning filter (CRITICAL for performance)
+            # This enables PostgreSQL to skip scanning irrelevant partitions
+            query = query.filter(ContentItemAll.source_type.in_(source_type_filters))
 
-        if not use_python_tag_filter and tag_uuids:
-            unique_tags = list(dict.fromkeys(tag_uuids))
+            # Apply creator filters for content_source_types approach
+            if content_source_types is not None and creator_filters:
+                # Build OR conditions for each (source_type, creator_condition) pair
+                creator_conditions = []
+                for source_type, condition in creator_filters:
+                    creator_conditions.append(and_(ContentItemAll.source_type == source_type, condition))
 
-            if tag_match_normalized == "all":
-                # For "all" matching: content must have ALL specified tags
-                for tag_id in unique_tags:
+                if creator_conditions:
+                    query = query.filter(or_(*creator_conditions))
+
+            # LEGACY: Apply creator filter if using old approach
+            elif creator_filter != "all" and user_id:
+                if creator_filter == "user":
+                    query = query.filter(ContentItemAll.creator_id == user_id)
+                elif creator_filter == "community":
+                    query = query.filter(ContentItemAll.creator_id != user_id)
+
+            # Apply search filter (using ORM class)
+            if search_term:
+                from genonaut.api.services.search_parser import parse_search_query
+                parsed = parse_search_query(search_term)
+                search_conditions = []
+
+                for phrase in parsed.phrases:
+                    if phrase:
+                        phrase_condition = or_(
+                            ContentItemAll.title.ilike(f"%{phrase}%"),
+                            ContentItemAll.prompt.ilike(f"%{phrase}%")
+                        )
+                        search_conditions.append(phrase_condition)
+
+                for word in parsed.words:
+                    if word:
+                        word_condition = or_(
+                            ContentItemAll.title.ilike(f"%{word}%"),
+                            ContentItemAll.prompt.ilike(f"%{word}%")
+                        )
+                        search_conditions.append(word_condition)
+
+                if search_conditions:
+                    query = query.filter(*search_conditions)
+
+            # Apply tag filtering via junction table (using ORM class)
+            tag_match_normalized = (tag_match or "any").lower()
+            if tag_match_normalized not in {"any", "all"}:
+                tag_match_normalized = "any"
+
+            if not use_python_tag_filter and tag_uuids:
+                unique_tags = list(dict.fromkeys(tag_uuids))
+
+                if tag_match_normalized == "all":
+                    # For "all" matching: content must have ALL specified tags
+                    for tag_id in unique_tags:
+                        exists_clause = session.query(ContentTag.content_id).filter(
+                            ContentTag.content_id == ContentItemAll.id,
+                            ContentTag.tag_id == tag_id
+                        ).exists()
+                        query = query.filter(exists_clause)
+                else:
+                    # For "any" matching: content must have AT LEAST ONE of the specified tags
                     exists_clause = session.query(ContentTag.content_id).filter(
                         ContentTag.content_id == ContentItemAll.id,
-                        ContentTag.tag_id == tag_id
+                        ContentTag.tag_id.in_(unique_tags)
                     ).exists()
                     query = query.filter(exists_clause)
-            else:
-                # For "any" matching: content must have AT LEAST ONE of the specified tags
-                exists_clause = session.query(ContentTag.content_id).filter(
-                    ContentTag.content_id == ContentItemAll.id,
-                    ContentTag.tag_id.in_(unique_tags)
-                ).exists()
-                query = query.filter(exists_clause)
 
-        # Apply sorting (enables partition-wise sorting with MergeAppend)
-        if sort_field == "created_at":
-            if sort_order.lower() == "desc":
+            # Apply sorting (enables partition-wise sorting with MergeAppend)
+            if sort_field == "created_at":
+                if sort_order.lower() == "desc":
+                    query = query.order_by(desc(ContentItemAll.created_at), desc(ContentItemAll.id))
+                else:
+                    query = query.order_by(ContentItemAll.created_at, ContentItemAll.id)
+            elif sort_field == "quality_score":
+                if sort_order.lower() == "desc":
+                    query = query.order_by(desc(ContentItemAll.quality_score), desc(ContentItemAll.id))
+                else:
+                    query = query.order_by(ContentItemAll.quality_score, ContentItemAll.id)
+            else:
+                # Default sort by created_at desc
                 query = query.order_by(desc(ContentItemAll.created_at), desc(ContentItemAll.id))
-            else:
-                query = query.order_by(ContentItemAll.created_at, ContentItemAll.id)
-        elif sort_field == "quality_score":
-            if sort_order.lower() == "desc":
-                query = query.order_by(desc(ContentItemAll.quality_score), desc(ContentItemAll.id))
-            else:
-                query = query.order_by(ContentItemAll.quality_score, ContentItemAll.id)
-        else:
-            # Default sort by created_at desc
-            query = query.order_by(desc(ContentItemAll.created_at), desc(ContentItemAll.id))
 
-        # Apply cursor-based filtering if cursor is provided
-        use_cursor_pagination = bool(pagination.cursor)
-        if pagination.cursor:
-            from genonaut.api.utils.cursor_pagination import decode_cursor, CursorError
+            # Apply cursor-based filtering if cursor is provided
+            use_cursor_pagination = bool(pagination.cursor)
+            if pagination.cursor:
+                from genonaut.api.utils.cursor_pagination import decode_cursor, CursorError
 
-            try:
-                cursor_created_at, cursor_id, cursor_src = decode_cursor(pagination.cursor)
+                try:
+                    cursor_created_at, cursor_id, cursor_src = decode_cursor(pagination.cursor)
 
-                # Apply cursor filter based on sort order (keyset pagination)
-                if sort_field == "created_at":
-                    if sort_order.lower() == "desc":
-                        query = query.filter(
-                            or_(
-                                ContentItemAll.created_at < cursor_created_at,
-                                and_(
-                                    ContentItemAll.created_at == cursor_created_at,
-                                    ContentItemAll.id < cursor_id
+                    # Apply cursor filter based on sort order (keyset pagination)
+                    if sort_field == "created_at":
+                        if sort_order.lower() == "desc":
+                            query = query.filter(
+                                or_(
+                                    ContentItemAll.created_at < cursor_created_at,
+                                    and_(
+                                        ContentItemAll.created_at == cursor_created_at,
+                                        ContentItemAll.id < cursor_id
+                                    )
                                 )
                             )
-                        )
-                    else:
-                        query = query.filter(
-                            or_(
-                                ContentItemAll.created_at > cursor_created_at,
-                                and_(
-                                    ContentItemAll.created_at == cursor_created_at,
-                                    ContentItemAll.id > cursor_id
+                        else:
+                            query = query.filter(
+                                or_(
+                                    ContentItemAll.created_at > cursor_created_at,
+                                    and_(
+                                        ContentItemAll.created_at == cursor_created_at,
+                                        ContentItemAll.id > cursor_id
+                                    )
                                 )
                             )
-                        )
-            except CursorError:
-                # Invalid cursor - ignore and fall back to OFFSET/LIMIT
-                pass
+                except CursorError:
+                    # Invalid cursor - ignore and fall back to OFFSET/LIMIT
+                    pass
 
-        # Get total count for pagination
-        is_sqlite = session.bind and session.bind.dialect.name != "postgresql"
-        if use_junction_table_filter and tag_uuids and not is_sqlite:
-            # Return high estimate for tag-filtered queries on large datasets
-            total_count = 999999
-        else:
-            try:
-                # Count query - remove ORDER BY for performance
-                count_query = query.order_by(None)
-                total_count = count_query.count()
-            except Exception:
-                # Fallback to simple count
-                count_query = session.query(func.count(ContentItemAll.id)).filter(
-                    ContentItemAll.source_type.in_(source_type_filters)
-                )
-                if search_term:
-                    count_query = count_query.filter(ContentItemAll.title.ilike(f"%{search_term}%"))
-                total_count = count_query.scalar() or 0
+            # Get total count for pagination
+            is_sqlite = session.bind and session.bind.dialect.name != "postgresql"
+            if use_junction_table_filter and tag_uuids and not is_sqlite:
+                # Return high estimate for tag-filtered queries on large datasets
+                total_count = 999999
+            else:
+                try:
+                    # Count query - remove ORDER BY for performance
+                    count_query = query.order_by(None)
+                    total_count = count_query.count()
+                except Exception:
+                    # Fallback to simple count
+                    count_query = session.query(func.count(ContentItemAll.id)).filter(
+                        ContentItemAll.source_type.in_(source_type_filters)
+                    )
+                    if search_term:
+                        count_query = count_query.filter(ContentItemAll.title.ilike(f"%{search_term}%"))
+                    total_count = count_query.scalar() or 0
 
-        # Apply pagination
-        offset = (pagination.page - 1) * pagination.page_size if pagination.page > 0 else 0
-        if not use_cursor_pagination:
-            query = query.offset(offset)
-        query = query.limit(pagination.page_size)
+            # Apply pagination
+            offset = (pagination.page - 1) * pagination.page_size if pagination.page > 0 else 0
+            if not use_cursor_pagination:
+                query = query.offset(offset)
+            query = query.limit(pagination.page_size)
 
-        t_before_query = time.perf_counter()
-        timings['query_building'] = t_before_query - t_after_tag_processing
+            t_before_query = time.perf_counter()
+            timings['query_building'] = t_before_query - t_after_tag_processing
 
-        # Execute query and format results
-        rows = query.all()
+            # Execute query and format results
+            rows = query.all()
 
-        t_after_query = time.perf_counter()
-        timings['query_execution'] = t_after_query - t_before_query
-        items = []
-        for row in rows:
-            items.append({
-                "id": row.id,
-                "title": row.title,
-                "content_type": row.content_type,
-                "content_data": row.content_data,
-                "path_thumb": row.path_thumb,
-                "path_thumbs_alt_res": row.path_thumbs_alt_res,
-                "prompt": row.prompt,
-                "creator_id": str(row.creator_id),
-                "creator_username": row.creator_username,
-                "item_metadata": row.item_metadata,
-                "is_private": row.is_private,
-                "quality_score": row.quality_score,
-                "created_at": row.created_at.isoformat() if row.created_at else None,
-                "updated_at": row.updated_at.isoformat() if row.updated_at else None,
-                "source_type": row.source_type,
-            })
+            t_after_query = time.perf_counter()
+            timings['query_execution'] = t_after_query - t_before_query
+            items = []
+            for row in rows:
+                items.append({
+                    "id": row.id,
+                    "title": row.title,
+                    "content_type": row.content_type,
+                    "content_data": row.content_data,
+                    "path_thumb": row.path_thumb,
+                    "path_thumbs_alt_res": row.path_thumbs_alt_res,
+                    "prompt": row.prompt,
+                    "creator_id": str(row.creator_id),
+                    "creator_username": row.creator_username,
+                    "item_metadata": row.item_metadata,
+                    "is_private": row.is_private,
+                    "quality_score": row.quality_score,
+                    "created_at": row.created_at.isoformat() if row.created_at else None,
+                    "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                    "source_type": row.source_type,
+                })
 
-        t_after_serialization = time.perf_counter()
-        timings['result_serialization'] = t_after_serialization - t_after_query
+            t_after_serialization = time.perf_counter()
+            timings['result_serialization'] = t_after_serialization - t_after_query
 
-        # Calculate pagination metadata
+            # Store cursor pagination flag for later
+            use_cursor_pagination = bool(pagination.cursor)
+
+        # Shared pagination metadata calculation (for both strategy and ORM paths)
         if total_count == 999999 and len(items) == 0 and pagination.page == 1:
             total_count = 0
         total_pages = (total_count + pagination.page_size - 1) // pagination.page_size if pagination.page_size else 0

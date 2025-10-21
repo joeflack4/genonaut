@@ -26,7 +26,7 @@ possible that doing the remaining optimizations on the list might be able to pro
 performance. But ultimately, I'll be reviewing your work and will let you know if I feel like I want you to make those 
 further optimizations regardless. But indeed, you should be as autonomous as possible. I would be happy if you did all 
 of this in 1 shot, investigating and optimizing everything worthwhile, /compact'ing as you go, and deferring any 
-questions you have until you reach that initial endpoint.   
+questions you have until you reach that initial endpoint.  
 
 **Canonical example query**
 http://localhost:5173/gallery?tags=anime
@@ -298,8 +298,8 @@ The frontend ALREADY implements cursor-based pagination correctly. No changes we
 
 1. **Make stats optional via query parameter** (Quick win, ~800ms savings when disabled)
    - [x] Add `include_stats` boolean query param (default: false for performance)
-   - [ ] Update frontend to request stats only when needed (e.g., when stats popover is opened)
-   - [ ] Test that gallery page still works without stats on initial load
+   - [x] Update frontend to request stats only when needed (e.g., when stats popover is opened)
+   - [x] Test that gallery page still works without stats on initial load
 
 2. **Cache stats in Redis** (Medium effort, reuse across users) (later; not as part of this work)
    - Cache community_regular_count and community_auto_count (same for all users)
@@ -319,7 +319,7 @@ looks like you are talking about counts.
 - [x] Identify where stats are used in frontend
 - [x] Understand stats query implementation
 - [x] Implement include_stats parameter
-- [ ] Update frontend to lazy-load stats (counts?)
+- [x] Update frontend to lazy-load stats (counts?)
 - [x] Test performance improvement
 
 **Results**:

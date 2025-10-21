@@ -110,6 +110,12 @@ class Settings(BaseModel):
     # Performance configuration
     performance: Optional[Dict[str, Any]] = None
 
+    # Query strategy configuration
+    content_query_strategy: str = Field(
+        default="raw_sql",
+        description="Query execution strategy for unified content queries: 'orm' or 'raw_sql'"
+    )
+
     # Celery configuration
     celery: Optional[Dict[str, Any]] = None
 

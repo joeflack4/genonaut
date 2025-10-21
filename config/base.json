@@ -20,6 +20,8 @@
   "images-dir": "io/storage/images/",
   "_comment_statement-timeout": "PostgreSQL statement_timeout (e.g., 15s, 500ms, 1min) applied to all API connections.",
   "statement-timeout": "15s",
+  "_comment_content-query-strategy": "Query execution strategy: 'orm' (slower, uses SQLAlchemy ORM) or 'raw_sql' (faster, ~140x speedup)",
+  "content-query-strategy": "raw_sql",
   "performance": {
     "query-planner-tag-prejoin": {
       "_comment": "Configuration for pre-JOIN tag filtering query strategy selection",
