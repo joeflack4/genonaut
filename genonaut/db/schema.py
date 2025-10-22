@@ -1085,6 +1085,37 @@ class ContentTag(Base):
     )
 
 
+class GenSourceStats(Base):
+    """Generation source statistics for UI display.
+
+    Caches counts of content items by generation source (regular vs auto) and scope (user vs community).
+    Used by the gallery UI to quickly display content counts without expensive live queries.
+
+    Attributes:
+        user_id: User ID for user-specific stats, NULL for community-wide stats
+        source_type: Content source type ('regular' for content_items, 'auto' for content_items_auto)
+        count: Number of content items for this user/source combination
+        updated_at: Timestamp of last stats update
+    """
+    __tablename__ = 'gen_source_stats'
+
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), primary_key=True, nullable=True)
+    source_type = Column(String(10), primary_key=True, nullable=False)  # 'regular' or 'auto'
+    count = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id])
+
+    # Indexes
+    __table_args__ = (
+        # For quick lookups by user + source
+        Index("idx_gen_source_stats_user_src", user_id, source_type),
+        # For community stats (NULL user_id)
+        Index("idx_gen_source_stats_community", source_type, postgresql_where=(user_id.is_(None))),
+    )
+
+
 class TagCardinalityStats(Base):
     """Tag cardinality statistics for query planning.
 

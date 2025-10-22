@@ -378,3 +378,82 @@ class ContentRepository(BaseRepository[ContentItem, Dict[str, Any], Dict[str, An
 
         except SQLAlchemyError as exc:
             raise DatabaseError(f"Failed to get recent content: {exc}")
+
+    def refresh_gen_source_stats(self) -> int:
+        """Refresh generation source statistics for gallery UI display.
+
+        This computes counts of content items by generation source (regular vs auto)
+        and scope (user vs community) and updates the gen_source_stats table.
+        Stats are used by the gallery UI to quickly display content counts.
+
+        Returns:
+            Number of stats rows updated (community stats + per-user stats)
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        try:
+            from genonaut.db.schema import GenSourceStats, ContentItemAll, User
+
+            # Delete existing stats
+            self.db.query(GenSourceStats).delete()
+
+            # Compute community-wide stats (NULL user_id)
+            # Regular content (source_type = 'items')
+            community_regular_count = self.db.query(func.count(ContentItemAll.id)).filter(
+                ContentItemAll.source_type == 'items'
+            ).scalar() or 0
+
+            # Auto content (source_type = 'auto')
+            community_auto_count = self.db.query(func.count(ContentItemAll.id)).filter(
+                ContentItemAll.source_type == 'auto'
+            ).scalar() or 0
+
+            # Insert community stats
+            count = 0
+            if community_regular_count > 0:
+                self.db.add(GenSourceStats(
+                    user_id=None,
+                    source_type='regular',
+                    count=community_regular_count
+                ))
+                count += 1
+
+            if community_auto_count > 0:
+                self.db.add(GenSourceStats(
+                    user_id=None,
+                    source_type='auto',
+                    count=community_auto_count
+                ))
+                count += 1
+
+            # Compute per-user stats
+            # Get all users who have created content
+            user_stats_query = (
+                self.db.query(
+                    ContentItemAll.creator_id,
+                    ContentItemAll.source_type,
+                    func.count(ContentItemAll.id).label('count')
+                )
+                .filter(ContentItemAll.creator_id.isnot(None))
+                .group_by(ContentItemAll.creator_id, ContentItemAll.source_type)
+            )
+
+            # Insert per-user stats
+            for creator_id, source_type, item_count in user_stats_query:
+                # Map source_type from table value to stats value
+                stats_source_type = 'regular' if source_type == 'items' else 'auto'
+
+                self.db.add(GenSourceStats(
+                    user_id=creator_id,
+                    source_type=stats_source_type,
+                    count=item_count
+                ))
+                count += 1
+
+            self.db.commit()
+            return count
+
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            raise DatabaseError(f"Failed to refresh gen source stats: {str(e)}")
