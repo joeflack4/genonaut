@@ -720,6 +720,35 @@ celery-test:
 celery-check-running-workers:
 	ps aux | grep celery | grep -v grep
 
+# Specific tasks
+# - refresh-tag-stats (AKA cardinality / popular tags)
+refresh-tag-stats: refresh-tag-stats-demo
+
+refresh-tag-stats-dev:
+	@echo "🔄 Refreshing tag cardinality stats (dev database)..."
+	@START=$$(date +%s); \
+	DB_NAME=genonaut_dev python genonaut/db/refresh_tag_stats.py; \
+	END=$$(date +%s); \
+	ELAPSED=$$((END - START)); \
+	echo "⏱️  Completed in $${ELAPSED}s"
+
+refresh-tag-stats-demo:
+	@echo "🔄 Refreshing tag cardinality stats (demo database)..."
+	@START=$$(date +%s); \
+	DB_NAME=genonaut_demo python genonaut/db/refresh_tag_stats.py; \
+	END=$$(date +%s); \
+	ELAPSED=$$((END - START)); \
+	echo "⏱️  Completed in $${ELAPSED}s"
+
+refresh-tag-stats-test:
+	@echo "🔄 Refreshing tag cardinality stats (test database)..."
+	@START=$$(date +%s); \
+	DB_NAME=genonaut_test python genonaut/db/refresh_tag_stats.py; \
+	END=$$(date +%s); \
+	ELAPSED=$$((END - START)); \
+	echo "⏱️  Completed in $${ELAPSED}s"
+
+
 # Flower monitoring dashboard
 flower-dev:
 	@echo "Starting Flower dashboard for development environment..."
@@ -1130,33 +1159,3 @@ md-github-sync:
 	fi
 	cd libs/md_manager && source env/bin/activate && python -m md_manager.cli --config-path ../../notes/md-manager.json sync-bidirectional || (echo "Error: Bidirectional sync failed"; exit 1)
 	@echo "✅ Bidirectional sync completed successfully"
-
-# ============================================================================
-# Tag Cardinality Stats
-# ============================================================================
-
-refresh-tag-stats: refresh-tag-stats-demo
-
-refresh-tag-stats-dev:
-	@echo "🔄 Refreshing tag cardinality stats (dev database)..."
-	@START=$$(date +%s); \
-	DB_NAME=genonaut_dev python genonaut/db/refresh_tag_stats.py; \
-	END=$$(date +%s); \
-	ELAPSED=$$((END - START)); \
-	echo "⏱️  Completed in $${ELAPSED}s"
-
-refresh-tag-stats-demo:
-	@echo "🔄 Refreshing tag cardinality stats (demo database)..."
-	@START=$$(date +%s); \
-	DB_NAME=genonaut_demo python genonaut/db/refresh_tag_stats.py; \
-	END=$$(date +%s); \
-	ELAPSED=$$((END - START)); \
-	echo "⏱️  Completed in $${ELAPSED}s"
-
-refresh-tag-stats-test:
-	@echo "🔄 Refreshing tag cardinality stats (test database)..."
-	@START=$$(date +%s); \
-	DB_NAME=genonaut_test python genonaut/db/refresh_tag_stats.py; \
-	END=$$(date +%s); \
-	ELAPSED=$$((END - START)); \
-	echo "⏱️  Completed in $${ELAPSED}s"

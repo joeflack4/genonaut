@@ -99,6 +99,8 @@ See: "Report 3 - SQL Query Analysis and Timing"
 - [ ] Expected impact: TBD (if JSONB is the bottleneck)
 
 **Strategy B: Raw SQL for List Endpoints**
+It seemed like this was mostly what it did.
+
 - [ ] Implement: Create raw SQL query version of `get_unified_content_paginated()`
 - [ ] Use `session.execute(text(sql))` with proper parameterization
 - [ ] Map results to response dictionaries (skip ORM objects)
