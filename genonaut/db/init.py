@@ -519,18 +519,23 @@ class DatabaseInitializer:
     
     def drop_tables(self, schema_name: Optional[str] = None) -> None:
         """Drop all database tables.
-        
+
         Warning: This will delete all data in the database.
-        
+
         Args:
             schema_name: Optional schema name to drop tables from. If None, drops from all schemas.
-        
+
         Raises:
             SQLAlchemyError: If table dropping fails
+            UnsafeDatabaseOperationError: If attempting to drop tables from a non-test database
         """
         if not self.engine:
             raise ValueError("Engine not initialized. Call create_engine_and_session() first.")
-        
+
+        # SAFETY CHECK: Only allow dropping tables in test databases
+        from genonaut.db.safety import validate_test_database_url
+        validate_test_database_url(self.database_url)
+
         try:
             if schema_name and self.database_url.startswith('postgresql://'):
                 # PostgreSQL: Drop tables from specific schema
@@ -668,10 +673,15 @@ class DatabaseInitializer:
         Raises:
             SQLAlchemyError: When truncation fails.
             ValueError: When the session factory is uninitialized.
+            UnsafeDatabaseOperationError: If attempting to truncate tables from a non-test database
         """
 
         if not self.session_factory:
             raise ValueError("Session factory not initialized")
+
+        # SAFETY CHECK: Only allow truncating tables in test databases
+        from genonaut.db.safety import validate_test_database_url
+        validate_test_database_url(self.database_url)
 
         session = self.session_factory()
         try:
@@ -853,20 +863,25 @@ def reseed_demo(force: bool = False) -> None:
     # Get demo database configuration
     initializer = DatabaseInitializer(environment="demo")
     initializer.create_engine_and_session()
-    
+
+    # SAFETY CHECK: Only allow truncating test databases
+    # Demo databases should use init-demo to recreate from scratch instead
+    from genonaut.db.safety import validate_test_database_url
+    validate_test_database_url(initializer.database_url)
+
     # Get seed data path
     config = load_project_config()
     seed_path = resolve_seed_path(config, "demo")
-    
+
     if not seed_path:
         raise ValueError("Could not resolve seed data path for demo database")
-    
+
     # Truncate all tables (preserve schema)
     model_classes = [GenerationJob, Recommendation, UserInteraction, ContentItem, User]  # Order matters for FK constraints
-    
+
     if not initializer.session_factory:
         raise ValueError("Session factory not initialized")
-    
+
     session = initializer.session_factory()
     try:
         # Truncate tables in reverse dependency order

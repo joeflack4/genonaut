@@ -532,9 +532,10 @@ init-db:
 	@echo "Initializing database..."
 	python -m genonaut.cli_main init-db --env-target local-dev
 
-init-db-drop:
-	@echo "Initializing database (dropping existing tables)..."
-	python -m genonaut.cli_main init-db --env-target local-dev --drop-existing
+# not sure why we would have this, at least not on local-dev
+#init-db-drop:
+#	@echo "Initializing database (dropping existing tables)..."
+#	python -m genonaut.cli_main init-db --env-target local-dev --drop-existing
 
 # DB migration
 # migrate-*: Create auto-generted revision based on SQLAlchemy model changes. Pass with a message, like: `make migrate-all m="my changes`
@@ -571,6 +572,13 @@ migrate-dev:
 
 migrate-demo:
 	@DB_URL=$$(python -c "from genonaut.db.utils import get_database_url; print(get_database_url('demo'))") && \
+	python -m genonaut.db.schema_extensions install "$$DB_URL" && \
+	echo "📦 Running database migration..." && \
+	DATABASE_URL="$$DB_URL" ALEMBIC_SQLALCHEMY_URL="$$DB_URL" alembic upgrade head
+
+# TODO temp
+migrate-demo-temp:
+	@DB_URL=postgresql://genonaut_admin:chocolateRainbows858@localhost:5432/genonaut_demo_restoretest && \
 	python -m genonaut.db.schema_extensions install "$$DB_URL" && \
 	echo "📦 Running database migration..." && \
 	DATABASE_URL="$$DB_URL" ALEMBIC_SQLALCHEMY_URL="$$DB_URL" alembic upgrade head

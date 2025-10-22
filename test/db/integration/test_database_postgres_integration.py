@@ -81,6 +81,11 @@ class TestPostgresDatabaseIntegration:
             os.environ['DATABASE_URL_TEST'] = cls.admin_db_url
             os.environ['DATABASE_URL_DEMO'] = cls.admin_demo_db_url
 
+            # SAFETY CHECK: Ensure we're only dropping test databases
+            from genonaut.db.safety import validate_test_database_name
+            validate_test_database_name(cls._primary_db_name)
+            validate_test_database_name(cls._demo_db_name)
+
             engine = create_engine(cls.postgres_admin_url)
             with engine.connect() as conn:
                 conn = conn.execution_options(isolation_level="AUTOCOMMIT")
@@ -99,9 +104,13 @@ class TestPostgresDatabaseIntegration:
         # This avoids connection conflicts and is faster
         if cls.admin_db_url and cls.admin_demo_db_url:
             from genonaut.db.schema import Base
+            from genonaut.db.safety import validate_test_database_url
 
             # Clean up main test database
             try:
+                # SAFETY CHECK: Ensure we're only dropping tables from test databases
+                validate_test_database_url(cls.admin_db_url)
+
                 main_engine = create_engine(cls.admin_db_url)
                 Base.metadata.drop_all(main_engine)
                 main_engine.dispose()
@@ -110,6 +119,9 @@ class TestPostgresDatabaseIntegration:
 
             # Clean up demo test database
             try:
+                # SAFETY CHECK: Ensure we're only dropping tables from test databases
+                validate_test_database_url(cls.admin_demo_db_url)
+
                 demo_engine = create_engine(cls.admin_demo_db_url)
                 Base.metadata.drop_all(demo_engine)
                 demo_engine.dispose()

@@ -1,5 +1,4 @@
 # Notes & Documentation Guide
-
 This file provides guidance to Claude Code when working with project notes and documentation.
 
 ## Note-Taking Standards

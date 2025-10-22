@@ -621,14 +621,19 @@ def get_next_test_schema_name(database_url: str) -> str:
 
 def clear_excess_test_schemas(database_url: str, keep_latest: int = 1) -> None:
     """Delete old test schemas, keeping only the most recent ones.
-    
+
     Args:
         database_url: Database connection URL
         keep_latest: Number of most recent schemas to keep (default: 1)
-        
+
     Raises:
         SQLAlchemyError: If unable to delete schemas
+        UnsafeDatabaseOperationError: If attempting to drop schemas from a non-test database
     """
+    # SAFETY CHECK: Only allow dropping schemas in test databases
+    from genonaut.db.safety import validate_test_database_url
+    validate_test_database_url(database_url)
+
     try:
         engine = create_engine(database_url)
         with engine.connect() as conn:

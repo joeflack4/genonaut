@@ -2,7 +2,6 @@
 
 import os
 import re
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -173,9 +172,8 @@ class Settings(BaseModel):
         return cleaned_value
 
 
-@lru_cache()
 def get_settings() -> Settings:
-    """Get cached settings instance.
+    """Get settings instance.
 
     Loads configuration from:
     1. JSON config files (base.json + environment-specific)

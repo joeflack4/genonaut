@@ -254,9 +254,16 @@ def truncate_tables(session: Session, *table_names: str) -> None:
 
     Example:
         truncate_tables(session, "users", "content_items")
+
+    Raises:
+        UnsafeDatabaseOperationError: If the session is not connected to a test database
     """
     if not table_names:
         return
+
+    # SAFETY CHECK: Ensure we're only truncating a test database
+    from genonaut.db.safety import validate_test_database_from_session
+    validate_test_database_from_session(session)
 
     tables_str = ", ".join(table_names)
     session.execute(text(f"TRUNCATE TABLE {tables_str} RESTART IDENTITY CASCADE"))

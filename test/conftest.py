@@ -206,9 +206,15 @@ def pytest_sessionstart(session):
     try:
         from sqlalchemy import create_engine, text
         from test.db.postgres_fixtures import get_postgres_test_url
+        from genonaut.db.safety import validate_test_database_url
 
         # Get test database URL
         db_url = get_postgres_test_url()
+
+        # SAFETY CHECK: Ensure we're only truncating a test database
+        # This prevents accidental data loss in production, demo, or dev databases
+        validate_test_database_url(db_url)
+
         engine = create_engine(db_url)
 
         # Truncate all tables (but preserve alembic_version to keep migration state)
