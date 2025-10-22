@@ -657,37 +657,63 @@ class ContentService:
     # ------------------------------------------------------------------
 
     def get_unified_content_stats(self, user_id: Optional[UUID] = None) -> Dict[str, int]:
-        """Get unified content statistics using partitioned parent table.
+        """Get unified content statistics using cached stats with fallback.
 
-        This method queries ContentItemAll with source_type filtering, which enables
-        PostgreSQL partition pruning for better performance compared to separate queries.
+        This method queries the gen_source_stats cache table for fast lookups,
+        falling back to live queries if cache is empty.
         """
+        from genonaut.db.schema import GenSourceStats
+
         session = self.repository.db
 
-        # Query partitioned table with source_type grouping for user content
+        # Try to get cached stats first
         user_regular_count = 0
         user_auto_count = 0
+
         if user_id:
-            # Single query with partition pruning for user's regular content
+            user_stats = session.query(GenSourceStats).filter(
+                GenSourceStats.user_id == user_id
+            ).all()
+
+            for stat in user_stats:
+                if stat.source_type == 'regular':
+                    user_regular_count = stat.count
+                elif stat.source_type == 'auto':
+                    user_auto_count = stat.count
+
+        # Get community stats from cache
+        community_stats = session.query(GenSourceStats).filter(
+            GenSourceStats.user_id.is_(None)
+        ).all()
+
+        community_regular_count = 0
+        community_auto_count = 0
+        for stat in community_stats:
+            if stat.source_type == 'regular':
+                community_regular_count = stat.count
+            elif stat.source_type == 'auto':
+                community_auto_count = stat.count
+
+        # Fallback to live queries if cache is empty
+        if not community_stats:
+            community_regular_count = session.query(func.count(ContentItemAll.id)).filter(
+                ContentItemAll.source_type == 'items'
+            ).scalar() or 0
+
+            community_auto_count = session.query(func.count(ContentItemAll.id)).filter(
+                ContentItemAll.source_type == 'auto'
+            ).scalar() or 0
+
+        if user_id and not user_stats:
             user_regular_count = session.query(func.count(ContentItemAll.id)).filter(
                 ContentItemAll.source_type == 'items',
                 ContentItemAll.creator_id == user_id
             ).scalar() or 0
 
-            # Single query with partition pruning for user's auto content
             user_auto_count = session.query(func.count(ContentItemAll.id)).filter(
                 ContentItemAll.source_type == 'auto',
                 ContentItemAll.creator_id == user_id
             ).scalar() or 0
-
-        # Query partitioned table for community totals (partition pruning enabled)
-        community_regular_count = session.query(func.count(ContentItemAll.id)).filter(
-            ContentItemAll.source_type == 'items'
-        ).scalar() or 0
-
-        community_auto_count = session.query(func.count(ContentItemAll.id)).filter(
-            ContentItemAll.source_type == 'auto'
-        ).scalar() or 0
 
         return {
             "user_regular_count": user_regular_count,

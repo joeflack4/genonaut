@@ -1092,6 +1092,7 @@ class GenSourceStats(Base):
     Used by the gallery UI to quickly display content counts without expensive live queries.
 
     Attributes:
+        id: Primary key (auto-increment)
         user_id: User ID for user-specific stats, NULL for community-wide stats
         source_type: Content source type ('regular' for content_items, 'auto' for content_items_auto)
         count: Number of content items for this user/source combination
@@ -1099,20 +1100,23 @@ class GenSourceStats(Base):
     """
     __tablename__ = 'gen_source_stats'
 
-    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), primary_key=True, nullable=True)
-    source_type = Column(String(10), primary_key=True, nullable=False)  # 'regular' or 'auto'
+    id = Column(Integer, Identity(start=1, cycle=False), primary_key=True, nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=True)
+    source_type = Column(String(10), nullable=False)  # 'regular' or 'auto'
     count = Column(Integer, nullable=False, default=0)
     updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id])
 
-    # Indexes
+    # Indexes and constraints
     __table_args__ = (
-        # For quick lookups by user + source
-        Index("idx_gen_source_stats_user_src", user_id, source_type),
-        # For community stats (NULL user_id)
-        Index("idx_gen_source_stats_community", source_type, postgresql_where=(user_id.is_(None))),
+        # Unique constraint for user-specific stats (user_id + source_type must be unique when user_id is not NULL)
+        Index("idx_gen_source_stats_user_src", user_id, source_type, unique=True,
+              postgresql_where=(user_id.isnot(None))),
+        # Unique constraint for community stats (source_type must be unique when user_id is NULL)
+        Index("idx_gen_source_stats_community", source_type, unique=True,
+              postgresql_where=(user_id.is_(None))),
     )
 
 

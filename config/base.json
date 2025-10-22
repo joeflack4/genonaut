@@ -58,6 +58,14 @@
           "hour": 0,
           "minute": 0
         }
+      },
+      "refresh-gen-source-stats": {
+        "_comment": "Refresh gen source statistics for gallery UI (runs hourly)",
+        "enabled": true,
+        "task": "genonaut.worker.tasks.refresh_gen_source_stats",
+        "schedule": {
+          "minute": 0
+        }
       }
     }
   }

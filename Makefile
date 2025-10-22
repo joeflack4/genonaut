@@ -755,6 +755,33 @@ refresh-tag-stats-test:
 	ELAPSED=$$((END - START)); \
 	echo "⏱️  Completed in $${ELAPSED}s"
 
+# - refresh-gen-source-stats
+refresh-gen-source-stats: refresh-gen-source-stats-demo
+
+refresh-gen-source-stats-dev:
+	@echo "🔄 Refreshing gen source stats (dev database)..."
+	@START=$$(date +%s); \
+	DB_NAME=genonaut_dev python genonaut/db/refresh_gen_source_stats.py; \
+	END=$$(date +%s); \
+	ELAPSED=$$((END - START)); \
+	echo "⏱️  Completed in $${ELAPSED}s"
+
+refresh-gen-source-stats-demo:
+	@echo "🔄 Refreshing gen source stats (demo database)..."
+	@START=$$(date +%s); \
+	DB_NAME=genonaut_demo python genonaut/db/refresh_gen_source_stats.py; \
+	END=$$(date +%s); \
+	ELAPSED=$$((END - START)); \
+	echo "⏱️  Completed in $${ELAPSED}s"
+
+refresh-gen-source-stats-test:
+	@echo "🔄 Refreshing gen source stats (test database)..."
+	@START=$$(date +%s); \
+	DB_NAME=genonaut_test python genonaut/db/refresh_gen_source_stats.py; \
+	END=$$(date +%s); \
+	ELAPSED=$$((END - START)); \
+	echo "⏱️  Completed in $${ELAPSED}s"
+
 
 # Flower monitoring dashboard
 flower-dev:

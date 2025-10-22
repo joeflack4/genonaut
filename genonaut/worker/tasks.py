@@ -386,3 +386,43 @@ def refresh_tag_cardinality_stats() -> Dict[str, Any]:
         }
     finally:
         db.close()
+
+
+@celery_app.task(name="genonaut.worker.tasks.refresh_gen_source_stats")
+def refresh_gen_source_stats() -> Dict[str, Any]:
+    """Refresh generation source statistics for gallery UI display.
+
+    This scheduled task runs hourly to update the gen_source_stats table
+    with current counts of content items per (user_id, source_type) pair.
+    These statistics are used by the gallery UI to quickly display counts.
+
+    Returns:
+        Dict with refresh results
+    """
+    logger.info("Starting scheduled gen source stats refresh")
+
+    db = next(get_database_session())
+
+    try:
+        from genonaut.api.repositories.content_repository import ContentRepository
+
+        repo = ContentRepository(db)
+        count = repo.refresh_gen_source_stats()
+
+        logger.info(f"Successfully refreshed {count} gen source stats")
+
+        return {
+            "status": "success",
+            "stats_refreshed": count,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to refresh gen source stats: {str(e)}", exc_info=True)
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    finally:
+        db.close()
