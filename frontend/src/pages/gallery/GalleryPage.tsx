@@ -1,7 +1,8 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { SelectChangeEvent } from '@mui/material/Select'
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -23,6 +24,7 @@ import {
   Popper,
   Select,
   Skeleton,
+  Snackbar,
   Stack,
   Switch,
   TextField,
@@ -112,6 +114,17 @@ export function GalleryPage() {
   const [tagNameToIdMap, setTagNameToIdMap] = useState<Map<string, string>>(new Map())
   const [tagIdToNameMap, setTagIdToNameMap] = useState<Map<string, string>>(new Map())
   const [tagsInitialized, setTagsInitialized] = useState(false) // Track if tags from URL have been loaded
+
+  // Tag filter page state (synced with URL)
+  const [tagFilterPage, setTagFilterPage] = useState(() => {
+    const tagPageParam = searchParams.get('tagPage')
+    return tagPageParam ? parseInt(tagPageParam, 10) : 1
+  })
+
+  // Invalid tag notification state
+  const [invalidTagNames, setInvalidTagNames] = useState<string[]>([])
+  const [showInvalidTagError, setShowInvalidTagError] = useState(false)
+  const invalidTagsShownRef = useRef(false) // Track if we've shown the error for this URL
 
   // Initialize optionsOpen state from localStorage
   const [optionsOpen, setOptionsOpen] = useState(() => {
@@ -247,9 +260,26 @@ export function GalleryPage() {
       ? tagsParam.split(',').map(name => name.trim()).filter(name => name)
       : []
 
-    const tagIdsFromUrl = tagNamesFromUrl
-      .map(name => tagNameToIdMap.get(name))
-      .filter((id): id is string => id !== undefined)
+    // Track which tags are invalid (not in database)
+    const invalidTags: string[] = []
+    const tagIdsFromUrl: string[] = []
+
+    tagNamesFromUrl.forEach(name => {
+      const id = tagNameToIdMap.get(name)
+      if (id !== undefined) {
+        tagIdsFromUrl.push(id)
+      } else if (name) {
+        // Tag name in URL but not in database
+        invalidTags.push(name)
+      }
+    })
+
+    // Show error for invalid tags (only once per URL change)
+    if (invalidTags.length > 0 && !invalidTagsShownRef.current) {
+      setInvalidTagNames(invalidTags)
+      setShowInvalidTagError(true)
+      invalidTagsShownRef.current = true
+    }
 
     if (!arraysEqualIgnoreOrder(tagIdsFromUrl, selectedTags)) {
       setSelectedTags(tagIdsFromUrl)
@@ -259,6 +289,20 @@ export function GalleryPage() {
     // Mark tags as initialized once we've processed the URL params
     setTagsInitialized(true)
   }, [searchParams, selectedTags, tagNameToIdMap])
+
+  // Reset invalid tags shown flag when URL tags param changes
+  useEffect(() => {
+    invalidTagsShownRef.current = false
+  }, [searchParams.get('tags')])
+
+  // Sync tag filter page with URL parameter
+  useEffect(() => {
+    const tagPageParam = searchParams.get('tagPage')
+    const pageFromUrl = tagPageParam ? parseInt(tagPageParam, 10) : 1
+    if (pageFromUrl !== tagFilterPage && pageFromUrl >= 1) {
+      setTagFilterPage(pageFromUrl)
+    }
+  }, [searchParams])
 
   // Sync contentToggles with URL parameters (supports navigation/back links)
   useEffect(() => {
@@ -488,6 +532,19 @@ export function GalleryPage() {
 
   const handleNavigateToHierarchy = () => {
     navigate('/tags')
+  }
+
+  const handleTagPageChange = (page: number) => {
+    setTagFilterPage(page)
+    setSearchParams((params) => {
+      const newParams = new URLSearchParams(params)
+      if (page > 1) {
+        newParams.set('tagPage', page.toString())
+      } else {
+        newParams.delete('tagPage')
+      }
+      return newParams
+    })
   }
 
   const handleHistoryItemClick = (searchQuery: string) => {
@@ -970,6 +1027,9 @@ export function GalleryPage() {
               onTagsChange={handleTagFilterChange}
               onTagClick={handleTagClick}
               onNavigateToHierarchy={handleNavigateToHierarchy}
+              tagPage={tagFilterPage}
+              onTagPageChange={handleTagPageChange}
+              tagIdToNameMap={tagIdToNameMap}
             />
           </Stack>
         </Stack>
@@ -1046,6 +1106,39 @@ export function GalleryPage() {
           )}
         </Paper>
       </Popper>
+
+      {/* Invalid Tags Error Notification */}
+      <Snackbar
+        open={showInvalidTagError}
+        autoHideDuration={8000}
+        onClose={() => setShowInvalidTagError(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        data-testid="gallery-invalid-tags-snackbar"
+      >
+        <Alert
+          elevation={6}
+          variant="filled"
+          severity="error"
+          onClose={() => setShowInvalidTagError(false)}
+          data-testid="gallery-invalid-tags-alert"
+        >
+          <Typography variant="subtitle2" component="div" sx={{ mb: 1 }}>
+            Invalid tags in URL
+          </Typography>
+          <Typography variant="body2" component="div" sx={{ mb: 1 }}>
+            The following {invalidTagNames.length === 1 ? 'tag does' : 'tags do'} not exist in the database and {invalidTagNames.length === 1 ? 'has' : 'have'} no effect:
+          </Typography>
+          <Box component="ul" sx={{ margin: 0, paddingLeft: 2 }}>
+            {invalidTagNames.map((tagName) => (
+              <li key={tagName}>
+                <Typography variant="body2" component="span">
+                  {tagName}
+                </Typography>
+              </li>
+            ))}
+          </Box>
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }

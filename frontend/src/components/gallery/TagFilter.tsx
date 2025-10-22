@@ -27,6 +27,9 @@ interface TagFilterProps {
   onTagClick?: (tagId: string) => void
   onNavigateToHierarchy?: () => void
   pageSize?: number
+  tagPage?: number
+  onTagPageChange?: (page: number) => void
+  tagIdToNameMap?: Map<string, string>
 }
 
 type TagSortOption = 'name-asc' | 'name-desc' | 'rating-asc' | 'rating-desc'
@@ -54,8 +57,15 @@ export function TagFilter({
   onTagClick,
   onNavigateToHierarchy,
   pageSize = 20,
+  tagPage = 1,
+  onTagPageChange,
+  tagIdToNameMap,
 }: TagFilterProps) {
-  const [page, setPage] = useState(1)
+  // Use controlled page if provided, otherwise use internal state
+  const [internalPage, setInternalPage] = useState(1)
+  const page = onTagPageChange ? tagPage : internalPage
+  const setPage = onTagPageChange || setInternalPage
+
   const [sortOption, setSortOption] = useState<TagSortOption>('name-asc')
   const [popoverAnchor, setPopoverAnchor] = useState<{
     element: HTMLElement
@@ -75,11 +85,12 @@ export function TagFilter({
 
   const apiSort = useMemo(() => sortOption, [sortOption])
 
-  // Fetch tags with pagination
+  // Fetch tags with pagination and search (backend filtering)
   const { data, isLoading } = useTags({
     page,
     page_size: pageSize,
     sort: apiSort,
+    search: debouncedSearchQuery || undefined,
   })
 
   const tags = data?.items || []
@@ -194,75 +205,38 @@ export function TagFilter({
     setPopoverAnchor(null)
   }
 
-  // Filter tags based on search query
-  const filteredTags = useMemo(() => {
-    if (!debouncedSearchQuery.trim()) {
-      return tags
-    }
-
-    const query = debouncedSearchQuery.trim()
-
-    // Check if query is wrapped in quotes for exact match
-    const isExactMatch = query.startsWith('"') && query.endsWith('"') && query.length > 2
-
-    if (isExactMatch) {
-      // Exact match search - strip quotes and search anywhere in tag name
-      const searchText = query.slice(1, -1).toLowerCase()
-      return tags.filter(tag => tag.name.toLowerCase().includes(searchText))
-    } else {
-      // Word-based search
-      const queryWords = query.toLowerCase().split(/\s+/).filter(word => word.length > 0)
-
-      return tags.filter(tag => {
-        const tagWords = tag.name.toLowerCase().split(/[\s-]+/).filter(word => word.length > 0)
-
-        // Check if any tag word starts with any query word
-        return queryWords.some(queryWord =>
-          tagWords.some(tagWord => tagWord.startsWith(queryWord))
-        )
-      })
-    }
-  }, [tags, debouncedSearchQuery])
-
-  // Paginate filtered tags
-  const paginatedTags = useMemo(() => {
-    const startIndex = (page - 1) * pageSize
-    const endIndex = startIndex + pageSize
-    return filteredTags.slice(startIndex, endIndex)
-  }, [filteredTags, page, pageSize])
-
-  // Calculate total pages for filtered results
-  const filteredTotalPages = useMemo(() => {
-    if (filteredTags.length === 0) return 1
-    return Math.ceil(filteredTags.length / pageSize)
-  }, [filteredTags.length, pageSize])
+  // Backend handles filtering and pagination - no client-side logic needed
 
   // Find selected tag objects for display (use pending tags if in multi-select mode)
   const displayTags = isMultiSelectActive.current ? pendingTags : selectedTags
 
   const selectedTagObjects = useMemo(() => {
     return displayTags.map((id) => {
+      // First check cache
       const cached = tagCache.get(id)
       if (cached) {
         return cached
       }
 
+      // If not in cache, try to get name from tagIdToNameMap (from parent)
+      const name = tagIdToNameMap?.get(id) ?? id
+
       return {
         id,
-        name: id,
+        name,
         created_at: '',
         updated_at: '',
         metadata: {},
         average_rating: null,
         rating_count: 0,
-        slug: id,
+        slug: name,
         description: '',
         ancestors: [],
         descendants: [],
         is_favorite: false,
       } as ApiTag
     })
-  }, [displayTags, tagCache])
+  }, [displayTags, tagCache, tagIdToNameMap])
 
   return (
     <Box data-testid="tag-filter">
@@ -371,7 +345,7 @@ export function TagFilter({
               />
             ))}
           </Stack>
-        ) : paginatedTags.length === 0 ? (
+        ) : tags.length === 0 ? (
           <Typography
             variant="body2"
             color="text.secondary"
@@ -381,7 +355,7 @@ export function TagFilter({
           </Typography>
         ) : (
           <Stack direction="row" spacing={1} flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
-            {paginatedTags.map((tag) => {
+            {tags.map((tag) => {
               const isSelected = displayTags.includes(tag.id)
               return (
                 <Chip
@@ -403,10 +377,10 @@ export function TagFilter({
       </Box>
 
       {/* Pagination */}
-      {!isLoading && paginatedTags.length > 0 && (
+      {!isLoading && tags.length > 0 && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
           <Pagination
-            count={filteredTotalPages}
+            count={totalPages}
             page={page}
             onChange={(_, newPage) => setPage(newPage)}
             color="primary"
@@ -439,6 +413,8 @@ export function TagFilter({
           vertical: 'bottom',
           horizontal: 'center',
         }}
+        disableAutoFocus
+        disableEnforceFocus
         disableRestoreFocus
         sx={{ pointerEvents: 'none' }}
         data-testid="tag-filter-popover"
