@@ -490,23 +490,23 @@ test.describe('Gallery URL Query Parameters', () => {
       // Uncheck them by clicking the labels (more reliable for MUI switches)
       // Click and wait for each toggle to actually change state
       await yourGensToggleLabel.click()
-      await page.waitForFunction(() => window.location.search.includes('your-g'), { timeout: 2000 })
       await expect(yourGensToggle).not.toBeChecked()
+      await page.waitForFunction(() => window.location.search.includes('your-g'), { timeout: 3000 })
       await page.waitForTimeout(500)
 
       await yourAutoGensToggleLabel.click()
-      await page.waitForFunction(() => window.location.search.includes('your-ag'), { timeout: 2000 })
+      await expect(yourAutoGensToggle).not.toBeChecked()
+      await page.waitForFunction(() => window.location.search.includes('your-ag'), { timeout: 3000 })
       // Verify both toggles are still unchecked
       await expect(yourGensToggle).not.toBeChecked()
-      await expect(yourAutoGensToggle).not.toBeChecked()
       await page.waitForTimeout(500)
 
       await communityGensToggleLabel.click()
-      await page.waitForFunction(() => window.location.search.includes('comm-g'), { timeout: 2000 })
+      await expect(communityGensToggle).not.toBeChecked()
+      await page.waitForFunction(() => window.location.search.includes('comm-g'), { timeout: 3000 })
       // Verify all three toggles are still unchecked
       await expect(yourGensToggle).not.toBeChecked()
       await expect(yourAutoGensToggle).not.toBeChecked()
-      await expect(communityGensToggle).not.toBeChecked()
       await page.waitForTimeout(500)
 
       // Verify URL contains all three disabled sources

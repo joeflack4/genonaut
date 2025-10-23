@@ -722,17 +722,17 @@ api-test-load-test:
 celery-dev:
 	@echo "Starting Celery worker with Beat scheduler for development environment..."
 	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-dev ] && . env/.env.local-dev && set +a && \
-	ENV_TARGET=local-dev APP_CONFIG_PATH=config/local-dev.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation -B
+	ENV_TARGET=local-dev APP_CONFIG_PATH=config/local-dev.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation -B --scheduler redbeat.RedBeatScheduler
 
 celery-demo:
 	@echo "Starting Celery worker with Beat scheduler for demo environment..."
 	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-demo ] && . env/.env.local-demo && set +a && \
-	ENV_TARGET=local-demo APP_CONFIG_PATH=config/local-demo.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation -B
+	ENV_TARGET=local-demo APP_CONFIG_PATH=config/local-demo.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation -B --scheduler redbeat.RedBeatScheduler
 
 celery-test:
 	@echo "Starting Celery worker with Beat scheduler for test environment..."
 	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-test ] && . env/.env.local-test && set +a && \
-	ENV_TARGET=local-test APP_CONFIG_PATH=config/local-test.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation -B
+	ENV_TARGET=local-test APP_CONFIG_PATH=config/local-test.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation -B --scheduler redbeat.RedBeatScheduler
 
 # alt: python -c "from genonaut.api.services.generation_service import check_celery_workers_available; print('Workers available:', check_celery_workers_available())"
 celery-check-running-workers:

@@ -131,6 +131,7 @@ async def get_performance_trends(
     try:
         if granularity == "hourly":
             # Query hourly aggregated data
+            # Use UTC to ensure consistent time ranges regardless of server timezone
             query = text("""
                 SELECT
                     timestamp,
@@ -146,11 +147,17 @@ async def get_performance_trends(
                     (successful_requests::FLOAT / NULLIF(total_requests, 0)) as success_rate
                 FROM route_analytics_hourly
                 WHERE route = :route
-                    AND timestamp > NOW() - INTERVAL '1 day' * :days
+                    AND timestamp > (NOW() AT TIME ZONE 'UTC') - INTERVAL '1 day' * :days
                 ORDER BY timestamp ASC
             """)
+            result = db.execute(query, {'route': route, 'days': days})
         else:  # daily
             # Aggregate hourly data into daily buckets
+            # For daily granularity, align to calendar day boundaries to ensure exactly N days
+            # We use (days - 1) to get exactly N calendar days including today
+            lookback_days = days - 1
+            # For daily granularity, we use UTC to ensure consistent date boundaries
+            # regardless of server timezone
             query = text("""
                 SELECT
                     DATE_TRUNC('day', timestamp) as timestamp,
@@ -166,12 +173,11 @@ async def get_performance_trends(
                     (SUM(successful_requests)::FLOAT / NULLIF(SUM(total_requests), 0)) as success_rate
                 FROM route_analytics_hourly
                 WHERE route = :route
-                    AND timestamp > NOW() - INTERVAL '1 day' * :days
+                    AND timestamp >= DATE_TRUNC('day', (NOW() AT TIME ZONE 'UTC')) - INTERVAL '1 day' * :lookback_days
                 GROUP BY DATE_TRUNC('day', timestamp)
                 ORDER BY timestamp ASC
             """)
-
-        result = db.execute(query, {'route': route, 'days': days})
+            result = db.execute(query, {'route': route, 'lookback_days': lookback_days})
 
         trends = []
         for row in result:

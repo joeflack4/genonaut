@@ -1,4 +1,4 @@
-## Generation Analytics
+# Generation Analytics
 We should refactor the existing in-memory MetricsService to use persistent storage. Currently, all generation
 metrics are stored in memory and lost on restart. We need to move to storing this information in Redis (for fast
 writes) and PostgreSQL (for long-term analytics and reporting).
@@ -12,8 +12,6 @@ For inspiration, you can look towards work that was recently completed that is q
 in notes/ or nested somewhere in there):
 - route-analytics.md
 - route-analytics-tasks.md
-
-## Implementation tasks
 
 ## Reports
 

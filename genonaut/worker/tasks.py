@@ -476,12 +476,12 @@ def transfer_route_analytics_to_postgres() -> Dict[str, Any]:
                 route, method, user_id, timestamp, duration_ms, status_code,
                 query_params, query_params_normalized,
                 request_size_bytes, response_size_bytes,
-                error_type, cache_status
+                error_type, cache_status, created_at
             ) VALUES (
                 :route, :method, :user_id, :timestamp, :duration_ms, :status_code,
                 :query_params, :query_params_normalized,
                 :request_size_bytes, :response_size_bytes,
-                :error_type, :cache_status
+                :error_type, :cache_status, :created_at
             )
         """)
 
@@ -491,19 +491,21 @@ def transfer_route_analytics_to_postgres() -> Dict[str, Any]:
         for event_id, event_data in event_list:
             try:
                 # Parse event data
+                timestamp = datetime.fromtimestamp(float(event_data.get('timestamp', 0)))
                 params = {
                     'route': event_data.get('route', ''),
                     'method': event_data.get('method', 'GET'),
                     'user_id': event_data.get('user_id') or None,
-                    'timestamp': datetime.fromtimestamp(float(event_data.get('timestamp', 0))),
+                    'timestamp': timestamp,
                     'duration_ms': int(event_data.get('duration_ms', 0)),
                     'status_code': int(event_data.get('status_code', 500)),
-                    'query_params': json.loads(event_data.get('query_params', '{}')),
-                    'query_params_normalized': json.loads(event_data.get('query_params_normalized', '{}')),
+                    'query_params': event_data.get('query_params', '{}'),
+                    'query_params_normalized': event_data.get('query_params_normalized', '{}'),
                     'request_size_bytes': int(event_data.get('request_size_bytes', 0)) or None,
                     'response_size_bytes': int(event_data.get('response_size_bytes', 0)) or None,
                     'error_type': event_data.get('error_type') or None,
                     'cache_status': event_data.get('cache_status') or None,
+                    'created_at': timestamp,  # Use event timestamp as created_at
                 }
 
                 db.execute(insert_query, params)
@@ -548,12 +550,17 @@ def transfer_route_analytics_to_postgres() -> Dict[str, Any]:
 
 
 @celery_app.task(name="genonaut.worker.tasks.aggregate_route_analytics_hourly")
-def aggregate_route_analytics_hourly() -> Dict[str, Any]:
+def aggregate_route_analytics_hourly(reference_time: Optional[str] = None) -> Dict[str, Any]:
     """Aggregate route analytics into hourly metrics.
 
     This scheduled task runs hourly to calculate aggregated statistics
     from raw route_analytics events and store them in route_analytics_hourly
     for fast cache planning queries.
+
+    Args:
+        reference_time: Optional ISO format timestamp string for testing.
+                       When provided, uses this time instead of NOW().
+                       Should be the "current" hour for aggregation.
 
     Returns:
         Dict with aggregation results
@@ -567,48 +574,105 @@ def aggregate_route_analytics_hourly() -> Dict[str, Any]:
     try:
         # Aggregate last hour of data
         # Use ON CONFLICT DO UPDATE for idempotency (can re-run safely)
-        aggregation_query = text("""
-            INSERT INTO route_analytics_hourly (
-                timestamp, route, method, query_params_normalized,
-                total_requests, successful_requests, client_errors, server_errors,
-                avg_duration_ms, p50_duration_ms, p95_duration_ms, p99_duration_ms,
-                unique_users, avg_request_size_bytes, avg_response_size_bytes
-            )
-            SELECT
-                DATE_TRUNC('hour', timestamp) as hour,
-                route,
-                method,
-                query_params_normalized,
-                COUNT(*) as total_requests,
-                SUM(CASE WHEN status_code >= 200 AND status_code < 300 THEN 1 ELSE 0 END) as successful_requests,
-                SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END) as client_errors,
-                SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END) as server_errors,
-                AVG(duration_ms)::INTEGER as avg_duration_ms,
-                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY duration_ms)::INTEGER as p50_duration_ms,
-                PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms)::INTEGER as p95_duration_ms,
-                PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY duration_ms)::INTEGER as p99_duration_ms,
-                COUNT(DISTINCT user_id) as unique_users,
-                AVG(request_size_bytes)::INTEGER as avg_request_size_bytes,
-                AVG(response_size_bytes)::INTEGER as avg_response_size_bytes
-            FROM route_analytics
-            WHERE timestamp >= DATE_TRUNC('hour', NOW() - INTERVAL '1 hour')
-                AND timestamp < DATE_TRUNC('hour', NOW())
-            GROUP BY hour, route, method, query_params_normalized
-            ON CONFLICT (timestamp, route, method, query_params_normalized) DO UPDATE SET
-                total_requests = EXCLUDED.total_requests,
-                successful_requests = EXCLUDED.successful_requests,
-                client_errors = EXCLUDED.client_errors,
-                server_errors = EXCLUDED.server_errors,
-                avg_duration_ms = EXCLUDED.avg_duration_ms,
-                p50_duration_ms = EXCLUDED.p50_duration_ms,
-                p95_duration_ms = EXCLUDED.p95_duration_ms,
-                p99_duration_ms = EXCLUDED.p99_duration_ms,
-                unique_users = EXCLUDED.unique_users,
-                avg_request_size_bytes = EXCLUDED.avg_request_size_bytes,
-                avg_response_size_bytes = EXCLUDED.avg_response_size_bytes
-        """)
 
-        result = db.execute(aggregation_query)
+        if reference_time:
+            # For testing: use provided reference time
+            aggregation_query = text("""
+                INSERT INTO route_analytics_hourly (
+                    timestamp, route, method, query_params_normalized,
+                    total_requests, successful_requests, client_errors, server_errors,
+                    avg_duration_ms, p50_duration_ms, p95_duration_ms, p99_duration_ms,
+                    unique_users, avg_request_size_bytes, avg_response_size_bytes,
+                    cache_hits, cache_misses, created_at
+                )
+                SELECT
+                    DATE_TRUNC('hour', timestamp) as hour,
+                    route,
+                    method,
+                    query_params_normalized,
+                    COUNT(*) as total_requests,
+                    SUM(CASE WHEN status_code >= 200 AND status_code < 300 THEN 1 ELSE 0 END) as successful_requests,
+                    SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END) as client_errors,
+                    SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END) as server_errors,
+                    AVG(duration_ms)::INTEGER as avg_duration_ms,
+                    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY duration_ms)::INTEGER as p50_duration_ms,
+                    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms)::INTEGER as p95_duration_ms,
+                    PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY duration_ms)::INTEGER as p99_duration_ms,
+                    COUNT(DISTINCT user_id) as unique_users,
+                    AVG(request_size_bytes)::INTEGER as avg_request_size_bytes,
+                    AVG(response_size_bytes)::INTEGER as avg_response_size_bytes,
+                    COALESCE(SUM(CASE WHEN cache_status = 'hit' THEN 1 ELSE 0 END), 0) as cache_hits,
+                    COALESCE(SUM(CASE WHEN cache_status = 'miss' THEN 1 ELSE 0 END), 0) as cache_misses,
+                    CURRENT_TIMESTAMP as created_at
+                FROM route_analytics
+                WHERE timestamp >= DATE_TRUNC('hour', CAST(:reference_time AS timestamptz) - INTERVAL '1 hour')
+                    AND timestamp < DATE_TRUNC('hour', CAST(:reference_time AS timestamptz))
+                GROUP BY hour, route, method, query_params_normalized
+                ON CONFLICT (timestamp, route, method, query_params_normalized) DO UPDATE SET
+                    total_requests = EXCLUDED.total_requests,
+                    successful_requests = EXCLUDED.successful_requests,
+                    client_errors = EXCLUDED.client_errors,
+                    server_errors = EXCLUDED.server_errors,
+                    avg_duration_ms = EXCLUDED.avg_duration_ms,
+                    p50_duration_ms = EXCLUDED.p50_duration_ms,
+                    p95_duration_ms = EXCLUDED.p95_duration_ms,
+                    p99_duration_ms = EXCLUDED.p99_duration_ms,
+                    unique_users = EXCLUDED.unique_users,
+                    avg_request_size_bytes = EXCLUDED.avg_request_size_bytes,
+                    avg_response_size_bytes = EXCLUDED.avg_response_size_bytes,
+                    cache_hits = EXCLUDED.cache_hits,
+                    cache_misses = EXCLUDED.cache_misses
+            """)
+            result = db.execute(aggregation_query, {"reference_time": reference_time})
+        else:
+            # For production: use NOW()
+            aggregation_query = text("""
+                INSERT INTO route_analytics_hourly (
+                    timestamp, route, method, query_params_normalized,
+                    total_requests, successful_requests, client_errors, server_errors,
+                    avg_duration_ms, p50_duration_ms, p95_duration_ms, p99_duration_ms,
+                    unique_users, avg_request_size_bytes, avg_response_size_bytes,
+                    cache_hits, cache_misses, created_at
+                )
+                SELECT
+                    DATE_TRUNC('hour', timestamp) as hour,
+                    route,
+                    method,
+                    query_params_normalized,
+                    COUNT(*) as total_requests,
+                    SUM(CASE WHEN status_code >= 200 AND status_code < 300 THEN 1 ELSE 0 END) as successful_requests,
+                    SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END) as client_errors,
+                    SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END) as server_errors,
+                    AVG(duration_ms)::INTEGER as avg_duration_ms,
+                    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY duration_ms)::INTEGER as p50_duration_ms,
+                    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms)::INTEGER as p95_duration_ms,
+                    PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY duration_ms)::INTEGER as p99_duration_ms,
+                    COUNT(DISTINCT user_id) as unique_users,
+                    AVG(request_size_bytes)::INTEGER as avg_request_size_bytes,
+                    AVG(response_size_bytes)::INTEGER as avg_response_size_bytes,
+                    COALESCE(SUM(CASE WHEN cache_status = 'hit' THEN 1 ELSE 0 END), 0) as cache_hits,
+                    COALESCE(SUM(CASE WHEN cache_status = 'miss' THEN 1 ELSE 0 END), 0) as cache_misses,
+                    CURRENT_TIMESTAMP as created_at
+                FROM route_analytics
+                WHERE timestamp >= DATE_TRUNC('hour', NOW() - INTERVAL '1 hour')
+                    AND timestamp < DATE_TRUNC('hour', NOW())
+                GROUP BY hour, route, method, query_params_normalized
+                ON CONFLICT (timestamp, route, method, query_params_normalized) DO UPDATE SET
+                    total_requests = EXCLUDED.total_requests,
+                    successful_requests = EXCLUDED.successful_requests,
+                    client_errors = EXCLUDED.client_errors,
+                    server_errors = EXCLUDED.server_errors,
+                    avg_duration_ms = EXCLUDED.avg_duration_ms,
+                    p50_duration_ms = EXCLUDED.p50_duration_ms,
+                    p95_duration_ms = EXCLUDED.p95_duration_ms,
+                    p99_duration_ms = EXCLUDED.p99_duration_ms,
+                    unique_users = EXCLUDED.unique_users,
+                    avg_request_size_bytes = EXCLUDED.avg_request_size_bytes,
+                    avg_response_size_bytes = EXCLUDED.avg_response_size_bytes,
+                    cache_hits = EXCLUDED.cache_hits,
+                    cache_misses = EXCLUDED.cache_misses
+            """)
+            result = db.execute(aggregation_query)
         db.commit()
 
         rows_affected = result.rowcount
