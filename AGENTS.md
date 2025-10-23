@@ -47,6 +47,7 @@ make frontend-test          # All frontend tests
 make celery-dev             # Start Celery worker
 make flower-dev             # Celery monitoring UI
 make frontend-dev           # Start frontend dev server
+make beat-status            # Check Celery Beat schedule status
 
 # Redis
 make redis-flush-dev        # Clear Redis data

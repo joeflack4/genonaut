@@ -129,80 +129,7 @@ Create materialized views for frequently accessed tag combinations.
 ---
 
 ### Proposal 2: Query Result Caching (Redis) - (yes, but last)
-
-**Note**: This is implemented LAST to measure uncached query performance improvements first.
-
-Cache query results for common filter combinations in Redis.
-
-**Benefits:**
-- Fastest possible response for cached queries (< 100ms)
-- Works for any tag, not just popular ones
-- Reduces database load significantly
-- Easy to implement with existing Redis infrastructure
-
-**Drawbacks:**
-- Cache invalidation complexity
-- Memory overhead in Redis
-- Potential stale data if invalidation strategy is wrong
-
-**Implementation Checklist:**
-
-**Phase 2.1: Cache Key Design**
-- [ ] Design cache key structure (sorted tags + user + filters + sort)
-- [ ] Implement canonicalization function (consistent key generation)
-- [ ] Add versioning to cache keys (for schema changes)
-- [ ] Handle edge cases (empty tags, null filters)
-
-**Phase 2.2: Cache Layer Implementation**
-- [ ] Add cache check at start of `get_unified_content_paginated`
-- [ ] Serialize/deserialize response objects (JSON or MessagePack)
-- [ ] Set TTL (5-10 minutes recommended, configurable)
-- [ ] Add cache write on successful query
-- [ ] Handle Redis connection errors gracefully (fall through to DB)
-
-**Phase 2.3: Cache Invalidation**
-- [ ] Add cache invalidation on content creation
-- [ ] Add cache invalidation on content update (tags changed)
-- [ ] Add cache invalidation on content deletion
-- [ ] Implement pattern-based invalidation (e.g., all queries with tag X)
-- [ ] Add manual cache clear endpoint (admin only)
-
-**Phase 2.4: Cache Bypass & Warming**
-- [ ] Add `cache_bypass` flag to API endpoint (for real-time needs)
-- [ ] Implement cache warming for popular tag combinations
-- [ ] Create Celery task to prewarm cache (optional)
-- [ ] Add cache refresh strategy (update stale entries in background)
-
-**Phase 2.5: Monitoring & Metrics**
-- [ ] Add cache hit/miss logging
-- [ ] Track cache hit rate percentage
-- [ ] Monitor Redis memory usage
-- [ ] Add metrics for cache invalidation frequency
-- [ ] Create dashboard or logging for cache performance
-
-**Phase 2.6: Backend Testing**
-- [ ] Unit test: cache key generation and canonicalization
-- [ ] Unit test: serialization/deserialization
-- [ ] Integration test: cache hit returns correct data
-- [ ] Integration test: cache miss queries database
-- [ ] Integration test: cache invalidation on content changes
-- [ ] Integration test: cache bypass flag works
-- [ ] Verify `make test` passes
-
-**Phase 2.7: Performance Verification**
-- [ ] Measure cached query response time (target: < 100ms)
-- [ ] Measure uncached query response time (should match non-cached improvements)
-- [ ] Test cache hit rate with realistic traffic patterns
-- [ ] Verify cache doesn't impact write performance
-- [ ] Document performance improvements (cached vs uncached)
-
-**Phase 2.8: Documentation**
-- [ ] Document caching strategy in `docs/api.md` or `docs/performance.md`
-- [ ] Document cache key format and invalidation rules
-- [ ] Add configuration examples (TTL, cache size limits)
-- [ ] Document cache warming strategy
-- [ ] Update `README.md` with caching features
-- [ ] Run full test suite: `make test-all`
+see: redis-cache.md
 
 ---
 
@@ -1490,7 +1417,7 @@ This combination should bring typical queries to < 500ms (cached) and < 2s (unca
 - [x] 3. Proposal 5: Pre-JOIN Tag Filtering (optimize existing)
 - [x] 4. Proposal 4 (Index Optimization) - Unlikely to reach target alone
 - [x] 5. Proposal 8: Tag Facet Aggregation Table (API complete; frontend deferred)
-- [ ] 6. Proposal 2: Redis Caching (quick win, low risk)
+- [ ] 6. Proposal 2: Redis Caching (quick win, low risk) - see: redis-cache.md
   - Why last?: This is a quick win, but it will be a good idea to assess performance without this first, to see what 
   kind of performance we can expect for non-cached queries, and then continue to improve the performance of non-cached 
   queries if still necessary, or at least be able to know if the performance improvements we've written about here were 
