@@ -132,6 +132,10 @@ help:
 	@echo "  celery-dev               Start Celery worker for development"
 	@echo "  celery-demo              Start Celery worker for demo"
 	@echo "  celery-test              Start Celery worker for test"
+	@echo "  beat-status              Show Celery Beat schedule status (demo)"
+	@echo "  beat-status-dev          Show Celery Beat schedule status (dev)"
+	@echo "  beat-status-demo         Show Celery Beat schedule status (demo)"
+	@echo "  beat-status-test         Show Celery Beat schedule status (test)"
 	@echo ""
 	@echo "Flower Monitoring:"
 	@echo "  flower-dev               Start Flower dashboard for development (port 5555)"
@@ -504,7 +508,6 @@ clean:
 	@echo "Cleaning temporary files..."
 	find . -type f -name "*.pyc" -delete
 	find . -type d -name "__pycache__" -delete
-	find . -type f -name "*.sqlite" -delete
 	find . -type f -name "*.db" -delete
 	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 
@@ -734,6 +737,21 @@ celery-test:
 # alt: python -c "from genonaut.api.services.generation_service import check_celery_workers_available; print('Workers available:', check_celery_workers_available())"
 celery-check-running-workers:
 	ps aux | grep celery | grep -v grep
+
+# Show Celery Beat schedule status
+beat-status: beat-status-demo
+
+beat-status-dev:
+	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-dev ] && . env/.env.local-dev && set +a && \
+	ENV_TARGET=local-dev APP_CONFIG_PATH=config/local-dev.json python genonaut/worker/beat_status.py
+
+beat-status-demo:
+	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-demo ] && . env/.env.local-demo && set +a && \
+	ENV_TARGET=local-demo APP_CONFIG_PATH=config/local-demo.json python genonaut/worker/beat_status.py
+
+beat-status-test:
+	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-test ] && . env/.env.local-test && set +a && \
+	ENV_TARGET=local-test APP_CONFIG_PATH=config/local-test.json python genonaut/worker/beat_status.py
 
 # Specific tasks
 # - refresh-tag-stats (AKA cardinality / popular tags)

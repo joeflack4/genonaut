@@ -57,8 +57,9 @@ class ContentService:
         if query_session and query_session.bind is not None:
             dialect_name = query_session.bind.dialect.name
 
-        # SQLite (used in tests) does not support the JSON containment operators we rely on.
-        # Defer tag filtering to Python post-processing for non-PostgreSQL backends.
+        # Non-PostgreSQL databases (e.g., SQLite) do not support the JSON containment operators we rely on.
+        # Defer tag filtering to Python post-processing for compatibility.
+        # Note: All tests now use PostgreSQL; this is defensive code for future compatibility.
         if dialect_name and dialect_name != "postgresql":
             return query
 

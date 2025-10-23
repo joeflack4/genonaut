@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from uuid import UUID
 
-from genonaut.api.config import get_settings
+from genonaut.api.config import get_settings, get_cached_settings
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class FileStorageService:
 
     def __init__(self):
         """Initialize file storage service."""
-        self.settings = get_settings()
+        self.settings = get_cached_settings() or get_settings()
         self.base_output_dir = Path(self.settings.comfyui_output_dir)
         self.base_output_dir.mkdir(parents=True, exist_ok=True)
 

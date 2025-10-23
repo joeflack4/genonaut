@@ -148,6 +148,16 @@ problematic content based on configurable word lists.
 ## Developer docs
 See more: [full dev docs](docs/developer.md)
 
+### Directory structure
+- `config/` - JSON configuration sets that define environment-specific application settings.
+- `docs/` - Project documentation for developers, testing practices, API usage, and database details.
+- `env/` - Environment assets including example dotenv files, the local Python virtual environment, and Redis configs.
+- `frontend/` - Vite-powered frontend application, tests, and related tooling.
+- `genonaut/` - Core backend source code, including FastAPI services, models, and business logic.
+- `infra/` - Infrastructure and deployment tooling such as Terraform, Kubernetes, or automation scripts.
+- `notes/` - Working documentation to manage current, future, and prior tasks; almost all files here are markdown.
+- `test/` - Additional testing resources and harnesses outside the main backend and frontend test suites.
+
 ### Testing
 Genonaut uses a three-tier testing approach: unit tests (no dependencies), database tests, and API integration tests 
 (requires web server running).

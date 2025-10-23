@@ -41,6 +41,7 @@ make celery-test             # Start Celery worker with Beat scheduler for test
 - **Async tasks**: Image generation jobs via ComfyUI integration (queues: `default`, `generation`)
 - **Scheduled tasks**: Periodic maintenance tasks configured in `config/base.json`:
   - Tag cardinality stats refresh (daily at midnight UTC)
+  - Gen source stats refresh (hourly)
 
 **Typical Workflow:**
 ```bash
@@ -85,12 +86,37 @@ make redis-flush-demo        # Flush demo Redis DB (DB 2)
 make redis-flush-test        # Flush test Redis DB (DB 3)
 ```
 
+### Beat Scheduler (RedBeat)
+
+Celery Beat scheduler state is stored in **Redis** using `celery-redbeat`, not in a local SQLite database. This provides:
+- Centralized schedule state across deployments
+- No local files to manage
+- Atomic schedule updates
+- Better suited for distributed/containerized deployments
+
+Schedule configuration is defined in `config/base.json` under `celery.beat_schedule`. RedBeat automatically syncs this configuration to Redis when the worker starts with the `-B` flag.
+
+**Check Beat schedule status:**
+```bash
+make beat-status             # Demo environment
+make beat-status-dev         # Development
+make beat-status-test        # Test
+```
+
+This command shows:
+- All configured periodic tasks
+- Human-readable schedule (e.g., "Daily at midnight UTC", "Every hour")
+- Raw cron schedule
+- Last run time (once worker has started)
+- Next run time and countdown (once worker has started)
+
 ### How It Works
 
 1. **Job Creation**: When you create a generation job via API, it's queued in Celery
 2. **Worker Processing**: Celery worker picks up the job and processes it asynchronously
 3. **Status Updates**: Job status is updated in the database (pending → running → completed/failed)
 4. **Task ID**: Each job has a `celery_task_id` for tracking and cancellation
+5. **Scheduled Tasks**: Beat scheduler (running with `-B` flag) triggers periodic tasks based on schedules stored in Redis
 
 **Example API Usage:**
 ```bash
@@ -118,6 +144,7 @@ curl -X POST http://localhost:8001/api/v1/generation-jobs/{job_id}/cancel
 - Ensure Redis is running: `redis-cli ping` (should return "PONG")
 - Check environment variables in `.env`
 - Verify Python virtual environment is activated
+- Ensure `celery-redbeat` is installed: `pip install celery-redbeat`
 
 **Jobs stuck in pending:**
 - Ensure Celery worker is running
@@ -128,6 +155,9 @@ curl -X POST http://localhost:8001/api/v1/generation-jobs/{job_id}/cancel
 ```bash
 make redis-flush-dev         # Clear all Redis data for dev
 ```
+
+**Note about celerybeat-schedule.db:**
+The old `celerybeat-schedule.db` SQLite file is no longer used. RedBeat stores all scheduler state in Redis. If you see this file in your repository, it's from an older configuration and can be safely deleted.
 
 ## WebSocket Real-Time Updates
 

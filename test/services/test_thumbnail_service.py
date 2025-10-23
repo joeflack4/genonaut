@@ -16,7 +16,10 @@ class TestThumbnailService:
     @pytest.fixture
     def thumbnail_service(self):
         """Create thumbnail service instance for testing."""
-        with patch('genonaut.api.services.thumbnail_service.get_settings') as mock_settings:
+        with patch('genonaut.api.services.thumbnail_service.get_cached_settings') as mock_cached, \
+             patch('genonaut.api.services.thumbnail_service.get_settings') as mock_settings:
+            # Mock get_cached_settings to return None so get_settings is used
+            mock_cached.return_value = None
             mock_settings.return_value.comfyui_output_dir = "/tmp/test_output"
             service = ThumbnailService()
             # Create temp directories

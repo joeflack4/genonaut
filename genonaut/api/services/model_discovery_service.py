@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Set, Tuple
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-from genonaut.api.config import get_settings
+from genonaut.api.config import get_settings, get_cached_settings
 from genonaut.api.repositories.available_model_repository import AvailableModelRepository
 from genonaut.api.services.cache_service import ComfyUICacheService
 from genonaut.db.schema import AvailableModel
@@ -55,7 +55,7 @@ class ModelDiscoveryService:
             db: Database session
         """
         self.db = db
-        self.settings = get_settings()
+        self.settings = get_cached_settings() or get_settings()
         self.repository = AvailableModelRepository(db)
         self.cache_service = ComfyUICacheService()
 

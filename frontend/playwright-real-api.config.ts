@@ -25,14 +25,15 @@ export default defineConfig({
   ],
   webServer: [
     {
-      // Test API server with SQLite database
+      // Test API server with PostgreSQL test database (ENV_TARGET='local-test')
+      // Note: Database credentials loaded from env/.env.shared and env/.env.local-test
+      // Requires: make init-test (to initialize genonaut_test database)
       command: 'npm run test:api-server',
       port: 8002, // Different port to avoid conflicts
       reuseExistingServer: false,
       timeout: process.env.CI ? 180_000 : 60_000,
       env: {
-        APP_ENV: 'test',
-        DATABASE_URL: 'sqlite:///tests/e2e/output/test_playwright.db'
+        APP_ENV: 'test'
       },
     },
     {

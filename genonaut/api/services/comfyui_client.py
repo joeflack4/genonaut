@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional, List
 import requests
 from requests.exceptions import RequestException, ConnectionError, Timeout
 
-from genonaut.api.config import get_settings
+from genonaut.api.config import get_settings, Settings, get_cached_settings
 from genonaut.api.exceptions import ValidationError
 from genonaut.api.services.cache_service import ComfyUICacheService
 
@@ -30,9 +30,14 @@ class ComfyUIClient:
     Handles workflow submission, status monitoring, and result retrieval.
     """
 
-    def __init__(self):
-        """Initialize ComfyUI client with configuration settings."""
-        self.settings = get_settings()
+    def __init__(self, settings: Optional[Settings] = None):
+        """Initialize ComfyUI client with configuration settings.
+
+        Args:
+            settings: Optional settings instance to bind to this client. When
+                ``None``, configuration is loaded via :func:`get_settings`.
+        """
+        self.settings = settings or get_cached_settings() or get_settings()
         self.base_url = self.settings.comfyui_url.rstrip('/')
         self.timeout = self.settings.comfyui_timeout
         self.poll_interval = self.settings.comfyui_poll_interval

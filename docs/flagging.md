@@ -414,7 +414,7 @@ Large content scans may use significant memory. Consider:
 
 ### Cascade Delete Not Working
 
-The `DELETE` endpoint removes both the flagged record and original content via PostgreSQL cascade. If using SQLite for testing, cascade may not work properly - use PostgreSQL for production.
+The `DELETE` endpoint removes both the flagged record and original content via PostgreSQL cascade. All environments (dev, test, demo, production) use PostgreSQL.
 
 ## Best Practices
 

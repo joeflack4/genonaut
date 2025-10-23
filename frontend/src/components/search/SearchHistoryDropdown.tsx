@@ -7,11 +7,11 @@ import { useMemo } from 'react'
 import { Box, List, ListItem, ListItemText, IconButton, Typography, Paper, Button, Divider } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import { useNavigate } from 'react-router-dom'
-import type { SearchHistoryRecord } from '../../services'
+import type { SearchHistoryItem } from '../../services'
 
 interface SearchHistoryDropdownProps {
-  /** Recent search history items (non-aggregated) */
-  items: SearchHistoryRecord[]
+  /** Recent search history items (aggregated by unique query) */
+  items: SearchHistoryItem[]
   /** Callback when user clicks on a history item */
   onItemClick: (searchQuery: string) => void
   /** Callback when user deletes a history item */
@@ -76,8 +76,8 @@ export function SearchHistoryDropdown({
       <List dense>
         {uniqueItems.map((item) => (
           <ListItem
-            key={item.id}
-            data-testid={`search-history-item-${item.id}`}
+            key={item.search_query}
+            data-testid={`search-history-item-${item.search_query}`}
             sx={{
               cursor: 'pointer',
               '&:hover': {
@@ -88,7 +88,7 @@ export function SearchHistoryDropdown({
               <IconButton
                 edge="end"
                 aria-label="delete"
-                data-testid={`search-history-delete-${item.id}`}
+                data-testid={`search-history-delete-${item.search_query}`}
                 onClick={(e) => {
                   e.stopPropagation()
                   onItemDelete(item.search_query)
@@ -104,7 +104,7 @@ export function SearchHistoryDropdown({
               primary={
                 <Typography
                   variant="body2"
-                  data-testid={`search-history-text-${item.id}`}
+                  data-testid={`search-history-text-${item.search_query}`}
                   sx={{ pr: 1 }}
                 >
                   {truncateString(item.search_query, 30)}

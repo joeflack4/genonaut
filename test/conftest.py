@@ -61,7 +61,7 @@ from sqlalchemy.orm import Session
 
 from genonaut.db.schema import Base, ContentTag
 
-get_settings.cache_clear()
+# Clear cache for get_database_manager (get_settings no longer uses cache)
 get_database_manager.cache_clear()
 
 from genonaut.api.main import app

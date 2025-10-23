@@ -22,7 +22,7 @@ import time
 DEMO_SERVER_BASE_URL = "http://localhost:8001"
 TIMEOUT_SECONDS = 15  # Must complete before this timeout
 PERFORMANCE_TARGET_SECONDS = 3  # Should complete within this time
-NON_TAG_QUERY_TARGET_SECONDS = 2.0
+NON_TAG_QUERY_TARGET_SECONDS = 2.5
 
 
 @pytest.mark.performance

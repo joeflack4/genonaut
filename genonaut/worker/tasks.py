@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from genonaut.worker.queue_app import celery_app
 from genonaut.api.dependencies import get_database_session
-from genonaut.api.config import get_settings
+from genonaut.api.config import get_settings, get_cached_settings
 from genonaut.worker.comfyui_client import (
     ComfyUIWorkerClient,
     ComfyUIConnectionError,
@@ -40,9 +40,6 @@ from genonaut.worker.pubsub import (
 )
 
 logger = logging.getLogger(__name__)
-settings = get_settings()
-
-
 class DatabaseTask(Task):
     """Base task class that provides database session management."""
 
@@ -77,8 +74,10 @@ def process_comfy_job(
 
     from genonaut.db.schema import GenerationJob
 
+    active_settings = get_cached_settings() or get_settings()
+
     workflow_builder = workflow_builder or WorkflowBuilder()
-    comfy_client = comfy_client or ComfyUIWorkerClient()
+    comfy_client = comfy_client or ComfyUIWorkerClient(settings=active_settings)
     file_service = file_service or FileStorageService()
     thumbnail_service = thumbnail_service or ThumbnailService()
     content_service = content_service or ContentService(db)
@@ -135,11 +134,11 @@ def process_comfy_job(
         generation_request = GenerationRequest(
             prompt=job.prompt,
             negative_prompt=job.negative_prompt or job_params.get('negative_prompt', ""),
-            checkpoint_model=job.checkpoint_model or job_params.get('checkpoint_model', settings.comfyui_default_checkpoint),
+            checkpoint_model=job.checkpoint_model or job_params.get('checkpoint_model', active_settings.comfyui_default_checkpoint),
             lora_models=lora_models,
-            width=job.width or job_params.get('width', settings.comfyui_default_width),
-            height=job.height or job_params.get('height', settings.comfyui_default_height),
-            batch_size=job.batch_size or job_params.get('batch_size', settings.comfyui_default_batch_size),
+            width=job.width or job_params.get('width', active_settings.comfyui_default_width),
+            height=job.height or job_params.get('height', active_settings.comfyui_default_height),
+            batch_size=job.batch_size or job_params.get('batch_size', active_settings.comfyui_default_batch_size),
             sampler_params=sampler,
             filename_prefix=f"gen_job_{job.id}",
         )
@@ -155,7 +154,7 @@ def process_comfy_job(
         publish_job_processing(job_id)
 
         workflow_status = comfy_client.wait_for_outputs(
-            prompt_id, max_wait_time=settings.comfyui_max_wait_time
+            prompt_id, max_wait_time=active_settings.comfyui_max_wait_time
         )
 
         status_value = workflow_status.get('status', 'unknown')

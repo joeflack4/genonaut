@@ -17,6 +17,16 @@ This must be done at the beginning of every session before running any Python co
 - Key documentation: [developer.md](docs/developer.md), [testing.md](docs/testing.md), [api.md](docs/api.md), [db.md](docs/db.md)
 - For frontend work, also read [frontend/AGENTS.md](frontend/AGENTS.md)
 
+## Directory structure
+- `config/` - JSON configuration sets that define environment-specific application settings.
+- `docs/` - Project documentation for developers, testing practices, API usage, and database details.
+- `env/` - Environment assets including example dotenv files, the local Python virtual environment, and Redis configs.
+- `frontend/` - Vite-powered frontend application, tests, and related tooling.
+- `genonaut/` - Core backend source code, including FastAPI services, models, and business logic.
+- `infra/` - Infrastructure and deployment tooling such as Terraform, Kubernetes, or automation scripts.
+- `notes/` - Working documentation to manage current, future, and prior tasks; almost all files here are markdown.
+- `test/` - Additional testing resources and harnesses outside the main backend and frontend test suites.
+
 ## Quick Reference
 
 ### Essential Commands

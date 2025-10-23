@@ -10,10 +10,12 @@ from uuid import uuid4
 try:  # pragma: no cover - exercised implicitly during imports
     from celery import Celery
     from celery.schedules import crontab
+    from redbeat import RedBeatScheduler
     CELERY_AVAILABLE = True
 except ModuleNotFoundError:  # pragma: no cover - only used in test environments
     CELERY_AVAILABLE = False
     crontab = None  # type: ignore[assignment]
+    RedBeatScheduler = None  # type: ignore[assignment]
 
     class Celery:  # minimal stub mirroring Celery interface
         def __init__(self, *_, **__):
@@ -104,6 +106,11 @@ celery_app.conf.update(
 
     # Task discovery
     imports=("genonaut.worker.tasks",),
+
+    # Celery Beat scheduler - Use RedBeat to store schedule state in Redis
+    beat_scheduler="redbeat.RedBeatScheduler",
+    redbeat_redis_url=settings.celery_broker_url,
+    redbeat_key_prefix="redbeat",
 )
 
 # Optional: Configure task routes for different queues
@@ -135,15 +142,23 @@ def _load_beat_schedule():
 
             if task_path and schedule_config:
                 # Build crontab from config
+                # Only pass parameters that are explicitly specified
+                # Unspecified parameters default to '*' (every) in crontab
+                crontab_kwargs = {}
+                if 'minute' in schedule_config:
+                    crontab_kwargs['minute'] = schedule_config['minute']
+                if 'hour' in schedule_config:
+                    crontab_kwargs['hour'] = schedule_config['hour']
+                if 'day_of_week' in schedule_config:
+                    crontab_kwargs['day_of_week'] = schedule_config['day_of_week']
+                if 'day_of_month' in schedule_config:
+                    crontab_kwargs['day_of_month'] = schedule_config['day_of_month']
+                if 'month_of_year' in schedule_config:
+                    crontab_kwargs['month_of_year'] = schedule_config['month_of_year']
+
                 beat_schedule[task_name] = {
                     'task': task_path,
-                    'schedule': crontab(
-                        hour=schedule_config.get('hour', 0),
-                        minute=schedule_config.get('minute', 0),
-                        day_of_week=schedule_config.get('day_of_week', '*'),
-                        day_of_month=schedule_config.get('day_of_month', '*'),
-                        month_of_year=schedule_config.get('month_of_year', '*'),
-                    ),
+                    'schedule': crontab(**crontab_kwargs),
                 }
 
     return beat_schedule

@@ -6,7 +6,7 @@ Get the content flagging system up and running in 5 minutes!
 
 - Python 3.10+
 - Node.js 18+
-- PostgreSQL (or SQLite for testing)
+- PostgreSQL
 - Project already set up with `make init`
 
 ## 1. Configure Flag Words (2 minutes)

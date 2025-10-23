@@ -3,13 +3,13 @@
 /**
  * Test API Server Launcher
  *
- * This script manages the lifecycle of a test API server with SQLite database.
- * It creates a test database, seeds it with test data, starts the API server,
+ * This script manages the lifecycle of a test API server with PostgreSQL test database.
+ * It initializes the test database, seeds it with test data, starts the API server,
  * and handles cleanup on shutdown.
  */
 
 import { spawn } from 'child_process';
-import { promises as fs } from 'fs';
+import { readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -18,59 +18,77 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '../..');
 
 // Configuration
-const TEST_DB_PATH = path.join(projectRoot, 'frontend', 'tests', 'e2e', 'output', 'test_playwright.db');
 const API_PORT = process.env.PORT || 8002;
-const APP_ENV = 'test';
+const ENV_TARGET = 'local-test';
 
 let apiProcess = null;
 
-async function cleanupTestDatabase() {
-  try {
-    await fs.unlink(TEST_DB_PATH);
-    console.log(`✅ Cleaned up test database: ${TEST_DB_PATH}`);
-  } catch (error) {
-    if (error.code !== 'ENOENT') {
-      console.warn(`⚠️  Warning: Could not clean up test database: ${error.message}`);
+// Load environment variables from .env files
+function loadEnvFiles() {
+  const envFiles = [
+    path.join(projectRoot, 'env', '.env.shared'),
+    path.join(projectRoot, 'env', `.env.${ENV_TARGET}`),
+    path.join(projectRoot, 'env', '.env'),
+  ];
+
+  const envVars = {};
+
+  for (const envFile of envFiles) {
+    try {
+      const content = readFileSync(envFile, 'utf-8');
+      const lines = content.split('\n');
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+
+        const match = trimmed.match(/^([^=]+)=(.*)$/);
+        if (match) {
+          const key = match[1].trim();
+          let value = match[2].trim();
+
+          // Remove surrounding quotes if present
+          if ((value.startsWith('"') && value.endsWith('"')) ||
+              (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.slice(1, -1);
+          }
+
+          envVars[key] = value;
+        }
+      }
+    } catch (error) {
+      // File doesn't exist or can't be read - that's okay for optional env files
+      if (error.code !== 'ENOENT') {
+        console.warn(`Warning: Could not read ${envFile}:`, error.message);
+      }
     }
   }
+
+  return envVars;
 }
 
-async function initializeTestDatabase() {
-  console.log('📦 Initializing test database...');
-
-  const initProcess = spawn('python', ['-m', 'genonaut.db.init'], {
-    cwd: projectRoot,
-    env: {
-      ...process.env,
-      GENONAUT_DB_ENVIRONMENT: 'test',
-      DATABASE_URL: `sqlite:///${TEST_DB_PATH}`,
-      DATABASE_URL_TEST: `sqlite:///${TEST_DB_PATH}`,
-    },
-    stdio: 'inherit'
-  });
-
-  return new Promise((resolve, reject) => {
-    initProcess.on('close', (code) => {
-      if (code === 0) {
-        console.log('✅ Test database initialized successfully');
-        resolve();
-      } else {
-        reject(new Error(`Database initialization failed with code ${code}`));
-      }
-    });
-  });
+async function checkDatabaseSetup() {
+  console.log('🔍 Checking PostgreSQL test database setup...');
+  console.log('   Using ENV_TARGET:', ENV_TARGET);
+  console.log('   Expected database: genonaut_test (from config/local-test.json)');
+  console.log('');
+  console.log('⚠️  IMPORTANT: This script expects the test database to be pre-initialized.');
+  console.log('   If tests fail, run: make init-test');
+  console.log('');
 }
 
 async function startApiServer() {
-  console.log(`🚀 Starting test API server on port ${API_PORT}...`);
+  console.log(`🚀 Starting test API server on port ${API_PORT} (PostgreSQL)...`);
+
+  // Load environment variables from .env files
+  const envVars = loadEnvFiles();
 
   apiProcess = spawn('python', ['-m', 'uvicorn', 'genonaut.api.main:app', '--host', '0.0.0.0', '--port', API_PORT], {
     cwd: projectRoot,
     env: {
       ...process.env,
-      APP_ENV: APP_ENV,
-      DATABASE_URL: `sqlite:///${TEST_DB_PATH}`,
-      DATABASE_URL_TEST: `sqlite:///${TEST_DB_PATH}`,
+      ...envVars,
+      ENV_TARGET: ENV_TARGET,
     },
     stdio: 'inherit'
   });
@@ -119,8 +137,8 @@ async function cleanup() {
     console.log('✅ API server stopped');
   }
 
-  await cleanupTestDatabase();
   console.log('✅ Cleanup completed');
+  console.log('ℹ️  Note: PostgreSQL test database is preserved. Use make init-test to reset if needed.');
 }
 
 // Handle cleanup on process termination
@@ -130,13 +148,10 @@ process.on('exit', cleanup);
 
 async function main() {
   try {
-    // Cleanup any existing test database
-    await cleanupTestDatabase();
+    // Check database setup (does not initialize - expects pre-initialized DB)
+    await checkDatabaseSetup();
 
-    // Initialize new test database
-    await initializeTestDatabase();
-
-    // Start API server
+    // Start API server (database should already be initialized with: make init-test)
     await startApiServer();
 
     // Wait for server to be healthy
@@ -149,6 +164,7 @@ async function main() {
 
   } catch (error) {
     console.error('❌ Failed to start test API server:', error.message);
+    console.error('💡 Tip: Ensure test database is initialized with: make init-test');
     await cleanup();
     process.exit(1);
   }

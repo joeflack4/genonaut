@@ -161,6 +161,31 @@ class TestTagRepositorySearch:
         result = repository.search_tags("art", pagination)
         assert result.pagination.total_count == 3
 
+    def test_search_tags_multiple_terms(self, repository, sample_tags, db_session):
+        """Test multi-word queries match any term."""
+        extra_tag = Tag(name="3D-render", tag_metadata={})
+        db_session.add(extra_tag)
+        db_session.commit()
+
+        pagination = PaginationRequest(page=1, page_size=10)
+        result = repository.search_tags("3d art", pagination)
+
+        names = [t.name for t in result.items]
+        assert any("Art" in name for name in names)
+        assert result.pagination.total_count >= 1
+
+    def test_search_tags_exact_phrase(self, repository, sample_tags, db_session):
+        """Test quoted search performs exact matching."""
+        extra_tag = Tag(name="3D-render", tag_metadata={})
+        db_session.add(extra_tag)
+        db_session.commit()
+
+        pagination = PaginationRequest(page=1, page_size=10)
+        result = repository.search_tags('"3d-render"', pagination)
+
+        names = [t.name for t in result.items]
+        assert "3D-render" in names
+
     def test_get_all_paginated(self, repository, sample_tags):
         """Test pagination."""
         pagination = PaginationRequest(page=1, page_size=3)

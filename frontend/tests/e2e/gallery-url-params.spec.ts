@@ -317,9 +317,20 @@ test.describe('Gallery URL Query Parameters', () => {
       await page.waitForTimeout(500)
 
       // Turn OFF "Your gens" toggle
+      // Locate the switch input via the label
       const yourGensToggleLabel = page.getByTestId('gallery-toggle-your-gens-label')
-      await yourGensToggleLabel.click({ force: true })
-      await page.waitForTimeout(500)
+      const yourGensToggle = yourGensToggleLabel.locator('input[role="switch"]')
+
+      // Verify it's initially checked
+      await expect(yourGensToggle).toBeChecked()
+
+      // Uncheck it by clicking the label (more reliable for MUI switches)
+      await yourGensToggleLabel.click()
+
+      // Wait for the URL to update
+      await page.waitForFunction(() => {
+        return window.location.search.includes('notGenSource')
+      }, { timeout: 3000 })
 
       // Verify URL now contains notGenSource=your-g
       const url = page.url()
@@ -393,8 +404,8 @@ test.describe('Gallery URL Query Parameters', () => {
       await expect(yourGensToggle).not.toBeChecked()
 
       // Turn it back ON
-      const yourGensToggleLabel = page.getByTestId('gallery-toggle-your-gens-label')
-      await yourGensToggleLabel.click({ force: true })
+      // Use check for reliable interaction
+      await yourGensToggle.check()
       await page.waitForTimeout(500)
 
       // Verify URL no longer contains notGenSource
@@ -462,11 +473,40 @@ test.describe('Gallery URL Query Parameters', () => {
       await page.waitForTimeout(500)
 
       // Turn OFF multiple toggles
-      await page.getByTestId('gallery-toggle-your-gens-label').click({ force: true })
-      await page.waitForTimeout(300)
-      await page.getByTestId('gallery-toggle-your-autogens-label').click({ force: true })
-      await page.waitForTimeout(300)
-      await page.getByTestId('gallery-toggle-community-gens-label').click({ force: true })
+      // Locate switches via labels
+      const yourGensToggleLabel = page.getByTestId('gallery-toggle-your-gens-label')
+      const yourAutoGensToggleLabel = page.getByTestId('gallery-toggle-your-autogens-label')
+      const communityGensToggleLabel = page.getByTestId('gallery-toggle-community-gens-label')
+
+      const yourGensToggle = yourGensToggleLabel.locator('input[role="switch"]')
+      const yourAutoGensToggle = yourAutoGensToggleLabel.locator('input[role="switch"]')
+      const communityGensToggle = communityGensToggleLabel.locator('input[role="switch"]')
+
+      // Verify they're all initially checked
+      await expect(yourGensToggle).toBeChecked()
+      await expect(yourAutoGensToggle).toBeChecked()
+      await expect(communityGensToggle).toBeChecked()
+
+      // Uncheck them by clicking the labels (more reliable for MUI switches)
+      // Click and wait for each toggle to actually change state
+      await yourGensToggleLabel.click()
+      await page.waitForFunction(() => window.location.search.includes('your-g'), { timeout: 2000 })
+      await expect(yourGensToggle).not.toBeChecked()
+      await page.waitForTimeout(500)
+
+      await yourAutoGensToggleLabel.click()
+      await page.waitForFunction(() => window.location.search.includes('your-ag'), { timeout: 2000 })
+      // Verify both toggles are still unchecked
+      await expect(yourGensToggle).not.toBeChecked()
+      await expect(yourAutoGensToggle).not.toBeChecked()
+      await page.waitForTimeout(500)
+
+      await communityGensToggleLabel.click()
+      await page.waitForFunction(() => window.location.search.includes('comm-g'), { timeout: 2000 })
+      // Verify all three toggles are still unchecked
+      await expect(yourGensToggle).not.toBeChecked()
+      await expect(yourAutoGensToggle).not.toBeChecked()
+      await expect(communityGensToggle).not.toBeChecked()
       await page.waitForTimeout(500)
 
       // Verify URL contains all three disabled sources
@@ -533,9 +573,9 @@ test.describe('Gallery URL Query Parameters', () => {
       await page.goBack()
       await page.waitForSelector('nav', { timeout: 20000 })
 
-      // Verify URL still has the same params
+      // Verify URL still has the same params (comma may be URL-encoded as %2C)
       const url = page.url()
-      expect(url).toContain('notGenSource=your-g,comm-ag')
+      expect(url).toMatch(/notGenSource=your-g(%2C|,)comm-ag/)
 
       // Open options panel if not already open
       const contentTypesSection = page.getByTestId('gallery-content-toggles-title')

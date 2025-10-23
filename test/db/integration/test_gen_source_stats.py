@@ -15,6 +15,8 @@ from genonaut.db.schema import (
     ContentItem,
     ContentItemAuto,
     GenSourceStats,
+    UserInteraction,
+    GenerationJob,
 )
 from genonaut.api.repositories.content_repository import ContentRepository
 from genonaut.api.exceptions import DatabaseError
@@ -71,27 +73,16 @@ def sample_users(db_session):
 
     Note: Requires database to be initialized with core tables.
     """
-    # Clean up existing data (try/except in case tables don't exist)
-    try:
-        db_session.query(GenSourceStats).delete()
-    except Exception:
-        db_session.rollback()
-
-    try:
-        db_session.query(ContentItemAuto).delete()
-    except Exception:
-        db_session.rollback()
-
-    try:
-        db_session.query(ContentItem).delete()
-    except Exception:
-        db_session.rollback()
-
-    try:
-        db_session.query(User).delete()
-    except Exception:
-        db_session.rollback()
-
+    # Clean up existing data
+    # Order matters due to foreign key constraints:
+    # GenSourceStats, UserInteraction -> ContentItemAuto, ContentItem -> User
+    # GenerationJob -> User
+    db_session.query(GenSourceStats).delete()
+    db_session.query(UserInteraction).delete()
+    db_session.query(GenerationJob).delete()
+    db_session.query(ContentItemAuto).delete()
+    db_session.query(ContentItem).delete()
+    db_session.query(User).delete()
     db_session.commit()
 
     # Create users
@@ -167,22 +158,13 @@ class TestRefreshGenSourceStats:
 
     def test_refresh_gen_source_stats_empty_database(self, repository, db_session):
         """Test refreshing stats with no content."""
-        # Clean slate
-        try:
-            db_session.query(GenSourceStats).delete()
-        except Exception:
-            db_session.rollback()
-
-        try:
-            db_session.query(ContentItemAuto).delete()
-        except Exception:
-            db_session.rollback()
-
-        try:
-            db_session.query(ContentItem).delete()
-        except Exception:
-            db_session.rollback()
-
+        # Clean slate - delete all data
+        db_session.query(GenSourceStats).delete()
+        db_session.query(UserInteraction).delete()
+        db_session.query(GenerationJob).delete()
+        db_session.query(ContentItemAuto).delete()
+        db_session.query(ContentItem).delete()
+        db_session.query(User).delete()
         db_session.commit()
 
         # Refresh
@@ -468,27 +450,13 @@ class TestRefreshGenSourceStats:
         self, repository, db_session
     ):
         """Test refreshing when users exist but have no content."""
-        # Create users but no content
-        try:
-            db_session.query(GenSourceStats).delete()
-        except Exception:
-            db_session.rollback()
-
-        try:
-            db_session.query(ContentItemAuto).delete()
-        except Exception:
-            db_session.rollback()
-
-        try:
-            db_session.query(ContentItem).delete()
-        except Exception:
-            db_session.rollback()
-
-        try:
-            db_session.query(User).delete()
-        except Exception:
-            db_session.rollback()
-
+        # Clean slate - delete all data first
+        db_session.query(GenSourceStats).delete()
+        db_session.query(UserInteraction).delete()
+        db_session.query(GenerationJob).delete()
+        db_session.query(ContentItemAuto).delete()
+        db_session.query(ContentItem).delete()
+        db_session.query(User).delete()
         db_session.commit()
 
         user = User(

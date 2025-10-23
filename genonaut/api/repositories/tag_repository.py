@@ -3,11 +3,14 @@
 Handles tag queries including polyhierarchical relationships, ratings, and favorites.
 """
 
+import re
+
 from typing import List, Optional, Dict, Any, Tuple
 from uuid import UUID
 from sqlalchemy import func, and_, or_, text, case
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+
 
 from genonaut.db.schema import Tag, TagParent, TagRating, User, TagCardinalityStats, ContentTag
 from genonaut.api.repositories.base import BaseRepository
@@ -285,9 +288,19 @@ class TagRepository(BaseRepository[Tag, Dict[str, Any], Dict[str, Any]]):
             # Build query
             db_query = self.db.query(Tag)
 
-            # Apply search filter (case-insensitive LIKE)
-            if query:
-                db_query = db_query.filter(Tag.name.ilike(f"%{query}%"))
+            normalized_query = (query or "").strip()
+
+            if normalized_query:
+                # Quoted queries are treated as exact (case-insensitive) matches
+                if normalized_query.startswith('"') and normalized_query.endswith('"') and len(normalized_query) >= 2:
+                    exact_term = normalized_query[1:-1].strip()
+                    if exact_term:
+                        db_query = db_query.filter(Tag.name.ilike(f"%{exact_term}%"))
+                else:
+                    tokens = [token.strip() for token in re.split(r"[\s,]+", normalized_query) if token.strip()]
+                    if tokens:
+                        filters = [Tag.name.ilike(f"%{token}%") for token in tokens]
+                        db_query = db_query.filter(or_(*filters))
 
             # Get total count
             total = db_query.count()

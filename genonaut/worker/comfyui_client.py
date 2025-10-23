@@ -9,6 +9,7 @@ from genonaut.api.services.comfyui_client import (
     ComfyUIConnectionError,
     ComfyUIWorkflowError,
 )
+from genonaut.api.config import Settings
 
 
 class ComfyUIWorkerClient(ComfyUIClient):
@@ -19,6 +20,11 @@ class ComfyUIWorkerClient(ComfyUIClient):
     worker-friendly names and default configuration for long-running
     workflows handled by Celery tasks.
     """
+
+    def __init__(self, *, settings: Optional[Settings] = None):
+        """Initialize worker client with optional shared settings."""
+
+        super().__init__(settings=settings)
 
     def submit_generation(self, workflow: Dict[str, Any], *, client_id: Optional[str] = None) -> str:
         """Submit a workflow and return the ComfyUI prompt ID."""

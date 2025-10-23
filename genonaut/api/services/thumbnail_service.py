@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Tuple
 from PIL import Image, ImageOps
 from PIL.Image import Resampling
 
-from genonaut.api.config import get_settings
+from genonaut.api.config import get_settings, get_cached_settings
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class ThumbnailService:
 
     def __init__(self):
         """Initialize thumbnail service."""
-        self.settings = get_settings()
+        self.settings = get_cached_settings() or get_settings()
         self.thumbnail_dir = Path(self.settings.comfyui_output_dir) / "thumbnails"
         self.thumbnail_dir.mkdir(parents=True, exist_ok=True)
 

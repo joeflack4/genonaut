@@ -172,6 +172,9 @@ class Settings(BaseModel):
         return cleaned_value
 
 
+_LAST_SETTINGS: Optional[Settings] = None
+
+
 def get_settings() -> Settings:
     """Get settings instance.
 
@@ -182,6 +185,7 @@ def get_settings() -> Settings:
     Returns:
         Settings instance with complete configuration
     """
+    global _LAST_SETTINGS
     # Get config path from environment (set by CLI)
     config_path = os.getenv("APP_CONFIG_PATH")
     env_target = os.getenv("ENV_TARGET")
@@ -244,4 +248,11 @@ def get_settings() -> Settings:
         except ValueError:
             pass  # Database URL will remain None if password not available
 
+    _LAST_SETTINGS = settings
     return settings
+
+
+def get_cached_settings() -> Optional[Settings]:
+    """Return the most recently loaded settings instance if available."""
+
+    return _LAST_SETTINGS

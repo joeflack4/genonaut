@@ -38,9 +38,8 @@ psql $DATABASE_URL_TEST -c "SELECT 1;" || echo "Connection failed"
 # 2. Reinitialize test database
 make init-test
 
-# 3. For SQLite test database (Playwright)
-rm -f frontend/tests/e2e/output/test_playwright.db
-make frontend-test-e2e-real-api  # Will recreate database
+# 3. For PostgreSQL test database
+make init-test
 
 # 4. Check environment variables
 echo "DATABASE_URL_TEST: $DATABASE_URL_TEST"
@@ -67,15 +66,10 @@ make export-demo-data
 make init-test
 
 # 4. Verify data was loaded
-python -c "
-import sqlite3
-conn = sqlite3.connect('frontend/tests/e2e/output/test_playwright.db')
-cursor = conn.cursor()
-cursor.execute('SELECT COUNT(*) FROM content_items')
-print('Content items:', cursor.fetchone()[0])
-cursor.execute('SELECT COUNT(*) FROM content_items_auto')
-print('Auto content items:', cursor.fetchone()[0])
-conn.close()
+PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB_TEST -c "
+SELECT
+  (SELECT COUNT(*) FROM content_items) as content_items,
+  (SELECT COUNT(*) FROM content_items_auto) as auto_content_items;
 "
 ```
 
@@ -225,14 +219,7 @@ npm run test:e2e:headed
 time curl "http://localhost:8002/api/v1/content/unified?page=1&page_size=10"
 
 # 3. Optimize test database
-python -c "
-import sqlite3
-conn = sqlite3.connect('frontend/tests/e2e/output/test_playwright.db')
-conn.execute('VACUUM;')
-conn.execute('ANALYZE;')
-conn.close()
-print('Database optimized')
-"
+PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB_TEST -c "VACUUM ANALYZE;"
 
 # 4. Run tests with longer timeout
 PLAYWRIGHT_TIMEOUT=60000 npm run test:e2e:real-api
@@ -371,25 +358,16 @@ echo "=== Reset Complete ==="
 ### Database Performance
 
 ```bash
-# Check SQLite database size and performance
-ls -lh frontend/tests/e2e/output/test_playwright.db
+# Check PostgreSQL database size
+PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB_TEST -c "
+SELECT pg_size_pretty(pg_database_size('$POSTGRES_DB_TEST')) as database_size;
+"
 
 # Analyze query performance
 time curl "http://localhost:8002/api/v1/content/unified?page=50&page_size=10"
 
-# Optimize SQLite database
-python -c "
-import sqlite3
-import time
-conn = sqlite3.connect('frontend/tests/e2e/output/test_playwright.db')
-start = time.time()
-conn.execute('VACUUM;')
-print(f'VACUUM took {time.time() - start:.2f}s')
-start = time.time()
-conn.execute('ANALYZE;')
-print(f'ANALYZE took {time.time() - start:.2f}s')
-conn.close()
-"
+# Optimize PostgreSQL database
+PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB_TEST -c "VACUUM ANALYZE;"
 ```
 
 ### Memory Usage

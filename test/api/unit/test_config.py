@@ -336,8 +336,7 @@ class TestSettings:
                         },
                         clear=True,
                     ):
-                        # Clear the cache
-                        get_settings.cache_clear()
+                        # get_settings is no longer cached, so no need to clear cache
                         settings = get_settings()
 
                         assert settings.db_host == "localhost"
@@ -388,17 +387,19 @@ class TestSettings:
                         {"APP_CONFIG_PATH": str(config_dir / "local-test.json")},
                         clear=True,
                     ):
-                        get_settings.cache_clear()
+                        # get_settings is no longer cached, so no need to clear cache
                         settings = get_settings()
 
                         assert settings.database_url == "postgresql://admin:secret@dbhost:5432/testdb"
 
     def test_settings_singleton(self):
-        """Test that get_settings returns cached instance."""
-        get_settings.cache_clear()
+        """Test that get_settings returns new instance each time (no caching)."""
         settings1 = get_settings()
         settings2 = get_settings()
-        assert settings1 is settings2
+        # Since get_settings is no longer cached, instances will be different
+        # but should have the same configuration values
+        assert settings1.db_host == settings2.db_host
+        assert settings1.db_port == settings2.db_port
 
     def test_settings_statement_timeout_defaults(self):
         """Statement timeout defaults to 15s and normalizes casing."""

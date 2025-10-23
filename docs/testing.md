@@ -385,7 +385,7 @@ pytest test/api/unit/ --cov=genonaut.api --cov-report=html
 
 ### Overview
 
-Genonaut uses PostgreSQL for all database tests (previously used SQLite). This ensures tests run against the same database engine as production, enabling testing of PostgreSQL-specific features like:
+Genonaut uses PostgreSQL for all database tests. This ensures tests run against the same database engine as production, enabling testing of PostgreSQL-specific features like:
 - **JSONB**: Binary JSON storage with rich query capabilities
 - **Table Partitioning**: Testing partitioned tables (e.g., `content_items_all`)
 - **Table Inheritance**: PostgreSQL-specific inheritance features
@@ -575,10 +575,6 @@ DB_PASSWORD_ADMIN=your_password_here
   - Ensure all tests use fixtures (not manual engine creation)
   - Verify `make init-test` completed successfully
 
-**Issue: "JSONB operations not working"**
-- **Cause**: Using SQLite instead of PostgreSQL
-- **Solution**: Verify `ENV_TARGET=local-test` and database name is `genonaut_test`
-
 ### PostgreSQL-Specific Test Features
 
 **Test PostgreSQL Features:**
@@ -612,33 +608,6 @@ def test_database_helpers(postgres_session):
     assert "id" in columns
     assert "username" in columns
 ```
-
-### Migration from SQLite
-
-All database tests have been migrated from SQLite to PostgreSQL. If you encounter legacy SQLite code:
-
-**Before (SQLite):**
-```python
-@pytest.fixture
-def db_session():
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    yield session
-    session.close()
-```
-
-**After (PostgreSQL):**
-```python
-def test_my_feature(postgres_session):
-    # Just use the fixture - no manual setup needed
-    user = User(username="test")
-    postgres_session.add(user)
-    postgres_session.commit()
-```
-
-See `notes/sqlite-to-pg.md` for complete migration documentation.
 
 ## Test Organization
 

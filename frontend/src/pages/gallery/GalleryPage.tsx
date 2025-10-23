@@ -158,6 +158,15 @@ export function GalleryPage() {
     loadViewMode(GALLERY_VIEW_MODE_STORAGE_KEY, DEFAULT_VIEW_MODE)
   )
 
+  // Ref to track if we should skip URL sync (to prevent race conditions during initialization)
+  const isInitializedRef = useRef(false)
+  // Ref to track number of pending URL updates for adaptive debouncing
+  const pendingUrlUpdatesRef = useRef(0)
+  // Ref to store debounce timer for URL updates
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  // Ref to track when we're programmatically updating URL (to prevent "Sync FROM URL" from interfering)
+  const isProgrammaticUrlUpdateRef = useRef(false)
+
   const navigate = useNavigate()
 
   const isGridView = viewMode.startsWith('grid-')
@@ -304,8 +313,19 @@ export function GalleryPage() {
     }
   }, [searchParams])
 
-  // Sync contentToggles with URL parameters (supports navigation/back links)
+  // Sync contentToggles FROM URL (for browser back/forward navigation)
   useEffect(() => {
+    // Skip on first render (state already initialized from URL in useState)
+    if (!isInitializedRef.current) {
+      isInitializedRef.current = true  // Mark initialized at end
+      return
+    }
+
+    // Skip if we're in the middle of a programmatic URL update to prevent race conditions
+    if (isProgrammaticUrlUpdateRef.current) {
+      return
+    }
+
     const notGenSource = searchParams.get('notGenSource')
     const disabledSources = notGenSource ? notGenSource.split(',') : []
 
@@ -316,17 +336,99 @@ export function GalleryPage() {
       communityAutoGens: !disabledSources.includes('comm-ag'),
     }
 
-    // Only update if different
-    if (
-      togglesFromParams.yourGens !== contentToggles.yourGens ||
-      togglesFromParams.yourAutoGens !== contentToggles.yourAutoGens ||
-      togglesFromParams.communityGens !== contentToggles.communityGens ||
-      togglesFromParams.communityAutoGens !== contentToggles.communityAutoGens
-    ) {
-      setContentToggles(togglesFromParams)
-      setFilters((prev) => ({ ...prev, page: 0 }))
-    }
+    // Only update if different to avoid infinite loop with "sync to URL" useEffect
+    setContentToggles((prevToggles) => {
+      if (
+        togglesFromParams.yourGens !== prevToggles.yourGens ||
+        togglesFromParams.yourAutoGens !== prevToggles.yourAutoGens ||
+        togglesFromParams.communityGens !== prevToggles.communityGens ||
+        togglesFromParams.communityAutoGens !== prevToggles.communityAutoGens
+      ) {
+        setFilters((prev) => ({ ...prev, page: 0 }))
+        return togglesFromParams
+      }
+      return prevToggles
+    })
   }, [searchParams])
+
+  // Sync contentToggles TO URL (when state changes from user interaction)
+  // Uses adaptive debouncing: immediate execution for single actions,
+  // 150ms debounce for rapid successive actions to prevent race conditions
+  useEffect(() => {
+    // Skip on first render
+    if (!isInitializedRef.current) {
+      return
+    }
+
+    // Determine if we should debounce based on pending updates
+    const shouldDebounce = pendingUrlUpdatesRef.current > 0
+
+    // Clear any existing debounce timer
+    if (debounceTimerRef.current !== null) {
+      clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = null
+    }
+
+    // Function to perform the actual URL update
+    const performUrlUpdate = () => {
+      const disabledSources: string[] = []
+      if (!contentToggles.yourGens) disabledSources.push('your-g')
+      if (!contentToggles.yourAutoGens) disabledSources.push('your-ag')
+      if (!contentToggles.communityGens) disabledSources.push('comm-g')
+      if (!contentToggles.communityAutoGens) disabledSources.push('comm-ag')
+
+      // Set flag to prevent "Sync FROM URL" effect from running during programmatic update
+      isProgrammaticUrlUpdateRef.current = true
+
+      // Check if URL needs updating before calling setSearchParams
+      const currentNotGenSource = searchParams.get('notGenSource')
+      const currentDisabled = currentNotGenSource ? currentNotGenSource.split(',').sort().join(',') : ''
+      const newDisabled = disabledSources.sort().join(',')
+
+      if (currentDisabled !== newDisabled) {
+        // URL needs updating
+        setSearchParams((params) => {
+          const newParams = new URLSearchParams(params)
+
+          if (disabledSources.length > 0) {
+            newParams.set('notGenSource', disabledSources.join(','))
+          } else {
+            newParams.delete('notGenSource')
+          }
+
+          // Clear cursor when content toggles change
+          newParams.delete('cursor')
+
+          return newParams
+        })
+      }
+
+      // Clear the programmatic update flag and decrement pending counter after React processes the update
+      setTimeout(() => {
+        isProgrammaticUrlUpdateRef.current = false
+        pendingUrlUpdatesRef.current = Math.max(0, pendingUrlUpdatesRef.current - 1)
+      }, 300)
+    }
+
+    // Increment counter BEFORE scheduling or executing (tracks both scheduled and in-progress updates)
+    pendingUrlUpdatesRef.current += 1
+
+    // Execute immediately if no pending updates, otherwise debounce
+    if (shouldDebounce) {
+      // Debounce by 150ms when there are rapid successive updates
+      debounceTimerRef.current = setTimeout(performUrlUpdate, 150)
+    } else {
+      // Execute immediately for single actions (best UX)
+      performUrlUpdate()
+    }
+
+    // Cleanup function to clear timeout on unmount
+    return () => {
+      if (debounceTimerRef.current !== null) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [contentToggles])
 
   // Save optionsOpen state to localStorage whenever it changes
   useEffect(() => {
@@ -470,33 +572,13 @@ export function GalleryPage() {
   }
 
   const handleToggleChange = (toggleKey: keyof ContentToggles) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newToggles = {
-      ...contentToggles,
-      [toggleKey]: event.target.checked,
-    }
-    setContentToggles(newToggles)
+    const checked = event.target.checked
 
-    // Update URL params based on new toggle state
-    setSearchParams((params) => {
-      const newParams = new URLSearchParams(params)
-      const disabledSources: string[] = []
-
-      if (!newToggles.yourGens) disabledSources.push('your-g')
-      if (!newToggles.yourAutoGens) disabledSources.push('your-ag')
-      if (!newToggles.communityGens) disabledSources.push('comm-g')
-      if (!newToggles.communityAutoGens) disabledSources.push('comm-ag')
-
-      if (disabledSources.length > 0) {
-        newParams.set('notGenSource', disabledSources.join(','))
-      } else {
-        newParams.delete('notGenSource')
-      }
-
-      // Clear cursor when content toggles change
-      newParams.delete('cursor')
-
-      return newParams
-    })
+    // Update toggles state (URL will be synced by useEffect)
+    setContentToggles((prevToggles) => ({
+      ...prevToggles,
+      [toggleKey]: checked,
+    }))
 
     // Reset page and cursor when toggling content types
     setFilters((prev) => ({ ...prev, page: 0, cursor: undefined }))

@@ -1,4 +1,5 @@
 celery[redis]
+celery-redbeat
 email-validator
 fastapi
 flower
