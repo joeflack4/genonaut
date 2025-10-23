@@ -8,6 +8,11 @@ planning for image generation infrastructure.
 
 When you actually go about working on this, follow the SOP in `notes/routines/new-big-task.md`.
 
+For inspiration, you can look towards work that was recently completed that is quite similar (they should be direclty 
+in notes/ or nested somewhere in there):
+- route-analytics.md
+- route-analytics-tasks.md
+
 ## Implementation tasks
 
 ## Reports

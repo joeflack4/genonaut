@@ -1219,3 +1219,18 @@ md-github-sync:
 	fi
 	cd libs/md_manager && source env/bin/activate && python -m md_manager.cli --config-path ../../notes/md-manager.json sync-bidirectional || (echo "Error: Bidirectional sync failed"; exit 1)
 	@echo "✅ Bidirectional sync completed successfully"
+
+# Cache Analysis Tools
+.PHONY: cache-analysis cache-analysis-relative
+
+cache-analysis:
+	@ENV_TARGET=local-demo python -m genonaut.cli.cache_analysis \
+		--count=$(or $(n),10) \
+		--days=$(or $(days),7) \
+		--format=$(or $(format),table)
+
+cache-analysis-relative:
+	@ENV_TARGET=local-demo python -m genonaut.cli.cache_analysis_relative \
+		--count=$(or $(n),10) \
+		--days=$(or $(days),7) \
+		--format=$(or $(format),table)

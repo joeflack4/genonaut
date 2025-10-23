@@ -6,7 +6,7 @@ This module contains SQLAlchemy models for the PostgreSQL database.
 from datetime import datetime
 from typing import Optional, Union, Tuple, Dict, Any, List
 from sqlalchemy import (
-    Column, Identity, Integer, BigInteger, String, Text, DateTime, Float, Boolean,
+    Column, Identity, Integer, BigInteger, SmallInteger, String, Text, DateTime, Float, Boolean,
     ForeignKey, JSON, UniqueConstraint, Index, event, func, literal_column, DDL, ARRAY, Table,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -1147,6 +1147,123 @@ class TagCardinalityStats(Base):
     __table_args__ = (
         # For quick lookups by tag + source
         Index("idx_tag_cardinality_stats_tag_src", tag_id, content_source),
+    )
+
+
+class RouteAnalytics(Base):
+    """Route analytics for tracking API request performance.
+
+    Stores detailed analytics for every API request to identify patterns
+    and determine which routes should be cached in Redis.
+
+    Attributes:
+        id: Primary key
+        route: API endpoint path (e.g., /api/v1/content/unified)
+        method: HTTP method (GET, POST, etc.)
+        user_id: Foreign key to user who made the request (nullable)
+        timestamp: When request occurred
+        duration_ms: Request duration in milliseconds
+        status_code: HTTP status code (200, 404, 500, etc.)
+        query_params: Full query parameters (JSONB)
+        query_params_normalized: Normalized query params for grouping (JSONB)
+        request_size_bytes: Request payload size
+        response_size_bytes: Response payload size
+        error_type: Error category if failed (client_error, server_error)
+        db_query_count: Number of database queries made
+        cache_status: Cache hit/miss status (future use)
+        created_at: Timestamp of record creation
+    """
+    __tablename__ = 'route_analytics'
+
+    id = Column(BigInteger, Identity(), primary_key=True)
+    route = Column(Text, nullable=False, index=True)
+    method = Column(String(10), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True)
+    timestamp = Column(DateTime, nullable=False, default=func.now(), index=True)
+    duration_ms = Column(Integer, nullable=False)
+    status_code = Column(SmallInteger, nullable=False)
+    query_params = Column(JSONColumn, nullable=True)
+    query_params_normalized = Column(JSONColumn, nullable=True)
+    request_size_bytes = Column(Integer, nullable=True)
+    response_size_bytes = Column(Integer, nullable=True)
+    error_type = Column(Text, nullable=True)
+    db_query_count = Column(Integer, nullable=True)
+    cache_status = Column(String(10), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=func.now())
+
+    # Relationships
+    user = relationship("User")
+
+    # Indexes for common query patterns
+    __table_args__ = (
+        Index("idx_route_analytics_timestamp", timestamp.desc()),
+        Index("idx_route_analytics_route_time", route, timestamp.desc()),
+        Index("idx_route_analytics_user_time", user_id, timestamp.desc()),
+        Index("idx_route_analytics_duration", duration_ms.desc()),
+    )
+
+
+class RouteAnalyticsHourly(Base):
+    """Aggregated hourly route analytics for fast cache planning queries.
+
+    Pre-calculated hourly metrics per route for efficient trend analysis
+    and cache priority scoring. Each row represents one hour of data for
+    a specific route + query pattern combination.
+
+    Attributes:
+        id: Primary key
+        timestamp: Hour bucket (e.g., 2025-01-15 10:00:00)
+        route: API endpoint path
+        method: HTTP method
+        query_params_normalized: Normalized query params for this pattern
+        total_requests: Total requests in this hour
+        successful_requests: Requests with 2xx status codes
+        client_errors: Requests with 4xx status codes
+        server_errors: Requests with 5xx status codes
+        avg_duration_ms: Average response time
+        p50_duration_ms: Median response time
+        p95_duration_ms: 95th percentile response time
+        p99_duration_ms: 99th percentile response time
+        unique_users: Distinct users this hour
+        avg_request_size_bytes: Average request size
+        avg_response_size_bytes: Average response size
+        avg_db_query_count: Average DB queries per request
+        cache_hits: Cache hits (future use)
+        cache_misses: Cache misses (future use)
+        created_at: Timestamp of record creation
+    """
+    __tablename__ = 'route_analytics_hourly'
+
+    id = Column(BigInteger, Identity(), primary_key=True)
+    timestamp = Column(DateTime, nullable=False, index=True)
+    route = Column(Text, nullable=False)
+    method = Column(String(10), nullable=False)
+    query_params_normalized = Column(JSONColumn, nullable=True)
+    total_requests = Column(Integer, nullable=False)
+    successful_requests = Column(Integer, nullable=False)
+    client_errors = Column(Integer, nullable=False)
+    server_errors = Column(Integer, nullable=False)
+    avg_duration_ms = Column(Integer, nullable=True)
+    p50_duration_ms = Column(Integer, nullable=True)
+    p95_duration_ms = Column(Integer, nullable=True)
+    p99_duration_ms = Column(Integer, nullable=True)
+    unique_users = Column(Integer, nullable=True)
+    avg_request_size_bytes = Column(Integer, nullable=True)
+    avg_response_size_bytes = Column(Integer, nullable=True)
+    avg_db_query_count = Column(Float, nullable=True)
+    cache_hits = Column(Integer, nullable=False, default=0)
+    cache_misses = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, nullable=False, default=func.now())
+
+    # Indexes for cache planning queries
+    __table_args__ = (
+        Index("idx_route_metrics_timestamp", timestamp.desc()),
+        Index("idx_route_metrics_route_time", route, timestamp.desc()),
+        Index("idx_route_metrics_total_requests", total_requests.desc()),
+        Index("idx_route_metrics_duration", avg_duration_ms.desc()),
+        # Unique constraint for idempotent hourly aggregation
+        UniqueConstraint('timestamp', 'route', 'method', 'query_params_normalized',
+                        name='uq_route_analytics_hourly_time_route_params'),
     )
 
 

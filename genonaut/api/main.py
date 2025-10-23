@@ -10,10 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from genonaut.api.config import get_settings
-from genonaut.api.routes import content, content_auto, generation, interactions, recommendations, system, users, comfyui, images, tags, admin_flagged_content, websocket, notifications, checkpoint_models, lora_models, user_search_history
+from genonaut.api.routes import content, content_auto, generation, interactions, recommendations, system, users, comfyui, images, tags, admin_flagged_content, websocket, notifications, checkpoint_models, lora_models, user_search_history, analytics
 from genonaut.api.context import build_request_context, reset_request_context, set_request_context
 from genonaut.api.exceptions import StatementTimeoutError
-from genonaut.api.middleware.performance_timing import PerformanceTimingMiddleware
+from genonaut.api.middleware.route_analytics import RouteAnalyticsMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +52,6 @@ def create_app() -> FastAPI:
         debug=settings.api_debug,
         lifespan=lifespan,
     )
-    
-    # Add performance timing middleware (before CORS so it captures full time)
-    app.add_middleware(PerformanceTimingMiddleware)
 
     # Add CORS middleware
     app.add_middleware(
@@ -64,6 +61,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Add route analytics middleware
+    app.add_middleware(RouteAnalyticsMiddleware)
 
     @app.middleware("http")
     async def apply_request_context(request: Request, call_next):
@@ -117,6 +117,7 @@ def create_app() -> FastAPI:
     app.include_router(checkpoint_models.router)
     app.include_router(lora_models.router)
     app.include_router(user_search_history.router)
+    app.include_router(analytics.router)
     app.include_router(system.router)
     app.include_router(websocket.router)
     

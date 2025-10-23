@@ -47,6 +47,11 @@
       }
     }
   },
+  "cache-planning": {
+    "_comment": "Configuration for route analytics cache planning",
+    "top-n-routes": 20,
+    "pages-to-cache-per-route": 1
+  },
   "celery": {
     "_comment": "Celery configuration including Beat scheduler for periodic tasks",
     "beat-schedule": {
@@ -65,6 +70,23 @@
         "task": "genonaut.worker.tasks.refresh_gen_source_stats",
         "schedule": {
           "minute": 0
+        }
+      },
+      "transfer-route-analytics": {
+        "_comment": "Transfer route analytics from Redis to PostgreSQL (runs every 10 minutes)",
+        "enabled": true,
+        "task": "genonaut.worker.tasks.transfer_route_analytics_to_postgres",
+        "schedule": {
+          "minute": "*/10"
+        }
+      },
+      "aggregate-route-analytics": {
+        "_comment": "Aggregate hourly route analytics metrics (runs hourly at minute 5)",
+        "enabled": true,
+        "task": "genonaut.worker.tasks.aggregate_route_analytics_hourly",
+        "schedule": {
+          "minute": 5,
+          "hour": "*"
         }
       }
     }

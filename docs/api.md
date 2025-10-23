@@ -380,6 +380,412 @@ This granular control is not possible with the legacy `content_types` + `creator
 - `GET /api/v1/metrics` - System performance metrics
 - `GET /api/v1/version` - API version information
 
+## Route Analytics & Cache Planning
+
+Genonaut includes a comprehensive route analytics system that tracks API endpoint usage, latency, and user patterns. This data is used to identify high-priority routes for caching to optimize performance.
+
+### How It Works
+
+1. **Request Capture**: Middleware captures all API requests and writes to Redis (< 1ms overhead)
+2. **Data Transfer**: Celery task transfers data from Redis to PostgreSQL every 10 minutes
+3. **Aggregation**: Hourly aggregation task computes statistics (avg latency, p95, p99, request counts)
+4. **Analysis**: CLI tools analyze the data to recommend which routes should be cached
+
+### Cache Analysis CLI Tools
+
+Two CLI tools are available for analyzing route analytics data:
+
+#### System 1: Absolute Thresholds (Production-Ready)
+
+Best for production environments with established traffic patterns.
+
+**Command:**
+```bash
+make cache-analysis n=10
+```
+
+**Parameters:**
+- `n` - Number of top routes to return (default: 10)
+- `days` - Days of history to analyze (default: 7)
+- `format` - Output format: `table` or `json` (default: table)
+- `min-requests` - Minimum avg requests/hour filter (default: 10)
+- `min-latency` - Minimum p95 latency in ms filter (default: 100)
+
+**Examples:**
+```bash
+# Get top 10 routes to cache (human-readable table)
+make cache-analysis n=10
+
+# Get top 20 routes from last 7 days
+make cache-analysis n=20 days=7
+
+# Get routes as JSON for programmatic consumption
+make cache-analysis n=10 format=json
+
+# Apply custom thresholds
+make cache-analysis n=15 min-requests=50 min-latency=200
+```
+
+**How It Works:**
+- Filters routes by absolute thresholds (minimum request rate, minimum latency)
+- Calculates cache priority score: `(frequency * 10) + (latency / 100) + (user_diversity)`
+- Higher score = higher priority for caching
+- Ranks routes by priority score
+
+**Output (Table Format):**
+```
+Top 10 routes recommended for caching:
+
++------+--------+------------------------------+-------------------------+-----------+-------------+--------------+----------------+--------------+
+| Rank | Method | Route                        | Normalized Params       | Avg Req/Hr| P95 Latency | Unique Users | Priority Score | Success Rate |
++======+========+==============================+=========================+===========+=============+==============+================+==============+
+|    1 | GET    | /api/v1/content/unified      | {"page_size": "10", ... | 2,450     | 189ms       | 45           | 24,559.4       | 98.5%        |
+|    2 | GET    | /api/v1/tags/hierarchy       | {}                      | 890       | 156ms       | 32           | 9,076.2        | 99.1%        |
+|    3 | GET    | /api/v1/content/{id}         | {}                      | 1,200     | 95ms        | 67           | 12,156.7       | 97.8%        |
++------+--------+------------------------------+-------------------------+-----------+-------------+--------------+----------------+--------------+
+```
+
+**Output (JSON Format):**
+```json
+[
+  {
+    "route": "/api/v1/content/unified",
+    "method": "GET",
+    "query_params_normalized": {"page_size": "10", "sort": "created_at"},
+    "avg_hourly_requests": 2450.0,
+    "avg_p95_latency_ms": 189.0,
+    "avg_unique_users": 45.0,
+    "cache_priority_score": 24559.4,
+    "success_rate": 0.985,
+    "total_requests": 411600
+  }
+]
+```
+
+#### System 2: Relative Ranking (Development-Friendly)
+
+Best for development environments with low or sporadic traffic.
+
+**Command:**
+```bash
+make cache-analysis-relative n=10
+```
+
+**Parameters:**
+- `n` - Number of top routes to return (default: 10)
+- `days` - Days of history to analyze (default: 7)
+- `format` - Output format: `table` or `json` (default: table)
+
+**Examples:**
+```bash
+# Get top 10 routes using relative ranking
+make cache-analysis-relative n=10
+
+# Get top 20 routes from last 7 days
+make cache-analysis-relative n=20 days=7
+
+# Get routes as JSON
+make cache-analysis-relative n=10 format=json
+```
+
+**How It Works:**
+- No absolute thresholds - considers all routes with any traffic
+- Ranks routes by percentile compared to all other routes
+- Priority score = `(latency_percentile * 0.4) + (popularity_percentile * 0.4) + (user_percentile * 0.2)`
+- Perfect for development where even low-traffic routes can be identified
+
+**Output (Table Format):**
+```
+Top 10 routes by relative importance:
+
++------+--------+-----------------------------+---------------+--------+--------+-------+------+------+-------+
+| Rank | Method | Route                       | Params        | Req/Hr | P95    | Score | Pop% | Lat% | User% |
++======+========+=============================+===============+========+========+=======+======+======+=======+
+|    1 | GET    | /api/v1/content/unified     | {"page_si..." | 12.5   | 1850ms | 95.2  | P92  | L98  | U95   |
+|    2 | GET    | /api/v1/tags/hierarchy      | {}            | 8.2    | 1560ms | 89.4  | P85  | L94  | U89   |
+|    3 | POST   | /api/v1/generation/jobs     | {}            | 3.1    | 5230ms | 87.1  | P65  | L99  | U78   |
++------+--------+-----------------------------+---------------+--------+--------+-------+------+------+-------+
+
+Columns: Pop% (popularity), Lat% (latency), User% (user diversity)
+Higher percentile = more important relative to other routes
+```
+
+**Percentile Columns:**
+- `Pop%` - Popularity percentile (e.g., P92 = busier than 92% of routes)
+- `Lat%` - Latency percentile (e.g., L98 = slower than 98% of routes)
+- `User%` - User diversity percentile (e.g., U95 = more users than 95% of routes)
+- `Score` - Combined priority score (weighted average of percentiles)
+
+**Output (JSON Format):**
+```json
+[
+  {
+    "route": "/api/v1/content/unified",
+    "method": "GET",
+    "query_params_normalized": {"page_size": "10"},
+    "avg_hourly_requests": 12.5,
+    "avg_p95_latency_ms": 1850.0,
+    "priority_score": 95.2,
+    "popularity_percentile": 92.0,
+    "latency_percentile": 98.0,
+    "user_percentile": 95.0,
+    "success_rate": 0.985,
+    "total_requests": 525
+  }
+]
+```
+
+### Query Parameter Normalization
+
+Route analytics uses smart query parameter normalization to group similar requests:
+
+**What Gets Normalized:**
+- Pagination parameters (`page`, `offset`, `limit`, `cursor`) are excluded from normalization
+- Filtering parameters (`sort`, `content_types`, `tag`) are included in normalization
+
+**Why This Matters:**
+- Groups all pages of the same query pattern together
+- Identifies popular query patterns (e.g., "page_size=10 with sort=created_at")
+- Enables smart cache decisions (cache first N pages of popular patterns)
+
+**Example:**
+```
+Original routes:
+- /api/v1/content/unified?page=1&page_size=10&sort=created_at
+- /api/v1/content/unified?page=2&page_size=10&sort=created_at
+- /api/v1/content/unified?page=1&page_size=50&sort=created_at
+
+Normalized groups:
+1. {"page_size": "10", "sort": "created_at"} - 2 requests
+2. {"page_size": "50", "sort": "created_at"} - 1 request
+```
+
+### Database Schema
+
+**route_analytics** - Raw request events:
+- Captures every API request (route, method, user, timestamp, duration_ms, status_code)
+- Query parameters stored in both raw and normalized JSONB fields
+- Transferred from Redis to PostgreSQL every 10 minutes
+
+**route_analytics_hourly** - Aggregated statistics:
+- One row per hour per route pattern
+- Pre-computed metrics: avg, p50, p95, p99 duration, unique users, request counts
+- Enables fast cache planning queries without scanning millions of raw events
+- Updated hourly by Celery background task
+
+### Use Cases
+
+**For Production:**
+Use System 1 (absolute thresholds) to identify routes that meet specific performance criteria.
+
+**For Development:**
+Use System 2 (relative ranking) to identify slow/popular routes even with low traffic.
+
+**For Automated Caching:**
+Use JSON output format to feed results into automated cache configuration systems.
+
+### Configuration
+
+Cache planning settings are configured in `config/base.json`:
+
+```json
+{
+  "cache-planning": {
+    "top-n-routes": 20,
+    "pages-to-cache-per-route": 1
+  }
+}
+```
+
+### Direct CLI Usage
+
+Both tools can also be invoked directly:
+
+```bash
+# Activate virtual environment first
+source env/python_venv/bin/activate
+
+# System 1 (absolute thresholds)
+ENV_TARGET=local-demo python -m genonaut.cli.cache_analysis --count=10 --days=7 --format=table
+
+# System 2 (relative ranking)
+ENV_TARGET=local-demo python -m genonaut.cli.cache_analysis_relative --count=10 --days=7 --format=json
+```
+
+### Analytics API Endpoints
+
+The route analytics functionality is also exposed via REST API endpoints for programmatic access from other services. All endpoints return JSON responses.
+
+#### GET /api/v1/analytics/routes/cache-priorities
+
+Get top N routes recommended for caching, using either absolute or relative analysis systems.
+
+**Query Parameters:**
+- `n` (integer, 1-100, default: 10) - Number of top routes to return
+- `days` (integer, 1-90, default: 7) - Days of history to analyze
+- `system` (string: "absolute" | "relative", default: "absolute") - Analysis system to use
+- `min_requests` (integer, default: 10) - Minimum avg requests/hour (absolute system only)
+- `min_latency` (integer, default: 100) - Minimum p95 latency in ms (absolute system only)
+
+**Example Requests:**
+```bash
+# Get top 5 routes using absolute thresholds (production)
+curl "http://localhost:8001/api/v1/analytics/routes/cache-priorities?n=5&system=absolute"
+
+# Get top 10 routes using relative ranking (development)
+curl "http://localhost:8001/api/v1/analytics/routes/cache-priorities?n=10&system=relative"
+
+# Get top 20 routes from last 30 days with custom thresholds
+curl "http://localhost:8001/api/v1/analytics/routes/cache-priorities?n=20&days=30&system=absolute&min_requests=50&min_latency=200"
+```
+
+**Response (Absolute System):**
+```json
+{
+  "system": "absolute",
+  "lookback_days": 7,
+  "total_routes": 5,
+  "routes": [
+    {
+      "route": "/api/v1/content/unified",
+      "method": "GET",
+      "query_params_normalized": {"page_size": "10", "sort": "created_at"},
+      "avg_hourly_requests": 2450.0,
+      "avg_p95_latency_ms": 189.0,
+      "avg_unique_users": 45.0,
+      "cache_priority_score": 24559.4,
+      "success_rate": 0.985,
+      "total_requests": 411600
+    }
+  ]
+}
+```
+
+**Response (Relative System):**
+```json
+{
+  "system": "relative",
+  "lookback_days": 7,
+  "total_routes": 5,
+  "routes": [
+    {
+      "route": "/api/v1/content/unified",
+      "method": "GET",
+      "query_params_normalized": {"page_size": "10"},
+      "avg_hourly_requests": 12.5,
+      "avg_p95_latency_ms": 1850.0,
+      "priority_score": 95.2,
+      "popularity_percentile": 92.0,
+      "latency_percentile": 98.0,
+      "user_percentile": 95.0,
+      "success_rate": 0.985,
+      "total_requests": 525
+    }
+  ]
+}
+```
+
+#### GET /api/v1/analytics/routes/performance-trends
+
+Get time-series performance trends for a specific route over time.
+
+**Query Parameters:**
+- `route` (string, required) - Route path to analyze (e.g., `/api/v1/content/unified`)
+- `days` (integer, 1-90, default: 7) - Days of history to analyze
+- `granularity` (string: "hourly" | "daily", default: "hourly") - Data granularity
+
+**Example Requests:**
+```bash
+# Get hourly trends for unified content endpoint (last 7 days)
+curl "http://localhost:8001/api/v1/analytics/routes/performance-trends?route=/api/v1/content/unified&days=7&granularity=hourly"
+
+# Get daily trends for tag hierarchy endpoint (last 30 days)
+curl "http://localhost:8001/api/v1/analytics/routes/performance-trends?route=/api/v1/tags/hierarchy&days=30&granularity=daily"
+```
+
+**Response:**
+```json
+{
+  "route": "/api/v1/content/unified",
+  "granularity": "hourly",
+  "lookback_days": 7,
+  "data_points": 168,
+  "trends": [
+    {
+      "timestamp": "2025-01-15T00:00:00",
+      "total_requests": 145,
+      "successful_requests": 143,
+      "client_errors": 2,
+      "server_errors": 0,
+      "avg_duration_ms": 156,
+      "p50_duration_ms": 120,
+      "p95_duration_ms": 189,
+      "p99_duration_ms": 245,
+      "unique_users": 23,
+      "success_rate": 0.986
+    }
+  ]
+}
+```
+
+**Use Cases:**
+- Identify performance degradation over time
+- Spot traffic patterns and spikes
+- Monitor impact of code changes
+- Track success rate trends
+
+#### GET /api/v1/analytics/routes/peak-hours
+
+Analyze peak traffic hours for routes to plan cache warming and scaling strategies.
+
+**Query Parameters:**
+- `route` (string, optional) - Filter by specific route (omit to analyze all routes)
+- `days` (integer, 7-90, default: 30) - Days of history to analyze
+- `min_requests` (integer, default: 50) - Minimum avg requests for a route to be included
+
+**Example Requests:**
+```bash
+# Get peak hours for all routes
+curl "http://localhost:8001/api/v1/analytics/routes/peak-hours?days=30&min_requests=10"
+
+# Get peak hours for specific route
+curl "http://localhost:8001/api/v1/analytics/routes/peak-hours?route=/api/v1/content/unified&days=30"
+```
+
+**Response:**
+```json
+{
+  "route": "/api/v1/content/unified",
+  "lookback_days": 30,
+  "min_requests_threshold": 50,
+  "total_patterns": 24,
+  "peak_hours": [
+    {
+      "route": "/api/v1/content/unified",
+      "hour_of_day": 14,
+      "avg_requests": 2845.5,
+      "avg_p95_latency_ms": 198.3,
+      "avg_unique_users": 67.2,
+      "data_points": 30
+    },
+    {
+      "route": "/api/v1/content/unified",
+      "hour_of_day": 15,
+      "avg_requests": 2712.8,
+      "avg_p95_latency_ms": 203.1,
+      "avg_unique_users": 64.5,
+      "data_points": 30
+    }
+  ]
+}
+```
+
+**Use Cases:**
+- Plan cache warming schedules
+- Identify when to scale infrastructure
+- Schedule maintenance windows
+- Optimize resource allocation
+
 ## Enhanced Pagination System
 
 Genonaut provides a comprehensive pagination system optimized for performance at scale. All list endpoints support consistent pagination parameters and response formats.

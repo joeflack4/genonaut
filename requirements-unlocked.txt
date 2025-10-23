@@ -5,6 +5,7 @@ fastapi
 flower
 httpx
 jinja2
+numpy
 pandas
 psycopg2-binary
 pydantic
@@ -13,6 +14,7 @@ python-dotenv
 python-multipart
 redis
 sqlalchemy
+tabulate
 typer
 uvicorn[standard]
 

@@ -425,3 +425,209 @@ def refresh_gen_source_stats() -> Dict[str, Any]:
         }
     finally:
         db.close()
+
+
+@celery_app.task(name="genonaut.worker.tasks.transfer_route_analytics_to_postgres")
+def transfer_route_analytics_to_postgres() -> Dict[str, Any]:
+    """Transfer route analytics events from Redis to PostgreSQL.
+
+    This scheduled task runs every 10 minutes to batch-transfer route analytics
+    events from Redis Streams to the route_analytics PostgreSQL table.
+    After successful transfer, old entries are trimmed from Redis.
+
+    Returns:
+        Dict with transfer results
+    """
+    import json
+    from sqlalchemy import text
+    from genonaut.worker.pubsub import get_redis_client
+
+    logger.info("Starting route analytics transfer from Redis to PostgreSQL")
+
+    db = next(get_database_session())
+    redis_client = None
+
+    try:
+        settings = get_settings()
+        redis_client = get_redis_client()
+        stream_key = f"{settings.redis_ns}:route_analytics:stream"
+
+        # Read events from Redis Stream
+        # Read up to 1000 events at a time
+        events = redis_client.xread({stream_key: '0-0'}, count=1000, block=None)
+
+        if not events:
+            logger.info("No route analytics events to transfer")
+            return {
+                "status": "success",
+                "events_transferred": 0,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+        # Extract events from response format: [(stream_name, [(id, data), ...])]
+        stream_name, event_list = events[0]
+        event_count = len(event_list)
+
+        logger.info(f"Found {event_count} route analytics events to transfer")
+
+        # Batch insert events to PostgreSQL
+        insert_query = text("""
+            INSERT INTO route_analytics (
+                route, method, user_id, timestamp, duration_ms, status_code,
+                query_params, query_params_normalized,
+                request_size_bytes, response_size_bytes,
+                error_type, cache_status
+            ) VALUES (
+                :route, :method, :user_id, :timestamp, :duration_ms, :status_code,
+                :query_params, :query_params_normalized,
+                :request_size_bytes, :response_size_bytes,
+                :error_type, :cache_status
+            )
+        """)
+
+        events_inserted = 0
+        last_event_id = None
+
+        for event_id, event_data in event_list:
+            try:
+                # Parse event data
+                params = {
+                    'route': event_data.get('route', ''),
+                    'method': event_data.get('method', 'GET'),
+                    'user_id': event_data.get('user_id') or None,
+                    'timestamp': datetime.fromtimestamp(float(event_data.get('timestamp', 0))),
+                    'duration_ms': int(event_data.get('duration_ms', 0)),
+                    'status_code': int(event_data.get('status_code', 500)),
+                    'query_params': json.loads(event_data.get('query_params', '{}')),
+                    'query_params_normalized': json.loads(event_data.get('query_params_normalized', '{}')),
+                    'request_size_bytes': int(event_data.get('request_size_bytes', 0)) or None,
+                    'response_size_bytes': int(event_data.get('response_size_bytes', 0)) or None,
+                    'error_type': event_data.get('error_type') or None,
+                    'cache_status': event_data.get('cache_status') or None,
+                }
+
+                db.execute(insert_query, params)
+                events_inserted += 1
+                last_event_id = event_id
+
+            except Exception as e:
+                logger.error(f"Failed to insert event {event_id}: {str(e)}")
+                # Continue processing other events
+
+        # Commit all inserts
+        db.commit()
+
+        logger.info(f"Successfully inserted {events_inserted} route analytics events")
+
+        # Trim processed events from Redis Stream
+        if last_event_id:
+            try:
+                redis_client.xtrim(stream_key, maxlen=100000, approximate=True)
+                logger.info(f"Trimmed Redis stream to last 100K entries")
+            except Exception as e:
+                logger.warning(f"Failed to trim Redis stream: {str(e)}")
+
+        return {
+            "status": "success",
+            "events_transferred": events_inserted,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to transfer route analytics: {str(e)}", exc_info=True)
+        db.rollback()
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    finally:
+        db.close()
+        if redis_client:
+            redis_client.close()
+
+
+@celery_app.task(name="genonaut.worker.tasks.aggregate_route_analytics_hourly")
+def aggregate_route_analytics_hourly() -> Dict[str, Any]:
+    """Aggregate route analytics into hourly metrics.
+
+    This scheduled task runs hourly to calculate aggregated statistics
+    from raw route_analytics events and store them in route_analytics_hourly
+    for fast cache planning queries.
+
+    Returns:
+        Dict with aggregation results
+    """
+    from sqlalchemy import text
+
+    logger.info("Starting hourly route analytics aggregation")
+
+    db = next(get_database_session())
+
+    try:
+        # Aggregate last hour of data
+        # Use ON CONFLICT DO UPDATE for idempotency (can re-run safely)
+        aggregation_query = text("""
+            INSERT INTO route_analytics_hourly (
+                timestamp, route, method, query_params_normalized,
+                total_requests, successful_requests, client_errors, server_errors,
+                avg_duration_ms, p50_duration_ms, p95_duration_ms, p99_duration_ms,
+                unique_users, avg_request_size_bytes, avg_response_size_bytes
+            )
+            SELECT
+                DATE_TRUNC('hour', timestamp) as hour,
+                route,
+                method,
+                query_params_normalized,
+                COUNT(*) as total_requests,
+                SUM(CASE WHEN status_code >= 200 AND status_code < 300 THEN 1 ELSE 0 END) as successful_requests,
+                SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END) as client_errors,
+                SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END) as server_errors,
+                AVG(duration_ms)::INTEGER as avg_duration_ms,
+                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY duration_ms)::INTEGER as p50_duration_ms,
+                PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms)::INTEGER as p95_duration_ms,
+                PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY duration_ms)::INTEGER as p99_duration_ms,
+                COUNT(DISTINCT user_id) as unique_users,
+                AVG(request_size_bytes)::INTEGER as avg_request_size_bytes,
+                AVG(response_size_bytes)::INTEGER as avg_response_size_bytes
+            FROM route_analytics
+            WHERE timestamp >= DATE_TRUNC('hour', NOW() - INTERVAL '1 hour')
+                AND timestamp < DATE_TRUNC('hour', NOW())
+            GROUP BY hour, route, method, query_params_normalized
+            ON CONFLICT (timestamp, route, method, query_params_normalized) DO UPDATE SET
+                total_requests = EXCLUDED.total_requests,
+                successful_requests = EXCLUDED.successful_requests,
+                client_errors = EXCLUDED.client_errors,
+                server_errors = EXCLUDED.server_errors,
+                avg_duration_ms = EXCLUDED.avg_duration_ms,
+                p50_duration_ms = EXCLUDED.p50_duration_ms,
+                p95_duration_ms = EXCLUDED.p95_duration_ms,
+                p99_duration_ms = EXCLUDED.p99_duration_ms,
+                unique_users = EXCLUDED.unique_users,
+                avg_request_size_bytes = EXCLUDED.avg_request_size_bytes,
+                avg_response_size_bytes = EXCLUDED.avg_response_size_bytes
+        """)
+
+        result = db.execute(aggregation_query)
+        db.commit()
+
+        rows_affected = result.rowcount
+
+        logger.info(f"Successfully aggregated route analytics (rows affected: {rows_affected})")
+
+        return {
+            "status": "success",
+            "rows_aggregated": rows_affected,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to aggregate route analytics: {str(e)}", exc_info=True)
+        db.rollback()
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    finally:
+        db.close()
