@@ -38,17 +38,21 @@ describe('StarRating', () => {
 
   describe('Rating interaction', () => {
     it('calls onChange when star is clicked', async () => {
-      const user = userEvent.setup();
       const onChange = vi.fn();
 
-      render(<StarRating value={2} onChange={onChange} />);
+      render(<StarRating value={null} onChange={onChange} />);
 
       const stars = screen.getByTestId('star-rating-stars');
-      const starButtons = stars.querySelectorAll('label');
+      // MUI Rating uses radio inputs for stars - there are 10 inputs for half-star support
+      const starInputs = stars.querySelectorAll('input[type="radio"]');
 
-      // Click the 4th star
-      if (starButtons[3]) {
-        await user.click(starButtons[3]);
+      // Click a star (4th full star = index 7 in half-star mode, or use labels)
+      const labels = stars.querySelectorAll('label');
+      if (labels.length >= 4) {
+        // Click the 4th label (4 stars)
+        labels[3].click();
+
+        // onChange should be called with the new rating value (4)
         expect(onChange).toHaveBeenCalled();
       }
     });

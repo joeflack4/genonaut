@@ -58,7 +58,11 @@ export function TagDetailPage() {
   const rateTagMutation = useRateTag();
 
   const handleBack = () => {
-    navigate(fallbackPath);
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate(fallbackPath);
+    }
   };
 
   const handleRatingChange = (newRating: number | null) => {
@@ -139,7 +143,7 @@ export function TagDetailPage() {
     );
   }
 
-  const { tag, parents, children, user_rating, average_rating, rating_count } = tagDetail;
+  const { tag, parents, children, user_rating, average_rating, rating_count, cardinality_auto = 0, cardinality_regular = 0 } = tagDetail;
 
   return (
     <Box sx={{ p: 3 }} data-testid="tag-detail-page">
@@ -151,7 +155,7 @@ export function TagDetailPage() {
           </IconButton>
         </Tooltip>
         <Typography variant="h4" component="h1" data-testid="tag-detail-title">
-          {tag.name}
+          Tag: {tag.name}
         </Typography>
       </Stack>
 
@@ -222,7 +226,7 @@ export function TagDetailPage() {
             {/* User rating (interactive) */}
             <Box>
               <StarRating
-                value={user_rating ?? null}
+                value={user_rating !== null && user_rating >= 0 ? user_rating : null}
                 onChange={handleRatingChange}
                 label="Your Rating"
                 showValue
@@ -237,16 +241,37 @@ export function TagDetailPage() {
 
           <Divider sx={{ my: 3 }} />
 
+          {/* Content statistics section */}
+          <Box data-testid="tag-detail-stats-section">
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Content Statistics
+            </Typography>
+            <Stack spacing={1}>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Auto-generated gens:</strong> {cardinality_auto.toLocaleString()}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Manually-generated gens:</strong> {cardinality_regular.toLocaleString()}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Total:</strong> {(cardinality_auto + cardinality_regular).toLocaleString()}
+              </Typography>
+            </Stack>
+          </Box>
+
+          <Divider sx={{ my: 3 }} />
+
           {/* Browse content button */}
-          <Button
-            variant={showContentBrowser ? 'outlined' : 'contained'}
-            endIcon={<OpenInNewIcon />}
-            onClick={handleBrowseContent}
-            fullWidth
-            data-testid="tag-detail-browse-button"
-          >
-            {showContentBrowser ? 'Hide Content' : 'Browse Content with This Tag'}
-          </Button>
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <Button
+              variant={showContentBrowser ? 'outlined' : 'contained'}
+              endIcon={<OpenInNewIcon />}
+              onClick={handleBrowseContent}
+              data-testid="tag-detail-browse-button"
+            >
+              {showContentBrowser ? 'Hide Content' : 'Browse Content with This Tag'}
+            </Button>
+          </Box>
         </CardContent>
       </Card>
 

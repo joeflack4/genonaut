@@ -303,6 +303,8 @@ class TagService:
             - average_rating: Average rating (0.0 if no ratings)
             - rating_count: Number of ratings
             - user_rating: User's rating (if user_id provided)
+            - cardinality_auto: Number of auto-generated content items with this tag
+            - cardinality_regular: Number of manually-generated content items with this tag
 
         Raises:
             EntityNotFoundError: If tag not found
@@ -315,6 +317,10 @@ class TagService:
 
         # Get rating info
         avg_rating, rating_count = self.repository.get_tag_average_rating(tag_id)
+
+        # Get cardinality stats
+        cardinality_auto = self.repository.get_tag_cardinality(tag_id, 'auto', default=0)
+        cardinality_regular = self.repository.get_tag_cardinality(tag_id, 'regular', default=0)
 
         # Get user's rating if user_id provided
         user_rating = None
@@ -337,7 +343,9 @@ class TagService:
             "average_rating": average_rating_value,
             "rating_count": rating_count,
             "user_rating": user_rating,
-            "is_favorite": is_favorite
+            "is_favorite": is_favorite,
+            "cardinality_auto": cardinality_auto,
+            "cardinality_regular": cardinality_regular
         }
 
     # Rating Operations

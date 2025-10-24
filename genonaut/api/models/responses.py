@@ -555,6 +555,16 @@ class TagDetailResponse(BaseModel):
         None,
         description="Whether the requesting user has favorited the tag",
     )
+    cardinality_auto: int = Field(
+        0,
+        ge=0,
+        description="Number of auto-generated content items with this tag",
+    )
+    cardinality_regular: int = Field(
+        0,
+        ge=0,
+        description="Number of manually-generated content items with this tag",
+    )
 
 
 class TagRatingResponse(BaseModel):

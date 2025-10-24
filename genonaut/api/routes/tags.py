@@ -402,6 +402,8 @@ def _build_tag_detail_response(
         rating_count=rating_count,
         user_rating=detail.get("user_rating"),
         is_favorite=detail.get("is_favorite"),
+        cardinality_auto=detail.get("cardinality_auto", 0),
+        cardinality_regular=detail.get("cardinality_regular", 0),
     )
 
 
