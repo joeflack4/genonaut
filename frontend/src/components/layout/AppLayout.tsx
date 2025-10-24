@@ -33,6 +33,10 @@ import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import AccountTreeIcon from '@mui/icons-material/AccountTree'
 import FlagIcon from '@mui/icons-material/Flag'
 import BarChartIcon from '@mui/icons-material/BarChart'
+import HistoryIcon from '@mui/icons-material/History'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import { Collapse } from '@mui/material'
 import { useCurrentUser, useRecentSearches, useAddSearchHistory, useDeleteSearchHistory } from '../../hooks'
 import { useThemeMode } from '../../app/providers/theme'
 import { useUiSettings } from '../../app/providers/ui'
@@ -41,15 +45,34 @@ import { TimeoutNotification } from '../notifications/TimeoutNotification'
 import { SearchHistoryDropdown } from '../search/SearchHistoryDropdown'
 import { UI_CONFIG } from '../../config/ui'
 
-const navItems = [
+/**
+ * Navigation item structure supporting hierarchical navigation
+ */
+interface NavItem {
+  label: string
+  to: string
+  icon: React.ComponentType
+  key: string
+  children?: NavItem[]
+}
+
+const navItems: NavItem[] = [
   { label: 'Dashboard', to: '/dashboard', icon: DashboardIcon, key: 'dashboard' },
   { label: 'Gallery', to: '/gallery', icon: ArticleIcon, key: 'gallery' },
   { label: 'Generate', to: '/generate', icon: AutoFixHighIcon, key: 'generate' },
   { label: 'Tag Hierarchy', to: '/tags', icon: AccountTreeIcon, key: 'tags' },
   { label: 'Recommendations', to: '/recommendations', icon: RecommendIcon, key: 'recommendations' },
   { label: 'Flagged Content', to: '/admin/flagged-content', icon: FlagIcon, key: 'flagged-content' },
-  { label: 'Analytics', to: '/settings/analytics', icon: BarChartIcon, key: 'analytics' },
-  { label: 'Settings', to: '/settings', icon: SettingsIcon, key: 'settings' },
+  {
+    label: 'Settings',
+    to: '/settings',
+    icon: SettingsIcon,
+    key: 'settings',
+    children: [
+      { label: 'Search History', to: '/settings/search-history', icon: HistoryIcon, key: 'search-history' },
+      { label: 'Analytics', to: '/settings/analytics', icon: BarChartIcon, key: 'analytics' },
+    ]
+  },
 ]
 
 const NavLinkButton = forwardRef<HTMLAnchorElement, NavLinkProps>((props, ref) => (
@@ -59,6 +82,30 @@ const NavLinkButton = forwardRef<HTMLAnchorElement, NavLinkProps>((props, ref) =
 NavLinkButton.displayName = 'NavLinkButton'
 
 const LAST_GALLERY_URL_KEY = 'lastGalleryUrl'
+const EXPANDED_NAV_ITEMS_KEY = 'expandedNavItems'
+
+/**
+ * Load expanded nav items from localStorage
+ */
+function loadExpandedItems(): Record<string, boolean> {
+  try {
+    const stored = localStorage.getItem(EXPANDED_NAV_ITEMS_KEY)
+    return stored ? JSON.parse(stored) : {} // Default: All collapsed
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * Save expanded nav items to localStorage
+ */
+function saveExpandedItems(expanded: Record<string, boolean>): void {
+  try {
+    localStorage.setItem(EXPANDED_NAV_ITEMS_KEY, JSON.stringify(expanded))
+  } catch {
+    // Silently fail if localStorage is unavailable
+  }
+}
 
 export function AppLayout() {
   const { data: currentUser, isLoading: isUserLoading } = useCurrentUser()
@@ -78,6 +125,9 @@ export function AppLayout() {
   // State for sidebar open/closed
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  // State for hierarchical nav expansion (persisted in localStorage)
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(loadExpandedItems)
+
   // State for search functionality
   const [searchExpanded, setSearchExpanded] = useState(false)
   const [searchValue, setSearchValue] = useState('')
@@ -95,6 +145,34 @@ export function AppLayout() {
     setSidebarOpen(!isMobile)
   }, [isMobile])
 
+  // Auto-expand/collapse parent items based on current route
+  // Parent items should only be expanded when the parent or one of its children is active
+  useEffect(() => {
+    const path = location.pathname
+    const newExpandedItems: Record<string, boolean> = {}
+
+    navItems.forEach((item) => {
+      if (item.children) {
+        // Check if parent or any child is active
+        const isParentActive = path === item.to || path.startsWith(item.to + '/')
+        const hasActiveChild = item.children.some((child) => path.startsWith(child.to))
+
+        // Expand only if parent or child is active
+        newExpandedItems[item.key] = isParentActive || hasActiveChild
+      }
+    })
+
+    // Only update if something changed
+    const hasChanges = Object.keys(newExpandedItems).some(
+      (key) => newExpandedItems[key] !== expandedItems[key]
+    )
+
+    if (hasChanges) {
+      setExpandedItems(newExpandedItems)
+      saveExpandedItems(newExpandedItems)
+    }
+  }, [location.pathname]) // Removed expandedItems dependency to avoid infinite loop
+
   // Save gallery URL with query params whenever we're on the gallery page
   useEffect(() => {
     if (location.pathname === '/gallery') {
@@ -105,6 +183,14 @@ export function AppLayout() {
 
   const handleSidebarToggle = () => {
     setSidebarOpen(!sidebarOpen)
+  }
+
+  const handleToggleExpand = (itemKey: string) => {
+    setExpandedItems((prev) => {
+      const next = { ...prev, [itemKey]: !prev[itemKey] }
+      saveExpandedItems(next)
+      return next
+    })
   }
 
   const handleUserClick = () => {
@@ -319,43 +405,151 @@ export function AppLayout() {
               {visibleNavItems.map((item) => {
                 const IconComponent = item.icon
                 const isGallery = item.key === 'gallery'
+                const hasChildren = item.children && item.children.length > 0
+                const isExpanded = expandedItems[item.key] || false
 
                 const handleNavClick = (e: React.MouseEvent) => {
+                  // For items with children, this handles navigation to parent route
+                  // Expansion is handled separately by chevron click
                   if (isGallery) {
                     e.preventDefault()
                     const lastGalleryUrl = sessionStorage.getItem(LAST_GALLERY_URL_KEY)
                     navigate(lastGalleryUrl || '/gallery')
+                  } else {
+                    // Navigate to the item's route
+                    navigate(item.to)
                   }
+
                   if (isMobile) {
                     handleSidebarToggle()
                   }
                 }
 
+                const handleChevronClick = (e: React.MouseEvent) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleToggleExpand(item.key)
+                }
+
+                // Check if this parent item or any of its children are active
+                const isParentActive = location.pathname === item.to ||
+                  (hasChildren && item.children!.some((child) => location.pathname.startsWith(child.to)))
+
                 return (
-                  <ListItem key={item.to} disablePadding data-testid={`app-layout-nav-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}>
-                    <Tooltip title={item.label} enterDelay={1500} arrow placement="right">
-                      <ListItemButton
-                        component={isGallery ? 'div' : NavLinkButton}
-                        to={isGallery ? undefined : item.to}
-                        onClick={handleNavClick}
+                  <Box key={item.to}>
+                    <ListItem disablePadding data-testid={`app-layout-nav-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}>
+                      <Box
                         sx={{
-                          '&.active': {
+                          display: 'flex',
+                          width: '100%',
+                          alignItems: 'center',
+                          ...(isParentActive && !hasChildren ? {
                             bgcolor: 'action.selected',
-                          },
+                          } : {}),
                           ...(isGallery && location.pathname === '/gallery' ? {
                             bgcolor: 'action.selected',
                           } : {}),
-                          cursor: 'pointer',
+                          ...(hasChildren && location.pathname === item.to ? {
+                            bgcolor: 'action.selected',
+                          } : {}),
+                          '&:hover': {
+                            bgcolor: 'action.hover',
+                          },
                         }}
-                        data-testid={`app-layout-nav-link-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                       >
-                        <ListItemIcon data-testid={`app-layout-nav-icon-${item.label.toLowerCase().replace(/\s+/g, '-')}`}>
-                          <IconComponent />
-                        </ListItemIcon>
-                        {showButtonLabels && <ListItemText primary={item.label} />}
-                      </ListItemButton>
-                    </Tooltip>
-                  </ListItem>
+                        {/* Main navigation button (icon and label) */}
+                        <Tooltip title={item.label} enterDelay={1500} arrow placement="right">
+                          <ListItemButton
+                            onClick={handleNavClick}
+                            sx={{
+                              flex: 1,
+                              bgcolor: 'transparent',
+                              cursor: 'pointer',
+                              pr: hasChildren ? 0 : undefined,
+                              '&:hover': {
+                                bgcolor: 'transparent',
+                              },
+                            }}
+                            data-testid={`app-layout-nav-link-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                          >
+                            <ListItemIcon data-testid={`app-layout-nav-icon-${item.label.toLowerCase().replace(/\s+/g, '-')}`}>
+                              <IconComponent />
+                            </ListItemIcon>
+                            {showButtonLabels && <ListItemText primary={item.label} />}
+                          </ListItemButton>
+                        </Tooltip>
+
+                        {/* Separate chevron button for expand/collapse */}
+                        {hasChildren && (
+                          <Tooltip title={isExpanded ? "Collapse" : "Expand"} enterDelay={1500} arrow placement="right">
+                            <IconButton
+                              onClick={handleChevronClick}
+                              size="small"
+                              sx={{
+                                mr: 1,
+                                ml: showButtonLabels ? 0 : 'auto',
+                                bgcolor: 'transparent',
+                                '&:hover': {
+                                  bgcolor: 'transparent',
+                                },
+                              }}
+                              data-testid={`app-layout-nav-chevron-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                            >
+                              {isExpanded ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </Box>
+                    </ListItem>
+
+                    {/* Render child items */}
+                    {hasChildren && (
+                      <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                        <List component="div" disablePadding>
+                          {item.children!.map((child) => {
+                            const ChildIconComponent = child.icon
+                            const isChildActive = location.pathname.startsWith(child.to)
+
+                            const handleChildClick = () => {
+                              navigate(child.to)
+                              if (isMobile) {
+                                handleSidebarToggle()
+                              }
+                            }
+
+                            return (
+                              <ListItem
+                                key={child.to}
+                                disablePadding
+                                data-testid={`app-layout-nav-item-${child.label.toLowerCase().replace(/\s+/g, '-')}`}
+                              >
+                                <Tooltip title={child.label} enterDelay={1500} arrow placement="right">
+                                  <ListItemButton
+                                    onClick={handleChildClick}
+                                    sx={{
+                                      pl: showButtonLabels ? 4 : 3,
+                                      ...(isChildActive ? {
+                                        bgcolor: 'action.selected',
+                                      } : {}),
+                                    }}
+                                    data-testid={`app-layout-nav-link-${child.label.toLowerCase().replace(/\s+/g, '-')}`}
+                                  >
+                                    <ListItemIcon
+                                      sx={{ minWidth: showButtonLabels ? 40 : 56 }}
+                                      data-testid={`app-layout-nav-icon-${child.label.toLowerCase().replace(/\s+/g, '-')}`}
+                                    >
+                                      <ChildIconComponent fontSize="small" />
+                                    </ListItemIcon>
+                                    {showButtonLabels && <ListItemText primary={child.label} />}
+                                  </ListItemButton>
+                                </Tooltip>
+                              </ListItem>
+                            )
+                          })}
+                        </List>
+                      </Collapse>
+                    )}
+                  </Box>
                 )
               })}
             </List>
@@ -367,11 +561,6 @@ export function AppLayout() {
             flexGrow: 1,
             py: 2,
             px: { xs: 1, lg: 2 },
-            ml: { md: sidebarOpen ? 0 : `-${drawerWidth}px` },
-            transition: theme.transitions.create(['margin'], {
-              easing: theme.transitions.easing.sharp,
-              duration: theme.transitions.duration.leavingScreen,
-            }),
             width: '100%',
             maxWidth: '100%',
             minWidth: 0,

@@ -93,7 +93,7 @@ describe('ImageViewPage', () => {
     renderWithRouter('/view/1')
 
     const image = screen.getByTestId('image-view-image') as HTMLImageElement
-    expect(image.getAttribute('src')).toBe('http://localhost:8001/api/v1/images/1')
+    expect(image).toHaveAttribute('src', 'http://localhost:8001/api/v1/images/1')
   })
 
   it('renders tags section even when no tags are present', () => {
@@ -166,7 +166,7 @@ describe('ImageViewPage', () => {
 
     const image = screen.getByTestId('image-view-image') as HTMLImageElement
     expect(image).toBeInTheDocument()
-    expect(image.getAttribute('src')).toBe('http://localhost:8001/api/v1/images/1')
+    expect(image).toHaveAttribute('src', 'http://localhost:8001/api/v1/images/1')
   })
 
   it('displays loading state while fetching data', () => {

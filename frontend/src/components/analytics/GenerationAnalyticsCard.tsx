@@ -8,6 +8,7 @@
  * - Manual refresh button
  */
 
+import { memo } from 'react'
 import {
   Alert,
   Box,
@@ -66,7 +67,7 @@ interface MetricCardProps {
   loading?: boolean
 }
 
-function MetricCard({ title, value, icon, color = 'primary.main', loading }: MetricCardProps) {
+const MetricCard = memo(function MetricCard({ title, value, icon, color = 'primary.main', loading }: MetricCardProps) {
   return (
     <Paper
       elevation={0}
@@ -94,7 +95,7 @@ function MetricCard({ title, value, icon, color = 'primary.main', loading }: Met
       </Stack>
     </Paper>
   )
-}
+})
 
 export function GenerationAnalyticsCard() {
   // Persist filters in localStorage

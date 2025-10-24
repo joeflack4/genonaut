@@ -20,6 +20,32 @@ test.describe('Analytics Page (Real API)', () => {
   })
 
   test.describe('Navigation', () => {
+    test('navigates to Analytics page from sidebar', async ({ page }) => {
+      // Start from any page (e.g., dashboard)
+      await page.goto('/dashboard')
+      await waitForPageLoad(page, 'dashboard')
+
+      // Find Settings nav item in sidebar
+      const settingsNavLink = page.getByTestId('app-layout-nav-link-settings')
+      await expect(settingsNavLink).toBeVisible()
+
+      // Click Settings to expand (if collapsed)
+      await settingsNavLink.click()
+
+      // Wait for Analytics child item to be visible
+      const analyticsNavLink = page.getByTestId('app-layout-nav-link-analytics')
+      await expect(analyticsNavLink).toBeVisible()
+
+      // Click Analytics to navigate
+      await analyticsNavLink.click()
+      await waitForPageLoad(page, 'analytics')
+
+      // Verify we're on the Analytics page
+      await expect(page).toHaveURL(/\/settings\/analytics/)
+      await expect(page.getByTestId('analytics-page-root')).toBeVisible()
+      await expect(page.getByTestId('analytics-title')).toHaveText('Analytics')
+    })
+
     test('navigates to Analytics page from Settings page', async ({ page }) => {
       // Go to Settings page first
       await page.goto('/settings')

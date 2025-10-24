@@ -20,6 +20,7 @@ import { analyticsKeys } from '../../hooks/useAnalytics'
 import { RouteAnalyticsCard } from '../../components/analytics/RouteAnalyticsCard'
 import { GenerationAnalyticsCard } from '../../components/analytics/GenerationAnalyticsCard'
 import { TagCardinalityCard } from '../../components/analytics/TagCardinalityCard'
+import { ErrorBoundary } from '../../components/common/ErrorBoundary'
 
 export function AnalyticsPage() {
   const queryClient = useQueryClient()
@@ -59,13 +60,28 @@ export function AnalyticsPage() {
       </Stack>
 
       {/* Route Analytics Card */}
-      <RouteAnalyticsCard />
+      <ErrorBoundary
+        fallbackMessage="Unable to load route analytics. This section is temporarily unavailable."
+        onReset={() => queryClient.invalidateQueries({ queryKey: analyticsKeys.routeAnalytics._def })}
+      >
+        <RouteAnalyticsCard />
+      </ErrorBoundary>
 
       {/* Generation Analytics Card */}
-      <GenerationAnalyticsCard />
+      <ErrorBoundary
+        fallbackMessage="Unable to load generation analytics. This section is temporarily unavailable."
+        onReset={() => queryClient.invalidateQueries({ queryKey: analyticsKeys.generationAnalytics._def })}
+      >
+        <GenerationAnalyticsCard />
+      </ErrorBoundary>
 
       {/* Tag Cardinality Card */}
-      <TagCardinalityCard />
+      <ErrorBoundary
+        fallbackMessage="Unable to load tag cardinality analytics. This section is temporarily unavailable."
+        onReset={() => queryClient.invalidateQueries({ queryKey: analyticsKeys.tagCardinality._def })}
+      >
+        <TagCardinalityCard />
+      </ErrorBoundary>
     </Stack>
   )
 }

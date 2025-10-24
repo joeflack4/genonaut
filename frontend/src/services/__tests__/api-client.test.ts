@@ -29,6 +29,30 @@ function createResponse(overrides: Partial<Response>): Response {
   } as Response
 }
 
+describe('ApiClient', () => {
+  it('sends DELETE request with body', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      createResponse({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+      })
+    )
+
+    const client = new ApiClient({ baseUrl: 'http://test', fetchFn: fetchMock })
+
+    await client.delete('/api/test', { search_query: 'test' })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://test/api/test',
+      expect.objectContaining({
+        method: 'DELETE',
+        body: JSON.stringify({ search_query: 'test' }),
+      })
+    )
+  })
+})
+
 describe('ApiClient timeout handling', () => {
   it('emits statement timeout events and annotates ApiError metadata', async () => {
     const timeoutPayload = {

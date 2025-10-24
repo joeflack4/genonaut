@@ -16,7 +16,7 @@
  * - Tab state and filter preferences persisted in localStorage
  */
 
-import { useMemo, lazy, Suspense } from 'react'
+import { useMemo, memo, lazy, Suspense, useState, useEffect } from 'react'
 import {
   Alert,
   Box,
@@ -230,7 +230,30 @@ interface TopNSelectorProps {
   testIdPrefix: string
 }
 
-function TopNSelector({ value, customValue, onValueChange, onCustomValueChange, testIdPrefix }: TopNSelectorProps) {
+const TopNSelector = memo(function TopNSelector({ value, customValue, onValueChange, onCustomValueChange, testIdPrefix }: TopNSelectorProps) {
+  // Local state for debouncing custom limit input
+  const [localCustomValue, setLocalCustomValue] = useState<string>(customValue?.toString() || '')
+
+  // Update local state when prop changes (e.g., from localStorage)
+  useEffect(() => {
+    setLocalCustomValue(customValue?.toString() || '')
+  }, [customValue])
+
+  // Debounce the custom value changes (500ms)
+  useEffect(() => {
+    if (value !== 'custom') return
+
+    const timeoutId = setTimeout(() => {
+      const val = parseInt(localCustomValue, 10)
+      const newValue = isNaN(val) ? null : Math.max(1, Math.min(1000, val))
+      if (newValue !== customValue) {
+        onCustomValueChange(newValue)
+      }
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [localCustomValue, value, customValue, onCustomValueChange])
+
   return (
     <Stack direction="row" spacing={2} alignItems="center">
       <FormControl size="small" sx={{ minWidth: 140 }}>
@@ -253,11 +276,8 @@ function TopNSelector({ value, customValue, onValueChange, onCustomValueChange, 
           size="small"
           type="number"
           label="Custom Limit"
-          value={customValue || ''}
-          onChange={(e) => {
-            const val = parseInt(e.target.value, 10)
-            onCustomValueChange(isNaN(val) ? null : Math.max(1, Math.min(1000, val)))
-          }}
+          value={localCustomValue}
+          onChange={(e) => setLocalCustomValue(e.target.value)}
           inputProps={{
             min: 1,
             max: 1000,
@@ -269,7 +289,7 @@ function TopNSelector({ value, customValue, onValueChange, onCustomValueChange, 
       )}
     </Stack>
   )
-}
+})
 
 /**
  * Table-Only Section Component (for Table tab)
@@ -286,7 +306,7 @@ interface TableSectionProps {
   testIdPrefix: string
 }
 
-function TableSection({
+const TableSection = memo(function TableSection({
   title,
   contentSource,
   topN,
@@ -397,7 +417,7 @@ function TableSection({
       </Stack>
     </Box>
   )
-}
+})
 
 /**
  * Single Histogram Section Component
@@ -414,7 +434,7 @@ interface HistogramSectionProps {
   testIdPrefix: string
 }
 
-function HistogramSection({
+const HistogramSection = memo(function HistogramSection({
   title,
   contentSource,
   topN,
@@ -631,7 +651,7 @@ function HistogramSection({
       </Stack>
     </Box>
   )
-}
+})
 
 export function TagCardinalityCard() {
   // Persist filters in localStorage
