@@ -276,6 +276,8 @@ export interface ApiTagDetail {
   rating_count: number
   user_rating: number | null
   is_favorite?: boolean | null
+  cardinality_auto: number
+  cardinality_regular: number
 }
 
 export interface ApiTagRating {

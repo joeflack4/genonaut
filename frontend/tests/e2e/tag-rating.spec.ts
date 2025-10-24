@@ -3,74 +3,139 @@ import { setupMockApi } from './utils/mockApi';
 import { getCommonApiMocks } from './utils/mockData';
 
 /**
- * E2E tests for Tag Rating functionality
+ * E2E tests for Tag Rating functionality (Real API)
  *
- * Tests rating submission, updates, deletion, and favorites
+ * Tests rating submission, updates, and display using the real backend API
  */
-test.describe('Tag Rating', () => {
+test.describe('Tag Rating (Real API)', () => {
   test.beforeEach(async ({ page }) => {
     page.setDefaultNavigationTimeout(10_000);
-    await setupMockApi(page, getCommonApiMocks());
   });
 
-  test.skip('should allow user to rate a tag', async ({ page }) => {
-    // Note: This test is skipped until backend API endpoints are available
-    await page.goto('/tags/some-tag-id', { waitUntil: 'domcontentloaded' });
+  test('should allow user to rate a tag', async ({ page }) => {
+    // Go to tags page with tree view
+    await page.goto('/tags');
+    await page.waitForLoadState('domcontentloaded');
+
+    // Wait for tree view to load
+    await page.waitForSelector('[aria-label="Tag hierarchy tree"]', { timeout: 10000 });
+
+    // Find a tag in the tree and click it (look for any text node in the tree)
+    const tagInTree = page.locator('[aria-label="Tag hierarchy tree"] >> text="Visual Aesthetics"').first();
+    await tagInTree.click();
+
+    // Should navigate to tag detail page
+    await page.waitForURL(/\/tags\/[a-f0-9-]+/, { timeout: 10000 });
+    await page.waitForLoadState('domcontentloaded');
 
     // Wait for ratings section
-    await page.waitForSelector('[data-testid="tag-detail-ratings-section"]');
+    await page.waitForSelector('[data-testid="tag-detail-ratings-section"]', { timeout: 10000 });
 
-    // Should show star rating widget
-    await expect(page.locator('[data-testid="star-rating-your-rating"]')).toBeVisible();
+    // Find the "Your Rating" star widget (not the average rating)
+    const ratingsSection = page.locator('[data-testid="tag-detail-ratings-section"]');
+    const starWidgets = ratingsSection.locator('[data-testid="star-rating"]');
 
-    // Click on a star to rate (e.g., 4th star)
-    const stars = page.locator('[data-testid="star-rating-stars"] label');
-    await stars.nth(3).click();
+    // The second one should be "Your Rating"
+    const yourRating = starWidgets.nth(1);
+    await expect(yourRating).toBeVisible();
+
+    // Click on the 4th star to rate
+    const stars = yourRating.locator('[data-testid="star-rating-stars"]');
+    const starLabels = stars.locator('label');
+    await starLabels.nth(3).click();
 
     // Should show saving indicator
-    await expect(page.locator('text=Saving...')).toBeVisible({ timeout: 2000 });
+    await expect(page.locator('text=Saving...')).toBeVisible({ timeout: 3000 });
 
     // Wait for save to complete
     await expect(page.locator('text=Saving...')).not.toBeVisible({ timeout: 5000 });
+
+    // Verify rating persists - the value should show "4.0"
+    const ratingValue = yourRating.locator('[data-testid="star-rating-value"]');
+    await expect(ratingValue).toContainText('4.0');
   });
 
-  test.skip('should update existing rating', async ({ page }) => {
-    // Note: This test is skipped until backend API endpoints are available
-    await page.goto('/tags/some-tag-id', { waitUntil: 'domcontentloaded' });
+  test('should update existing rating', async ({ page }) => {
+    // Go to tags page with tree view
+    await page.goto('/tags');
+    await page.waitForLoadState('domcontentloaded');
 
-    // User already has a rating
-    await page.waitForSelector('[data-testid="tag-detail-ratings-section"]');
+    // Wait for tree view to load
+    await page.waitForSelector('[aria-label="Tag hierarchy tree"]', { timeout: 10000 });
 
-    // Change rating to different value
-    const stars = page.locator('[data-testid="star-rating-stars"] label');
-    await stars.nth(4).click();
+    // Find a tag in the tree and click it
+    const tagInTree = page.locator('[aria-label="Tag hierarchy tree"] >> text="Visual Aesthetics"').first();
+    await tagInTree.click();
 
-    // Should update the rating
-    await expect(page.locator('text=Saving...')).toBeVisible({ timeout: 2000 });
+    // Should navigate to tag detail page
+    await page.waitForURL(/\/tags\/[a-f0-9-]+/, { timeout: 10000 });
+    await page.waitForLoadState('domcontentloaded');
+
+    // Wait for ratings section
+    await page.waitForSelector('[data-testid="tag-detail-ratings-section"]', { timeout: 10000 });
+
+    // Find "Your Rating" widget
+    const ratingsSection = page.locator('[data-testid="tag-detail-ratings-section"]');
+    const yourRating = ratingsSection.locator('[data-testid="star-rating"]').nth(1);
+
+    // Change rating to 5 stars
+    const stars = yourRating.locator('[data-testid="star-rating-stars"]');
+    const starLabels = stars.locator('label');
+    await starLabels.nth(4).click();
+
+    // Should show saving indicator
+    await expect(page.locator('text=Saving...')).toBeVisible({ timeout: 3000 });
     await expect(page.locator('text=Saving...')).not.toBeVisible({ timeout: 5000 });
+
+    // Verify rating updated to 5.0
+    const ratingValue = yourRating.locator('[data-testid="star-rating-value"]');
+    await expect(ratingValue).toContainText('5.0');
   });
 
-  test.skip('should display average rating from all users', async ({ page }) => {
-    // Note: This test is skipped until backend API endpoints are available
-    await page.goto('/tags/some-tag-id', { waitUntil: 'domcontentloaded' });
+  test('should persist rating across page refreshes', async ({ page }) => {
+    // Go to tags page with tree view
+    await page.goto('/tags');
+    await page.waitForLoadState('domcontentloaded');
 
-    // Should show average rating with count
-    await expect(page.locator('[data-testid="star-rating-average-rating"]')).toBeVisible();
-    await expect(page.locator('text=/\\d+\\.\\d+ \\(\\d+ ratings?\\)/')).toBeVisible();
-  });
+    // Wait for tree view to load
+    await page.waitForSelector('[aria-label="Tag hierarchy tree"]', { timeout: 10000 });
 
-  test.skip('should show half-star ratings', async ({ page }) => {
-    // Note: This test is skipped until backend API endpoints are available
-    await page.goto('/tags/some-tag-id', { waitUntil: 'domcontentloaded' });
+    // Find a tag in the tree and click it
+    const tagInTree = page.locator('[aria-label="Tag hierarchy tree"] >> text="Visual Aesthetics"').first();
+    await tagInTree.click();
 
-    await page.waitForSelector('[data-testid="tag-detail-ratings-section"]');
+    // Navigate to tag detail page
+    await page.waitForURL(/\/tags\/[a-f0-9-]+/, { timeout: 10000 });
+    const tagUrl = page.url();
 
-    // Average rating should support half stars (e.g., 4.5)
-    const avgRating = page.locator('[data-testid="star-rating-average-rating"]');
-    await expect(avgRating).toBeVisible();
+    // Wait for page load
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForSelector('[data-testid="tag-detail-ratings-section"]', { timeout: 10000 });
 
-    // The rating value should be displayed
-    await expect(avgRating).toContainText(/\d+\.\d/);
+    // Rate the tag with 3 stars
+    const ratingsSection = page.locator('[data-testid="tag-detail-ratings-section"]');
+    const yourRating = ratingsSection.locator('[data-testid="star-rating"]').nth(1);
+    const stars = yourRating.locator('[data-testid="star-rating-stars"]');
+    await stars.locator('label').nth(2).click();
+
+    // Wait for save
+    await expect(page.locator('text=Saving...')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('text=Saving...')).not.toBeVisible({ timeout: 5000 });
+
+    // Verify rating shows 3.0
+    let ratingValue = yourRating.locator('[data-testid="star-rating-value"]');
+    await expect(ratingValue).toContainText('3.0');
+
+    // Refresh the page
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForSelector('[data-testid="tag-detail-ratings-section"]', { timeout: 10000 });
+
+    // Verify rating still shows 3.0 after refresh
+    const yourRatingAfterRefresh = page.locator('[data-testid="tag-detail-ratings-section"]')
+      .locator('[data-testid="star-rating"]').nth(1);
+    ratingValue = yourRatingAfterRefresh.locator('[data-testid="star-rating-value"]');
+    await expect(ratingValue).toContainText('3.0');
   });
 });
 

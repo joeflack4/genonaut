@@ -433,8 +433,8 @@ describe('TagDetailPage', () => {
       const backButton = screen.getByTestId('tag-detail-back-button');
       await user.click(backButton);
 
-      // Default fallback path is now /gallery
-      expect(mockNavigate).toHaveBeenCalledWith('/gallery');
+      // Now uses navigate(-1) to preserve browser history
+      expect(mockNavigate).toHaveBeenCalledWith(-1);
     });
 
     it('is present in error state', async () => {
@@ -450,8 +450,8 @@ describe('TagDetailPage', () => {
       const backButton = screen.getByTestId('tag-detail-back-button');
       await user.click(backButton);
 
-      // Default fallback path is now /gallery
-      expect(mockNavigate).toHaveBeenCalledWith('/gallery');
+      // Now uses navigate(-1) to preserve browser history
+      expect(mockNavigate).toHaveBeenCalledWith(-1);
     });
   });
 });

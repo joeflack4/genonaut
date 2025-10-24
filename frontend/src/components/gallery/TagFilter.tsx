@@ -70,6 +70,7 @@ export function TagFilter({
   const [popoverAnchor, setPopoverAnchor] = useState<{
     element: HTMLElement
     tagName: string
+    isSelected: boolean
   } | null>(null)
 
   // Cache of all tags we've seen (to display names for Selected tags)
@@ -195,9 +196,10 @@ export function TagFilter({
   }
 
   // Handle popover
-  const handlePopoverOpen = (event: React.MouseEvent<HTMLElement>, tagName: string) => {
-    if (tagName.length > TRUNCATE_THRESHOLD) {
-      setPopoverAnchor({ element: event.currentTarget, tagName })
+  const handlePopoverOpen = (event: React.MouseEvent<HTMLElement>, tagName: string, isSelected: boolean = false) => {
+    // Always show popover for selected tags, or for truncated tags
+    if (isSelected || tagName.length > TRUNCATE_THRESHOLD) {
+      setPopoverAnchor({ element: event.currentTarget, tagName, isSelected })
     }
   }
 
@@ -323,7 +325,7 @@ export function TagFilter({
                 size="small"
                 sx={{ cursor: 'pointer' }}
                 data-testid={`tag-filter-selected-${tag.id}`}
-                onMouseEnter={(e) => handlePopoverOpen(e, tag.name)}
+                onMouseEnter={(e) => handlePopoverOpen(e, tag.name, true)}
                 onMouseLeave={handlePopoverClose}
               />
             ))}
@@ -420,7 +422,11 @@ export function TagFilter({
         data-testid="tag-filter-popover"
       >
         <Box sx={{ p: 1, maxWidth: 300 }}>
-          <Typography variant="body2">{popoverAnchor?.tagName}</Typography>
+          {popoverAnchor?.isSelected ? (
+            <Typography variant="body2">Click to open tag page</Typography>
+          ) : (
+            <Typography variant="body2">{popoverAnchor?.tagName}</Typography>
+          )}
         </Box>
       </Popover>
     </Box>

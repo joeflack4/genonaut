@@ -46,8 +46,9 @@ export function StarRating({
 }: StarRatingProps) {
   const [hoverValue, setHoverValue] = useState<number | null>(null);
 
-  // Display value: hover value, then actual value, then average rating
-  const displayValue = hoverValue ?? value ?? averageRating ?? 0;
+  // For controlled Rating component, use only the actual value
+  // For interactive (non-readOnly) ratings, don't use averageRating as the value
+  const ratingValue = readOnly ? (averageRating ?? 0) : (value ?? 0);
 
   const handleChange = (_event: React.SyntheticEvent, newValue: number | null) => {
     if (!readOnly && onChange) {
@@ -67,18 +68,20 @@ export function StarRating({
     }
   };
 
-  // Format display text
+  // Format display text - show hover value during hover, otherwise show actual value
   const getDisplayText = () => {
-    if (readOnly && averageRating !== undefined && averageRating !== null) {
+    if (readOnly && averageRating !== undefined && averageRating !== null && averageRating >= 0) {
       const ratingText = averageRating.toFixed(1);
       const countText = ratingCount ? ` (${ratingCount} rating${ratingCount !== 1 ? 's' : ''})` : '';
       return `${ratingText}${countText}`;
     }
-    if (value !== null && value !== undefined) {
-      return value.toFixed(1);
-    }
-    if (hoverValue !== null) {
+    // Show hover value during hover
+    if (hoverValue !== null && hoverValue >= 0) {
       return hoverValue.toFixed(1);
+    }
+    // Show actual user rating (only if valid)
+    if (value !== null && value !== undefined && value >= 0) {
+      return value.toFixed(1);
     }
     return 'No rating';
   };
@@ -98,13 +101,14 @@ export function StarRating({
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <Rating
           data-testid="star-rating-stars"
-          value={displayValue}
+          value={ratingValue}
           precision={0.5}
           size={size}
           readOnly={readOnly}
           onChange={handleChange}
           onChangeActive={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
+          highlightSelectedOnly={false}
           emptyIcon={<StarIcon style={{ opacity: 0.3 }} fontSize="inherit" />}
           sx={{
             '& .MuiRating-iconFilled': {

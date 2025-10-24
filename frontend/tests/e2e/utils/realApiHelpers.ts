@@ -159,8 +159,23 @@ export async function navigateToPage(page: Page, pageNumber: number) {
 export async function clickNextPage(page: Page) {
   const nextButton = page.getByRole('button', { name: 'Go to next page' })
   await expect(nextButton).toBeEnabled()
+
+  // Check if we can find the current page button before clicking
+  const currentPageButton = page.getByRole('button', { name: 'page 1', exact: true })
+  const isOnPage1 = await currentPageButton.isVisible().catch(() => false)
+
   await nextButton.click()
+
+  // Wait for network activity to settle
   await page.waitForLoadState('networkidle')
+
+  // If we were on page 1, wait for page 2 button to appear
+  if (isOnPage1) {
+    await page.waitForSelector('button[aria-label="page 2"][aria-current="true"]', { timeout: 5000 })
+  }
+
+  // Give the UI a moment to update pagination state
+  await page.waitForTimeout(500)
 }
 
 /**
