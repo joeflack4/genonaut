@@ -1,5 +1,7 @@
+import { lazy, Suspense } from 'react'
 import type { RouteObject } from 'react-router-dom'
 import { Navigate, useParams, useRoutes } from 'react-router-dom'
+import { CircularProgress, Box } from '@mui/material'
 import { AppLayout } from './components/layout'
 import { LoginPage, SignupPage } from './pages/auth'
 import { GalleryPage } from './pages/gallery'
@@ -12,6 +14,16 @@ import { GenerationPage } from './pages/generation'
 import { TagsPage, TagDetailPage } from './pages/tags'
 import { AdminFlaggedContentPage } from './pages/admin'
 import { NotificationsPage, NotificationDetailPage } from './pages/notifications'
+
+// Lazy load Analytics page for code splitting (contains heavy charting library)
+const AnalyticsPage = lazy(() => import('./pages/settings/AnalyticsPage').then(module => ({ default: module.AnalyticsPage })))
+
+// Loading fallback component
+const PageLoader = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+    <CircularProgress />
+  </Box>
+)
 
 const routes: RouteObject[] = [
   {
@@ -33,6 +45,7 @@ const routes: RouteObject[] = [
       { path: 'notification/:id', element: <NotificationDetailPage /> },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'settings/search-history', element: <SearchHistoryPage /> },
+      { path: 'settings/analytics', element: <Suspense fallback={<PageLoader />}><AnalyticsPage /></Suspense> },
       { path: 'admin/flagged-content', element: <AdminFlaggedContentPage /> },
     ],
   },

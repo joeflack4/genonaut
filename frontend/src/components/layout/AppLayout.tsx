@@ -32,6 +32,7 @@ import SettingsIcon from '@mui/icons-material/Settings'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import AccountTreeIcon from '@mui/icons-material/AccountTree'
 import FlagIcon from '@mui/icons-material/Flag'
+import BarChartIcon from '@mui/icons-material/BarChart'
 import { useCurrentUser, useRecentSearches, useAddSearchHistory, useDeleteSearchHistory } from '../../hooks'
 import { useThemeMode } from '../../app/providers/theme'
 import { useUiSettings } from '../../app/providers/ui'
@@ -47,6 +48,7 @@ const navItems = [
   { label: 'Tag Hierarchy', to: '/tags', icon: AccountTreeIcon, key: 'tags' },
   { label: 'Recommendations', to: '/recommendations', icon: RecommendIcon, key: 'recommendations' },
   { label: 'Flagged Content', to: '/admin/flagged-content', icon: FlagIcon, key: 'flagged-content' },
+  { label: 'Analytics', to: '/settings/analytics', icon: BarChartIcon, key: 'analytics' },
   { label: 'Settings', to: '/settings', icon: SettingsIcon, key: 'settings' },
 ]
 

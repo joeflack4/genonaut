@@ -1267,6 +1267,115 @@ class RouteAnalyticsHourly(Base):
     )
 
 
+class GenerationEvent(Base):
+    """Generation events for tracking image generation activity.
+
+    Stores detailed events for every generation request, completion, and cancellation
+    to analyze generation performance, failure patterns, and user behavior.
+
+    Attributes:
+        id: Primary key
+        event_type: Type of event (request, completion, cancellation)
+        generation_id: UUID of the generation job (nullable)
+        user_id: Foreign key to user who made the request (nullable)
+        timestamp: When event occurred (with timezone)
+        generation_type: Type of generation (standard, etc.)
+        duration_ms: Total duration in milliseconds (for completions)
+        success: Whether generation succeeded (for completions)
+        error_type: Error category if failed
+        error_message: Detailed error message
+        queue_wait_time_ms: Time spent waiting in queue
+        generation_time_ms: Actual generation time (excluding queue)
+        model_checkpoint: Model checkpoint used
+        image_dimensions: Image dimensions as JSONB (e.g., {"width": 512, "height": 512})
+        batch_size: Number of images in batch
+        prompt_tokens: Number of tokens in prompt
+        created_at: Timestamp of record creation
+    """
+    __tablename__ = 'generation_events'
+
+    id = Column(BigInteger, Identity(), primary_key=True)
+    event_type = Column(String(20), nullable=False)
+    generation_id = Column(UUID(as_uuid=True), nullable=True)
+    user_id = Column(UUID(as_uuid=True), nullable=True)  # No FK - retain events even if users deleted
+    timestamp = Column(DateTime(timezone=True), nullable=False)
+    generation_type = Column(String(20), nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+    success = Column(Boolean, nullable=True)
+    error_type = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+    queue_wait_time_ms = Column(Integer, nullable=True)
+    generation_time_ms = Column(Integer, nullable=True)
+    model_checkpoint = Column(Text, nullable=True)
+    image_dimensions = Column(JSONColumn, nullable=True)
+    batch_size = Column(Integer, nullable=True)
+    prompt_tokens = Column(Integer, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+
+    # No relationship to User - foreign key was intentionally removed for analytics retention
+
+    # Indexes for common query patterns
+    __table_args__ = (
+        Index("idx_gen_events_timestamp", timestamp.desc()),
+        Index("idx_gen_events_user_time", user_id, timestamp.desc()),
+        Index("idx_gen_events_generation_id", generation_id),
+        Index("idx_gen_events_event_type", event_type),
+        Index("idx_gen_events_model", model_checkpoint, timestamp.desc()),
+        # Partial indexes created via raw SQL in migration (PostgreSQL-specific)
+        # - idx_gen_events_success: WHERE event_type = 'completion'
+        # - idx_gen_events_error_type: WHERE error_type IS NOT NULL
+    )
+
+
+class GenerationMetricsHourly(Base):
+    """Aggregated hourly generation metrics for fast analytics queries.
+
+    Pre-calculated hourly metrics for efficient trend analysis and monitoring.
+    Each row represents one hour of aggregated generation data.
+
+    Attributes:
+        id: Primary key
+        timestamp: Hour bucket (e.g., 2025-01-15 10:00:00)
+        total_requests: Total generation requests in this hour
+        successful_generations: Successfully completed generations
+        failed_generations: Failed generations
+        cancelled_generations: Cancelled generations
+        avg_duration_ms: Average generation duration
+        p50_duration_ms: Median duration (50th percentile)
+        p95_duration_ms: 95th percentile duration
+        p99_duration_ms: 99th percentile duration
+        unique_users: Distinct users this hour
+        avg_queue_length: Average queue length
+        max_queue_length: Maximum queue length
+        total_images_generated: Total images generated
+        created_at: Timestamp of record creation
+    """
+    __tablename__ = 'generation_metrics_hourly'
+
+    id = Column(BigInteger, Identity(), primary_key=True)
+    timestamp = Column(DateTime(timezone=True), nullable=False)
+    total_requests = Column(Integer, nullable=False)
+    successful_generations = Column(Integer, nullable=False)
+    failed_generations = Column(Integer, nullable=False)
+    cancelled_generations = Column(Integer, nullable=False)
+    avg_duration_ms = Column(Integer, nullable=True)
+    p50_duration_ms = Column(Integer, nullable=True)
+    p95_duration_ms = Column(Integer, nullable=True)
+    p99_duration_ms = Column(Integer, nullable=True)
+    unique_users = Column(Integer, nullable=True)
+    avg_queue_length = Column(Float, nullable=True)
+    max_queue_length = Column(Integer, nullable=True)
+    total_images_generated = Column(Integer, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+
+    # Indexes for analytics queries
+    __table_args__ = (
+        Index("idx_gen_metrics_timestamp", timestamp.desc()),
+        # Unique constraint for idempotent hourly aggregation
+        UniqueConstraint('timestamp', name='uq_generation_metrics_hourly_timestamp'),
+    )
+
+
 # Event listeners for PostgreSQL-specific functionality
 event.listen(Base.metadata, "before_create", _strip_non_postgres_indexes)
 event.listen(Base.metadata, "after_create", _restore_non_postgres_indexes)

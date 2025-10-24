@@ -68,6 +68,14 @@ def include_object(obj, name, type_, reflected, compare_to):
     if type_ == "index" and name in partition_indexes:
         return False
 
+    # Exclude PostgreSQL-specific partial indexes (created via raw SQL, not representable in SQLAlchemy)
+    postgres_partial_indexes = {
+        "idx_gen_events_error_type",  # Partial index: WHERE error_type IS NOT NULL
+        "idx_gen_events_success",     # Partial index: WHERE event_type = 'completion'
+    }
+    if type_ == "index" and name in postgres_partial_indexes:
+        return False
+
     return True
 
 

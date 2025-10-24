@@ -65,7 +65,7 @@ test.describe('Navigation Tests', () => {
 
   test('should handle direct URL access to all routes', async ({ page }) => {
     test.setTimeout(15_000)
-    const routes = ['/dashboard', '/gallery', '/recommendations', '/settings', '/generate']
+    const routes = ['/dashboard', '/gallery', '/recommendations', '/settings', '/settings/analytics', '/generate']
 
     for (const route of routes) {
       await page.goto(route, { waitUntil: 'domcontentloaded', timeout: 5_000 })

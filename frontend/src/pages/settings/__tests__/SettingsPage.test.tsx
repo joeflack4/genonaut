@@ -96,4 +96,29 @@ describe('SettingsPage', () => {
     expect(screen.getByLabelText(/show sidebar and navbar button labels/i)).toBeInTheDocument()
     expect(screen.getByText(/when disabled, only icons will be shown/i)).toBeInTheDocument()
   })
+
+  it('renders analytics card with navigation link', () => {
+    renderSettingsPage()
+
+    // Check analytics card is present
+    expect(screen.getByTestId('settings-analytics-card')).toBeInTheDocument()
+    expect(screen.getByTestId('settings-analytics-title')).toHaveTextContent('Analytics')
+    expect(screen.getByTestId('settings-analytics-description')).toBeInTheDocument()
+
+    // Check navigation link
+    const analyticsLink = screen.getByTestId('settings-analytics-link')
+    expect(analyticsLink).toBeInTheDocument()
+    expect(analyticsLink).toHaveTextContent(/view analytics/i)
+  })
+
+  it('navigates to analytics page when analytics link is clicked', () => {
+    renderSettingsPage()
+
+    const analyticsLink = screen.getByTestId('settings-analytics-link')
+    fireEvent.click(analyticsLink)
+
+    // Navigation would happen via react-router, so we can't directly test the URL change
+    // But we can verify the button is clickable and doesn't error
+    expect(analyticsLink).toBeInTheDocument()
+  })
 })

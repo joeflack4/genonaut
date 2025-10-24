@@ -168,10 +168,10 @@ async def get_tag_statistics(service: TagService = Depends(get_tag_service)):
 
 @router.get("/popular", response_model=List[PopularTagResponse])
 async def get_popular_tags(
-    limit: int = Query(20, ge=1, le=100, description="Maximum number of tags to return"),
+    limit: int = Query(20, ge=1, le=10000, description="Maximum number of tags to return"),
     content_source: Optional[str] = Query(
         None,
-        description="Filter by content source ('items' or 'auto'); omit to aggregate across all sources"
+        description="Filter by content source ('regular' or 'auto'); omit to aggregate across all sources"
     ),
     min_cardinality: int = Query(1, ge=1, description="Minimum content count to include"),
     service: TagService = Depends(get_tag_service)
@@ -182,8 +182,8 @@ async def get_popular_tags(
     the tag_cardinality_stats table that is refreshed daily by a Celery background job.
 
     Args:
-        limit: Maximum number of tags to return (1-100)
-        content_source: Optional filter by 'items' or 'auto'; when omitted, sums across both
+        limit: Maximum number of tags to return (1-10000)
+        content_source: Optional filter by 'regular' or 'auto'; when omitted, sums across both
         min_cardinality: Minimum content count to include (useful to filter out rarely-used tags)
         service: Tag service instance
 

@@ -13,6 +13,7 @@ import {
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import BarChartIcon from '@mui/icons-material/BarChart'
 import { useNavigate } from 'react-router-dom'
 import { useCurrentUser, useUpdateUser } from '../../hooks'
 import { useThemeMode } from '../../app/providers/theme'
@@ -211,6 +212,35 @@ export function SettingsPage() {
                 data-testid="settings-search-history-link"
               >
                 View search history
+              </Button>
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Card data-testid="settings-analytics-card">
+        <CardContent>
+          <Stack spacing={3} data-testid="settings-analytics-section">
+            <Stack direction="row" spacing={1} alignItems="center">
+              <BarChartIcon color="primary" />
+              <Typography variant="h6" component="h2" fontWeight={600} data-testid="settings-analytics-title">
+                Analytics
+              </Typography>
+            </Stack>
+
+            <Typography variant="body2" color="text.secondary" data-testid="settings-analytics-description">
+              View system analytics including route performance, generation metrics, and tag cardinality statistics. Monitor API endpoint performance, track generation success rates, and analyze content distribution across tags.
+            </Typography>
+
+            <Stack direction="row" justifyContent="flex-start">
+              <Button
+                variant="outlined"
+                startIcon={<BarChartIcon />}
+                endIcon={<ArrowForwardIcon />}
+                onClick={() => navigate('/settings/analytics')}
+                data-testid="settings-analytics-link"
+              >
+                View analytics
               </Button>
             </Stack>
           </Stack>

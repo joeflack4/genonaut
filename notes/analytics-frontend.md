@@ -314,12 +314,109 @@ Other potential future enhancements:
 - Generation events must be tracked (requires generations)
 
 ## Deliverables
-1. New `AnalyticsPage.tsx` component
-2. Supporting sub-components for each section
-3. React Query hooks for data fetching
-4. Unit tests for components and hooks
-5. E2E tests for navigation and interactions
-6. Updated routing configuration
-7. Updated sidebar navigation in AppLayout
-8. Documentation in code (JSDoc comments)
-9. Update to this spec document with implementation notes
+1. ✅ New `AnalyticsPage.tsx` component
+2. ✅ Supporting sub-components for each section
+3. ✅ React Query hooks for data fetching
+4. ✅ Unit tests for components and hooks (service tests complete, component tests in progress)
+5. ⏳ E2E tests for navigation and interactions (navigation tests updated, analytics-specific E2E pending)
+6. ✅ Updated routing configuration
+7. ⏭️ Updated sidebar navigation in AppLayout (deferred - using Settings page link instead)
+8. ✅ Documentation in code (JSDoc comments)
+9. ✅ Update to this spec document with implementation notes
+
+## Implementation Notes
+
+### Completed (As of 2025-10-24)
+
+**Phase 1 - Foundation:**
+- ✅ All API endpoints verified and tested with various query parameters
+- ✅ Comprehensive TypeScript types created in `src/types/analytics.ts`
+- ✅ Analytics service layer implemented with error handling
+- ✅ React Query hooks created with appropriate cache configuration
+- ✅ Unit tests written for service methods (12 tests passing)
+
+**Phase 2 - Routing & Navigation:**
+- ✅ Route `/settings/analytics` added to App.tsx
+- ✅ Route added to E2E test suite (navigation.spec.ts)
+- ✅ Analytics card added to Settings page with navigation link
+- ✅ Unit tests updated for SettingsPage
+- ⏭️ Hierarchical sidebar navigation deferred (using flat Settings page link instead)
+
+**Phase 3 - Core Page Structure:**
+- ✅ AnalyticsPage component created with header, refresh button, and last updated timestamp
+- ✅ Three card sections (Route, Generation, Tag Cardinality) integrated
+- ✅ Global refresh functionality implemented
+- ✅ Unit tests created for AnalyticsPage (10 tests passing)
+
+**Phase 4 - Route Analytics Section:**
+- ✅ RouteAnalyticsCard component fully implemented
+- ✅ System selector (Absolute vs Relative), time range, and top N filters
+- ✅ Sortable data table with color-coded latency indicators
+- ✅ Loading, error, and empty states handled
+- ✅ Filter persistence via localStorage
+- ✅ Unit tests created (13 tests passing)
+
+**Phase 5 - Generation Analytics Section:**
+- ✅ GenerationAnalyticsCard component fully implemented
+- ✅ Four overview metric cards (Total, Success Rate, Avg Duration, Unique Users)
+- ✅ Detailed statistics panel with P50/P95/P99 durations
+- ✅ Time range filtering with manual refresh
+- ✅ Color-coded success rate (green ≥90%, yellow <90%)
+- ✅ Unit tests created (17 tests passing)
+
+**Phase 6 - Tag Cardinality Section:**
+- ✅ TagCardinalityCard component fully implemented
+- ✅ Statistics summary (total tags, most popular, median, P90)
+- ✅ Histogram visualization with Recharts (log/linear scale toggle)
+- ✅ Popular tags table (top 20) with clickable links to tag detail pages
+- ✅ Content source filtering (All, Regular, Auto-Generated)
+- ✅ Filter persistence via localStorage
+- ⏳ Unit tests partially created (component structure evolved, tests need updating)
+
+### Deviations from Original Spec
+
+1. **Sidebar Navigation**: Hierarchical sidebar navigation was deferred. Analytics page is accessible via a prominent card on the Settings page instead. This provides equivalent functionality with simpler implementation.
+
+2. **No Auto-Refresh**: As specified, data only refreshes on manual refresh button click or page reload. This prevents unnecessary API calls and gives users control.
+
+3. **Filter Persistence**: All filter preferences (time ranges, system types, content source) are persisted in localStorage using a custom `usePersistedState` hook. This improves UX by remembering user preferences across sessions.
+
+### Technical Implementation Details
+
+**Performance Optimizations:**
+- Expensive computations (histogram binning, statistics calculations) use React's `useMemo` hook
+- React Query provides intelligent caching (5-10 minute staleTime for analytics data)
+- Filter state persisted to localStorage to avoid recalculation
+
+**Data Refresh Strategy:**
+- Manual refresh button on each card
+- Global "Refresh All" button in page header that invalidates all analytics queries
+- Last updated timestamp displayed at page level
+
+**Error Handling:**
+- All cards show user-friendly error alerts when API calls fail
+- Empty states with helpful messages when no data available
+- Loading skeletons for better perceived performance
+
+**Responsive Design:**
+- Cards stack vertically on mobile
+- Tables use horizontal scroll on small screens
+- Metric cards adapt from 4x1 grid (desktop) to 2x2 grid (mobile)
+
+### Pending Work
+
+**Phase 7 - Polish & Optimization:**
+- ⏳ Lazy loading charting library (Recharts)
+- ⏳ Code splitting for AnalyticsPage
+- ⏳ React.memo for chart components
+- ⏳ Debounce filter inputs
+
+**Phase 8 - Testing & QA:**
+- ⏳ Complete unit test coverage (>90% target)
+- ⏳ E2E tests for analytics page interactions
+- ⏳ Tag cardinality component tests need updating for new structure
+
+**Phase 9 - Final Integration:**
+- ⏳ Full test suite verification
+- ⏳ Linting and type-check
+- ⏳ Final documentation review
