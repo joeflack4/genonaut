@@ -2,8 +2,9 @@
 .PHONY: help init-all init-dev init-demo init-test reset-db-1-data--demo reset-db-1-data--test reset-db-2-schema--demo \
 reset-db-2-schema--test reset-db-3-schema-and-history--demo reset-db-3-schema-and-history--test re-seed-demo \
 re-seed-demo-force seed-from-gen-demo seed-from-gen-test seed-static-demo seed-static-test export-demo-data test \
-test-quick test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-tag-queries test-all clear-excess-test-schemas install install-dev \
-lint format clean migrate-all migrate-prep migrate-dev migrate-demo migrate-test backup backup-dev backup-demo \
+test-quick test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-tag-queries \
+test-all clear-excess-test-schemas install install-dev \
+lint format clean migrate-all migrate-all-auto migrate-prep migrate-dev migrate-demo migrate-test backup backup-dev backup-demo \
 backup-test api-dev api-demo api-demo-alt api-test celery-dev celery-demo celery-test flower-dev flower-demo flower-test \
 redis-flush-dev redis-flush-demo redis-flush-test redis-keys-dev redis-keys-demo redis-keys-test \
 redis-info-dev redis-info-demo redis-info-test redis-start celery-check-running-workers \
@@ -545,7 +546,9 @@ init-db:
 # !warning: if migrating multiple databases and their db schema is exactly the same, autogeneration should be fine, and
 # can then be applied to all 3 databases via 'alembic upgrade head'. However, if they differ, and you create the
 # migration using 1 database url, and then try to apply it, it will only work on the database(s) with matching schema.
-migrate-all: migrate-prep migrate-demo migrate-dev migrate-test
+migrate-all: migrate-demo migrate-dev migrate-test
+
+migrate-all-auto: migrate-prep migrate-all
 
 # todo: when demo is no longer the main DB, the canonical DB URL should change here to just: DATABASE_URL
 # migrate-prep: Alt versions:

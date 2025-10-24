@@ -19,7 +19,8 @@ Create a new `.md` document in `notes/`, and in it, write:
 2. A multi-phase list of checkbox tasks. Most large multi-step tasks will likely merit adding one or more of various 
 types of tests: (frontend | backend) x (unit | integration / e2e). Large tasks will often include documentation updates 
 (maybe a small bit in the README.md, but usually just in docs/). You should lean towards good documentation and test 
-coverage for big tasks. 
+coverage for big tasks.
+3. You should also have a final round of testing. See: `notes/routines/do-and-test.md`
 
 ### 4. Execution
 When you're ready to start working on the tasks, follow the SOP outlined in: `notes/routines/iteration.md`

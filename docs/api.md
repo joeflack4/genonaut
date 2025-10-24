@@ -786,6 +786,312 @@ curl "http://localhost:8001/api/v1/analytics/routes/peak-hours?route=/api/v1/con
 - Schedule maintenance windows
 - Optimize resource allocation
 
+### Generation Analytics API Endpoints
+
+The generation analytics system tracks all image generation activity including requests, completions, failures, and cancellations. Data flows from MetricsService to Redis Streams, then to PostgreSQL via Celery background tasks, providing both real-time and historical analytics.
+
+**Data Pipeline:**
+1. MetricsService records events to Redis Streams (< 1ms overhead)
+2. Celery transfers events to PostgreSQL `generation_events` table (every 10 minutes)
+3. Celery aggregates hourly metrics into `generation_metrics_hourly` table (hourly)
+4. API endpoints query aggregated data for analytics
+
+#### GET /api/v1/analytics/generation/overview
+
+Get high-level dashboard overview of generation activity.
+
+**Query Parameters:**
+- `days` (integer, 1-90, default: 7) - Days of history to analyze
+
+**Example Requests:**
+```bash
+# Get overview for last 7 days
+curl "http://localhost:8001/api/v1/analytics/generation/overview?days=7"
+
+# Get overview for last 30 days
+curl "http://localhost:8001/api/v1/analytics/generation/overview?days=30"
+```
+
+**Response:**
+```json
+{
+  "lookback_days": 7,
+  "total_requests": 1500,
+  "successful_generations": 1425,
+  "failed_generations": 50,
+  "cancelled_generations": 25,
+  "success_rate_pct": 95.0,
+  "avg_duration_ms": 3500,
+  "p50_duration_ms": 3200,
+  "p95_duration_ms": 5800,
+  "p99_duration_ms": 7200,
+  "total_images_generated": 1425,
+  "hours_with_data": 168,
+  "latest_data_timestamp": "2025-10-23T14:30:00"
+}
+```
+
+**Metrics Explained:**
+- `success_rate_pct` - Percentage of successful generations (successful / total_requests * 100)
+- `avg_duration_ms` - Average generation duration in milliseconds
+- `p50/p95/p99_duration_ms` - Duration percentiles (50th, 95th, 99th)
+- `hours_with_data` - Number of hours with recorded activity
+
+#### GET /api/v1/analytics/generation/trends
+
+Get time-series trends for generation metrics.
+
+**Query Parameters:**
+- `days` (integer, 1-90, default: 7) - Days of history to analyze
+- `interval` (string: "hourly" | "daily", default: "hourly") - Data granularity
+
+**Example Requests:**
+```bash
+# Get hourly trends for last 7 days
+curl "http://localhost:8001/api/v1/analytics/generation/trends?days=7&interval=hourly"
+
+# Get daily trends for last 30 days
+curl "http://localhost:8001/api/v1/analytics/generation/trends?days=30&interval=daily"
+```
+
+**Response:**
+```json
+{
+  "interval": "hourly",
+  "lookback_days": 7,
+  "total_data_points": 168,
+  "data_points": [
+    {
+      "timestamp": "2025-10-23T00:00:00",
+      "total_requests": 45,
+      "successful_generations": 43,
+      "failed_generations": 2,
+      "cancelled_generations": 0,
+      "avg_duration_ms": 3200,
+      "p50_duration_ms": 3100,
+      "p95_duration_ms": 5500,
+      "p99_duration_ms": 7200,
+      "unique_users": 12,
+      "avg_queue_length": 2.5,
+      "max_queue_length": 8,
+      "total_images_generated": 43,
+      "success_rate": 0.956
+    }
+  ]
+}
+```
+
+**Use Cases:**
+- Identify generation patterns and spikes
+- Monitor performance degradation over time
+- Track success rate trends
+- Analyze queue behavior
+
+#### GET /api/v1/analytics/generation/users/{user_id}
+
+Get generation analytics for a specific user.
+
+**Path Parameters:**
+- `user_id` (UUID, required) - User ID to analyze
+
+**Query Parameters:**
+- `days` (integer, 1-90, default: 30) - Days of history to analyze
+
+**Example Requests:**
+```bash
+# Get analytics for specific user (last 30 days)
+curl "http://localhost:8001/api/v1/analytics/generation/users/550e8400-e29b-41d4-a716-446655440000?days=30"
+
+# Get analytics for specific user (last 7 days)
+curl "http://localhost:8001/api/v1/analytics/generation/users/550e8400-e29b-41d4-a716-446655440000?days=7"
+```
+
+**Response:**
+```json
+{
+  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "lookback_days": 30,
+  "total_requests": 125,
+  "successful_generations": 118,
+  "failed_generations": 5,
+  "cancelled_generations": 2,
+  "success_rate_pct": 94.4,
+  "avg_duration_ms": 3450,
+  "p50_duration_ms": 3300,
+  "p95_duration_ms": 5200,
+  "last_generation_at": "2025-10-23T14:30:00",
+  "first_generation_at": "2025-09-23T10:15:00",
+  "recent_activity": [
+    {
+      "timestamp": "2025-10-23T14:30:00",
+      "event_type": "completion",
+      "duration_ms": 3200,
+      "success": true,
+      "error_type": null,
+      "generation_type": "standard"
+    }
+  ],
+  "failure_breakdown": [
+    {"error_type": "timeout", "count": 3},
+    {"error_type": "oom", "count": 2}
+  ]
+}
+```
+
+**Use Cases:**
+- User-specific generation history and performance
+- Identify problematic users or usage patterns
+- Debug user-specific issues
+- Track user engagement with generation features
+
+#### GET /api/v1/analytics/generation/models
+
+Get performance comparison across different models.
+
+**Query Parameters:**
+- `days` (integer, 1-90, default: 30) - Days of history to analyze
+
+**Example Requests:**
+```bash
+# Get model performance for last 30 days
+curl "http://localhost:8001/api/v1/analytics/generation/models?days=30"
+
+# Get model performance for last 7 days
+curl "http://localhost:8001/api/v1/analytics/generation/models?days=7"
+```
+
+**Response:**
+```json
+{
+  "lookback_days": 30,
+  "total_models": 5,
+  "models": [
+    {
+      "model_checkpoint": "sd_xl_base_1.0.safetensors",
+      "total_generations": 850,
+      "successful_generations": 825,
+      "failed_generations": 25,
+      "success_rate_pct": 97.06,
+      "avg_duration_ms": 3200,
+      "p50_duration_ms": 3100,
+      "p95_duration_ms": 4800,
+      "last_used_at": "2025-10-23T14:30:00"
+    }
+  ]
+}
+```
+
+**Use Cases:**
+- Compare model reliability and performance
+- Identify problematic models
+- Capacity planning by model
+- Model selection optimization
+
+#### GET /api/v1/analytics/generation/failures
+
+Get detailed analysis of generation failures.
+
+**Query Parameters:**
+- `days` (integer, 1-90, default: 7) - Days of history to analyze
+
+**Example Requests:**
+```bash
+# Get failure analysis for last 7 days
+curl "http://localhost:8001/api/v1/analytics/generation/failures?days=7"
+
+# Get failure analysis for last 30 days
+curl "http://localhost:8001/api/v1/analytics/generation/failures?days=30"
+```
+
+**Response:**
+```json
+{
+  "lookback_days": 7,
+  "total_error_types": 4,
+  "error_types": [
+    {
+      "error_type": "timeout",
+      "count": 45,
+      "avg_duration_ms": 30000,
+      "sample_messages": [
+        "ComfyUI request timeout after 30s",
+        "Generation queue timeout"
+      ]
+    },
+    {
+      "error_type": "oom",
+      "count": 12,
+      "avg_duration_ms": 15000,
+      "sample_messages": ["Out of memory on GPU"]
+    }
+  ],
+  "failure_trends": [
+    {
+      "date": "2025-10-23",
+      "total_completions": 250,
+      "failures": 8,
+      "failure_rate": 0.032
+    }
+  ]
+}
+```
+
+**Use Cases:**
+- Debug recurring issues
+- Identify system bottlenecks
+- Monitor service health
+- Plan infrastructure improvements
+
+#### GET /api/v1/analytics/generation/peak-hours
+
+Get analysis of peak generation times by hour of day.
+
+**Query Parameters:**
+- `days` (integer, 7-90, default: 30) - Days of history to analyze
+
+**Example Requests:**
+```bash
+# Get peak hours for last 30 days
+curl "http://localhost:8001/api/v1/analytics/generation/peak-hours?days=30"
+
+# Get peak hours for last 7 days
+curl "http://localhost:8001/api/v1/analytics/generation/peak-hours?days=7"
+```
+
+**Response:**
+```json
+{
+  "lookback_days": 30,
+  "total_hours_analyzed": 24,
+  "peak_hours": [
+    {
+      "hour_of_day": 14,
+      "avg_requests": 85.5,
+      "avg_queue_length": 3.2,
+      "avg_max_queue_length": 8.5,
+      "avg_p95_duration_ms": 5200,
+      "avg_unique_users": 25.3,
+      "data_points": 30
+    },
+    {
+      "hour_of_day": 15,
+      "avg_requests": 78.2,
+      "avg_queue_length": 2.8,
+      "avg_max_queue_length": 7.1,
+      "avg_p95_duration_ms": 4900,
+      "avg_unique_users": 22.7,
+      "data_points": 30
+    }
+  ]
+}
+```
+
+**Use Cases:**
+- Capacity planning and resource allocation
+- Identify bottleneck hours
+- Plan maintenance windows
+- Understand user behavior patterns
+
 ## Enhanced Pagination System
 
 Genonaut provides a comprehensive pagination system optimized for performance at scale. All list endpoints support consistent pagination parameters and response formats.

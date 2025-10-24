@@ -88,6 +88,23 @@
           "minute": 5,
           "hour": "*"
         }
+      },
+      "transfer-generation-events": {
+        "_comment": "Transfer generation events from Redis to PostgreSQL (runs every 10 minutes)",
+        "enabled": true,
+        "task": "genonaut.worker.tasks.transfer_generation_events_to_postgres",
+        "schedule": {
+          "minute": "*/10"
+        }
+      },
+      "aggregate-generation-metrics": {
+        "_comment": "Aggregate hourly generation metrics (runs hourly at minute 7)",
+        "enabled": true,
+        "task": "genonaut.worker.tasks.aggregate_generation_metrics_hourly",
+        "schedule": {
+          "minute": 7,
+          "hour": "*"
+        }
       }
     }
   }

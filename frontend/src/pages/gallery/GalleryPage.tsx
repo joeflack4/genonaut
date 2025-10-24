@@ -405,9 +405,13 @@ export function GalleryPage() {
 
       // Clear the programmatic update flag and decrement pending counter after React processes the update
       setTimeout(() => {
-        isProgrammaticUrlUpdateRef.current = false
         pendingUrlUpdatesRef.current = Math.max(0, pendingUrlUpdatesRef.current - 1)
-      }, 300)
+
+        // Only clear flag when no more pending updates
+        if (pendingUrlUpdatesRef.current === 0) {
+          isProgrammaticUrlUpdateRef.current = false
+        }
+      }, 500)
     }
 
     // Increment counter BEFORE scheduling or executing (tracks both scheduled and in-progress updates)

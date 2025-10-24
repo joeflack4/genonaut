@@ -695,3 +695,277 @@ def aggregate_route_analytics_hourly(reference_time: Optional[str] = None) -> Di
         }
     finally:
         db.close()
+
+
+@celery_app.task(name="genonaut.worker.tasks.transfer_generation_events_to_postgres")
+def transfer_generation_events_to_postgres() -> Dict[str, Any]:
+    """Transfer generation events from Redis to PostgreSQL.
+
+    This scheduled task runs every 10 minutes to batch-transfer generation
+    events from Redis Streams to the generation_events PostgreSQL table.
+    After successful transfer, old entries are trimmed from Redis.
+
+    Returns:
+        Dict with transfer results
+    """
+    import json
+    from sqlalchemy import text
+    from genonaut.worker.pubsub import get_redis_client
+
+    logger.info("Starting generation events transfer from Redis to PostgreSQL")
+
+    db = next(get_database_session())
+    redis_client = None
+
+    try:
+        settings = get_settings()
+        redis_client = get_redis_client()
+        stream_key = f"{settings.redis_ns}:generation_events:stream"
+
+        # Read events from Redis Stream (up to 1000 at a time)
+        events = redis_client.xread({stream_key: '0-0'}, count=1000, block=None)
+
+        if not events:
+            logger.info("No generation events to transfer")
+            return {
+                "status": "success",
+                "events_transferred": 0,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+        # Extract events from response format: [(stream_name, [(id, data), ...])]
+        stream_name, event_list = events[0]
+        event_count = len(event_list)
+
+        logger.info(f"Found {event_count} generation events to transfer")
+
+        # Batch insert events to PostgreSQL
+        insert_query = text("""
+            INSERT INTO generation_events (
+                event_type, generation_id, user_id, timestamp,
+                generation_type, duration_ms, success, error_type, error_message,
+                queue_wait_time_ms, generation_time_ms, model_checkpoint,
+                image_dimensions, batch_size, prompt_tokens, created_at
+            ) VALUES (
+                :event_type, :generation_id, :user_id, :timestamp,
+                :generation_type, :duration_ms, :success, :error_type, :error_message,
+                :queue_wait_time_ms, :generation_time_ms, :model_checkpoint,
+                :image_dimensions, :batch_size, :prompt_tokens, :created_at
+            )
+        """)
+
+        events_inserted = 0
+        last_event_id = None
+
+        for event_id, event_data in event_list:
+            try:
+                # Parse event data
+                timestamp_str = event_data.get('timestamp', '')
+                if timestamp_str:
+                    timestamp = datetime.fromisoformat(timestamp_str)
+                else:
+                    timestamp = datetime.utcnow()
+
+                # Parse optional fields
+                generation_id = event_data.get('generation_id') or None
+                user_id = event_data.get('user_id') or None
+                duration_ms = event_data.get('duration_ms')
+                success = event_data.get('success')
+                image_dimensions = event_data.get('image_dimensions')
+                batch_size = event_data.get('batch_size')
+                prompt_tokens = event_data.get('prompt_tokens')
+                queue_wait_time_ms = event_data.get('queue_wait_time_ms')
+                generation_time_ms = event_data.get('generation_time_ms')
+
+                params = {
+                    'event_type': event_data.get('event_type', 'request'),
+                    'generation_id': generation_id,
+                    'user_id': user_id,
+                    'timestamp': timestamp,
+                    'generation_type': event_data.get('generation_type') or None,
+                    'duration_ms': int(duration_ms) if duration_ms and duration_ms != '' else None,
+                    'success': success == 'True' if isinstance(success, str) else success,
+                    'error_type': event_data.get('error_type') or None,
+                    'error_message': event_data.get('error_message') or None,
+                    'queue_wait_time_ms': int(queue_wait_time_ms) if queue_wait_time_ms and queue_wait_time_ms != '' else None,
+                    'generation_time_ms': int(generation_time_ms) if generation_time_ms and generation_time_ms != '' else None,
+                    'model_checkpoint': event_data.get('model_checkpoint') or None,
+                    'image_dimensions': image_dimensions if image_dimensions and image_dimensions != '' else None,
+                    'batch_size': int(batch_size) if batch_size and batch_size != '' else None,
+                    'prompt_tokens': int(prompt_tokens) if prompt_tokens and prompt_tokens != '' else None,
+                    'created_at': timestamp,
+                }
+
+                db.execute(insert_query, params)
+                events_inserted += 1
+                last_event_id = event_id
+
+            except Exception as e:
+                logger.error(f"Failed to insert event {event_id}: {str(e)}")
+                # Continue processing other events
+
+        # Commit all inserts
+        db.commit()
+
+        logger.info(f"Successfully inserted {events_inserted} generation events")
+
+        # Trim processed events from Redis Stream
+        if last_event_id:
+            try:
+                redis_client.xtrim(stream_key, maxlen=100000, approximate=True)
+                logger.info(f"Trimmed Redis stream to last 100K entries")
+            except Exception as e:
+                logger.warning(f"Failed to trim Redis stream: {str(e)}")
+
+        return {
+            "status": "success",
+            "events_transferred": events_inserted,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to transfer generation events: {str(e)}", exc_info=True)
+        db.rollback()
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    finally:
+        db.close()
+        if redis_client:
+            redis_client.close()
+
+
+@celery_app.task(name="genonaut.worker.tasks.aggregate_generation_metrics_hourly")
+def aggregate_generation_metrics_hourly(reference_time: Optional[str] = None) -> Dict[str, Any]:
+    """Aggregate generation events into hourly metrics.
+
+    This scheduled task runs hourly to calculate aggregated statistics
+    from raw generation_events and store them in generation_metrics_hourly
+    for fast analytics queries.
+
+    Args:
+        reference_time: Optional ISO format timestamp string for testing.
+                       When provided, uses this time instead of NOW().
+                       Should be the "current" hour for aggregation.
+
+    Returns:
+        Dict with aggregation results
+    """
+    from sqlalchemy import text
+
+    logger.info("Starting hourly generation metrics aggregation")
+
+    db = next(get_database_session())
+
+    try:
+        # Aggregate last hour of data
+        # Use ON CONFLICT DO UPDATE for idempotency (can re-run safely)
+
+        if reference_time:
+            # For testing: use provided reference time
+            aggregation_query = text("""
+                INSERT INTO generation_metrics_hourly (
+                    timestamp,
+                    total_requests, successful_generations, failed_generations, cancelled_generations,
+                    avg_duration_ms, p50_duration_ms, p95_duration_ms, p99_duration_ms,
+                    unique_users, avg_queue_length, max_queue_length,
+                    total_images_generated, created_at
+                )
+                SELECT
+                    DATE_TRUNC('hour', timestamp) as hour,
+                    SUM(CASE WHEN event_type = 'request' THEN 1 ELSE 0 END) as total_requests,
+                    SUM(CASE WHEN event_type = 'completion' AND success = true THEN 1 ELSE 0 END) as successful_generations,
+                    SUM(CASE WHEN event_type = 'completion' AND success = false THEN 1 ELSE 0 END) as failed_generations,
+                    SUM(CASE WHEN event_type = 'cancellation' THEN 1 ELSE 0 END) as cancelled_generations,
+                    AVG(CASE WHEN event_type = 'completion' THEN duration_ms ELSE NULL END)::INTEGER as avg_duration_ms,
+                    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY CASE WHEN event_type = 'completion' THEN duration_ms ELSE NULL END)::INTEGER as p50_duration_ms,
+                    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY CASE WHEN event_type = 'completion' THEN duration_ms ELSE NULL END)::INTEGER as p95_duration_ms,
+                    PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY CASE WHEN event_type = 'completion' THEN duration_ms ELSE NULL END)::INTEGER as p99_duration_ms,
+                    COUNT(DISTINCT user_id) as unique_users,
+                    NULL as avg_queue_length,
+                    NULL as max_queue_length,
+                    SUM(CASE WHEN event_type = 'completion' AND success = true THEN COALESCE(batch_size, 1) ELSE 0 END) as total_images_generated,
+                    CURRENT_TIMESTAMP as created_at
+                FROM generation_events
+                WHERE timestamp >= DATE_TRUNC('hour', CAST(:reference_time AS timestamptz) - INTERVAL '1 hour')
+                    AND timestamp < DATE_TRUNC('hour', CAST(:reference_time AS timestamptz))
+                GROUP BY hour
+                ON CONFLICT (timestamp) DO UPDATE SET
+                    total_requests = EXCLUDED.total_requests,
+                    successful_generations = EXCLUDED.successful_generations,
+                    failed_generations = EXCLUDED.failed_generations,
+                    cancelled_generations = EXCLUDED.cancelled_generations,
+                    avg_duration_ms = EXCLUDED.avg_duration_ms,
+                    p50_duration_ms = EXCLUDED.p50_duration_ms,
+                    p95_duration_ms = EXCLUDED.p95_duration_ms,
+                    p99_duration_ms = EXCLUDED.p99_duration_ms,
+                    unique_users = EXCLUDED.unique_users,
+                    total_images_generated = EXCLUDED.total_images_generated
+            """)
+            result = db.execute(aggregation_query, {"reference_time": reference_time})
+        else:
+            # For production: use NOW()
+            aggregation_query = text("""
+                INSERT INTO generation_metrics_hourly (
+                    timestamp,
+                    total_requests, successful_generations, failed_generations, cancelled_generations,
+                    avg_duration_ms, p50_duration_ms, p95_duration_ms, p99_duration_ms,
+                    unique_users, avg_queue_length, max_queue_length,
+                    total_images_generated, created_at
+                )
+                SELECT
+                    DATE_TRUNC('hour', timestamp) as hour,
+                    SUM(CASE WHEN event_type = 'request' THEN 1 ELSE 0 END) as total_requests,
+                    SUM(CASE WHEN event_type = 'completion' AND success = true THEN 1 ELSE 0 END) as successful_generations,
+                    SUM(CASE WHEN event_type = 'completion' AND success = false THEN 1 ELSE 0 END) as failed_generations,
+                    SUM(CASE WHEN event_type = 'cancellation' THEN 1 ELSE 0 END) as cancelled_generations,
+                    AVG(CASE WHEN event_type = 'completion' THEN duration_ms ELSE NULL END)::INTEGER as avg_duration_ms,
+                    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY CASE WHEN event_type = 'completion' THEN duration_ms ELSE NULL END)::INTEGER as p50_duration_ms,
+                    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY CASE WHEN event_type = 'completion' THEN duration_ms ELSE NULL END)::INTEGER as p95_duration_ms,
+                    PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY CASE WHEN event_type = 'completion' THEN duration_ms ELSE NULL END)::INTEGER as p99_duration_ms,
+                    COUNT(DISTINCT user_id) as unique_users,
+                    NULL as avg_queue_length,
+                    NULL as max_queue_length,
+                    SUM(CASE WHEN event_type = 'completion' AND success = true THEN COALESCE(batch_size, 1) ELSE 0 END) as total_images_generated,
+                    CURRENT_TIMESTAMP as created_at
+                FROM generation_events
+                WHERE timestamp >= DATE_TRUNC('hour', NOW() - INTERVAL '1 hour')
+                    AND timestamp < DATE_TRUNC('hour', NOW())
+                GROUP BY hour
+                ON CONFLICT (timestamp) DO UPDATE SET
+                    total_requests = EXCLUDED.total_requests,
+                    successful_generations = EXCLUDED.successful_generations,
+                    failed_generations = EXCLUDED.failed_generations,
+                    cancelled_generations = EXCLUDED.cancelled_generations,
+                    avg_duration_ms = EXCLUDED.avg_duration_ms,
+                    p50_duration_ms = EXCLUDED.p50_duration_ms,
+                    p95_duration_ms = EXCLUDED.p95_duration_ms,
+                    p99_duration_ms = EXCLUDED.p99_duration_ms,
+                    unique_users = EXCLUDED.unique_users,
+                    total_images_generated = EXCLUDED.total_images_generated
+            """)
+            result = db.execute(aggregation_query)
+
+        db.commit()
+        rows_affected = result.rowcount
+
+        logger.info(f"Successfully aggregated generation metrics (rows affected: {rows_affected})")
+
+        return {
+            "status": "success",
+            "rows_aggregated": rows_affected,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to aggregate generation metrics: {str(e)}", exc_info=True)
+        db.rollback()
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    finally:
+        db.close()

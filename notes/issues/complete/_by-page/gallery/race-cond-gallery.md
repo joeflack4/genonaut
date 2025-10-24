@@ -323,23 +323,35 @@ Based on the analysis, **Option 3 (Single Source of Truth - URL)** is recommende
 
 ### Recommended Approach: Quick Fix First, Then Refactor
 
-**Phase 1: Quick Fix** (implement immediately)
+**Phase 1: Quick Fix** ✅ COMPLETED
 
-- [ ] Update flag clearing logic to check `pendingUrlUpdatesRef === 0` before clearing `isProgrammaticUrlUpdateRef`
-- [ ] Increase timeout from 300ms to 500ms for additional safety margin
-- [ ] Test with existing E2E tests
-- [ ] Manually test rapid toggle clicking (3-4 toggles quickly)
+- [x] Update flag clearing logic to check `pendingUrlUpdatesRef === 0` before clearing `isProgrammaticUrlUpdateRef`
+- [x] Increase timeout from 300ms to 500ms for additional safety margin
+- [x] Test with existing E2E tests
+- [x] Manually test rapid toggle clicking (3-4 toggles quickly)
 
-**Phase 2: Architectural Refactor** (schedule for next sprint)
+**Status**: ✅ Implemented successfully in `GalleryPage.tsx` (lines 410-414)
+- All E2E tests pass including the originally failing test
+- Unit tests pass (337/337)
+- Fix is minimal, low-risk, and preserves existing architecture
 
-- [ ] Design URL-as-source-of-truth architecture
-- [ ] Refactor `handleToggleChange` to update URL directly
-- [ ] Remove "Sync TO URL" useEffect
-- [ ] Simplify "Sync FROM URL" useEffect
-- [ ] Remove unnecessary refs: `isProgrammaticUrlUpdateRef`, `pendingUrlUpdatesRef`, `debounceTimerRef`
-- [ ] Update all related handlers (tags, search, sort) to use same pattern
-- [ ] Comprehensive testing (unit + E2E)
-- [ ] Performance testing (ensure no regression with rapid interactions)
+**Phase 2: Architectural Refactor** ❌ ATTEMPTED BUT REVERTED
+
+- [x] Attempted to design URL-as-source-of-truth architecture
+- [x] Attempted to refactor `handleToggleChange` to update URL directly
+- [x] Attempted to remove bidirectional sync
+
+**Status**: ❌ Reverted due to introducing new race conditions
+- The refactor replaced one race condition with another
+- Reading from `searchParams` in the handler doesn't work because `setSearchParams` is also asynchronous
+- State always lags behind URL updates when interactions are rapid
+- The bidirectional sync pattern with proper flag management (Phase 1) is actually more robust for this use case
+
+**Conclusion**: Phase 1 fix is sufficient. Phase 2 architectural refactor is not recommended unless fundamental React Router async handling changes.
+
+**Final phase - Testing** ✅ COMPLETED
+- [x] Ensure tests pass: `make frontend-test-unit` (337 passed)
+- [x] Ensure tests pass: `make frontend-test-e2e` (179 passed, 3 failed tests now pass)
 
 ## Additional Observations
 
@@ -360,3 +372,4 @@ Based on the analysis, **Option 3 (Single Source of Truth - URL)** is recommende
 - Performance tests for rapid clicking
 - Browser back/forward navigation tests
 - Deep link / URL sharing tests
+

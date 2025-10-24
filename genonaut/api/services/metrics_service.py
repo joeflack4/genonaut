@@ -1,5 +1,6 @@
 """Metrics and monitoring service for ComfyUI operations."""
 
+import json
 import time
 import threading
 from collections import defaultdict, deque
@@ -7,6 +8,9 @@ from typing import Dict, Any, List, Optional, Callable
 from datetime import datetime, timedelta
 from enum import Enum
 import logging
+
+from genonaut.api.config import get_settings
+from genonaut.worker.pubsub import get_redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +34,21 @@ class MetricsService:
         """
         self.max_history = max_history
         self.lock = threading.RLock()
+
+        # Get settings for Redis configuration
+        self.settings = get_settings()
+
+        # Redis Stream key for generation analytics
+        self.stream_key = f"{self.settings.redis_ns}:generation_events:stream"
+
+        # Check if Redis is available for persistent analytics
+        self.redis_enabled = True
+        try:
+            client = get_redis_client()
+            client.ping()
+        except Exception as e:
+            logger.warning(f"Generation analytics to Redis disabled - Redis unavailable: {e}")
+            self.redis_enabled = False
 
         # Metric storage
         self.counters: Dict[str, int] = defaultdict(int)
@@ -130,14 +149,54 @@ class MetricsService:
 
         return stop_timer
 
-    def record_generation_request(self, user_id: str, generation_type: str = "standard") -> None:
+    def _write_to_redis_async(self, event_data: Dict[str, Any]) -> None:
+        """Write generation event to Redis Stream for persistent analytics.
+
+        This should be fast (< 1ms) since Redis writes are in-memory.
+        Does not block generation flow if Redis is unavailable.
+
+        Args:
+            event_data: Event data dictionary to write to stream
+        """
+        if not self.redis_enabled:
+            return
+
+        try:
+            # Prepare event for Redis (all values must be strings)
+            redis_event = {}
+            for key, value in event_data.items():
+                if value is None:
+                    redis_event[key] = ''
+                elif isinstance(value, (dict, list)):
+                    redis_event[key] = json.dumps(value)
+                else:
+                    redis_event[key] = str(value)
+
+            # Write to Redis Stream
+            client = get_redis_client()
+            entry_id = client.xadd(
+                self.stream_key,
+                redis_event,
+                maxlen=100000,  # Keep last 100K entries (auto-trim old data)
+                approximate=True  # More efficient trimming
+            )
+
+            logger.debug(f"Generation event captured: {event_data.get('event_type')} -> Redis entry {entry_id}")
+
+        except Exception as e:
+            # Log but don't fail the generation request
+            logger.error(f"Failed to write generation analytics to Redis: {e}", exc_info=True)
+
+    def record_generation_request(self, user_id: str, generation_type: str = "standard", generation_id: Optional[str] = None) -> None:
         """Record a new generation request.
 
         Args:
             user_id: ID of requesting user
             generation_type: Type of generation
+            generation_id: Optional unique ID for this generation job
         """
         with self.lock:
+            # Keep existing in-memory tracking
             self.generation_stats["total_requests"] += 1
             self.generation_stats["active_generations"] += 1
 
@@ -153,12 +212,22 @@ class MetricsService:
             # Increment counter with labels
             self.increment_counter("generation_requests", labels={"type": generation_type, "user": user_id})
 
+        # Write to Redis Stream for persistent analytics (async, non-blocking)
+        self._write_to_redis_async({
+            "event_type": "request",
+            "generation_id": generation_id,
+            "user_id": user_id,
+            "timestamp": datetime.utcnow().isoformat(),
+            "generation_type": generation_type
+        })
+
     def record_generation_completion(
         self,
         user_id: str,
         success: bool,
         duration: float,
-        error_type: Optional[str] = None
+        error_type: Optional[str] = None,
+        generation_id: Optional[str] = None
     ) -> None:
         """Record completion of a generation request.
 
@@ -167,8 +236,10 @@ class MetricsService:
             success: Whether generation was successful
             duration: Generation duration in seconds
             error_type: Type of error if failed
+            generation_id: Optional unique ID for this generation job
         """
         with self.lock:
+            # Keep existing in-memory tracking
             self.generation_stats["active_generations"] = max(0, self.generation_stats["active_generations"] - 1)
 
             if success:
@@ -189,16 +260,37 @@ class MetricsService:
             # Record timing
             self.record_histogram("generation_duration", duration, labels={"success": str(success)})
 
-    def record_generation_cancelled(self, user_id: str) -> None:
+        # Write to Redis Stream for persistent analytics (async, non-blocking)
+        self._write_to_redis_async({
+            "event_type": "completion",
+            "generation_id": generation_id,
+            "user_id": user_id,
+            "timestamp": datetime.utcnow().isoformat(),
+            "duration_ms": int(duration * 1000),
+            "success": success,
+            "error_type": error_type
+        })
+
+    def record_generation_cancelled(self, user_id: str, generation_id: Optional[str] = None) -> None:
         """Record cancellation of a generation request.
 
         Args:
             user_id: ID of requesting user
+            generation_id: Optional unique ID for this generation job
         """
         with self.lock:
+            # Keep existing in-memory tracking
             self.generation_stats["cancelled_generations"] += 1
             self.generation_stats["active_generations"] = max(0, self.generation_stats["active_generations"] - 1)
             self.increment_counter("cancelled_generations", labels={"user": user_id})
+
+        # Write to Redis Stream for persistent analytics (async, non-blocking)
+        self._write_to_redis_async({
+            "event_type": "cancellation",
+            "generation_id": generation_id,
+            "user_id": user_id,
+            "timestamp": datetime.utcnow().isoformat()
+        })
 
     def update_queue_length(self, length: int) -> None:
         """Update the current queue length.
