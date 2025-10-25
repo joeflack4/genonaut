@@ -11,6 +11,7 @@ import {
   ensureRealApiAvailable,
   assertSufficientTestData,
 } from './utils/realApiHelpers'
+import { handleMissingData } from './utils/testDataHelpers'
 
 /**
  * Gallery Real API Tests - Improved Version
@@ -49,11 +50,21 @@ test.describe('Gallery page (Real API - Improved)', () => {
 
       // Verify basic pagination structure
       if (paginationInfo.results === 0) {
-        test.skip(true, 'Real API returned zero gallery results. Ensure the test database seed ran (make frontend-test-e2e-real-api).')
+        handleMissingData(
+          test,
+          'Gallery pagination test',
+          'gallery data (content_items)',
+          'make init-test && python -m genonaut.db.demo.seed_data_gen.seed_tags_from_content --env-target test'
+        )
       }
 
       if (paginationInfo.pages < 2) {
-        test.skip(true, 'Not enough data for pagination test - need at least 2 pages')
+        handleMissingData(
+          test,
+          'Gallery pagination test',
+          'sufficient gallery data for pagination (need at least 2 pages)',
+          'make init-test && python -m genonaut.db.demo.seed_data_gen.seed_tags_from_content --env-target test'
+        )
       }
 
       expect(paginationInfo.pages).toBeGreaterThan(0)
@@ -106,11 +117,21 @@ test.describe('Gallery page (Real API - Improved)', () => {
       await logGalleryState(page, 'Before deep pagination')
 
       if (initialPagination.results === 0) {
-        test.skip(true, 'Real API returned zero gallery results. Ensure the test database seed ran (make frontend-test-e2e-real-api).')
+        handleMissingData(
+          test,
+          'Deep pagination test',
+          'gallery data (content_items)',
+          'make init-test && python -m genonaut.db.demo.seed_data_gen.seed_tags_from_content --env-target test'
+        )
       }
 
       if (initialPagination.results < 100 || initialPagination.pages < 5) {
-        test.skip(true, 'Real API dataset too small for deep pagination scenario.')
+        handleMissingData(
+          test,
+          'Deep pagination test',
+          'sufficient gallery data for deep pagination (need at least 100 items, 5 pages)',
+          'make init-test && python -m genonaut.db.demo.seed_data_gen.seed_tags_from_content --env-target test'
+        )
       }
 
       await navigateToPage(page, initialPagination.pages)
@@ -155,7 +176,12 @@ test.describe('Gallery page (Real API - Improved)', () => {
       await logGalleryState(page, 'All content types')
 
       if (initialPagination.results === 0) {
-        test.skip(true, 'Real API returned zero gallery results. Ensure the test database seed ran (make frontend-test-e2e-real-api).')
+        handleMissingData(
+          test,
+          'Content type filtering test',
+          'gallery data (content_items)',
+          'make init-test && python -m genonaut.db.demo.seed_data_gen.seed_tags_from_content --env-target test'
+        )
       }
 
       // Try to toggle content type filters

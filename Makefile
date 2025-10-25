@@ -10,9 +10,9 @@ redis-flush-dev redis-flush-demo redis-flush-test redis-keys-dev redis-keys-demo
 redis-info-dev redis-info-demo redis-info-test redis-start celery-check-running-workers \
 frontend-install frontend-dev frontend-dev-debug frontend-dev-debug-alt frontend-build frontend-preview frontend-test \
 frontend-test-unit frontend-test-watch frontend-test-coverage frontend-test-e2e frontend-test-e2e-headed \
-frontend-test-e2e-ui frontend-test-e2e-debug frontend-test-e2e-debug-headed \
+frontend-test-e2e-ui frontend-test-e2e-debug frontend-test-e2e-debug-headed frontend-test-e2e-skip-missing \
 frontend-test-e2e-w frontend-test-e2e-headed-w frontend-test-e2e-debug-w frontend-test-e2e-debug-headed-w \
-frontend-test-e2e-real-api frontend-test-e2e-real-api-headed frontend-test-e2e-real-api-ui frontend-test-e2e-real-api-debug frontend-test-e2e-real-api-debug-headed \
+frontend-test-e2e-real-api frontend-test-e2e-real-api-headed frontend-test-e2e-real-api-ui frontend-test-e2e-real-api-debug frontend-test-e2e-real-api-debug-headed frontend-test-e2e-real-api-skip-missing \
 frontend-test-e2e-real-api-w frontend-test-e2e-real-api-headed-w frontend-test-e2e-real-api-debug-w frontend-test-e2e-real-api-debug-headed-w \
 frontend-lint frontend-type-check frontend-format frontend-format-write \
 test-frontend test-frontend-unit test-frontend-watch test-frontend-coverage test-frontend-e2e test-frontend-e2e-headed \
@@ -177,11 +177,13 @@ help:
 	@echo "  frontend-test-e2e-ui     Run Playwright UI mode"
 	@echo "  frontend-test-e2e-debug  Run Playwright tests with verbose debug logging"
 	@echo "  frontend-test-e2e-debug-headed Run Playwright tests with debug + browser UI"
+	@echo "  frontend-test-e2e-skip-missing Run Playwright tests (skip when data missing)"
 	@echo "  frontend-test-e2e-real-api Run Playwright tests with real API server"
 	@echo "  frontend-test-e2e-real-api-headed Run real API tests in headed mode"
 	@echo "  frontend-test-e2e-real-api-ui Run real API tests in UI mode"
 	@echo "  frontend-test-e2e-real-api-debug Run real API tests with debug logging"
 	@echo "  frontend-test-e2e-real-api-debug-headed Run real API tests with debug + browser UI"
+	@echo "  frontend-test-e2e-real-api-skip-missing Run real API tests (skip when data missing)"
 	@echo ""
 	@echo "Frontend Test Aliases (test-frontend*):"
 	@echo "  test-frontend            Alias for frontend-test"
@@ -946,6 +948,10 @@ frontend-test-e2e-debug-headed:
 	@echo "Running frontend Playwright tests with debug logging in headed mode (excluding performance tests)..."
 	npm --prefix frontend run test:e2e:debug:headed -- --workers=1
 
+frontend-test-e2e-skip-missing:
+	@echo "Running frontend Playwright tests (skipping tests when data is missing)..."
+	npm --prefix frontend run test:e2e:skip-missing -- --workers=1
+
 # Multi-worker variants (-w suffix)
 frontend-test-e2e-w:
 	@echo "Running frontend Playwright tests with $(STRESS_FRONTEND_N_WORKERS) workers (excluding performance tests)..."
@@ -982,6 +988,10 @@ frontend-test-e2e-real-api-debug:
 frontend-test-e2e-real-api-debug-headed:
 	@echo "Running real API Playwright tests with debug logging in headed mode..."
 	npm --prefix frontend run test:e2e:real-api:debug:headed -- --workers=1
+
+frontend-test-e2e-real-api-skip-missing:
+	@echo "Running real API Playwright tests (skipping tests when data is missing)..."
+	npm --prefix frontend run test:e2e:real-api:skip-missing -- --workers=1
 
 # Multi-worker variants (-w suffix)
 frontend-test-e2e-real-api-w:

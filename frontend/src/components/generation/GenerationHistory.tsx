@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Box,
-  Grid,
   Typography,
   Button,
   FormControl,
@@ -25,17 +25,18 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material'
 import { GenerationCard } from './GenerationCard'
-import { ImageViewer } from './ImageViewer'
 import { VirtualScrollList } from '../common/VirtualScrollList'
+import { ResolutionDropdown } from '../gallery/ResolutionDropdown'
 import { useGenerationJobService } from '../../hooks/useGenerationJobService'
+import { usePersistedState } from '../../hooks/usePersistedState'
 import type { GenerationJobResponse, GenerationJobListParams } from '../../services/generation-job-service'
+import type { ThumbnailResolutionId } from '../../types/domain'
+import { DEFAULT_THUMBNAIL_RESOLUTION_ID, THUMBNAIL_RESOLUTION_OPTIONS } from '../../constants/gallery'
 
 export function GenerationHistory() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedGeneration, setSelectedGeneration] = useState<GenerationJobResponse | null>(null)
-  const [viewerOpen, setViewerOpen] = useState(false)
   const [useVirtualScrolling, setUseVirtualScrolling] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -43,8 +44,34 @@ export function GenerationHistory() {
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [resolutionId, setResolutionId] = usePersistedState<ThumbnailResolutionId>(
+    'generation-history:resolution',
+    DEFAULT_THUMBNAIL_RESOLUTION_ID
+  )
 
+  const navigate = useNavigate()
   const { listGenerationJobs, deleteGenerationJob } = useGenerationJobService()
+
+  const resolution = useMemo(
+    () => THUMBNAIL_RESOLUTION_OPTIONS.find((r) => r.id === resolutionId) || THUMBNAIL_RESOLUTION_OPTIONS[5],
+    [resolutionId]
+  )
+
+  // Calculate items per row based on viewport width
+  const [itemsPerRow, setItemsPerRow] = useState(4)
+
+  useEffect(() => {
+    const updateItemsPerRow = () => {
+      const containerWidth = window.innerWidth - 64 // Account for padding
+      const itemWidth = resolution.width + 16 // Card width + gap
+      const calculatedItemsPerRow = Math.max(1, Math.floor(containerWidth / itemWidth))
+      setItemsPerRow(calculatedItemsPerRow)
+    }
+
+    updateItemsPerRow()
+    window.addEventListener('resize', updateItemsPerRow)
+    return () => window.removeEventListener('resize', updateItemsPerRow)
+  }, [resolution.width])
 
   const pageSize = useVirtualScrolling ? 100 : 12 // Load more items when using virtual scrolling
 
@@ -100,8 +127,9 @@ export function GenerationHistory() {
   }
 
   const handleViewGeneration = (generation: GenerationJobResponse) => {
-    setSelectedGeneration(generation)
-    setViewerOpen(true)
+    if (generation.content_id) {
+      navigate(`/view/${generation.content_id}`)
+    }
   }
 
   const handleRequestDelete = (id: number) => {
@@ -143,19 +171,52 @@ export function GenerationHistory() {
     return generations.filter(gen =>
       searchTerm === '' ||
       gen.prompt.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      gen.checkpoint_model.toLowerCase().includes(searchTerm.toLowerCase())
+      (gen.checkpoint_model && gen.checkpoint_model.toLowerCase().includes(searchTerm.toLowerCase()))
     )
   }, [generations, searchTerm])
 
-  // Render generation card for virtual scrolling
-  const renderGenerationCard = (generation: GenerationJobResponse) => (
-    <Box sx={{ p: 1 }}>
-      <GenerationCard
-        generation={generation}
-        onView={() => handleViewGeneration(generation)}
-        onDelete={() => handleDeleteGeneration(generation.id)}
-      />
+  // Group generations into rows for virtual scrolling
+  const generationRows = useMemo(() => {
+    const rows = []
+    for (let i = 0; i < filteredGenerations.length; i += itemsPerRow) {
+      rows.push(filteredGenerations.slice(i, i + itemsPerRow))
+    }
+    return rows
+  }, [filteredGenerations, itemsPerRow])
+
+  // Calculate row height based on resolution and aspect ratio
+  const rowHeight = useMemo(() => {
+    const aspectRatio = resolution.height / resolution.width
+    const cardHeight = resolution.width * aspectRatio + 200 // Add space for metadata
+    return cardHeight + 16 // Add gap
+  }, [resolution])
+
+  // Render a row of generation cards for virtual scrolling
+  const renderGenerationRow = (row: GenerationJobResponse[]) => (
+    <Box
+      sx={{
+        display: 'grid',
+        gap: 2,
+        gridTemplateColumns: `repeat(${itemsPerRow}, minmax(${resolution.width}px, 1fr))`,
+        alignItems: 'flex-start',
+        px: 1,
+      }}
+    >
+      {row.map((generation) => (
+        <GenerationCard
+          key={generation.id}
+          generation={generation}
+          resolution={resolution}
+          onClick={() => handleViewGeneration(generation)}
+          onDelete={() => handleDeleteGeneration(generation.id)}
+        />
+      ))}
     </Box>
+  )
+
+  const gridTemplateColumns = useMemo(
+    () => `repeat(auto-fill, minmax(${resolution.width}px, 1fr))`,
+    [resolution.width]
   )
 
   if (loading && generations.length === 0) {
@@ -221,6 +282,12 @@ export function GenerationHistory() {
           sx={{ ml: 1 }}
         />
 
+        <ResolutionDropdown
+          currentResolution={resolutionId}
+          onResolutionChange={setResolutionId}
+          dataTestId="generation-history-resolution-dropdown"
+        />
+
         <IconButton onClick={handleRefresh} disabled={loading}>
           <RefreshIcon />
         </IconButton>
@@ -232,25 +299,34 @@ export function GenerationHistory() {
           {useVirtualScrolling ? (
             <Box data-testid="generation-list">
               <VirtualScrollList
-                items={filteredGenerations}
-                itemHeight={300} // Approximate height of a generation card
-                containerHeight={600} // Fixed height for virtual scrolling
-                renderItem={renderGenerationCard}
-                overscan={3}
+                items={generationRows}
+                itemHeight={rowHeight}
+                containerHeight={window.innerHeight - 300} // Dynamic height based on viewport
+                renderItem={renderGenerationRow}
+                overscan={2}
               />
             </Box>
           ) : (
-            <Grid container spacing={2} data-testid="generation-list">
+            <Box
+              sx={{
+                display: 'grid',
+                gap: 2,
+                gridTemplateColumns,
+                alignItems: 'flex-start',
+              }}
+              data-testid="generation-list"
+            >
               {filteredGenerations.map((generation) => (
-                <Grid key={generation.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }} data-testid="generation-list-item">
+                <Box key={generation.id} data-testid="generation-list-item">
                   <GenerationCard
                     generation={generation}
-                    onView={() => handleViewGeneration(generation)}
+                    resolution={resolution}
+                    onClick={() => handleViewGeneration(generation)}
                     onDelete={() => handleDeleteGeneration(generation.id)}
                   />
-                </Grid>
+                </Box>
               ))}
-            </Grid>
+            </Box>
           )}
 
           {/* Pagination - only show for non-virtual scrolling */}
@@ -324,18 +400,6 @@ export function GenerationHistory() {
         >
           <CircularProgress />
         </Box>
-      )}
-
-      {/* Image Viewer Dialog */}
-      {selectedGeneration && (
-        <ImageViewer
-          generation={selectedGeneration}
-          open={viewerOpen}
-          onClose={() => {
-            setViewerOpen(false)
-            setSelectedGeneration(null)
-          }}
-        />
       )}
 
       {/* Delete Confirmation Dialog */}

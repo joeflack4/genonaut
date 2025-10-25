@@ -4,6 +4,53 @@ test.describe('ComfyUI Generation', () => {
   test.beforeEach(async ({ page }) => {
     page.setDefaultNavigationTimeout(5_000)
   })
+
+  test('should successfully submit a generation job with real API', async ({ page }) => {
+    // Navigate to generate page
+    await page.goto('/generate', { waitUntil: 'domcontentloaded', timeout: 5_000 })
+
+    // Wait for form to load
+    await page.waitForSelector('form', { timeout: 10000 })
+
+    // Fill in the prompt
+    const promptInput = page.getByPlaceholder('Describe the image you want to generate...')
+    await promptInput.fill('cat')
+
+    // Submit the form
+    const generateButton = page.locator('button:has-text("Generate")')
+    await expect(generateButton).toBeEnabled()
+    await generateButton.click()
+
+    // Wait for either success or error response
+    // Success: notification or redirect to generation history
+    // Error: error message displayed
+    const successIndicator = page.locator('text=/generation .* (created|submitted|queued)/i').or(
+      page.locator('[role="alert"]:has-text("Success")').or(
+        page.locator('text=/successfully/i')
+      )
+    )
+    const errorIndicator = page.locator('[role="alert"]:has-text("Error")').or(
+      page.locator('text=/failed|error|duplicate key/i')
+    )
+
+    // Wait for either success or error (timeout after 10s)
+    await Promise.race([
+      successIndicator.waitFor({ timeout: 10000 }).then(() => 'success'),
+      errorIndicator.waitFor({ timeout: 10000 }).then(() => 'error')
+    ]).then((result) => {
+      // If we got an error, the test should fail
+      if (result === 'error') {
+        throw new Error('Generation job submission failed - check for database sequence issues')
+      }
+    }).catch((err) => {
+      // If neither appeared, that's also a problem
+      if (err.message.includes('Timeout')) {
+        throw new Error('No success or error indicator appeared after generation submission')
+      }
+      throw err
+    })
+  })
+
   test('should navigate to generation page', async ({ page }) => {
     await page.goto('/')
 

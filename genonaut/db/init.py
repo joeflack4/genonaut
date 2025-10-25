@@ -925,14 +925,51 @@ def initialize_database(
 
     Raises:
         SQLAlchemyError: If initialization fails.
+        RuntimeError: If drop_existing is True but database is not empty.
     """
 
     # Only pass environment if it's explicitly set (not None)
     init_kwargs = {}
     if environment is not None:
         init_kwargs['environment'] = environment
-    
+
     initializer = DatabaseInitializer(database_url, **init_kwargs)
+
+    # SAFETY CHECK: Prevent drop_existing on non-empty databases
+    # This prevents accidental data loss from running init commands on populated databases
+    if drop_existing:
+        # Create a temporary engine to check if database has tables
+        temp_engine = None
+        try:
+            temp_engine = create_engine(initializer.database_url, pool_pre_ping=True)
+            inspector = inspect(temp_engine)
+            existing_tables = inspector.get_table_names()
+
+            if existing_tables:
+                table_list = ', '.join(existing_tables[:5])
+                if len(existing_tables) > 5:
+                    table_list += f', ... ({len(existing_tables)} total)'
+
+                raise RuntimeError(
+                    f"Safety check failed: Cannot initialize with --drop-existing on non-empty database.\n"
+                    f"Database '{initializer.database_name}' already contains {len(existing_tables)} table(s): {table_list}\n"
+                    f"\n"
+                    f"This safety check prevents accidental data loss.\n"
+                    f"\n"
+                    f"If you really want to reinitialize this database:\n"
+                    f"  1. For test databases: Use 'make reset-db-*' commands instead\n"
+                    f"  2. For demo/dev databases: Manually drop the database first, or use reset commands\n"
+                    f"  3. Alternatively: Remove the database and recreate it from scratch\n"
+                )
+        except RuntimeError:
+            # Re-raise our safety check error
+            raise
+        except Exception as e:
+            # If we can't check (e.g., database doesn't exist yet), that's fine - let it proceed
+            logger.debug(f"Could not check for existing tables (this is OK if database doesn't exist yet): {e}")
+        finally:
+            if temp_engine:
+                temp_engine.dispose()
 
     target_url = initializer.database_url or ""
     is_postgresql = target_url.startswith('postgresql://')

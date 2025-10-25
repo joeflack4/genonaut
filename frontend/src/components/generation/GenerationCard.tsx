@@ -1,8 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Card,
   CardContent,
-  CardActions,
   Typography,
   Chip,
   Box,
@@ -12,17 +11,18 @@ import {
   Stack,
 } from '@mui/material'
 import {
-  Visibility as VisibilityIcon,
   Download as DownloadIcon,
   Delete as DeleteIcon,
   Image as ImageIcon,
 } from '@mui/icons-material'
-import { LazyImage } from '../common/LazyImage'
 import type { GenerationJobResponse } from '../../services/generation-job-service'
+import type { ThumbnailResolution } from '../../types/domain'
+import { resolveImageSourceCandidates } from '../../utils/image-url'
 
 interface GenerationCardProps {
   generation: GenerationJobResponse
-  onView: () => void
+  resolution: ThumbnailResolution
+  onClick?: () => void
   onDelete: () => void
 }
 
@@ -35,17 +35,64 @@ const STATUS_COLORS = {
   cancelled: 'secondary' as const,
 }
 
-export function GenerationCard({ generation, onView, onDelete }: GenerationCardProps) {
+export function GenerationCard({ generation, resolution, onClick, onDelete }: GenerationCardProps) {
   const statusColor = STATUS_COLORS[generation.status as keyof typeof STATUS_COLORS] || 'default'
   // Use content_id to construct image URL, fallback to output_paths for backward compatibility
   const hasImages = (generation.content_id !== null && generation.content_id !== undefined) || (generation.output_paths && generation.output_paths.length > 0)
-  const thumbnailPath = generation.content_id ? `/api/v1/images/${generation.content_id}` : generation.thumbnail_paths?.[0]
+
+  const thumbnailPath = useMemo(() => {
+    return resolveImageSourceCandidates(
+      generation.content_id,
+      generation.thumbnail_paths?.[0],
+      generation.output_paths?.[0]
+    )
+  }, [generation.content_id, generation.thumbnail_paths, generation.output_paths])
+
   const [imageError, setImageError] = useState(false)
   const [imageReloadCount, setImageReloadCount] = useState(0)
+
+  const aspectRatioPercentage = useMemo(() => (resolution.height / resolution.width) * 100, [resolution.height, resolution.width])
+  const isSmallestResolution = resolution.id === '152x232'
 
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text
     return text.substring(0, maxLength) + '...'
+  }
+
+  const handleDownload = async () => {
+    if (!generation.content_id) {
+      console.warn('No content_id available for download')
+      return
+    }
+
+    try {
+      const imageUrl = resolveImageSourceCandidates(
+        generation.content_id,
+        generation.thumbnail_paths?.[0],
+        generation.output_paths?.[0]
+      )
+
+      if (!imageUrl) {
+        console.warn('Could not resolve image URL for download')
+        return
+      }
+
+      // Fetch the image
+      const response = await fetch(imageUrl)
+      const blob = await response.blob()
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${generation.prompt.substring(0, 50).replace(/[^a-z0-9]/gi, '_')}_${generation.id}.png`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Failed to download image:', error)
+    }
   }
 
   return (
@@ -54,55 +101,46 @@ export function GenerationCard({ generation, onView, onDelete }: GenerationCardP
       sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}
     >
       {/* Image or Placeholder */}
-      <Box sx={{ position: 'relative', paddingTop: '56.25%' }}> {/* 16:9 aspect ratio */}
+      <Box
+        onClick={onClick}
+        sx={{
+          position: 'relative',
+          paddingTop: `${aspectRatioPercentage}%`,
+          bgcolor: 'background.default',
+          cursor: onClick ? 'pointer' : 'default',
+          '&:hover': onClick ? {
+            opacity: 0.95,
+          } : undefined,
+        }}
+      >
         {thumbnailPath && !imageError ? (
           <Box
+            component="img"
+            key={imageReloadCount}
+            src={thumbnailPath}
+            alt={`Generated image: ${truncateText(generation.prompt, 50)}`}
+            onError={() => setImageError(true)}
+            onLoad={() => setImageError(false)}
             sx={{
               position: 'absolute',
-              top: 0,
-              left: 0,
+              inset: 0,
               width: '100%',
               height: '100%',
+              objectFit: 'contain',
+              bgcolor: 'background.paper',
             }}
-          >
-            <LazyImage
-              key={imageReloadCount}
-              src={thumbnailPath}
-              alt={`Generated image: ${truncateText(generation.prompt, 50)}`}
-              objectFit="cover"
-              onError={() => setImageError(true)}
-              onLoad={() => setImageError(false)}
-              placeholder={
-                <Box
-                  sx={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    bgcolor: 'grey.100',
-                    color: 'grey.400',
-                  }}
-                  data-testid="image-placeholder"
-                >
-                  <ImageIcon sx={{ fontSize: 48 }} />
-                </Box>
-              }
-            />
-          </Box>
+            data-testid="generation-card-image"
+          />
         ) : (
           <Box
             sx={{
               position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
+              inset: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: 'grey.100',
-              color: 'grey.400',
+              bgcolor: 'background.paper',
+              color: 'text.disabled',
               flexDirection: 'column',
               gap: 1,
             }}
@@ -111,7 +149,7 @@ export function GenerationCard({ generation, onView, onDelete }: GenerationCardP
             {imageError && (
               <Stack spacing={1} alignItems="center">
                 <Typography variant="caption" color="error" data-testid="image-error">
-                  We couldn’t load this preview.
+                  We couldn't load this preview.
                 </Typography>
                 <Button
                   size="small"
@@ -144,76 +182,102 @@ export function GenerationCard({ generation, onView, onDelete }: GenerationCardP
       </Box>
 
       {/* Content */}
-      <CardContent sx={{ flexGrow: 1, pb: 1 }}>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontSize: '0.75rem' }}>
-          {new Date(generation.created_at).toLocaleDateString()} •{' '}
-          {generation.width} × {generation.height}
-        </Typography>
+      <CardContent sx={{ flexGrow: 1, p: 0, pt: '5px' }}>
+        {/* Date/dimensions row with action buttons */}
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 1
+        }}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+            {new Date(generation.created_at).toLocaleDateString()} •{' '}
+            {generation.width} × {generation.height}
+          </Typography>
+
+          {!isSmallestResolution && (
+            <Box sx={{ display: 'flex', gap: 0.5, ml: 1 }}>
+              {hasImages && (
+                <Tooltip title="Download Images">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDownload()
+                    }}
+                    data-testid="download-images"
+                  >
+                    <DownloadIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+              <Tooltip title="Delete Generation">
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDelete()
+                  }}
+                  sx={{ opacity: 0.7, '&:hover': { opacity: 1 } }}
+                  data-testid="delete-generation"
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          )}
+        </Box>
 
         <Typography variant="body2" sx={{ mb: 1, minHeight: '2.5em', lineHeight: 1.2 }}>
           {truncateText(generation.prompt, 80)}
         </Typography>
 
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-          Model: {truncateText(generation.checkpoint_model, 25)}
-        </Typography>
+        {generation.checkpoint_model && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+            Model: {truncateText(generation.checkpoint_model, 25)}
+          </Typography>
+        )}
 
-        {generation.lora_models.length > 0 && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+        {generation.lora_models && generation.lora_models.length > 0 && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: isSmallestResolution ? 0.5 : 0 }}>
             LoRA: {generation.lora_models.map(l => l.name).join(', ').substring(0, 30)}
             {generation.lora_models.map(l => l.name).join(', ').length > 30 ? '...' : ''}
           </Typography>
         )}
-      </CardContent>
 
-      {/* Actions */}
-      <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
-        <Box>
-          <Tooltip title="View Details">
-            <IconButton size="small" onClick={onView} data-testid="view-details">
-              <VisibilityIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-
-          {hasImages && (
-            <Tooltip title="Download Images">
+        {/* Action buttons for smallest resolution - bottom left */}
+        {isSmallestResolution && (
+          <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
+            {hasImages && (
+              <Tooltip title="Download Images">
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleDownload()
+                  }}
+                  data-testid="download-images"
+                >
+                  <DownloadIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            <Tooltip title="Delete Generation">
               <IconButton
                 size="small"
-                onClick={() => {
-                  // TODO: Implement download functionality
-                  console.log('Download:', generation.output_paths)
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete()
                 }}
-                data-testid="download-images"
+                sx={{ opacity: 0.7, '&:hover': { opacity: 1 } }}
+                data-testid="delete-generation"
               >
-                <DownloadIcon fontSize="small" />
+                <DeleteIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-          )}
-        </Box>
-
-        <Box>
-          {generation.batch_size && generation.batch_size > 1 && generation.output_paths && (
-            <Chip
-              label={`${generation.output_paths.length}/${generation.batch_size}`}
-              size="small"
-              variant="outlined"
-              sx={{ mr: 1 }}
-            />
-          )}
-
-          <Tooltip title="Delete Generation">
-            <IconButton
-              size="small"
-              color="error"
-              onClick={onDelete}
-              sx={{ opacity: 0.7, '&:hover': { opacity: 1 } }}
-              data-testid="delete-generation"
-            >
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      </CardActions>
+          </Box>
+        )}
+      </CardContent>
     </Card>
   )
 }

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { handleMissingData } from './utils/testDataHelpers';
 
 test.describe('Image View Page', () => {
   test('displays image details and metadata', async ({ page }) => {
@@ -19,7 +20,12 @@ test.describe('Image View Page', () => {
     const isEmpty = await emptyState.isVisible().catch(() => false);
 
     if (isEmpty || !hasResults) {
-      test.skip(true, 'No gallery results available in test database');
+      handleMissingData(
+        test,
+        'Image view test',
+        'gallery data (content_items)',
+        'make init-test && python -m genonaut.db.demo.seed_data_gen.seed_tags_from_content --env-target test'
+      );
       return;
     }
 
@@ -57,7 +63,12 @@ test.describe('Image View Page', () => {
     const isEmpty = await emptyState.isVisible().catch(() => false);
 
     if (isEmpty || !hasResults) {
-      test.skip(true, 'No gallery results available in test database');
+      handleMissingData(
+        test,
+        'Image view test',
+        'gallery data (content_items)',
+        'make init-test && python -m genonaut.db.demo.seed_data_gen.seed_tags_from_content --env-target test'
+      );
       return;
     }
 
@@ -114,7 +125,12 @@ test.describe('Image View Page', () => {
     const isEmpty = await emptyState.isVisible().catch(() => false);
 
     if (isEmpty || !hasResults) {
-      test.skip(true, 'No gallery results available in test database');
+      handleMissingData(
+        test,
+        'Image view test',
+        'gallery data (content_items)',
+        'make init-test && python -m genonaut.db.demo.seed_data_gen.seed_tags_from_content --env-target test'
+      );
       return;
     }
 

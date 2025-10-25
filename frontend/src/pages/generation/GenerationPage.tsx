@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Grid, Paper, Typography, Box, Tabs, Tab, Alert } from '@mui/material'
 import { GenerationForm } from '../../components/generation/GenerationForm'
 import { GenerationProgress } from '../../components/generation/GenerationProgress'
@@ -14,13 +15,18 @@ type ActiveGeneration = ComfyUIGenerationResponse | GenerationJobResponse
 type TerminalStatus = 'completed' | 'failed' | 'cancelled'
 
 export function GenerationPage() {
+  const navigate = useNavigate()
+  const location = useLocation()
+
   const [currentGeneration, setCurrentGeneration] = usePersistedState<ActiveGeneration | null>(
     'generation:active-job',
     null
   )
   const [refreshHistory, setRefreshHistory] = useState(0)
-  const [activeTab, setActiveTab] = useState<'create' | 'history'>('create')
   const [timeoutActive, setTimeoutActive] = useState(false)
+
+  // Determine active tab from URL
+  const activeTab = location.pathname.includes('/history') ? 'history' : 'create'
 
   const handleGenerationStart = (generation: ComfyUIGenerationResponse) => {
     // Key prop on GenerationProgress ensures proper cleanup when ID changes
@@ -62,7 +68,7 @@ export function GenerationPage() {
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }} data-testid="generation-page-tabs">
         <Tabs
           value={activeTab}
-          onChange={(_, value) => setActiveTab(value)}
+          onChange={(_, value) => navigate(value === 'history' ? '/generate/history' : '/generate')}
           aria-label="Generation workflow tabs"
           data-testid="generation-tabs"
         >

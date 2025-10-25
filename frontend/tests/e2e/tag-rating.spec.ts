@@ -1,208 +1,229 @@
-import { test, expect } from '@playwright/test';
-import { setupMockApi } from './utils/mockApi';
-import { getCommonApiMocks } from './utils/mockData';
-
 /**
- * E2E tests for Tag Rating functionality (Real API)
- *
- * Tests rating submission, updates, and display using the real backend API
+ * E2E tests for tag rating functionality
+ * Tests the rating feature on tag detail pages
  */
+
+import { test, expect } from '@playwright/test'
+import { waitForPageLoad } from './utils/realApiHelpers'
+import { handleMissingData } from './utils/testDataHelpers'
+
 test.describe('Tag Rating (Real API)', () => {
   test.beforeEach(async ({ page }) => {
-    page.setDefaultNavigationTimeout(10_000);
-  });
+    await page.goto('/')
+    await waitForPageLoad(page, 'home')
+  })
 
   test('should allow user to rate a tag', async ({ page }) => {
-    // Go to tags page with tree view
-    await page.goto('/tags');
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForLoadState('networkidle');
+    // First, navigate to gallery to find available tags
+    await page.goto('/gallery')
+    await waitForPageLoad(page, 'gallery')
 
-    // Wait for tree view to load
-    await page.waitForSelector('[aria-label="Tag hierarchy tree"]', { timeout: 10000 });
+    // Open the sidebar to see available tags
+    const sidebarToggle = page.getByTestId('gallery-sidebar-toggle')
+    await sidebarToggle.click()
+    await page.waitForTimeout(500)
 
-    // Find any clickable tag in the tree (look for TreeItem with button role)
-    const treeItems = page.locator('[aria-label="Tag hierarchy tree"] [role="treeitem"]');
-    const firstTag = treeItems.first();
+    // Check if any tags are available in the sidebar
+    const tagChips = page.locator('[data-testid^="gallery-tag-filter-chip-"]')
+    const tagCount = await tagChips.count()
 
-    // Check if any tags exist
-    if (await treeItems.count() === 0) {
-      test.skip(true, 'No tags available in test database');
-      return;
+    if (tagCount === 0) {
+      handleMissingData(
+        test,
+        'Tag rating test',
+        'tags in database',
+        'python -m genonaut.db.demo.seed_data_gen.seed_tags_from_content --env-target test'
+      )
+      return
     }
 
-    await firstTag.click();
+    // Get the first available tag's name
+    const firstTag = tagChips.first()
+    const tagName = await firstTag.textContent()
 
-    // Should navigate to tag detail page (now uses tag names instead of UUIDs)
-    await page.waitForURL(/\/tags\/.+/, { timeout: 10000 });
-    await page.waitForLoadState('domcontentloaded');
+    if (!tagName) {
+      handleMissingData(
+        test,
+        'Tag rating test',
+        'tag name not found',
+        'python -m genonaut.db.demo.seed_data_gen.seed_tags_from_content --env-target test'
+      )
+      return
+    }
+
+    // Navigate directly to the tag detail page using the tag name
+    await page.goto(`/tags/${encodeURIComponent(tagName.trim())}`)
+    await waitForPageLoad(page, 'tagDetail')
 
     // Wait for ratings section
-    await page.waitForSelector('[data-testid="tag-detail-ratings-section"]', { timeout: 10000 });
+    await page.waitForSelector('[data-testid="tag-detail-ratings-section"]', { timeout: 10000 })
 
     // Find the "Your Rating" star widget (not the average rating)
-    const ratingsSection = page.locator('[data-testid="tag-detail-ratings-section"]');
-    const starWidgets = ratingsSection.locator('[data-testid="star-rating"]');
+    const ratingsSection = page.locator('[data-testid="tag-detail-ratings-section"]')
+    const starWidgets = ratingsSection.locator('[data-testid="star-rating"]')
 
     // The second one should be "Your Rating"
-    const yourRating = starWidgets.nth(1);
-    await expect(yourRating).toBeVisible();
+    const yourRating = starWidgets.nth(1)
+    await expect(yourRating).toBeVisible()
 
     // Click on the 4th star to rate
-    const stars = yourRating.locator('[data-testid="star-rating-stars"]');
-    const starLabels = stars.locator('label');
-    await starLabels.nth(3).click();
+    const stars = yourRating.locator('[data-testid="star-rating-stars"]')
+    const starLabels = stars.locator('label')
+    await starLabels.nth(3).click()
 
     // Should show saving indicator
-    await expect(page.locator('text=Saving...')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('text=Saving...')).toBeVisible({ timeout: 3000 })
 
-    // Wait for save to complete
-    await expect(page.locator('text=Saving...')).not.toBeVisible({ timeout: 5000 });
+    // Wait for saving to complete
+    await expect(page.locator('text=Saving...')).not.toBeVisible({ timeout: 5000 })
 
-    // Verify rating persists - the value should show "4.0"
-    const ratingValue = yourRating.locator('[data-testid="star-rating-value"]');
-    await expect(ratingValue).toContainText('4.0');
-  });
+    // Verify the rating was applied (should show 4 stars filled)
+    const filledStars = yourRating.locator('[data-testid="star-rating-filled"]')
+    await expect(filledStars).toHaveCount(4)
+  })
 
   test('should update existing rating', async ({ page }) => {
-    // Go to tags page with tree view
-    await page.goto('/tags');
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForLoadState('networkidle');
+    // First, navigate to gallery to find available tags
+    await page.goto('/gallery')
+    await waitForPageLoad(page, 'gallery')
 
-    // Wait for tree view to load
-    await page.waitForSelector('[aria-label="Tag hierarchy tree"]', { timeout: 10000 });
+    // Open the sidebar to see available tags
+    const sidebarToggle = page.getByTestId('gallery-sidebar-toggle')
+    await sidebarToggle.click()
+    await page.waitForTimeout(500)
 
-    // Find any clickable tag in the tree
-    const treeItems = page.locator('[aria-label="Tag hierarchy tree"] [role="treeitem"]');
-    const firstTag = treeItems.first();
+    // Check if any tags are available in the sidebar
+    const tagChips = page.locator('[data-testid^="gallery-tag-filter-chip-"]')
+    const tagCount = await tagChips.count()
 
-    // Check if any tags exist
-    if (await treeItems.count() === 0) {
-      test.skip(true, 'No tags available in test database');
-      return;
+    if (tagCount === 0) {
+      handleMissingData(
+        test,
+        'Tag rating test',
+        'tags in database',
+        'python -m genonaut.db.demo.seed_data_gen.seed_tags_from_content --env-target test'
+      )
+      return
     }
 
-    await firstTag.click();
+    // Get the first available tag's name
+    const firstTag = tagChips.first()
+    const tagName = await firstTag.textContent()
 
-    // Should navigate to tag detail page (now uses tag names instead of UUIDs)
-    await page.waitForURL(/\/tags\/.+/, { timeout: 10000 });
-    await page.waitForLoadState('domcontentloaded');
+    if (!tagName) {
+      handleMissingData(
+        test,
+        'Tag rating test',
+        'tag name not found',
+        'python -m genonaut.db.demo.seed_data_gen.seed_tags_from_content --env-target test'
+      )
+      return
+    }
+
+    // Navigate directly to the tag detail page using the tag name
+    await page.goto(`/tags/${encodeURIComponent(tagName.trim())}`)
+    await waitForPageLoad(page, 'tagDetail')
 
     // Wait for ratings section
-    await page.waitForSelector('[data-testid="tag-detail-ratings-section"]', { timeout: 10000 });
+    await page.waitForSelector('[data-testid="tag-detail-ratings-section"]', { timeout: 10000 })
 
-    // Find "Your Rating" widget
-    const ratingsSection = page.locator('[data-testid="tag-detail-ratings-section"]');
-    const yourRating = ratingsSection.locator('[data-testid="star-rating"]').nth(1);
+    // Find the "Your Rating" star widget
+    const ratingsSection = page.locator('[data-testid="tag-detail-ratings-section"]')
+    const yourRating = ratingsSection.locator('[data-testid="star-rating"]').nth(1)
 
-    // Change rating to 5 stars
-    const stars = yourRating.locator('[data-testid="star-rating-stars"]');
-    const starLabels = stars.locator('label');
-    await starLabels.nth(4).click();
-
-    // Should show saving indicator
-    await expect(page.locator('text=Saving...')).toBeVisible({ timeout: 3000 });
-    await expect(page.locator('text=Saving...')).not.toBeVisible({ timeout: 5000 });
-
-    // Verify rating updated to 5.0
-    const ratingValue = yourRating.locator('[data-testid="star-rating-value"]');
-    await expect(ratingValue).toContainText('5.0');
-  });
-
-  test('should persist rating across page refreshes', async ({ page }) => {
-    // Go to tags page with tree view
-    await page.goto('/tags');
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForLoadState('networkidle');
-
-    // Wait for tree view to load
-    await page.waitForSelector('[aria-label="Tag hierarchy tree"]', { timeout: 10000 });
-
-    // Find any clickable tag in the tree
-    const treeItems = page.locator('[aria-label="Tag hierarchy tree"] [role="treeitem"]');
-    const firstTag = treeItems.first();
-
-    // Check if any tags exist
-    if (await treeItems.count() === 0) {
-      test.skip(true, 'No tags available in test database');
-      return;
-    }
-
-    await firstTag.click();
-
-    // Navigate to tag detail page (now uses tag names instead of UUIDs)
-    await page.waitForURL(/\/tags\/.+/, { timeout: 10000 });
-    const tagUrl = page.url();
-
-    // Wait for page load
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForSelector('[data-testid="tag-detail-ratings-section"]', { timeout: 10000 });
-
-    // Rate the tag with 3 stars
-    const ratingsSection = page.locator('[data-testid="tag-detail-ratings-section"]');
-    const yourRating = ratingsSection.locator('[data-testid="star-rating"]').nth(1);
-    const stars = yourRating.locator('[data-testid="star-rating-stars"]');
-    await stars.locator('label').nth(2).click();
+    // First set a rating of 3 stars
+    const stars = yourRating.locator('[data-testid="star-rating-stars"]')
+    const starLabels = stars.locator('label')
+    await starLabels.nth(2).click() // 3rd star
 
     // Wait for save
-    await expect(page.locator('text=Saving...')).toBeVisible({ timeout: 3000 });
-    await expect(page.locator('text=Saving...')).not.toBeVisible({ timeout: 5000 });
+    await expect(page.locator('text=Saving...')).toBeVisible({ timeout: 3000 })
+    await expect(page.locator('text=Saving...')).not.toBeVisible({ timeout: 5000 })
 
-    // Verify rating shows 3.0
-    let ratingValue = yourRating.locator('[data-testid="star-rating-value"]');
-    await expect(ratingValue).toContainText('3.0');
+    // Now update to 5 stars
+    await starLabels.nth(4).click() // 5th star
+
+    // Should show saving indicator again
+    await expect(page.locator('text=Saving...')).toBeVisible({ timeout: 3000 })
+    await expect(page.locator('text=Saving...')).not.toBeVisible({ timeout: 5000 })
+
+    // Verify the rating was updated (should show 5 stars filled)
+    const filledStars = yourRating.locator('[data-testid="star-rating-filled"]')
+    await expect(filledStars).toHaveCount(5)
+  })
+
+  test('should persist rating across page refreshes', async ({ page }) => {
+    // First, navigate to gallery to find available tags
+    await page.goto('/gallery')
+    await waitForPageLoad(page, 'gallery')
+
+    // Open the sidebar to see available tags
+    const sidebarToggle = page.getByTestId('gallery-sidebar-toggle')
+    await sidebarToggle.click()
+    await page.waitForTimeout(500)
+
+    // Check if any tags are available in the sidebar
+    const tagChips = page.locator('[data-testid^="gallery-tag-filter-chip-"]')
+    const tagCount = await tagChips.count()
+
+    if (tagCount === 0) {
+      handleMissingData(
+        test,
+        'Tag rating test',
+        'tags in database',
+        'python -m genonaut.db.demo.seed_data_gen.seed_tags_from_content --env-target test'
+      )
+      return
+    }
+
+    // Get the first available tag's name
+    const firstTag = tagChips.first()
+    const tagName = await firstTag.textContent()
+
+    if (!tagName) {
+      handleMissingData(
+        test,
+        'Tag rating test',
+        'tag name not found',
+        'python -m genonaut.db.demo.seed_data_gen.seed_tags_from_content --env-target test'
+      )
+      return
+    }
+
+    // Navigate directly to the tag detail page using the tag name
+    const tagUrl = `/tags/${encodeURIComponent(tagName.trim())}`
+    await page.goto(tagUrl)
+    await waitForPageLoad(page, 'tagDetail')
+
+    // Wait for page load
+    await page.waitForSelector('[data-testid="tag-detail-ratings-section"]', { timeout: 10000 })
+
+    // Find and rate the tag with 2 stars
+    const ratingsSection = page.locator('[data-testid="tag-detail-ratings-section"]')
+    const yourRating = ratingsSection.locator('[data-testid="star-rating"]').nth(1)
+    const stars = yourRating.locator('[data-testid="star-rating-stars"]')
+    const starLabels = stars.locator('label')
+    await starLabels.nth(1).click() // 2nd star
+
+    // Wait for save
+    await expect(page.locator('text=Saving...')).toBeVisible({ timeout: 3000 })
+    await expect(page.locator('text=Saving...')).not.toBeVisible({ timeout: 5000 })
+
+    // Verify initial rating
+    let filledStars = yourRating.locator('[data-testid="star-rating-filled"]')
+    await expect(filledStars).toHaveCount(2)
 
     // Refresh the page
-    await page.reload();
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForSelector('[data-testid="tag-detail-ratings-section"]', { timeout: 10000 });
+    await page.reload()
+    await waitForPageLoad(page, 'tagDetail')
 
-    // Verify rating still shows 3.0 after refresh
-    const yourRatingAfterRefresh = page.locator('[data-testid="tag-detail-ratings-section"]')
-      .locator('[data-testid="star-rating"]').nth(1);
-    ratingValue = yourRatingAfterRefresh.locator('[data-testid="star-rating-value"]');
-    await expect(ratingValue).toContainText('3.0');
-  });
-});
+    // Wait for ratings section to load again
+    await page.waitForSelector('[data-testid="tag-detail-ratings-section"]', { timeout: 10000 })
 
-/**
- * E2E tests for Tag Favorites functionality
- *
- * Tests adding and removing favorite tags
- */
-test.describe('Tag Favorites', () => {
-  test.beforeEach(async ({ page }) => {
-    page.setDefaultNavigationTimeout(10_000);
-    await setupMockApi(page, getCommonApiMocks());
-  });
-
-  test.skip('should add tag to favorites', async ({ page }) => {
-    // Note: This test is skipped until backend API endpoints are available
-    // This feature may be implemented in a future phase
-    await page.goto('/tags/some-tag-id', { waitUntil: 'domcontentloaded' });
-
-    // Click favorite button
-    const favoriteButton = page.locator('[data-testid="tag-detail-favorite-button"]');
-    await favoriteButton.click();
-
-    // Should show as favorited
-    await expect(favoriteButton).toHaveAttribute('aria-pressed', 'true');
-  });
-
-  test.skip('should remove tag from favorites', async ({ page }) => {
-    // Note: This test is skipped until backend API endpoints are available
-    // This feature may be implemented in a future phase
-    await page.goto('/tags/some-tag-id', { waitUntil: 'domcontentloaded' });
-
-    // Tag is already favorited
-    const favoriteButton = page.locator('[data-testid="tag-detail-favorite-button"]');
-    await expect(favoriteButton).toHaveAttribute('aria-pressed', 'true');
-
-    // Click to unfavorite
-    await favoriteButton.click();
-
-    // Should no longer be favorited
-    await expect(favoriteButton).toHaveAttribute('aria-pressed', 'false');
-  });
-});
+    // Verify the rating persisted
+    const ratingSectionAfter = page.locator('[data-testid="tag-detail-ratings-section"]')
+    const yourRatingAfter = ratingSectionAfter.locator('[data-testid="star-rating"]').nth(1)
+    filledStars = yourRatingAfter.locator('[data-testid="star-rating-filled"]')
+    await expect(filledStars).toHaveCount(2)
+  })
+})

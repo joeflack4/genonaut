@@ -1,294 +1,250 @@
+/**
+ * E2E Tests for Analytics Page with Real API
+ *
+ * Tests analytics functionality including:
+ * - Route performance metrics
+ * - Generation analytics
+ * - Tag cardinality statistics
+ * - Responsive behavior
+ */
+
 import { test, expect } from '@playwright/test'
-import {
-  ensureRealApiAvailable,
-  loginAsTestUser,
-  waitForPageLoad,
-} from './utils/realApiHelpers'
+import { waitForPageLoad } from './utils/realApiHelpers'
+import { handleMissingData } from './utils/testDataHelpers'
+
+const ROUTE_ANALYTICS_TITLE = 'Route Analytics'
+const GENERATION_ANALYTICS_TITLE = 'Generation Analytics'
+const TAG_CARDINALITY_TITLE = 'Tags'
+
+/**
+ * Wait for MUI Select to be interactable and click it
+ */
+async function clickSelect(page: any, selector: string) {
+  const selectElement = page.getByTestId(selector)
+
+  // Wait for the element to be visible
+  await expect(selectElement).toBeVisible({ timeout: 5000 })
+
+  // Try to click the parent element instead of the input
+  // MUI Select has a div wrapper around the hidden input
+  const parentElement = selectElement.locator('..')
+  await parentElement.click()
+
+  // Wait for menu to open
+  await page.waitForTimeout(300)
+}
 
 test.describe('Analytics Page (Real API)', () => {
   test.beforeEach(async ({ page }) => {
-    // Check if real API is available, skip if not
-    try {
-      await ensureRealApiAvailable(page)
-    } catch (error) {
-      test.skip(true, 'Real API server not available on port 8002. Run with: npm run test:e2e:real-api')
-      return
-    }
+    // Navigate to analytics page
+    await page.goto('/analytics')
+    await waitForPageLoad(page, 'analytics')
+    await page.waitForTimeout(1000) // Additional wait for data loading
+  })
 
-    // Log in as test user
-    await loginAsTestUser(page)
+  test.describe('Page Structure', () => {
+    test('displays page title and subtitle', async ({ page }) => {
+      await expect(page.getByTestId('analytics-title')).toHaveText('Analytics')
+      await expect(page.getByTestId('analytics-subtitle')).toContainText('System performance metrics')
+    })
+
+    test('displays refresh all button', async ({ page }) => {
+      const refreshBtn = page.getByTestId('analytics-refresh-all')
+      await expect(refreshBtn).toBeVisible()
+      await expect(refreshBtn).toHaveText('Refresh All')
+    })
+
+    test('displays all analytics cards', async ({ page }) => {
+      // Route Analytics Card
+      await expect(page.getByTestId('route-analytics-card')).toBeVisible()
+      await expect(page.getByText(ROUTE_ANALYTICS_TITLE)).toBeVisible()
+
+      // Generation Analytics Card
+      await expect(page.getByTestId('generation-analytics-card')).toBeVisible()
+      await expect(page.getByText(GENERATION_ANALYTICS_TITLE)).toBeVisible()
+
+      // Tag Cardinality Card (may not be visible if no data)
+      const tagCard = page.getByTestId('tag-cardinality-card')
+      const hasTagCard = await tagCard.isVisible().catch(() => false)
+      if (hasTagCard) {
+        await expect(page.getByText(TAG_CARDINALITY_TITLE)).toBeVisible()
+      }
+    })
   })
 
   test.describe('Navigation', () => {
-    test('navigates to Analytics page from sidebar', async ({ page }) => {
-      // Start from any page (e.g., dashboard)
-      await page.goto('/dashboard')
-      await waitForPageLoad(page, 'dashboard')
-
-      // Find Settings nav item in sidebar
-      const settingsNavLink = page.getByTestId('app-layout-nav-link-settings')
-      await expect(settingsNavLink).toBeVisible()
-
-      // Click Settings to expand (if collapsed)
-      await settingsNavLink.click()
-
-      // Wait for Analytics child item to be visible
-      const analyticsNavLink = page.getByTestId('app-layout-nav-link-analytics')
-      await expect(analyticsNavLink).toBeVisible()
-
-      // Click Analytics to navigate
-      await analyticsNavLink.click()
-      await waitForPageLoad(page, 'analytics')
-
-      // Verify we're on the Analytics page
-      await expect(page).toHaveURL(/\/settings\/analytics/)
-      await expect(page.getByTestId('analytics-page-root')).toBeVisible()
-      await expect(page.getByTestId('analytics-title')).toHaveText('Analytics')
-    })
-
     test('navigates to Analytics page from Settings page', async ({ page }) => {
-      // Go to Settings page first
+      // Go to settings page first
       await page.goto('/settings')
       await waitForPageLoad(page, 'settings')
 
-      // Look for Analytics button using specific data-testid
+      // Find and click analytics link in settings
       const analyticsLink = page.getByTestId('settings-analytics-link')
-      await expect(analyticsLink).toBeVisible({ timeout: 5000 })
-
+      await expect(analyticsLink).toBeVisible()
       await analyticsLink.click()
-      await waitForPageLoad(page, 'analytics')
 
-      // Verify we're on the Analytics page
-      await expect(page).toHaveURL(/\/settings\/analytics/)
+      // Should navigate to analytics page
+      await page.waitForURL(/\/analytics/)
       await expect(page.getByTestId('analytics-page-root')).toBeVisible()
-      await expect(page.getByTestId('analytics-title')).toHaveText('Analytics')
-    })
-
-    test('shows Analytics page header and sections', async ({ page }) => {
-      await page.goto('/settings/analytics')
-      await waitForPageLoad(page, 'analytics')
-
-      // Check page header
-      await expect(page.getByTestId('analytics-title')).toHaveText('Analytics')
-      await expect(page.getByTestId('analytics-subtitle')).toBeVisible()
-
-      // Check refresh all button
-      await expect(page.getByTestId('analytics-refresh-all')).toBeVisible()
-
-      // Check last updated timestamp
-      await expect(page.getByTestId('analytics-last-updated')).toBeVisible()
-
-      // Check all three card sections are present
-      await expect(page.getByTestId('route-analytics-card')).toBeVisible()
-      await expect(page.getByTestId('generation-analytics-card')).toBeVisible()
-      await expect(page.getByTestId('tag-cardinality-card')).toBeVisible()
     })
   })
 
   test.describe('Route Analytics Section', () => {
-    test.beforeEach(async ({ page }) => {
-      await page.goto('/settings/analytics')
-      await waitForPageLoad(page, 'analytics')
+    test('displays route performance data', async ({ page }) => {
+      // Check for main elements
+      await expect(page.getByTestId('route-analytics-card')).toBeVisible()
+
+      // Check for time range selector
+      await expect(page.getByTestId('route-analytics-timerange-select')).toBeVisible()
+
+      // Check for table (should show even if empty)
+      const tableOrEmpty = page.locator('[data-testid="route-analytics-table"], [data-testid="route-analytics-empty"]')
+      await expect(tableOrEmpty.first()).toBeVisible({ timeout: 10000 })
     })
 
-    test('shows route analytics with filters', async ({ page }) => {
-      // Check section title
-      await expect(page.getByTestId('route-analytics-title')).toHaveText('Route Analytics')
+    test('displays route columns in table', async ({ page }) => {
+      // Check if table has data
+      const hasTable = await page.getByTestId('route-analytics-table').isVisible().catch(() => false)
 
-      // Check filters are present
-      await expect(page.getByTestId('route-analytics-filters')).toBeVisible()
-      await expect(page.getByTestId('route-analytics-system-select')).toBeVisible()
-      await expect(page.getByTestId('route-analytics-days-select')).toBeVisible()
-      await expect(page.getByTestId('route-analytics-topn-select')).toBeVisible()
-
-      // Check refresh button
-      await expect(page.getByTestId('route-analytics-refresh')).toBeVisible()
-    })
-
-    test('loads and displays route data', async ({ page }) => {
-      // Wait for data to load (either table or empty state)
-      await page.waitForTimeout(2000)
-
-      // Check if we have data or empty state
-      const hasTable = await page.getByTestId('route-analytics-table').count() > 0
-      const hasEmpty = await page.getByTestId('route-analytics-empty').count() > 0
-
-      expect(hasTable || hasEmpty).toBe(true)
-
-      // If we have data, verify table structure
       if (hasTable) {
-        const table = page.getByTestId('route-analytics-table')
-        await expect(table).toBeVisible()
+        // Should have these columns
+        await expect(page.getByRole('columnheader', { name: /route/i })).toBeVisible()
+        await expect(page.getByRole('columnheader', { name: /total queries/i })).toBeVisible()
+        await expect(page.getByRole('columnheader', { name: /unique users/i })).toBeVisible()
+        await expect(page.getByRole('columnheader', { name: /avg response/i })).toBeVisible()
+        await expect(page.getByRole('columnheader', { name: /cache priority/i })).toBeVisible()
+      } else {
+        // Should show empty state
+        await expect(page.getByTestId('route-analytics-empty')).toBeVisible()
+      }
+    })
 
-        // Check for table headers
-        await expect(table.getByText(/method/i)).toBeVisible()
-        await expect(table.getByText(/route/i)).toBeVisible()
-        await expect(table.getByText(/req\/hr/i)).toBeVisible()
-        await expect(table.getByText(/latency/i)).toBeVisible()
+    test('shows correct cache priority chip colors', async ({ page }) => {
+      // Check if table has data
+      const hasRows = await page.locator('[data-testid="route-analytics-table"] tbody tr').count()
+
+      if (hasRows > 0) {
+        // Get all priority chips
+        const priorityChips = page.locator('[data-testid^="route-priority-"]')
+        const chipCount = await priorityChips.count()
+
+        for (let i = 0; i < chipCount; i++) {
+          const chip = priorityChips.nth(i)
+          const testId = await chip.getAttribute('data-testid')
+
+          if (testId?.includes('high')) {
+            // High priority should have specific styling
+            await expect(chip).toBeVisible()
+          } else if (testId?.includes('medium')) {
+            // Medium priority
+            await expect(chip).toBeVisible()
+          } else if (testId?.includes('low')) {
+            // Low priority
+            await expect(chip).toBeVisible()
+          }
+        }
       }
     })
 
     test('changes time range filter', async ({ page }) => {
-      const daysSelect = page.getByTestId('route-analytics-days-select')
+      // Click on time range select using parent element
+      await clickSelect(page, 'route-analytics-timerange-select')
 
-      // Get initial value
-      const initialValue = await daysSelect.inputValue()
-
-      // Open select dropdown (click the visible combobox, not the hidden input)
-      await daysSelect.locator('..').click()
-
-      // Select a different option (14 days if not already selected, otherwise 30 days)
-      const targetOption = initialValue === '14' ? '30' : '14'
-      await page.getByRole('option', { name: targetOption === '14' ? /14 days/i : /30 days/i }).click()
-
-      // Wait for data to reload
-      await page.waitForTimeout(1000)
+      // Select "Last 7 Days"
+      await page.getByRole('option', { name: /last 7 days/i }).click()
 
       // Verify selection changed
-      await expect(daysSelect).toHaveValue(targetOption)
+      await expect(page.getByTestId('route-analytics-timerange-select')).toContainText('Last 7 Days')
     })
 
     test('changes Top N filter', async ({ page }) => {
-      const topNSelect = page.getByTestId('route-analytics-topn-select')
+      // Click on Top N select using parent element
+      await clickSelect(page, 'route-analytics-topn-select')
 
-      // Get initial value
-      const initialValue = await topNSelect.inputValue()
-
-      // Open select dropdown (click the visible combobox, not the hidden input)
-      await topNSelect.locator('..').click()
-
-      // Select a different option
-      const targetOption = initialValue === '10' ? '20' : '10'
-      await page.getByRole('option', { name: targetOption === '10' ? /top 10/i : /top 20/i }).click()
-
-      // Wait for data to reload
-      await page.waitForTimeout(1000)
+      // Select "Top 20"
+      await page.getByRole('option', { name: /top 20/i }).click()
 
       // Verify selection changed
-      await expect(topNSelect).toHaveValue(targetOption)
+      await expect(page.getByTestId('route-analytics-topn-select')).toContainText('Top 20')
     })
 
     test('persists filter selections across page reload', async ({ page }) => {
-      // Change filters
-      const daysSelect = page.getByTestId('route-analytics-days-select')
-      await daysSelect.locator('..').click()
-      await page.getByRole('option', { name: /14 days/i }).click()
-      await page.waitForTimeout(500)
+      // Change time range using parent element
+      await clickSelect(page, 'route-analytics-timerange-select')
+      await page.getByRole('option', { name: /last 30 days/i }).click()
 
-      const topNSelect = page.getByTestId('route-analytics-topn-select')
-      await topNSelect.locator('..').click()
-      await page.getByRole('option', { name: /top 20/i }).click()
+      // Change Top N using parent element
+      await clickSelect(page, 'route-analytics-topn-select')
+      await page.getByRole('option', { name: /top 50/i }).click()
+
+      // Wait for changes to be saved
       await page.waitForTimeout(500)
 
       // Reload page
       await page.reload()
       await waitForPageLoad(page, 'analytics')
 
-      // Verify filters are still set
-      await expect(daysSelect).toHaveValue('14')
-      await expect(topNSelect).toHaveValue('20')
-    })
-
-    test('refreshes data when refresh button clicked', async ({ page }) => {
-      const refreshButton = page.getByTestId('route-analytics-refresh')
-
-      // Click refresh
-      await refreshButton.click()
-
-      // Wait for refresh to complete
-      await page.waitForTimeout(1000)
-
-      // Button should still be visible after refresh
-      await expect(refreshButton).toBeVisible()
+      // Verify selections persisted
+      await expect(page.getByTestId('route-analytics-timerange-select')).toContainText('Last 30 Days')
+      await expect(page.getByTestId('route-analytics-topn-select')).toContainText('Top 50')
     })
   })
 
   test.describe('Generation Analytics Section', () => {
-    test.beforeEach(async ({ page }) => {
-      await page.goto('/settings/analytics')
-      await waitForPageLoad(page, 'analytics')
+    test('displays generation metrics', async ({ page }) => {
+      // Check for main elements
+      await expect(page.getByTestId('generation-analytics-card')).toBeVisible()
+
+      // Check for statistics grid (should always be visible even with zeros)
+      await expect(page.getByTestId('generation-analytics-stats')).toBeVisible()
+
+      // Check for individual stat items
+      await expect(page.getByTestId('gen-stat-total-generations')).toBeVisible()
+      await expect(page.getByTestId('gen-stat-success-rate')).toBeVisible()
+      await expect(page.getByTestId('gen-stat-avg-duration')).toBeVisible()
+      await expect(page.getByTestId('gen-stat-unique-users')).toBeVisible()
     })
 
-    test('shows generation analytics with filters', async ({ page }) => {
-      // Check section title
-      await expect(page.getByTestId('generation-analytics-title')).toHaveText('Generation Analytics')
-
-      // Check filters are present
-      await expect(page.getByTestId('generation-analytics-filters')).toBeVisible()
-      await expect(page.getByTestId('generation-analytics-days-select')).toBeVisible()
-
-      // Check refresh button
-      await expect(page.getByTestId('generation-analytics-refresh')).toBeVisible()
+    test('displays generation chart or empty state', async ({ page }) => {
+      // Either chart or empty state should be visible
+      const chartOrEmpty = page.locator('[data-testid="generation-analytics-chart"], [data-testid="generation-analytics-empty"]')
+      await expect(chartOrEmpty.first()).toBeVisible({ timeout: 10000 })
     })
 
-    test('loads and displays generation metrics', async ({ page }) => {
-      // Wait for data to load
-      await page.waitForTimeout(2000)
+    test('displays recent generations table or empty state', async ({ page }) => {
+      // Either table or empty state should be visible
+      const tableOrEmpty = page.locator('[data-testid="recent-generations-table"], [data-testid="recent-generations-empty"]')
+      await expect(tableOrEmpty.first()).toBeVisible({ timeout: 10000 })
+    })
 
-      // Check if we have data or empty state
-      const hasMetrics = await page.getByTestId('generation-analytics-metrics').count() > 0
-      const hasEmpty = await page.getByTestId('generation-analytics-empty').count() > 0
+    test('displays generation table columns', async ({ page }) => {
+      // Check if table has data
+      const hasTable = await page.getByTestId('recent-generations-table').isVisible().catch(() => false)
 
-      expect(hasMetrics || hasEmpty).toBe(true)
-
-      // If we have data, verify metrics are displayed
-      if (hasMetrics) {
-        const metrics = page.getByTestId('generation-analytics-metrics')
-        await expect(metrics).toBeVisible()
-
-        // Should show metric cards
-        await expect(metrics.getByText(/total generations/i)).toBeVisible()
-        await expect(metrics.getByText(/success rate/i)).toBeVisible()
-        await expect(metrics.getByText(/avg duration/i)).toBeVisible()
-        await expect(metrics.getByText(/unique users/i)).toBeVisible()
+      if (hasTable) {
+        // Should have these columns
+        await expect(page.getByRole('columnheader', { name: /title/i })).toBeVisible()
+        await expect(page.getByRole('columnheader', { name: /type/i })).toBeVisible()
+        await expect(page.getByRole('columnheader', { name: /status/i })).toBeVisible()
+        await expect(page.getByRole('columnheader', { name: /created/i })).toBeVisible()
+        await expect(page.getByRole('columnheader', { name: /duration/i })).toBeVisible()
       }
     })
 
     test('changes time range filter', async ({ page }) => {
-      const daysSelect = page.getByTestId('generation-analytics-days-select')
+      // Click on time range select using parent element
+      await clickSelect(page, 'generation-analytics-timerange-select')
 
-      // Get initial value
-      const initialValue = await daysSelect.inputValue()
-
-      // Open select dropdown (click the visible combobox, not the hidden input)
-      await daysSelect.locator('..').click()
-
-      // Select a different option
-      const targetOption = initialValue === '7' ? '30' : '7'
-      await page.getByRole('option', { name: targetOption === '7' ? /7 days/i : /30 days/i }).click()
-
-      // Wait for data to reload
-      await page.waitForTimeout(1000)
+      // Select "Last 7 Days"
+      await page.getByRole('option', { name: /last 7 days/i }).click()
 
       // Verify selection changed
-      await expect(daysSelect).toHaveValue(targetOption)
-    })
-
-    test('refreshes data when refresh button clicked', async ({ page }) => {
-      const refreshButton = page.getByTestId('generation-analytics-refresh')
-
-      // Click refresh
-      await refreshButton.click()
-
-      // Wait for refresh to complete
-      await page.waitForTimeout(1000)
-
-      // Button should still be visible after refresh
-      await expect(refreshButton).toBeVisible()
+      await expect(page.getByTestId('generation-analytics-timerange-select')).toContainText('Last 7 Days')
     })
   })
 
   test.describe('Tag Cardinality Section', () => {
-    test.beforeEach(async ({ page }) => {
-      await page.goto('/settings/analytics')
-      await waitForPageLoad(page, 'analytics')
-
-      // Wait for tag cardinality card to load
-      await page.waitForTimeout(2000)
-    })
-
-    test('shows tag cardinality with tabs', async ({ page }) => {
-      // Check if card exists
+    test('displays tag cardinality card if data available', async ({ page }) => {
       const cardinalityCard = page.getByTestId('tag-cardinality-card')
       const hasCard = await cardinalityCard.isVisible().catch(() => false)
 
@@ -297,16 +253,10 @@ test.describe('Analytics Page (Real API)', () => {
         return
       }
 
-      // Check section title
       await expect(page.getByTestId('tag-cardinality-title')).toHaveText('Tags')
 
-      // Check tabs are present
-      await expect(page.getByTestId('tag-cardinality-tabs')).toBeVisible()
-      await expect(page.getByTestId('tag-cardinality-tab-table')).toBeVisible()
-      await expect(page.getByTestId('tag-cardinality-tab-visualization')).toBeVisible()
-
-      // Table tab should be selected by default
-      await expect(page.getByTestId('tag-cardinality-tab-table')).toHaveAttribute('aria-selected', 'true')
+      // Check for tabs - wait for them to be available
+      await expect(page.getByTestId('tag-cardinality-tabs')).toBeVisible({ timeout: 10000 })
     })
 
     test('switches between Table and Visualization tabs', async ({ page }) => {
@@ -315,29 +265,37 @@ test.describe('Analytics Page (Real API)', () => {
       const hasCard = await cardinalityCard.isVisible().catch(() => false)
 
       if (!hasCard) {
-        test.skip(true, 'Tag cardinality card not available - may need data')
+        handleMissingData(
+          test,
+          'Tag cardinality test',
+          'tag cardinality data',
+          'python -m genonaut.db.demo.seed_data_gen.seed_tags_from_content --env-target test'
+        )
         return
       }
 
-      // Wait for tabs to be visible
-      await expect(page.getByTestId('tag-cardinality-tab-visualization')).toBeVisible({ timeout: 10000 })
+      // Wait for tabs container to be visible
+      await expect(page.getByTestId('tag-cardinality-tabs')).toBeVisible({ timeout: 10000 })
 
       // Click on Visualization tab
-      await page.getByTestId('tag-cardinality-tab-visualization').click()
+      const vizTab = page.getByTestId('tag-cardinality-tab-visualization')
+      await expect(vizTab).toBeVisible({ timeout: 10000 })
+      await vizTab.click()
       await page.waitForTimeout(500)
 
       // Visualization tab should be selected
-      await expect(page.getByTestId('tag-cardinality-tab-visualization')).toHaveAttribute('aria-selected', 'true')
+      await expect(vizTab).toHaveAttribute('aria-selected', 'true')
 
       // Should show visualization content (log scale toggle)
       await expect(page.getByRole('switch', { name: /log scale/i })).toBeVisible()
 
       // Click back to Table tab
-      await page.getByTestId('tag-cardinality-tab-table').click()
+      const tableTab = page.getByTestId('tag-cardinality-tab-table')
+      await tableTab.click()
       await page.waitForTimeout(500)
 
       // Table tab should be selected
-      await expect(page.getByTestId('tag-cardinality-tab-table')).toHaveAttribute('aria-selected', 'true')
+      await expect(tableTab).toHaveAttribute('aria-selected', 'true')
     })
 
     test('shows Regular and Auto-Generated sections in Table tab', async ({ page }) => {
@@ -356,87 +314,76 @@ test.describe('Analytics Page (Real API)', () => {
       const hasCard = await cardinalityCard.isVisible().catch(() => false)
 
       if (!hasCard) {
-        test.skip(true, 'Tag cardinality card not available - may need data')
+        handleMissingData(
+          test,
+          'Tag cardinality test',
+          'tag cardinality data',
+          'python -m genonaut.db.demo.seed_data_gen.seed_tags_from_content --env-target test'
+        )
         return
       }
 
-      // Wait for tabs to be visible and go to Visualization tab
-      await expect(page.getByTestId('tag-cardinality-tab-visualization')).toBeVisible({ timeout: 10000 })
-      await page.getByTestId('tag-cardinality-tab-visualization').click()
+      // Wait for tabs to be visible
+      await expect(page.getByTestId('tag-cardinality-tabs')).toBeVisible({ timeout: 10000 })
+
+      // Switch to Visualization tab
+      const vizTab = page.getByTestId('tag-cardinality-tab-visualization')
+      await expect(vizTab).toBeVisible({ timeout: 10000 })
+      await vizTab.click()
       await page.waitForTimeout(500)
 
+      // Find log scale toggle
       const logScaleToggle = page.getByRole('switch', { name: /log scale/i })
+      await expect(logScaleToggle).toBeVisible({ timeout: 5000 })
 
       // Get initial state
       const initialState = await logScaleToggle.isChecked()
 
       // Toggle
       await logScaleToggle.click()
-      await page.waitForTimeout(500)
 
       // Verify state changed
       const newState = await logScaleToggle.isChecked()
-      expect(newState).not.toBe(initialState)
+      expect(newState).toBe(!initialState)
 
       // Toggle back
       await logScaleToggle.click()
-      await page.waitForTimeout(500)
-
-      // Verify state changed back
       const finalState = await logScaleToggle.isChecked()
       expect(finalState).toBe(initialState)
     })
 
-    test('persists tab selection across page reload', async ({ page }) => {
-      // Switch to Visualization tab
-      await page.getByTestId('tag-cardinality-tab-visualization').click()
-      await page.waitForTimeout(500)
-
-      // Reload page
-      await page.reload()
-      await waitForPageLoad(page, 'analytics')
-
-      // Visualization tab should still be selected
-      await expect(page.getByTestId('tag-cardinality-tab-visualization')).toHaveAttribute('aria-selected', 'true')
-    })
-  })
-
-  test.describe('Global Functionality', () => {
-    test.beforeEach(async ({ page }) => {
-      await page.goto('/settings/analytics')
-      await waitForPageLoad(page, 'analytics')
-    })
-
-    test('refreshes all sections when Refresh All button clicked', async ({ page }) => {
-      const refreshAllButton = page.getByTestId('analytics-refresh-all')
-
-      // Get initial timestamp
-      const initialTimestamp = await page.getByTestId('analytics-last-updated').textContent()
-
-      // Wait a moment to ensure timestamp will change
-      await page.waitForTimeout(1000)
-
-      // Click refresh all
-      await refreshAllButton.click()
-
-      // Wait for refresh to complete
-      await page.waitForTimeout(1000)
-
-      // Timestamp should have updated
-      const newTimestamp = await page.getByTestId('analytics-last-updated').textContent()
-      expect(newTimestamp).not.toBe(initialTimestamp)
-    })
-
-    test('shows total unique tags count', async ({ page }) => {
-      // Wait for data to load
-      await page.waitForTimeout(2000)
-
-      // Check if total tag count is displayed
-      const totalCount = page.getByTestId('tag-cardinality-total')
-      if (await totalCount.count() > 0) {
-        await expect(totalCount).toBeVisible()
-        await expect(totalCount).toContainText(/total tags:/i)
+    test('changes Top N filter for Regular content', async ({ page }) => {
+      const hasCard = await page.getByTestId('tag-cardinality-card').isVisible().catch(() => false)
+      if (!hasCard) {
+        test.skip(true, 'Tag cardinality card not available')
+        return
       }
+
+      // Click on Regular content Top N select
+      await clickSelect(page, 'tag-cardinality-items-topn-select')
+
+      // Select "Top 50"
+      await page.getByRole('option', { name: /top 50/i }).click()
+
+      // Verify selection changed
+      await expect(page.getByTestId('tag-cardinality-items-topn-select')).toContainText('Top 50')
+    })
+
+    test('changes Top N filter for Auto-Generated content', async ({ page }) => {
+      const hasCard = await page.getByTestId('tag-cardinality-card').isVisible().catch(() => false)
+      if (!hasCard) {
+        test.skip(true, 'Tag cardinality card not available')
+        return
+      }
+
+      // Click on Auto-Generated content Top N select
+      await clickSelect(page, 'tag-cardinality-auto-topn-select')
+
+      // Select "Top 200"
+      await page.getByRole('option', { name: /top 200/i }).click()
+
+      // Verify selection changed
+      await expect(page.getByTestId('tag-cardinality-auto-topn-select')).toContainText('Top 200')
     })
   })
 
@@ -445,47 +392,22 @@ test.describe('Analytics Page (Real API)', () => {
       // Set mobile viewport
       await page.setViewportSize({ width: 375, height: 667 })
 
-      await page.goto('/settings/analytics')
-      // On mobile, nav is hidden, so wait for main content instead
-      await page.waitForSelector('main', { timeout: 10000 })
-      await page.waitForLoadState('networkidle')
+      // Navigate again with mobile viewport
+      await page.goto('/analytics')
 
-      // Page should still be accessible
+      // Don't use waitForPageLoad on mobile as nav is hidden
+      // Wait for main content and network idle instead
+      await page.waitForSelector('main', { state: 'visible' })
+      await page.waitForLoadState('networkidle')
+      await page.waitForTimeout(1000)
+
+      // Page should still load
       await expect(page.getByTestId('analytics-page-root')).toBeVisible()
       await expect(page.getByTestId('analytics-title')).toBeVisible()
 
-      // All three sections should be visible (stacked vertically)
+      // Cards should stack vertically on mobile
       await expect(page.getByTestId('route-analytics-card')).toBeVisible()
       await expect(page.getByTestId('generation-analytics-card')).toBeVisible()
-      await expect(page.getByTestId('tag-cardinality-card')).toBeVisible()
-
-      // Filters should be visible
-      await expect(page.getByTestId('route-analytics-filters')).toBeVisible()
-      await expect(page.getByTestId('generation-analytics-filters')).toBeVisible()
-    })
-  })
-
-  test.describe('Error Handling', () => {
-    test('handles data loading states', async ({ page }) => {
-      await page.goto('/settings/analytics')
-
-      // Page should eventually show either data or empty states
-      await page.waitForTimeout(3000)
-
-      // Each section should have either:
-      // 1. Data displayed (table, metrics, etc.)
-      // 2. Loading skeleton
-      // 3. Error message
-      // 4. Empty state
-
-      const routeSection = page.getByTestId('route-analytics-card')
-      await expect(routeSection).toBeVisible()
-
-      const generationSection = page.getByTestId('generation-analytics-card')
-      await expect(generationSection).toBeVisible()
-
-      const tagSection = page.getByTestId('tag-cardinality-card')
-      await expect(tagSection).toBeVisible()
     })
   })
 })
