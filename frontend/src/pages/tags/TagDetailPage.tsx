@@ -49,10 +49,10 @@ export function TagDetailPage() {
   const state = (location.state as TagDetailLocationState | undefined) ?? {};
   const fallbackPath = state.fallbackPath ?? (state.from === 'gallery' ? '/gallery' : DEFAULT_FALLBACK_PATH);
 
-  const tagId = params.tagId ?? '';
+  const tagName = params.tagId ?? '';
 
-  // Fetch tag details
-  const { data: tagDetail, isLoading, error } = useTagDetail(tagId, userId);
+  // Fetch tag details (backend accepts both UUID and name)
+  const { data: tagDetail, isLoading, error } = useTagDetail(tagName, userId);
 
   // Rating mutation
   const rateTagMutation = useRateTag();
@@ -66,10 +66,10 @@ export function TagDetailPage() {
   };
 
   const handleRatingChange = (newRating: number | null) => {
-    if (newRating !== null && tagId) {
+    if (newRating !== null && tagDetail?.tag.id) {
       rateTagMutation.mutate(
         {
-          tagId,
+          tagId: tagDetail.tag.id,
           params: {
             user_id: userId,
             rating: newRating
@@ -85,20 +85,20 @@ export function TagDetailPage() {
     }
   };
 
-  const handleParentClick = (parentId: string) => {
-    navigate(`/tags/${parentId}`, {
+  const handleParentClick = (parentName: string) => {
+    navigate(`/tags/${parentName}`, {
       state: {
         from: 'tags',
-        fallbackPath: `/tags/${tagId}`,
+        fallbackPath: `/tags/${tagName}`,
       },
     });
   };
 
-  const handleChildClick = (childId: string) => {
-    navigate(`/tags/${childId}`, {
+  const handleChildClick = (childName: string) => {
+    navigate(`/tags/${childName}`, {
       state: {
         from: 'tags',
-        fallbackPath: `/tags/${tagId}`,
+        fallbackPath: `/tags/${tagName}`,
       },
     });
   };
@@ -173,9 +173,9 @@ export function TagDetailPage() {
                   <Chip
                     key={parent.id}
                     label={parent.name}
-                    onClick={() => handleParentClick(parent.id)}
+                    onClick={() => handleParentClick(parent.name)}
                     clickable
-                    data-testid={`tag-detail-parent-${parent.id}`}
+                    data-testid={`tag-detail-parent-${parent.name}`}
                   />
                 ))}
               </Stack>
@@ -193,10 +193,10 @@ export function TagDetailPage() {
                   <Chip
                     key={child.id}
                     label={child.name}
-                    onClick={() => handleChildClick(child.id)}
+                    onClick={() => handleChildClick(child.name)}
                     clickable
                     variant="outlined"
-                    data-testid={`tag-detail-child-${child.id}`}
+                    data-testid={`tag-detail-child-${child.name}`}
                   />
                 ))}
               </Stack>
@@ -278,7 +278,7 @@ export function TagDetailPage() {
       {/* Content browser (conditionally shown) */}
       {showContentBrowser && (
         <Box data-testid="tag-detail-content-section">
-          <TagContentBrowser tagId={tagId} tagName={tag.name} />
+          <TagContentBrowser tagId={tag.id} tagName={tag.name} />
         </Box>
       )}
     </Box>

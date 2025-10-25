@@ -22,7 +22,7 @@ export const tagKeys = {
   searches: () => [...tagKeys.all, 'search'] as const,
   search: (params: TagSearchParams) => [...tagKeys.searches(), params] as const,
   details: () => [...tagKeys.all, 'detail'] as const,
-  detail: (tagId: string, userId?: string) => [...tagKeys.details(), tagId, userId] as const,
+  detail: (tagIdOrName: string, userId?: string) => [...tagKeys.details(), tagIdOrName, userId] as const,
   children: (tagId: string) => [...tagKeys.all, 'children', tagId] as const,
   parents: (tagId: string) => [...tagKeys.all, 'parents', tagId] as const,
   statistics: () => [...tagKeys.all, 'statistics'] as const,
@@ -71,13 +71,13 @@ export function useTagStatistics() {
 // Tag Detail Hooks
 
 /**
- * Hook to get tag detail including parents, children, and ratings
+ * Hook to get tag detail by UUID or name including parents, children, and ratings
  */
-export function useTagDetail(tagId: string, userId?: string) {
+export function useTagDetail(tagIdOrName: string, userId?: string) {
   return useQuery<ApiTagDetail>({
-    queryKey: tagKeys.detail(tagId, userId),
-    queryFn: () => tagService.getTagDetail(tagId, userId),
-    enabled: !!tagId,
+    queryKey: tagKeys.detail(tagIdOrName, userId),
+    queryFn: () => tagService.getTagDetail(tagIdOrName, userId),
+    enabled: !!tagIdOrName,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

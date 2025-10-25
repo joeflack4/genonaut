@@ -177,7 +177,7 @@ describe('TagService', () => {
   })
 
   describe('getTagDetail', () => {
-    it('fetches tag detail without user context', async () => {
+    it('fetches tag detail by UUID without user context', async () => {
       const mockDetail: ApiTagDetail = {
         tag: { id: '1', name: 'Art', metadata: {} },
         parents: [],
@@ -205,7 +205,7 @@ describe('TagService', () => {
       expect(result.user_rating).toBeNull()
     })
 
-    it('fetches tag detail with user context', async () => {
+    it('fetches tag detail by UUID with user context', async () => {
       const mockDetail: ApiTagDetail = {
         tag: { id: '1', name: 'Art', metadata: {} },
         parents: [],
@@ -229,6 +229,74 @@ describe('TagService', () => {
       const result = await tagService.getTagDetail('1', 'user-123')
       expect(result.user_rating).toBe(5.0)
       expect(result.is_favorite).toBe(true)
+    })
+
+    it('fetches tag detail by name without user context', async () => {
+      const mockDetail: ApiTagDetail = {
+        tag: { id: '1', name: 'ornate', metadata: {} },
+        parents: [],
+        children: [
+          { id: '2', name: 'ornate-digital', metadata: {} },
+        ],
+        ancestors: [{ id: '10', name: 'art-style', depth: 0 }],
+        descendants: [],
+        average_rating: 4.2,
+        rating_count: 15,
+        user_rating: null,
+        is_favorite: false,
+      }
+
+      server.use(
+        http.get(`${BASE_URL}/api/v1/tags/ornate`, () => {
+          return HttpResponse.json(mockDetail)
+        })
+      )
+
+      const result = await tagService.getTagDetail('ornate')
+      expect(result.tag.name).toBe('ornate')
+      expect(result.children).toHaveLength(1)
+      expect(result.is_favorite).toBe(false)
+      expect(result.user_rating).toBeNull()
+    })
+
+    it('fetches tag detail by name with user context', async () => {
+      const mockDetail: ApiTagDetail = {
+        tag: { id: '1', name: 'landscape', metadata: {} },
+        parents: [],
+        children: [],
+        ancestors: [],
+        descendants: [],
+        average_rating: 4.8,
+        rating_count: 25,
+        user_rating: 5.0,
+        is_favorite: true,
+      }
+
+      server.use(
+        http.get(`${BASE_URL}/api/v1/tags/landscape`, ({ request }) => {
+          const url = new URL(request.url)
+          expect(url.searchParams.get('user_id')).toBe('user-123')
+          return HttpResponse.json(mockDetail)
+        })
+      )
+
+      const result = await tagService.getTagDetail('landscape', 'user-123')
+      expect(result.tag.name).toBe('landscape')
+      expect(result.user_rating).toBe(5.0)
+      expect(result.is_favorite).toBe(true)
+    })
+
+    it('handles errors appropriately', async () => {
+      server.use(
+        http.get(`${BASE_URL}/api/v1/tags/nonexistent`, () => {
+          return new HttpResponse(null, {
+            status: 404,
+            statusText: 'Not Found',
+          })
+        })
+      )
+
+      await expect(tagService.getTagDetail('nonexistent')).rejects.toThrow()
     })
   })
 

@@ -317,7 +317,14 @@ export function ImageViewPage() {
             {displayTags.length > 0 ? (
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 {displayTags.map((tag) => (
-                  <Chip key={tag} label={tag} size="small" />
+                  <Chip
+                    key={tag}
+                    label={tag}
+                    size="small"
+                    clickable
+                    onClick={() => navigate(`/tags/${tag}`)}
+                    data-testid={`image-view-tag-${tag}`}
+                  />
                 ))}
               </Stack>
             ) : (

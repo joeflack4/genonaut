@@ -32,20 +32,22 @@ test.describe('Theme and UI Settings Tests', () => {
     const storedAfterToggle = await page.evaluate(() => window.localStorage.getItem('theme-mode'))
     expect(storedAfterToggle?.toLowerCase()).toBe(toggledMode ?? undefined)
 
-    const dashboardLink = page.locator('[href="/dashboard"]').first()
-    await expect(dashboardLink).toBeVisible()
+    // Navigate to dashboard using data-testid
+    const dashboardLink = page.getByTestId('app-layout-nav-link-dashboard')
+    await expect(dashboardLink).toBeVisible({ timeout: 5000 })
     await dashboardLink.click()
     await page.waitForURL('**/dashboard')
-    await page.waitForSelector('[data-testid="dashboard-page-root"]')
+    await page.waitForSelector('[data-testid="dashboard-page-root"]', { timeout: 10000 })
 
     const persistedMode = await page.evaluate(() => window.localStorage.getItem('theme-mode'))
     expect(persistedMode?.toLowerCase()).toBe(toggledMode ?? undefined)
 
-    const settingsLink = page.locator('[href="/settings"]').first()
-    await expect(settingsLink).toBeVisible()
+    // Navigate back to settings using data-testid
+    const settingsLink = page.getByTestId('app-layout-nav-link-settings')
+    await expect(settingsLink).toBeVisible({ timeout: 5000 })
     await settingsLink.click()
     await page.waitForURL('**/settings')
-    await page.waitForSelector('[data-testid="settings-page-root"]')
+    await page.waitForSelector('[data-testid="settings-page-root"]', { timeout: 10000 })
 
     await getToggle().click()
     await page.waitForTimeout(200)

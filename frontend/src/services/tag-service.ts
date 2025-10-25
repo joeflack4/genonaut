@@ -137,7 +137,7 @@ export class TagService {
     )
   }
 
-  async getTagDetail(tagId: string, userId?: string): Promise<ApiTagDetail> {
+  async getTagDetail(tagIdOrName: string, userId?: string): Promise<ApiTagDetail> {
     const params = new URLSearchParams()
     if (userId) {
       params.set('user_id', userId)
@@ -145,7 +145,7 @@ export class TagService {
 
     const query = params.toString()
     return this.api.get<ApiTagDetail>(
-      `/api/v1/tags/${tagId}${query ? `?${query}` : ''}`
+      `/api/v1/tags/${tagIdOrName}${query ? `?${query}` : ''}`
     )
   }
 

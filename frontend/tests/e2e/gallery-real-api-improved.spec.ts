@@ -35,6 +35,8 @@ test.describe('Gallery page (Real API - Improved)', () => {
   })
   test.describe('Gallery Pagination', () => {
     test('displays correct pagination and handles navigation', async ({ page }) => {
+      test.setTimeout(30000); // Increase timeout for pagination test
+
       // Navigate to gallery page
       await page.goto('/gallery')
 
@@ -48,6 +50,10 @@ test.describe('Gallery page (Real API - Improved)', () => {
       // Verify basic pagination structure
       if (paginationInfo.results === 0) {
         test.skip(true, 'Real API returned zero gallery results. Ensure the test database seed ran (make frontend-test-e2e-real-api).')
+      }
+
+      if (paginationInfo.pages < 2) {
+        test.skip(true, 'Not enough data for pagination test - need at least 2 pages')
       }
 
       expect(paginationInfo.pages).toBeGreaterThan(0)

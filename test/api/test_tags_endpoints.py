@@ -54,6 +54,59 @@ def test_get_tag_detail_returns_relationships(
     assert detail["average_rating"] is None
 
 
+def test_get_tag_detail_by_uuid(
+    api_client: TestClient,
+    sample_tags,
+):
+    """GET /api/v1/tags/{uuid} accepts UUID parameter."""
+    child_tag = sample_tags["child"]
+
+    # Test with UUID
+    response = api_client.get(f"/api/v1/tags/{child_tag.id}")
+
+    assert response.status_code == 200, response.json()
+    detail = response.json()
+    assert detail["tag"]["id"] == str(child_tag.id)
+    assert detail["tag"]["name"] == child_tag.name
+
+
+def test_get_tag_detail_by_name(
+    api_client: TestClient,
+    sample_tags,
+):
+    """GET /api/v1/tags/{name} accepts tag name parameter."""
+    child_tag = sample_tags["child"]
+
+    # Test with tag name
+    response = api_client.get(f"/api/v1/tags/{child_tag.name}")
+
+    assert response.status_code == 200, response.json()
+    detail = response.json()
+    assert detail["tag"]["id"] == str(child_tag.id)
+    assert detail["tag"]["name"] == child_tag.name
+
+
+def test_get_tag_detail_not_found_uuid(
+    api_client: TestClient,
+):
+    """GET /api/v1/tags/{uuid} returns 404 for non-existent UUID."""
+    from uuid import uuid4
+    fake_id = uuid4()
+
+    response = api_client.get(f"/api/v1/tags/{fake_id}")
+
+    assert response.status_code == 404
+
+
+def test_get_tag_detail_not_found_name(
+    api_client: TestClient,
+):
+    """GET /api/v1/tags/{name} returns 404 for non-existent name."""
+    response = api_client.get("/api/v1/tags/nonexistent_tag_name")
+
+    assert response.status_code == 404
+
+
 def test_hierarchy_endpoint_optionally_includes_ratings(
     api_client: TestClient,
     db_session,

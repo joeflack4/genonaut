@@ -48,7 +48,8 @@ test.describe('Content CRUD Operations (Real API)', () => {
 
     // Look for generation form
     const promptInput = page.getByPlaceholder(/describe.*image|prompt/i)
-    const generateButton = page.getByRole('button', { name: /generate/i })
+    // Use specific data-testid to avoid matching navigation link
+    const generateButton = page.getByTestId('generate-button')
 
     if (await promptInput.count() === 0 || await generateButton.count() === 0) {
       test.skip(true, 'Generation form not found - content creation UI may not be implemented')

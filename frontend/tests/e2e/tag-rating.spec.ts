@@ -16,16 +16,25 @@ test.describe('Tag Rating (Real API)', () => {
     // Go to tags page with tree view
     await page.goto('/tags');
     await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Wait for tree view to load
     await page.waitForSelector('[aria-label="Tag hierarchy tree"]', { timeout: 10000 });
 
-    // Find a tag in the tree and click it (look for any text node in the tree)
-    const tagInTree = page.locator('[aria-label="Tag hierarchy tree"] >> text="Visual Aesthetics"').first();
-    await tagInTree.click();
+    // Find any clickable tag in the tree (look for TreeItem with button role)
+    const treeItems = page.locator('[aria-label="Tag hierarchy tree"] [role="treeitem"]');
+    const firstTag = treeItems.first();
 
-    // Should navigate to tag detail page
-    await page.waitForURL(/\/tags\/[a-f0-9-]+/, { timeout: 10000 });
+    // Check if any tags exist
+    if (await treeItems.count() === 0) {
+      test.skip(true, 'No tags available in test database');
+      return;
+    }
+
+    await firstTag.click();
+
+    // Should navigate to tag detail page (now uses tag names instead of UUIDs)
+    await page.waitForURL(/\/tags\/.+/, { timeout: 10000 });
     await page.waitForLoadState('domcontentloaded');
 
     // Wait for ratings section
@@ -59,16 +68,25 @@ test.describe('Tag Rating (Real API)', () => {
     // Go to tags page with tree view
     await page.goto('/tags');
     await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Wait for tree view to load
     await page.waitForSelector('[aria-label="Tag hierarchy tree"]', { timeout: 10000 });
 
-    // Find a tag in the tree and click it
-    const tagInTree = page.locator('[aria-label="Tag hierarchy tree"] >> text="Visual Aesthetics"').first();
-    await tagInTree.click();
+    // Find any clickable tag in the tree
+    const treeItems = page.locator('[aria-label="Tag hierarchy tree"] [role="treeitem"]');
+    const firstTag = treeItems.first();
 
-    // Should navigate to tag detail page
-    await page.waitForURL(/\/tags\/[a-f0-9-]+/, { timeout: 10000 });
+    // Check if any tags exist
+    if (await treeItems.count() === 0) {
+      test.skip(true, 'No tags available in test database');
+      return;
+    }
+
+    await firstTag.click();
+
+    // Should navigate to tag detail page (now uses tag names instead of UUIDs)
+    await page.waitForURL(/\/tags\/.+/, { timeout: 10000 });
     await page.waitForLoadState('domcontentloaded');
 
     // Wait for ratings section
@@ -96,16 +114,25 @@ test.describe('Tag Rating (Real API)', () => {
     // Go to tags page with tree view
     await page.goto('/tags');
     await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Wait for tree view to load
     await page.waitForSelector('[aria-label="Tag hierarchy tree"]', { timeout: 10000 });
 
-    // Find a tag in the tree and click it
-    const tagInTree = page.locator('[aria-label="Tag hierarchy tree"] >> text="Visual Aesthetics"').first();
-    await tagInTree.click();
+    // Find any clickable tag in the tree
+    const treeItems = page.locator('[aria-label="Tag hierarchy tree"] [role="treeitem"]');
+    const firstTag = treeItems.first();
 
-    // Navigate to tag detail page
-    await page.waitForURL(/\/tags\/[a-f0-9-]+/, { timeout: 10000 });
+    // Check if any tags exist
+    if (await treeItems.count() === 0) {
+      test.skip(true, 'No tags available in test database');
+      return;
+    }
+
+    await firstTag.click();
+
+    // Navigate to tag detail page (now uses tag names instead of UUIDs)
+    await page.waitForURL(/\/tags\/.+/, { timeout: 10000 });
     const tagUrl = page.url();
 
     // Wait for page load

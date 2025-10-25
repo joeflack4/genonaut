@@ -8,10 +8,12 @@ test.describe('ComfyUI Generation', () => {
     await page.goto('/')
 
     // Wait for navigation to load
-    await page.waitForSelector('nav')
+    await page.waitForSelector('nav', { timeout: 10000 })
 
-    // Click on Generate navigation item
-    await page.click('[href="/generate"]')
+    // Click on Generate navigation item using data-testid
+    const generateLink = page.getByTestId('app-layout-nav-link-generate')
+    await expect(generateLink).toBeVisible({ timeout: 5000 })
+    await generateLink.click()
 
     // Should navigate to generation page
     await expect(page).toHaveURL('/generate')

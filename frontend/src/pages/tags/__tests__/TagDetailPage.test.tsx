@@ -159,11 +159,11 @@ describe('TagDetailPage', () => {
       expect(screen.getByText('Photography')).toBeInTheDocument();
       expect(screen.getByText('Art')).toBeInTheDocument();
 
-      const parentChip = screen.getByTestId('tag-detail-parent-parent-1');
+      const parentChip = screen.getByTestId('tag-detail-parent-Photography');
       await user.click(parentChip);
 
       expect(mockNavigate).toHaveBeenCalledWith(
-        '/tags/parent-1',
+        '/tags/Photography',
         expect.objectContaining({
           state: expect.objectContaining({
             from: 'tags',
@@ -196,11 +196,11 @@ describe('TagDetailPage', () => {
       expect(screen.getByText('Landscape')).toBeInTheDocument();
       expect(screen.getByText('Wildlife')).toBeInTheDocument();
 
-      const childChip = screen.getByTestId('tag-detail-child-child-1');
+      const childChip = screen.getByTestId('tag-detail-child-Landscape');
       await user.click(childChip);
 
       expect(mockNavigate).toHaveBeenCalledWith(
-        '/tags/child-1',
+        '/tags/Landscape',
         expect.objectContaining({
           state: expect.objectContaining({
             from: 'tags',

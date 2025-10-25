@@ -169,9 +169,12 @@ export async function clickNextPage(page: Page) {
   // Wait for network activity to settle
   await page.waitForLoadState('networkidle')
 
+  // Wait for loading state to clear (if present)
+  await page.waitForSelector('[data-testid="gallery-results-loading"]', { state: 'detached', timeout: 10000 }).catch(() => {})
+
   // If we were on page 1, wait for page 2 button to appear
   if (isOnPage1) {
-    await page.waitForSelector('button[aria-label="page 2"][aria-current="true"]', { timeout: 5000 })
+    await page.waitForSelector('button[aria-label="page 2"][aria-current="true"]', { timeout: 15000 })
   }
 
   // Give the UI a moment to update pagination state

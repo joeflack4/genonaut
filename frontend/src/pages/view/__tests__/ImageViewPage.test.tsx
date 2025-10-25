@@ -1,5 +1,6 @@
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ImageViewPage } from '../ImageViewPage'
 
@@ -179,5 +180,29 @@ describe('ImageViewPage', () => {
     renderWithRouter('/view/1')
 
     expect(screen.getByTestId('image-view-loading')).toBeInTheDocument()
+  })
+
+  it('navigates to tag detail page when tag chip is clicked', async () => {
+    const user = userEvent.setup()
+
+    mockedUseGalleryItem.mockReturnValue({
+      data: baseItem,
+      isLoading: false,
+      error: null,
+    } as any)
+
+    const { container } = render(
+      <MemoryRouter initialEntries={['/view/1']}>
+        <Routes>
+          <Route path="/view/:id" element={<ImageViewPage />} />
+          <Route path="/tags/:tagId" element={<div data-testid="tag-detail-page">Tag Detail Page</div>} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    const tagChip = screen.getByTestId('image-view-tag-artistic_medium')
+    await user.click(tagChip)
+
+    expect(screen.getByTestId('tag-detail-page')).toBeInTheDocument()
   })
 })

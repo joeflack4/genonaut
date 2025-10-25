@@ -613,7 +613,14 @@ export function GalleryPage() {
   }
 
   const handleTagClick = (tagId: string) => {
-    navigate(`/tags/${tagId}`)
+    const tagName = tagIdToNameMap.get(tagId)
+    if (tagName) {
+      navigate(`/tags/${tagName}`)
+    } else {
+      // Fallback: if tag name not found in map, navigate with ID
+      console.warn(`Tag name not found for ID: ${tagId}. Navigating with ID.`)
+      navigate(`/tags/${tagId}`)
+    }
   }
 
   const handleNavigateToHierarchy = () => {

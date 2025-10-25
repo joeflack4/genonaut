@@ -407,16 +407,16 @@ def _build_tag_detail_response(
     )
 
 
-@router.get("/{tag_id}", response_model=TagDetailResponse)
+@router.get("/{tag_identifier}", response_model=TagDetailResponse)
 async def get_tag_detail(
-    tag_id: UUID,
+    tag_identifier: str,
     user_id: Optional[UUID] = Query(None, description="User ID for user-specific data"),
     service: TagService = Depends(get_tag_service)
 ):
-    """Get detailed information about a tag.
+    """Get detailed information about a tag by UUID or name.
 
     Args:
-        tag_id: Tag UUID
+        tag_identifier: Tag UUID or tag name
         user_id: Optional user UUID to include user's rating
         service: Tag service instance
 
@@ -427,7 +427,15 @@ async def get_tag_detail(
         HTTPException: If tag not found
     """
     try:
-        detail = service.get_tag_detail(tag_id, user_id)
+        # Try to parse as UUID first
+        try:
+            tag_uuid = UUID(tag_identifier)
+            detail = service.get_tag_detail(tag_uuid, user_id)
+        except ValueError:
+            # Not a UUID, treat as tag name
+            tag = service.get_tag_by_name(tag_identifier)
+            detail = service.get_tag_detail(tag.id, user_id)
+
         return _build_tag_detail_response(detail)
 
     except EntityNotFoundError as e:
@@ -436,27 +444,6 @@ async def get_tag_detail(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get tag detail: {str(e)}"
-        )
-
-
-@router.get("/by-name/{tag_name}", response_model=TagDetailResponse)
-async def get_tag_detail_by_name(
-    tag_name: str,
-    user_id: Optional[UUID] = Query(None, description="User ID for user-specific data"),
-    service: TagService = Depends(get_tag_service)
-):
-    """Get detailed tag information by name."""
-    try:
-        tag = service.get_tag_by_name(tag_name)
-        detail = service.get_tag_detail(tag.id, user_id)
-        return _build_tag_detail_response(detail)
-
-    except EntityNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get tag detail by name: {str(e)}"
         )
 
 
