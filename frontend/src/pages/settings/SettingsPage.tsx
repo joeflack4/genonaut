@@ -30,6 +30,8 @@ const sidebarPages = [
   { key: 'settings', label: 'Account Settings', canToggle: false },
 ]
 
+const EARLY_FEATURES_STORAGE_KEY = 'early-features'
+
 export function SettingsPage() {
   const navigate = useNavigate()
   const { data: currentUser } = useCurrentUser()
@@ -39,6 +41,18 @@ export function SettingsPage() {
 
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
+
+  // Early development features state
+  const [earlyFeatures, setEarlyFeatures] = useState(() => {
+    try {
+      const stored = localStorage.getItem(EARLY_FEATURES_STORAGE_KEY)
+      return stored ? JSON.parse(stored) : {
+        galleryVirtualScrolling: false
+      }
+    } catch {
+      return { galleryVirtualScrolling: false }
+    }
+  })
 
   useEffect(() => {
     if (!currentUser) {
@@ -59,6 +73,17 @@ export function SettingsPage() {
         name: displayName,
         email,
       },
+    })
+  }
+
+  const toggleEarlyFeature = (feature: string) => {
+    setEarlyFeatures((prev) => {
+      const updated = {
+        ...prev,
+        [feature]: !prev[feature as keyof typeof prev],
+      }
+      localStorage.setItem(EARLY_FEATURES_STORAGE_KEY, JSON.stringify(updated))
+      return updated
     })
   }
 
@@ -242,6 +267,35 @@ export function SettingsPage() {
               >
                 View analytics
               </Button>
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Card data-testid="settings-early-features-card">
+        <CardContent>
+          <Stack spacing={3} data-testid="settings-early-features-section">
+            <Typography variant="h6" component="h2" fontWeight={600} data-testid="settings-early-features-title">
+              Early development features
+            </Typography>
+
+            <Typography variant="body2" color="text.secondary" data-testid="settings-early-features-description">
+              These features are very early in development and may be buggy.
+            </Typography>
+
+            <Stack spacing={1.5} data-testid="settings-early-features-list">
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={earlyFeatures.galleryVirtualScrolling}
+                    onChange={() => toggleEarlyFeature('galleryVirtualScrolling')}
+                    name="galleryVirtualScrolling"
+                    inputProps={{ 'data-testid': 'settings-gallery-virtual-scrolling-switch' }}
+                  />
+                }
+                label="Gallery page: Virtual scrolling"
+                data-testid="settings-gallery-virtual-scrolling-control"
+              />
             </Stack>
           </Stack>
         </CardContent>

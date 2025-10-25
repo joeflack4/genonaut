@@ -3,7 +3,7 @@
 from typing import Optional, List, Dict, Any, Generic, TypeVar
 from datetime import datetime
 from uuid import UUID
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, Field, computed_field, field_validator
 
 T = TypeVar('T')
 
@@ -74,6 +74,26 @@ class ContentResponse(BaseModel):
     is_private: bool = Field(..., description="Private status")
 
     model_config = {"from_attributes": True}
+
+    @field_validator('item_metadata', mode='before')
+    @classmethod
+    def deduplicate_tags_in_metadata(cls, v: Any) -> Any:
+        """Deduplicate tags array in item_metadata for defense-in-depth.
+
+        Database triggers ensure integrity, but this provides an additional safeguard.
+        """
+        if isinstance(v, dict) and 'tags' in v:
+            tags = v['tags']
+            if isinstance(tags, list):
+                # Deduplicate while preserving order
+                seen = set()
+                deduped = []
+                for tag in tags:
+                    if isinstance(tag, str) and tag not in seen:
+                        seen.add(tag)
+                        deduped.append(tag)
+                v['tags'] = deduped
+        return v
 
 
 class ContentListResponse(BaseModel):

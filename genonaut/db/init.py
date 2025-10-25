@@ -937,7 +937,8 @@ def initialize_database(
 
     # SAFETY CHECK: Prevent drop_existing on non-empty databases
     # This prevents accidental data loss from running init commands on populated databases
-    if drop_existing:
+    # Exception: Test databases are allowed to drop existing tables since they're meant to be reset frequently
+    if drop_existing and not initializer.is_test:
         # Create a temporary engine to check if database has tables
         temp_engine = None
         try:

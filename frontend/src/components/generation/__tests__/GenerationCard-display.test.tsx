@@ -30,6 +30,13 @@ describe('GenerationCard', () => {
     batch_size: 1,
   }
 
+  const mockResolution = {
+    id: '512x768' as const,
+    width: 512,
+    height: 768,
+    label: '512x768',
+  }
+
   const mockHandlers = {
     onView: vi.fn(),
     onDelete: vi.fn(),
@@ -37,13 +44,13 @@ describe('GenerationCard', () => {
 
   it('renders generation card', () => {
     const { container } = render(
-      <GenerationCard generation={mockGeneration} {...mockHandlers} />
+      <GenerationCard generation={mockGeneration} resolution={mockResolution} {...mockHandlers} />
     )
     expect(container.firstChild).toBeInTheDocument()
   })
 
   it('displays generation prompt', () => {
-    render(<GenerationCard generation={mockGeneration} {...mockHandlers} />)
+    render(<GenerationCard generation={mockGeneration} resolution={mockResolution} {...mockHandlers} />)
 
     // Prompt should be visible somewhere in the component
     const promptText = screen.queryByText(/Test prompt/i)
@@ -51,7 +58,7 @@ describe('GenerationCard', () => {
   })
 
   it('displays model name', () => {
-    render(<GenerationCard generation={mockGeneration} {...mockHandlers} />)
+    render(<GenerationCard generation={mockGeneration} resolution={mockResolution} {...mockHandlers} />)
 
     // Model name should be visible
     const modelText = screen.queryByText(/TestModel/i)
@@ -59,7 +66,7 @@ describe('GenerationCard', () => {
   })
 
   it('displays generation parameters', () => {
-    render(<GenerationCard generation={mockGeneration} {...mockHandlers} />)
+    render(<GenerationCard generation={mockGeneration} resolution={mockResolution} {...mockHandlers} />)
 
     // Check for dimensions (width x height)
     const dimensions = screen.queryByText(/512/)
@@ -68,7 +75,7 @@ describe('GenerationCard', () => {
 
   it('shows thumbnail image', () => {
     const { container } = render(
-      <GenerationCard generation={mockGeneration} {...mockHandlers} />
+      <GenerationCard generation={mockGeneration} resolution={mockResolution} {...mockHandlers} />
     )
 
     // Component uses LazyImage which may show placeholder initially
@@ -84,7 +91,7 @@ describe('GenerationCard', () => {
       thumbnail_paths: undefined,
     }
     const { container } = render(
-      <GenerationCard generation={genWithoutImage} {...mockHandlers} />
+      <GenerationCard generation={genWithoutImage} resolution={mockResolution} {...mockHandlers} />
     )
 
     // Should still render without crashing

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { SelectChangeEvent } from '@mui/material/Select'
 import {
@@ -52,12 +52,17 @@ import { loadViewMode, persistViewMode } from '../../utils/viewModeStorage'
 import { GridView as GalleryGridView, ResolutionDropdown } from '../../components/gallery'
 import { TagFilter } from '../../components/gallery/TagFilter'
 import { SearchHistoryDropdown } from '../../components/search/SearchHistoryDropdown'
+import { VirtualScrollList } from '../../components/common/VirtualScrollList'
+import { ImageGridCell } from '../../components/gallery/ImageGridCell'
 import { UI_CONFIG } from '../../config/ui'
 
 const PAGE_SIZE = 25
+const VIRTUAL_SCROLL_PAGE_SIZE = 100
 const PANEL_WIDTH = 360
 const DEFAULT_USER_ID = ADMIN_USER_ID
 const GALLERY_OPTIONS_OPEN_KEY = 'gallery-options-open'
+const GALLERY_VIRTUAL_SCROLL_KEY = 'gallery-virtual-scroll'
+const EARLY_FEATURES_STORAGE_KEY = 'early-features'
 
 type SortOption = 'recent' | 'top-rated'
 
@@ -136,6 +141,46 @@ export function GalleryPage() {
     }
   })
 
+  // Initialize virtual scrolling state from localStorage
+  const [useVirtualScrolling, setUseVirtualScrolling] = useState(() => {
+    try {
+      const stored = localStorage.getItem(GALLERY_VIRTUAL_SCROLL_KEY)
+      return stored !== null ? JSON.parse(stored) : false
+    } catch {
+      return false
+    }
+  })
+
+  // Check if early features are enabled
+  const [virtualScrollingFeatureEnabled, setVirtualScrollingFeatureEnabled] = useState(() => {
+    try {
+      const stored = localStorage.getItem(EARLY_FEATURES_STORAGE_KEY)
+      const features = stored ? JSON.parse(stored) : { galleryVirtualScrolling: false }
+      return features.galleryVirtualScrolling === true
+    } catch {
+      return false
+    }
+  })
+
+  // Listen for storage changes to update feature flag
+  useEffect(() => {
+    const handleStorageChange = () => {
+      try {
+        const stored = localStorage.getItem(EARLY_FEATURES_STORAGE_KEY)
+        const features = stored ? JSON.parse(stored) : { galleryVirtualScrolling: false }
+        setVirtualScrollingFeatureEnabled(features.galleryVirtualScrolling === true)
+      } catch {
+        setVirtualScrollingFeatureEnabled(false)
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
+
+  // Calculate items per row for virtual scrolling
+  const [itemsPerRow, setItemsPerRow] = useState(4)
+
   // Popover state for stats
   const [statsAnchorEl, setStatsAnchorEl] = useState<HTMLElement | null>(null)
   const [genSourceInfoAnchorEl, setGenSourceInfoAnchorEl] = useState<HTMLElement | null>(null)
@@ -188,6 +233,20 @@ export function GalleryPage() {
       ?? DEFAULT_THUMBNAIL_RESOLUTION,
     [currentGridResolutionId]
   )
+
+  // Calculate items per row for virtual scrolling based on resolution
+  useEffect(() => {
+    const updateItemsPerRow = () => {
+      const containerWidth = window.innerWidth - (optionsOpen ? PANEL_WIDTH + 64 : 64) // Account for sidebar and padding
+      const itemWidth = currentResolution.width + 16 // Card width + gap
+      const calculatedItemsPerRow = Math.max(1, Math.floor(containerWidth / itemWidth))
+      setItemsPerRow(calculatedItemsPerRow)
+    }
+
+    updateItemsPerRow()
+    window.addEventListener('resize', updateItemsPerRow)
+    return () => window.removeEventListener('resize', updateItemsPerRow)
+  }, [currentResolution.width, optionsOpen])
 
   const updateViewMode = (mode: ViewMode) => {
     setViewMode(mode)
@@ -443,6 +502,15 @@ export function GalleryPage() {
     }
   }, [optionsOpen])
 
+  // Save virtual scrolling state to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(GALLERY_VIRTUAL_SCROLL_KEY, JSON.stringify(useVirtualScrolling))
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, [useVirtualScrolling])
+
 
   // NEW: Build content source types array directly from toggles
   const contentSourceTypes = useMemo(() => {
@@ -466,7 +534,7 @@ export function GalleryPage() {
   // Main query - WITHOUT stats for better performance
   const { data: unifiedData, isLoading } = useUnifiedGallery({
     page: filters.page + 1, // Convert from 0-based to 1-based
-    pageSize: PAGE_SIZE,
+    pageSize: (useVirtualScrolling && virtualScrollingFeatureEnabled) ? VIRTUAL_SCROLL_PAGE_SIZE : PAGE_SIZE,
     cursor: filters.cursor,
     contentSourceTypes,  // NEW: Use specific combinations instead of contentTypes + creatorFilter
     userId,
@@ -480,7 +548,7 @@ export function GalleryPage() {
   // Lazy-loaded stats query - only runs when shouldLoadStats is true
   const { data: statsData } = useUnifiedGallery({
     page: filters.page + 1,
-    pageSize: PAGE_SIZE,
+    pageSize: (useVirtualScrolling && virtualScrollingFeatureEnabled) ? VIRTUAL_SCROLL_PAGE_SIZE : PAGE_SIZE,
     cursor: filters.cursor,
     contentSourceTypes,
     userId,
@@ -503,8 +571,53 @@ export function GalleryPage() {
       return 1
     }
 
-    return Math.max(1, Math.ceil(data.total / PAGE_SIZE))
-  }, [data])
+    return Math.max(1, Math.ceil(data.total / ((useVirtualScrolling && virtualScrollingFeatureEnabled) ? VIRTUAL_SCROLL_PAGE_SIZE : PAGE_SIZE)))
+  }, [data, useVirtualScrolling, virtualScrollingFeatureEnabled])
+
+  // Group items into rows for virtual scrolling
+  const itemRows = useMemo(() => {
+    if (!isGridView || !useVirtualScrolling || !virtualScrollingFeatureEnabled) return []
+
+    const rows: GalleryItem[][] = []
+    for (let i = 0; i < items.length; i += itemsPerRow) {
+      rows.push(items.slice(i, i + itemsPerRow))
+    }
+    return rows
+  }, [items, itemsPerRow, isGridView, useVirtualScrolling, virtualScrollingFeatureEnabled])
+
+  // Calculate row height for virtual scrolling
+  const rowHeight = useMemo(() => {
+    if (!currentResolution) return 300
+    const aspectRatio = currentResolution.height / currentResolution.width
+    const cardHeight = currentResolution.width * aspectRatio + 100 // Add space for metadata
+    return cardHeight + 16 // Add gap
+  }, [currentResolution])
+
+  // Render a row of gallery items for virtual scrolling
+  const renderItemRow = useCallback(
+    (row: GalleryItem[]) => (
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 2,
+          gridTemplateColumns: `repeat(${itemsPerRow}, minmax(${currentResolution.width}px, 1fr))`,
+          alignItems: 'flex-start',
+          px: 1,
+        }}
+      >
+        {row.map((item) => (
+          <ImageGridCell
+            key={item.id}
+            item={item}
+            resolution={currentResolution}
+            onClick={navigateToDetail}
+            dataTestId={`gallery-grid-item-${item.id}`}
+          />
+        ))}
+      </Box>
+    ),
+    [itemsPerRow, currentResolution, navigateToDetail]
+  )
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -779,14 +892,73 @@ export function GalleryPage() {
           <Card data-testid="gallery-results-card">
             <CardContent>
               {isGridView ? (
-                <GalleryGridView
-                  items={items}
-                  resolution={currentResolution}
-                  isLoading={isLoading}
-                  onItemClick={navigateToDetail}
-                  emptyMessage="No gallery items found. Try adjusting your filters."
-                  dataTestId="gallery-grid-view"
-                />
+                (useVirtualScrolling && virtualScrollingFeatureEnabled) ? (
+                  <Box data-testid="gallery-virtual-scroll-view">
+                    {itemRows.length > 0 ? (
+                      <VirtualScrollList
+                        items={itemRows}
+                        itemHeight={rowHeight}
+                        containerHeight={window.innerHeight - 250} // Dynamic height based on viewport
+                        renderItem={renderItemRow}
+                        overscan={2}
+                      />
+                    ) : isLoading ? (
+                      <Box
+                        sx={{
+                          display: 'grid',
+                          gap: 2,
+                          gridTemplateColumns: `repeat(auto-fill, minmax(${currentResolution.width}px, 1fr))`,
+                          alignItems: 'flex-start',
+                        }}
+                      >
+                        {Array.from({ length: 12 }).map((_, index) => (
+                          <Box key={`gallery-grid-skeleton-${index}`}>
+                            <Box
+                              sx={{
+                                position: 'relative',
+                                width: '100%',
+                                pt: `${(currentResolution.height / currentResolution.width) * 100}%`,
+                                borderRadius: 2,
+                                overflow: 'hidden',
+                              }}
+                            >
+                              <Skeleton
+                                variant="rectangular"
+                                animation="wave"
+                                sx={{
+                                  position: 'absolute',
+                                  inset: 0,
+                                  width: '100%',
+                                  height: '100%',
+                                }}
+                              />
+                            </Box>
+                            <Skeleton variant="text" width="80%" sx={{ mt: 1 }} />
+                            <Skeleton variant="text" width="40%" />
+                          </Box>
+                        ))}
+                      </Box>
+                    ) : (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ textAlign: 'center', py: 4 }}
+                        data-testid="gallery-grid-empty"
+                      >
+                        No gallery items found. Try adjusting your filters.
+                      </Typography>
+                    )}
+                  </Box>
+                ) : (
+                  <GalleryGridView
+                    items={items}
+                    resolution={currentResolution}
+                    isLoading={isLoading}
+                    onItemClick={navigateToDetail}
+                    emptyMessage="No gallery items found. Try adjusting your filters."
+                    dataTestId="gallery-grid-view"
+                  />
+                )
               ) : isLoading ? (
                 <Stack spacing={2} data-testid="gallery-results-loading">
                   {Array.from({ length: 5 }).map((_, index) => (
@@ -874,16 +1046,18 @@ export function GalleryPage() {
             </CardContent>
           </Card>
 
-          <Box display="flex" justifyContent="flex-start" data-testid="gallery-pagination">
-            <Pagination
-              count={totalPages}
-              page={filters.page + 1}
-              onChange={handlePageChange}
-              color="primary"
-              shape="rounded"
-              data-testid="gallery-pagination-control"
-            />
-          </Box>
+          {!(useVirtualScrolling && virtualScrollingFeatureEnabled) && (
+            <Box display="flex" justifyContent="flex-start" data-testid="gallery-pagination">
+              <Pagination
+                count={totalPages}
+                page={filters.page + 1}
+                onChange={handlePageChange}
+                color="primary"
+                shape="rounded"
+                data-testid="gallery-pagination-control"
+              />
+            </Box>
+          )}
         </Stack>
       </Box>
 
@@ -1125,6 +1299,25 @@ export function GalleryPage() {
               tagIdToNameMap={tagIdToNameMap}
             />
           </Stack>
+
+          {/* Virtual Scrolling Toggle - only show if feature is enabled */}
+          {virtualScrollingFeatureEnabled && (
+            <Box sx={{ mt: 'auto', pt: 2 }} data-testid="gallery-virtual-scrolling-section">
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={useVirtualScrolling}
+                    onChange={(e) => setUseVirtualScrolling(e.target.checked)}
+                    size="small"
+                    inputProps={{ 'data-testid': 'gallery-virtual-scroll-toggle' }}
+                  />
+                }
+                label="Virtual Scrolling"
+                sx={{ ml: 1 }}
+                data-testid="gallery-virtual-scroll-toggle-label"
+              />
+            </Box>
+          )}
         </Stack>
       </Drawer>
 

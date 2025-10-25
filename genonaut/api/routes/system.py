@@ -24,14 +24,18 @@ router = APIRouter(prefix="/api/v1", tags=["system"])
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check(db: Session = Depends(get_database_session)):
-    """Health check endpoint with database connectivity test."""
+    """Health check endpoint with database connectivity test and database name."""
     try:
-        # Simple query to test database connectivity
+        # Test database connectivity and get database name
         db.execute(text("SELECT 1"))
+        db_name_result = db.execute(text("SELECT current_database()")).fetchone()
+        db_name = db_name_result[0] if db_name_result else "unknown"
+
         return HealthResponse(
             status="healthy",
             database={
                 "status": "connected",
+                "name": db_name,
             },
             timestamp=datetime.utcnow(),
         )
@@ -40,6 +44,7 @@ async def health_check(db: Session = Depends(get_database_session)):
             status="unhealthy",
             database={
                 "status": "disconnected",
+                "name": None,
             },
             timestamp=datetime.utcnow(),
             error=str(e),

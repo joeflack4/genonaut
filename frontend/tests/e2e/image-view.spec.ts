@@ -153,4 +153,70 @@ test.describe('Image View Page', () => {
     await expect(page).toHaveURL(/\/gallery/);
     await expect(galleryResults).toBeVisible();
   });
+
+  test('does not show React duplicate key warnings for tags', async ({ page }) => {
+    // Track console warnings
+    const consoleWarnings: string[] = [];
+    page.on('console', msg => {
+      if (msg.type() === 'warning') {
+        consoleWarnings.push(msg.text());
+      }
+    });
+
+    // Navigate to gallery
+    await page.goto('/gallery');
+    await expect(page).toHaveURL(/\/gallery/);
+
+    // Wait for network to settle and page to load
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+
+    // Wait for gallery results to load (or empty state)
+    const galleryResults = page.getByTestId('gallery-results-list');
+    const emptyState = page.getByTestId('gallery-results-empty');
+
+    // Check if we have results or empty state
+    const hasResults = await galleryResults.isVisible().catch(() => false);
+    const isEmpty = await emptyState.isVisible().catch(() => false);
+
+    if (isEmpty || !hasResults) {
+      handleMissingData(
+        test,
+        'Image view test - duplicate key check',
+        'gallery data (content_items)',
+        'make init-test && python -m genonaut.db.demo.seed_data_gen.seed_tags_from_content --env-target test'
+      );
+      return;
+    }
+
+    await expect(galleryResults).toBeVisible({ timeout: 5000 });
+
+    // Find first image card and click it
+    const firstImage = page.locator('[data-testid^="gallery-result-item-"]').first();
+    await expect(firstImage).toBeVisible({ timeout: 5000 });
+    await firstImage.click();
+
+    // Verify we're on the view page
+    await expect(page).toHaveURL(/\/view\/\d+/);
+    await expect(page.getByTestId('image-view-page')).toBeVisible();
+
+    // Wait for tags to render
+    const tagsSection = page.getByTestId('image-view-tags');
+    await expect(tagsSection).toBeVisible();
+
+    // Give React a moment to render and report any warnings
+    await page.waitForTimeout(1000);
+
+    // Check that there are no duplicate key warnings
+    const duplicateKeyWarnings = consoleWarnings.filter(warning =>
+      warning.includes('Encountered two children with the same key') ||
+      warning.includes('Keys should be unique')
+    );
+
+    if (duplicateKeyWarnings.length > 0) {
+      console.error('React duplicate key warnings found:', duplicateKeyWarnings);
+    }
+
+    expect(duplicateKeyWarnings).toHaveLength(0);
+  });
 });

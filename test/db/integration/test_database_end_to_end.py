@@ -165,6 +165,7 @@ class TestDatabaseEndToEnd:
             database_url=self.test_db_url,
             create_db=True,
             drop_existing=True,
+            environment="test",
             auto_seed=False,
         )
         

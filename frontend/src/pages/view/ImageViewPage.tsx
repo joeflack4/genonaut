@@ -1,5 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import type { SelectChangeEvent } from '@mui/material/Select'
 import {
   Alert,
   Box,
@@ -7,7 +8,11 @@ import {
   CardContent,
   CircularProgress,
   Divider,
+  FormControl,
   IconButton,
+  InputLabel,
+  MenuItem,
+  Select,
   Stack,
   Tooltip,
   Typography,
@@ -16,10 +21,19 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import ImageNotSupportedIcon from '@mui/icons-material/ImageNotSupported'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { useGalleryItem } from '../../hooks'
+import { useGalleryItem, useTags } from '../../hooks'
 import { resolveImageSourceCandidates } from '../../utils/image-url'
 
 type MetadataRecord = Record<string, unknown>
+
+type TagSortOption = 'name-asc' | 'name-desc' | 'rating-asc' | 'rating-desc'
+
+const tagSortOptions: Array<{ value: TagSortOption; label: string }> = [
+  { value: 'name-asc', label: 'Name (A-Z)' },
+  { value: 'name-desc', label: 'Name (Z-A)' },
+  { value: 'rating-asc', label: 'Rating (Low to High)' },
+  { value: 'rating-desc', label: 'Rating (High to Low)' },
+]
 
 function getMetadataString(metadata: MetadataRecord | null | undefined, ...keys: string[]): string | null {
   if (!metadata) {
@@ -47,8 +61,10 @@ function getMetadataTags(metadata: MetadataRecord | null | undefined): string[] 
   const value = metadata['tags']
 
   if (Array.isArray(value)) {
-    return value
+    const filtered = value
       .filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
+    // Deduplicate tags as defensive safeguard
+    return Array.from(new Set(filtered))
   }
 
   if (typeof value === 'string') {
@@ -72,6 +88,19 @@ export function ImageViewPage() {
   const navigate = useNavigate()
   const location = useLocation()
 
+  // Tag sorting state - persisted to localStorage (separate from gallery page)
+  const [tagSortOption, setTagSortOption] = useState<TagSortOption>(() => {
+    const saved = localStorage.getItem('viewPageTagSortPreference')
+    return (saved as TagSortOption) || 'name-asc'
+  })
+
+  // Persist sort preference to localStorage
+  const handleSortChange = (e: SelectChangeEvent<TagSortOption>) => {
+    const newValue = e.target.value as TagSortOption
+    setTagSortOption(newValue)
+    localStorage.setItem('viewPageTagSortPreference', newValue)
+  }
+
   const contentId = useMemo(() => {
     const parsed = Number(params.id)
     return Number.isFinite(parsed) ? parsed : undefined
@@ -90,6 +119,9 @@ export function ImageViewPage() {
     sourceType: state.sourceType,
   })
 
+  // Fetch all tags for enrichment (with ratings) - React Query caches this
+  const { data: allTagsData } = useTags({ page: 1, page_size: 100 })
+
   const imageSource = useMemo(() => {
     if (!data) {
       return null
@@ -107,6 +139,60 @@ export function ImageViewPage() {
       data.contentData
     )
   }, [data])
+
+  // Enrich tags with rating data and sort - MUST be before early returns to satisfy Rules of Hooks
+  const sortedTags = useMemo(() => {
+    if (!data) {
+      return []
+    }
+
+    const metadata = data.itemMetadata && typeof data.itemMetadata === 'object' ? (data.itemMetadata as MetadataRecord) : null
+    const metadataTags = getMetadataTags(metadata)
+    const displayTags = data.tags.length > 0 ? data.tags : metadataTags
+
+    if (!displayTags || displayTags.length === 0) {
+      return []
+    }
+
+    // Create map of tag names to tag objects
+    const tagMap = new Map(
+      (allTagsData?.items || []).map(tag => [tag.name, tag])
+    )
+
+    // Enrich display tags with full tag objects
+    const enrichedTags = displayTags
+      .map(tagName => ({
+        name: tagName,
+        averageRating: tagMap.get(tagName)?.average_rating ?? null,
+      }))
+
+    // Sort based on selected option
+    const sorted = [...enrichedTags]
+    switch (tagSortOption) {
+      case 'name-asc':
+        sorted.sort((a, b) => a.name.localeCompare(b.name))
+        break
+      case 'name-desc':
+        sorted.sort((a, b) => b.name.localeCompare(a.name))
+        break
+      case 'rating-asc':
+        sorted.sort((a, b) => {
+          const ratingA = a.averageRating ?? -Infinity
+          const ratingB = b.averageRating ?? -Infinity
+          return ratingA - ratingB
+        })
+        break
+      case 'rating-desc':
+        sorted.sort((a, b) => {
+          const ratingA = a.averageRating ?? -Infinity
+          const ratingB = b.averageRating ?? -Infinity
+          return ratingB - ratingA
+        })
+        break
+    }
+
+    return sorted.map(t => t.name)
+  }, [data, allTagsData, tagSortOption])
 
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -311,12 +397,38 @@ export function ImageViewPage() {
           <Divider />
 
           <Stack spacing={1} data-testid="image-view-tags">
-            <Typography variant="subtitle2" color="text.secondary">
-              Tags
-            </Typography>
-            {displayTags.length > 0 ? (
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+              <Typography variant="subtitle2" color="text.secondary">
+                Tags
+              </Typography>
+              {displayTags.length > 0 && (
+                <FormControl size="small" sx={{ minWidth: 140 }}>
+                  <InputLabel id="image-view-tag-sort-label" sx={{ fontSize: '0.875rem' }}>Sort</InputLabel>
+                  <Select
+                    labelId="image-view-tag-sort-label"
+                    value={tagSortOption}
+                    label="Sort"
+                    onChange={handleSortChange}
+                    data-testid="image-view-tag-sort-select"
+                    sx={{ fontSize: '0.875rem' }}
+                  >
+                    {tagSortOptions.map((option) => (
+                      <MenuItem
+                        key={option.value}
+                        value={option.value}
+                        data-testid={`image-view-tag-sort-option-${option.value}`}
+                        sx={{ fontSize: '0.875rem' }}
+                      >
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            </Box>
+            {sortedTags.length > 0 ? (
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                {displayTags.map((tag) => (
+                {sortedTags.map((tag) => (
                   <Chip
                     key={tag}
                     label={tag}

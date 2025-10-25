@@ -912,6 +912,104 @@ python test/api/stress/benchmark_pagination.py --output baseline.json
 python test/api/stress/benchmark_pagination.py --baseline baseline.json --fail-on-regression
 ```
 
+## E2E Test Database Configuration
+
+### Which Database Do E2E Tests Use?
+
+**CRITICAL**: E2E tests use whichever API server is currently running on port 8001. The database behind that API server determines what data the tests see.
+
+| API Server Command | Database Used | Environment | Typical Use Case |
+|-------------------|---------------|-------------|------------------|
+| `make api-demo` | `genonaut_demo` | `local-demo` | Local development, manual testing |
+| `make api-dev` | `genonaut` | `local-dev` | Alternative development database |
+| `make api-test` | `genonaut_test` | `local-test` | Automated E2E testing |
+
+### How to Check Which Database is Running
+
+**Method 1: Check the health endpoint (recommended)**
+```bash
+curl http://localhost:8001/api/v1/health | python -m json.tool
+```
+
+Response will show database name:
+```json
+{
+  "status": "healthy",
+  "database": {
+    "status": "connected",
+    "name": "genonaut_demo"  // <-- This tells you which database
+  },
+  "timestamp": "2025-10-25T23:30:00.000000"
+}
+```
+
+**Method 2: Check running process**
+```bash
+ps aux | grep "run-api" | grep -v grep
+```
+
+Look for `--env-target` flag:
+- `--env-target local-demo` -> `genonaut_demo` database
+- `--env-target local-test` -> `genonaut_test` database
+- `--env-target local-dev` -> `genonaut` database
+
+### Running E2E Tests Against Different Databases
+
+**Against Test Database (isolated, recommended for CI):**
+```bash
+# Terminal 1: Start test API
+make api-test              # Uses genonaut_test database
+
+# Terminal 2: Run E2E tests
+cd frontend
+npm run test:e2e
+```
+
+**Against Demo Database (development, manual testing):**
+```bash
+# Terminal 1: Start demo API (if not already running)
+make api-demo              # Uses genonaut_demo database
+
+# Terminal 2: Run E2E tests
+cd frontend
+npm run test:e2e           # Tests run against whatever is on port 8001
+```
+
+### Common Pitfalls
+
+**Pitfall 1: "Test database missing data" but database has data**
+- **Cause**: API server connected to wrong database (e.g., `genonaut_demo` instead of `genonaut_test`)
+- **Solution**:
+  1. Check health endpoint: `curl http://localhost:8001/api/v1/health`
+  2. Kill wrong API server: `pkill -f "run-api"`
+  3. Start correct API server: `make api-test`
+  4. Verify: `curl http://localhost:8001/api/v1/health | grep name`
+
+**Pitfall 2: E2E tests pass locally but fail in CI**
+- **Cause**: Local tests running against `demo` database with different data than `test` database
+- **Solution**: Always run E2E tests against `test` database before pushing:
+  ```bash
+  make api-test              # Ensure test API is running
+  make frontend-test-e2e     # Run against test database
+  ```
+
+**Pitfall 3: E2E test data persists between runs**
+- **Cause**: Using `demo` database which persists data
+- **Solution**: Use `test` database which gets reset:
+  ```bash
+  make init-test             # Reset test database
+  make api-test              # Start test API
+  make frontend-test-e2e     # Run tests
+  ```
+
+### Best Practices
+
+1. **For Development**: Use `demo` database (`make api-demo`) for manual testing
+2. **For E2E Testing**: Use `test` database (`make api-test`) for automated tests
+3. **Always Verify**: Check health endpoint before running E2E tests
+4. **In CI/CD**: Always use `test` database with `make api-test`
+5. **Before Debugging**: Verify which database is connected first
+
 ## Frontend Testing
 
 Genonaut's React frontend has a comprehensive testing setup covering unit tests and end-to-end testing.

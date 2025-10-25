@@ -110,6 +110,24 @@ Frontend uses Vitest for unit tests and Playwright for E2E tests (see [docs/test
 - Backend API running (for real API tests)
 - Playwright browsers installed: `npx playwright install`
 
+**CRITICAL - Database Configuration for E2E:**
+E2E tests use whichever API server is running on port 8001. Always check which database is connected before debugging test failures:
+
+```bash
+# Check which database is connected (database name in response)
+curl http://localhost:8001/api/v1/health | python -m json.tool
+
+# For E2E testing: use test database
+make api-test              # Connects to genonaut_test
+
+# For development: use demo database
+make api-demo              # Connects to genonaut_demo
+```
+
+Common pitfall: Tests show "missing data" error but data exists -> API connected to wrong database (e.g., demo instead of test).
+
+See [docs/testing.md#e2e-test-database-configuration](docs/testing.md#e2e-test-database-configuration) for detailed troubleshooting.
+
 **Test types:**
 - **Mock tests** - For edge cases (extreme pagination, network failures, error simulation)
 - **Real API tests** - For business logic (user workflows, CRUD operations, integration testing)

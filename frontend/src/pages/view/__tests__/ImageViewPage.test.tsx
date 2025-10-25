@@ -9,11 +9,13 @@ vi.mock('../../../hooks', async () => {
   return {
     ...actual,
     useGalleryItem: vi.fn(),
+    useTags: vi.fn(),
   }
 })
 
-const { useGalleryItem } = await import('../../../hooks')
+const { useGalleryItem, useTags } = await import('../../../hooks')
 const mockedUseGalleryItem = vi.mocked(useGalleryItem)
+const mockedUseTags = vi.mocked(useTags)
 
 const renderWithRouter = (initialPath = '/view/1', state: Record<string, unknown> = {}) =>
   render(
@@ -47,6 +49,14 @@ const baseItem = {
 describe('ImageViewPage', () => {
   beforeEach(() => {
     mockedUseGalleryItem.mockReset()
+    mockedUseTags.mockReset()
+
+    // Default mock for useTags - return empty tag list
+    mockedUseTags.mockReturnValue({
+      data: { items: [], pagination: { page: 1, page_size: 100, total_count: 0, total_pages: 0, has_next: false, has_previous: false } },
+      isLoading: false,
+      error: null,
+    } as any)
   })
 
   it('renders item details when data is available', () => {
@@ -132,6 +142,36 @@ describe('ImageViewPage', () => {
 
     expect(screen.getByTestId('image-view-prompt')).toHaveTextContent('Metadata prompt text')
     expect(screen.getByTestId('image-view-tags')).toHaveTextContent('metadata-tag')
+  })
+
+  it('deduplicates tags in itemMetadata defensively', () => {
+    mockedUseGalleryItem.mockReturnValue({
+      data: {
+        ...baseItem,
+        tags: [],
+        itemMetadata: {
+          tags: ['pastel', 'moody', 'anime', 'pastel', 'moody'],
+        },
+      },
+      isLoading: false,
+      error: null,
+    } as any)
+
+    renderWithRouter('/view/1')
+
+    const tagsSection = screen.getByTestId('image-view-tags')
+    expect(tagsSection).toHaveTextContent('pastel')
+    expect(tagsSection).toHaveTextContent('moody')
+    expect(tagsSection).toHaveTextContent('anime')
+
+    // Verify only one chip for each tag (not duplicates)
+    expect(screen.getByTestId('image-view-tag-pastel')).toBeInTheDocument()
+    expect(screen.getByTestId('image-view-tag-moody')).toBeInTheDocument()
+    expect(screen.getByTestId('image-view-tag-anime')).toBeInTheDocument()
+
+    // Verify we don't have multiple chips with same key (would cause React warning)
+    const pastelChips = screen.getAllByTestId('image-view-tag-pastel')
+    expect(pastelChips).toHaveLength(1)
   })
 
   it('falls back to prompt field when metadata prompt is absent', () => {
