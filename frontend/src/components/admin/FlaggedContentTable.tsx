@@ -188,29 +188,35 @@ export function FlaggedContentTable({
                   <TableCell align="right">
                     <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                       <Tooltip title="View details">
-                        <IconButton size="small" onClick={() => handleViewDetails(item)}>
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
+                        <span>
+                          <IconButton size="small" onClick={() => handleViewDetails(item)}>
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </span>
                       </Tooltip>
                       {!item.reviewed && (
                         <Tooltip title="Mark as reviewed">
-                          <IconButton
-                            size="small"
-                            color="success"
-                            onClick={() => handleReviewClick(item)}
-                          >
-                            <CheckCircleIcon fontSize="small" />
-                          </IconButton>
+                          <span>
+                            <IconButton
+                              size="small"
+                              color="success"
+                              onClick={() => handleReviewClick(item)}
+                            >
+                              <CheckCircleIcon fontSize="small" />
+                            </IconButton>
+                          </span>
                         </Tooltip>
                       )}
                       <Tooltip title="Delete">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleDeleteClick(item)}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
+                        <span>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleDeleteClick(item)}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </span>
                       </Tooltip>
                     </Stack>
                   </TableCell>

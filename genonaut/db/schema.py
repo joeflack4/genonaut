@@ -132,6 +132,10 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     favorite_tag_ids = Column(JSONColumn, default=list, nullable=True)
 
+    def __repr__(self) -> str:
+        """Return a readable string representation of the User."""
+        return f"User(id={self.id}, username='{self.username}', email='{self.email}', is_active={self.is_active})"
+
     # Relationships
     content_items = relationship("ContentItem", back_populates="creator")
     auto_content_items = relationship("ContentItemAuto", back_populates="creator")
@@ -258,6 +262,12 @@ class ContentItem(ContentItemColumns, Base):
     # Note: Using DEFAULT instead of GENERATED for PostgreSQL partitioning compatibility
     source_type = Column(Text, nullable=False, default='items', server_default='items')
 
+    def __repr__(self) -> str:
+        """Return a readable string representation of the ContentItem."""
+        return (f"ContentItem(id={self.id}, title='{self.title[:50]}...', "
+                f"content_type='{self.content_type}', creator_id={self.creator_id}, "
+                f"source_type='{self.source_type}')")
+
     # Relationships
     creator = relationship("User", back_populates="content_items")
     interactions = relationship("UserInteraction", back_populates="content_item")
@@ -312,6 +322,12 @@ class ContentItemAuto(ContentItemColumns, Base):
     # Partition key (default column for table partitioning)
     # Note: Using DEFAULT instead of GENERATED for PostgreSQL partitioning compatibility
     source_type = Column(Text, nullable=False, default='auto', server_default='auto')
+
+    def __repr__(self) -> str:
+        """Return a readable string representation of the ContentItemAuto."""
+        return (f"ContentItemAuto(id={self.id}, title='{self.title[:50]}...', "
+                f"content_type='{self.content_type}', creator_id={self.creator_id}, "
+                f"source_type='{self.source_type}')")
 
     # Relationships
     creator = relationship("User")
@@ -468,7 +484,13 @@ class UserInteraction(Base):
     duration = Column(Integer, nullable=True)  # seconds
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     interaction_metadata = Column(JSONColumn, default=dict)
-    
+
+    def __repr__(self) -> str:
+        """Return a readable string representation of the UserInteraction."""
+        rating_str = f", rating={self.rating}" if self.rating else ""
+        return (f"UserInteraction(id={self.id}, user_id={self.user_id}, "
+                f"content_item_id={self.content_item_id}, type='{self.interaction_type}'{rating_str})")
+
     # Relationships
     user = relationship("User", back_populates="interactions")
     content_item = relationship("ContentItem", back_populates="interactions")
@@ -512,7 +534,13 @@ class Recommendation(Base):
     is_served = Column(Boolean, default=False, nullable=False)
     served_at = Column(DateTime, nullable=True)
     rec_metadata = Column(JSONColumn, default=dict)
-    
+
+    def __repr__(self) -> str:
+        """Return a readable string representation of the Recommendation."""
+        return (f"Recommendation(id={self.id}, user_id={self.user_id}, "
+                f"content_item_id={self.content_item_id}, score={self.recommendation_score:.3f}, "
+                f"is_served={self.is_served})")
+
     # Relationships
     user = relationship("User", back_populates="recommendations")
     content_item = relationship("ContentItem", back_populates="recommendations")
@@ -588,6 +616,12 @@ class GenerationJob(Base):
     height = Column(Integer, nullable=True)
     batch_size = Column(Integer, nullable=True, default=1)
     comfyui_prompt_id = Column(String(255), nullable=True, index=True)
+
+    def __repr__(self) -> str:
+        """Return a readable string representation of the GenerationJob."""
+        return (f"GenerationJob(id={self.id}, job_type='{self.job_type}', "
+                f"status='{self.status}', user_id={self.user_id}, "
+                f"content_id={self.content_id})")
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id])
@@ -977,6 +1011,10 @@ class Tag(Base):
     tag_metadata = Column(JSONColumn, default=dict, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        """Return a readable string representation of the Tag."""
+        return f"Tag(id={self.id}, name='{self.name}')"
 
     # Relationships
     # Parents: tags that this tag is a child of

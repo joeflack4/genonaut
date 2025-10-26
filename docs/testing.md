@@ -1282,6 +1282,70 @@ Instead of testing navigation interactions at E2E level:
 - **Component tests**: Test complex UI interactions in isolation with Testing Library
 - **Direct URL tests**: Navigate directly to URLs instead of clicking through UI
 
+### Handling React Query Timing Issues
+
+For components with complex React Query dependencies that cause E2E test timing failures, use explicit loading indicators with data-testid attributes.
+
+**Problem:**
+Components that use React Query with multiple cascading hooks may not be ready for interaction even after `networkidle` or standard timeouts. This causes test failures with "element not found" or "timeout" errors.
+
+**Solution:**
+Add explicit loading state indicators to components and wait for them in tests.
+
+**Pattern:**
+
+```typescript
+// Component: Add loading state indicators
+function AnalyticsCard() {
+  const { data, isLoading } = useQuery(...)
+
+  if (isLoading) {
+    return <div data-testid="analytics-loading">Loading...</div>
+  }
+
+  return (
+    <div data-testid="analytics-loaded">
+      {/* Your content */}
+    </div>
+  )
+}
+
+// Test Helper: Wait for data to load
+async function waitForAnalyticsDataLoaded(page, section: 'route' | 'generation') {
+  await page.waitForSelector(`[data-testid="${section}-analytics-loaded"]`, {
+    timeout: 30000
+  })
+}
+
+// Test: Use the helper before interactions
+test('changes filter', async ({ page }) => {
+  await page.goto('/analytics')
+  await waitForAnalyticsDataLoaded(page, 'route')
+
+  // Now safe to interact with filters
+  await page.click('[data-testid="filter-select"]')
+})
+```
+
+**When to use this pattern:**
+- Components with multiple cascading React Query hooks
+- Analytics/dashboard pages with slow aggregation queries
+- Pages where `networkidle` doesn't guarantee data is ready
+- Tests failing with "element not found" despite long timeouts
+
+**When NOT to use:**
+- Simple pages with single query
+- Tests that already pass reliably
+- Global application - only add to problematic components
+
+**Example:**
+Analytics E2E tests (`frontend/tests/e2e/analytics-real-api.spec.ts`) use this pattern successfully. The file contains both the old skipped tests (showing the problematic pattern) and new passing tests (using loading indicators) for educational comparison.
+
+**Implementation:**
+- See `frontend/tests/e2e/utils/realApiHelpers.ts` for the `waitForAnalyticsDataLoaded` helper
+- See `frontend/src/components/analytics/RouteAnalyticsCard.tsx` and `GenerationAnalyticsCard.tsx` for component implementations
+- 6 new tests created with pattern, all passing reliably
+
 **📚 Detailed Documentation:**
 
 For comprehensive analysis of problematic test patterns, including:

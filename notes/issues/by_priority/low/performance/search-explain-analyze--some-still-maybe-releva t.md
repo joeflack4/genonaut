@@ -159,11 +159,15 @@ If the tables grow significantly larger (100K+ rows), consider:
    - Would allow indexed phrase searches
    - Example: `ALTER TABLE content_items ADD COLUMN search_vector tsvector;`
 
+me: we have this for gen jobs prompt and content items title fields
+
 2. **Trigram Indexes (pg_trgm):**
    - Enable the `pg_trgm` extension
    - Create GIN or GiST indexes on title and prompt
    - Supports ILIKE with wildcards
    - Example: `CREATE INDEX idx_content_title_trgm ON content_items USING gin(title gin_trgm_ops);`
+
+me: we have this
 
 3. **Specialized Search Columns:**
    - Create a computed/materialized column combining title + prompt

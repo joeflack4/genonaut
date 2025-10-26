@@ -268,7 +268,7 @@ class TestTransferGenerationEventsToPostgres:
 class TestAggregateGenerationMetricsHourly:
     """Test hourly aggregation of generation metrics."""
 
-    @pytest.mark.skip(reason="Timestamp alignment issue - test data not in aggregation window. See notes/todos-general.md 'Generation Analytics - Celery Aggregation Tests' for details. Priority 2/5.")
+    @pytest.mark.skip(reason="Timestamp alignment issue - test data not in aggregation window. See notes/_todos-general.md 'Generation Analytics - Celery Aggregation Tests' for details. Priority 2/5.")
     def test_aggregate_basic_metrics(self, db_session, clean_redis_stream):
         """Test basic aggregation of generation metrics."""
         user_id = _create_test_user(db_session)
@@ -324,7 +324,7 @@ class TestAggregateGenerationMetricsHourly:
         assert row.cancelled_generations == 0
         assert row.unique_users == 1
 
-    @pytest.mark.skip(reason="Timestamp alignment issue - aggregation query returns no results. See notes/todos-general.md 'Generation Analytics - Celery Aggregation Tests' for details. Priority 2/5.")
+    @pytest.mark.skip(reason="Timestamp alignment issue - aggregation query returns no results. See notes/_todos-general.md 'Generation Analytics - Celery Aggregation Tests' for details. Priority 2/5.")
     def test_aggregate_duration_percentiles(self, db_session, clean_redis_stream):
         """Test aggregation calculates duration percentiles correctly."""
         user_id = _create_test_user(db_session)
@@ -388,7 +388,7 @@ class TestAggregateGenerationMetricsHourly:
         # Should be 0 rows since there were no events
         assert count == 0
 
-    @pytest.mark.skip(reason="Timestamp alignment issue - no rows created to test idempotency. See notes/todos-general.md 'Generation Analytics - Celery Aggregation Tests' for details. Priority 2/5.")
+    @pytest.mark.skip(reason="Timestamp alignment issue - no rows created to test idempotency. See notes/_todos-general.md 'Generation Analytics - Celery Aggregation Tests' for details. Priority 2/5.")
     def test_aggregate_idempotency(self, db_session, clean_redis_stream):
         """Test aggregation is idempotent (can run multiple times safely)."""
         user_id = _create_test_user(db_session)

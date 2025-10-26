@@ -910,6 +910,7 @@ frontend-dev-debug:
 	@echo "Starting frontend dev server with debug logging..."
 	npm --prefix frontend run dev:debug
 
+# useful for running off an alt db
 frontend-dev-debug-alt:
 	@echo "Starting frontend dev server with debug logging (port 8003 API, port 5174 frontend)..."
 	VITE_API_BASE_URL=http://localhost:8003 npm --prefix frontend run dev:debug -- --port 5174

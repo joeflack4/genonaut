@@ -48,12 +48,7 @@
   - [ ] Test all endpoints manually
 
 - [x] Phase 6: Enhanced metrics (optional improvements) - don't do for now
-  - [ ] Add queue_wait_time_ms tracking to MetricsService
-  - [ ] Add generation_time_ms tracking (separate from total duration)
-  - [ ] Add model_checkpoint tracking
-  - [ ] Add image_dimensions tracking
-  - [ ] Add prompt_tokens tracking
-  - [ ] Add batch_size tracking
+Moved to: gen-analytics-possible-updates.md
 
 - [ ] Phase 7: Testing and documentation
   - See subsection below

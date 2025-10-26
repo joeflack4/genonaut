@@ -206,6 +206,9 @@ def pytest_sessionstart(session):
     Environment variable overrides:
     - TRUNCATE_TEST_DB=1: Force truncate genonaut_test
     - TRUNCATE_TEST_INIT_DB=0: Skip truncating genonaut_test_init
+
+    When truncation is skipped (persistent mode), sequences are reset to prevent
+    ID collisions between seeded data and test-created data.
     """
     try:
         from sqlalchemy import create_engine, text
@@ -213,6 +216,7 @@ def pytest_sessionstart(session):
         from test.db.postgres_fixtures import get_postgres_test_url
         from test.db.test_config import TestDatabaseConfig
         from genonaut.db.safety import validate_test_database_url
+        from genonaut.db.utils.sequences import reset_all_sequences
 
         # Get test database URL
         db_url = get_postgres_test_url()
@@ -228,14 +232,20 @@ def pytest_sessionstart(session):
         # Check if this database should be truncated
         should_truncate = TestDatabaseConfig.should_truncate_database(database_name)
 
+        engine = create_engine(db_url)
+
         if not should_truncate:
             print(f"\nSkipping truncation of '{database_name}' database (persistent mode)")
-            print("To force truncation, set TRUNCATE_TEST_DB=1 environment variable\n")
+            print("To force truncation, set TRUNCATE_TEST_DB=1 environment variable")
+
+            # Reset sequences to prevent ID collisions with existing data
+            print("Resetting sequences to prevent ID collisions...")
+            reset_count = reset_all_sequences(engine)
+            print(f"Reset {reset_count} sequences/IDENTITY columns\n")
+            engine.dispose()
             return
 
         print(f"\nTruncating '{database_name}' database before test session...")
-
-        engine = create_engine(db_url)
 
         # Truncate all tables (but preserve alembic_version to keep migration state)
         with engine.connect() as conn:
@@ -263,8 +273,14 @@ def pytest_sessionstart(session):
 
             conn.commit()
 
+        print(f"Truncated {truncated_count} tables in '{database_name}'")
+
+        # Reset sequences after truncation (though RESTART IDENTITY should handle this)
+        print("Resetting sequences after truncation...")
+        reset_count = reset_all_sequences(engine)
+        print(f"Reset {reset_count} sequences/IDENTITY columns\n")
+
         engine.dispose()
-        print(f"Truncated {truncated_count} tables in '{database_name}'\n")
 
     except Exception as e:
         # If cleanup fails, print warning but don't fail the test session

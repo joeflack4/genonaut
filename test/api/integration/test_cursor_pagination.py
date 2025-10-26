@@ -373,12 +373,21 @@ class TestCursorBasedPagination:
         """Test cursor pagination edge cases."""
         repository = ContentRepository(db_session)
 
-        # Test cursor pagination at the very end of dataset
-        total_pages = (len(sample_content_large) + 49) // 50  # Round up
+        # Get the actual total count from the database (may include seeded data)
+        first_page = PaginationRequest(
+            page=1,
+            page_size=50,
+            sort_field="created_at",
+            sort_order="desc"
+        )
+        first_result = repository.get_paginated(first_page)
+        total_count = first_result.pagination.total_count
+        total_pages = first_result.pagination.total_pages
 
+        # Test cursor pagination at the very end of dataset
         # Get near the end
         near_end_page = PaginationRequest(
-            page=total_pages - 1,
+            page=total_pages - 1 if total_pages > 1 else 1,
             page_size=50,
             sort_field="created_at",
             sort_order="desc"
@@ -396,8 +405,9 @@ class TestCursorBasedPagination:
             cursor_result = repository.get_paginated(cursor_page)
 
             # Should handle gracefully (might return fewer items or empty)
-            assert len(cursor_result.items) >= 0
-            assert cursor_result.pagination.has_next is False
+            assert len(cursor_result.items) >= 0, f"Expected non-negative item count, got {len(cursor_result.items)}"
+            assert cursor_result.pagination.has_next is False, \
+                f"Expected has_next=False at end of dataset (total_count={total_count}, total_pages={total_pages})"
 
     def test_cursor_pagination_with_filters(self, db_session: Session,
                                            sample_content_large: List[ContentItem]):

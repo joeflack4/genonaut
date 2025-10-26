@@ -252,13 +252,15 @@ export function RouteAnalyticsCard() {
           )}
 
           {isLoading ? (
-            <Stack spacing={1}>
+            <Stack spacing={1} data-testid="route-analytics-loading">
               {[...Array(5)].map((_, i) => (
                 <Skeleton key={i} variant="rectangular" height={40} />
               ))}
             </Stack>
-          ) : data?.routes && data.routes.length > 0 ? (
-            <TableContainer component={Paper} variant="outlined" data-testid="route-analytics-table">
+          ) : (
+            <Box data-testid="route-analytics-loaded">
+              {data?.routes && data.routes.length > 0 ? (
+                <TableContainer component={Paper} variant="outlined" data-testid="route-analytics-table">
               <Table size="small">
                 <TableHead>
                   <TableRow>
@@ -353,14 +355,16 @@ export function RouteAnalyticsCard() {
                 </TableBody>
               </Table>
             </TableContainer>
-          ) : (
-            <Box sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }} data-testid="route-analytics-empty">
-              <Typography variant="body2">
-                No route analytics data available for the selected time range.
-              </Typography>
-              <Typography variant="caption">
-                Try adjusting the time range or ensure the analytics collection is running.
-              </Typography>
+              ) : (
+                <Box sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }} data-testid="route-analytics-empty">
+                  <Typography variant="body2">
+                    No route analytics data available for the selected time range.
+                  </Typography>
+                  <Typography variant="caption">
+                    Try adjusting the time range or ensure the analytics collection is running.
+                  </Typography>
+                </Box>
+              )}
             </Box>
           )}
 

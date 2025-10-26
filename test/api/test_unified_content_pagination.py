@@ -49,18 +49,27 @@ def test_pagination_page_beyond_total_pages(
     # Create exactly 15 items (with page_size=10, that's 2 pages)
     _create_test_content(db_session, sample_user.id, 15)
 
-    # Request page 5 (beyond available pages)
+    # First, get the total number of pages to determine a valid "beyond" page
+    response_page1 = api_client.get(
+        "/api/v1/content/unified",
+        params={"page": 1, "page_size": 10},
+    )
+    assert response_page1.status_code == 200
+    total_pages = response_page1.json()["pagination"]["total_pages"]
+
+    # Request a page well beyond available pages
+    beyond_page = total_pages + 10
     response = api_client.get(
         "/api/v1/content/unified",
-        params={"page": 5, "page_size": 10},
+        params={"page": beyond_page, "page_size": 10},
     )
 
     assert response.status_code == 200
     payload = response.json()
 
-    # Should return empty items list
+    # Should return empty items list when beyond total pages
     assert len(payload["items"]) == 0
-    assert payload["pagination"]["page"] == 5
+    assert payload["pagination"]["page"] == beyond_page
     assert payload["pagination"]["total_pages"] >= 2
     assert payload["pagination"]["total_count"] >= 15
 
@@ -70,11 +79,12 @@ def test_pagination_page_size_greater_than_total_items(
     db_session: Session,
     sample_user,
 ):
-    """Test when page_size exceeds total available items."""
+    """Test when page_size is at maximum allowed value."""
     # Create exactly 5 items
-    _create_test_content(db_session, sample_user.id, 5)
+    test_items = _create_test_content(db_session, sample_user.id, 5)
+    test_item_ids = {item.id for item in test_items}
 
-    # Request page_size=100 (greater than 5 items)
+    # Request page_size=100 (max allowed by API)
     response = api_client.get(
         "/api/v1/content/unified",
         params={"page": 1, "page_size": 100},
@@ -83,10 +93,14 @@ def test_pagination_page_size_greater_than_total_items(
     assert response.status_code == 200
     payload = response.json()
 
-    # Should return all available items (at least our 5)
-    assert len(payload["items"]) >= 5
+    # Should return up to 100 items including our test items
+    returned_ids = {item["id"] for item in payload["items"]}
+    assert test_item_ids.issubset(returned_ids), "All test items should be in the response"
+
     assert payload["pagination"]["page"] == 1
-    assert payload["pagination"]["total_pages"] == 1
+    assert len(payload["items"]) <= 100, "Should not exceed max page size"
+    # Verify pagination metadata is consistent
+    assert payload["pagination"]["page_size"] == 100
 
 
 def test_pagination_page_size_one(

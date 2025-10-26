@@ -166,16 +166,18 @@ export function GenerationAnalyticsCard() {
 
           {/* Overview Metrics */}
           {isLoading ? (
-            <Grid container spacing={2}>
+            <Grid container spacing={2} data-testid="generation-analytics-loading">
               {[...Array(4)].map((_, i) => (
                 <Grid size={{ xs: 12, sm: 6, md: 3 }} key={i}>
                   <Skeleton variant="rectangular" height={120} />
                 </Grid>
               ))}
             </Grid>
-          ) : data ? (
-            <>
-              <Grid container spacing={2} data-testid="generation-analytics-metrics">
+          ) : (
+            <Box data-testid="generation-analytics-loaded">
+              {data ? (
+                <>
+                  <Grid container spacing={2} data-testid="generation-analytics-metrics">
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <MetricCard
                     title="Total Generations"
@@ -262,15 +264,17 @@ export function GenerationAnalyticsCard() {
                   </Grid>
                 </Stack>
               </Paper>
-            </>
-          ) : (
-            <Box sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }} data-testid="generation-analytics-empty">
-              <Typography variant="body2">
-                No generation analytics data available for the selected time range.
-              </Typography>
-              <Typography variant="caption">
-                Try adjusting the time range or ensure generation tracking is enabled.
-              </Typography>
+                </>
+              ) : (
+                <Box sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }} data-testid="generation-analytics-empty">
+                  <Typography variant="body2">
+                    No generation analytics data available for the selected time range.
+                  </Typography>
+                  <Typography variant="caption">
+                    Try adjusting the time range or ensure generation tracking is enabled.
+                  </Typography>
+                </Box>
+              )}
             </Box>
           )}
 

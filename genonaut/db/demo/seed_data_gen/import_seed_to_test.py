@@ -23,6 +23,7 @@ from sqlalchemy.sql.schema import Column, Table
 
 from genonaut.db.schema import Base, JSONColumn
 from genonaut.db.utils import get_database_url, resolve_database_environment
+from genonaut.db.utils.sequences import reset_all_sequences
 
 LOGGER = logging.getLogger(__name__)
 DEFAULT_INPUT_DIR = Path("test/db/input/rdbms_init_from_demo")
@@ -273,37 +274,13 @@ def ensure_alembic_version(engine: Engine, version: str) -> None:
 def reset_sequences(engine: Engine, tables: Sequence[str]) -> None:
     """Reset all IDENTITY sequences to match actual table data.
 
-    When importing data with explicit IDs, PostgreSQL sequences don't automatically
-    advance. This function resets each table's sequence to MAX(id) + 1 to prevent
-    duplicate key violations on subsequent inserts.
-
-    Only resets sequences for tables with integer primary keys (skips UUID PKs).
+    Wrapper around reset_all_sequences utility for backwards compatibility.
 
     Args:
         engine: SQLAlchemy engine for database connection
         tables: List of table names to reset sequences for
     """
-    with engine.begin() as conn:
-        for table_name in tables:
-            # Skip tables that don't have id columns or sequences
-            table = Base.metadata.tables.get(table_name)
-            if table is None or not hasattr(table.c, 'id'):
-                continue
-
-            # Skip tables with non-integer primary keys (e.g., UUID)
-            id_column = table.c.id
-            if not isinstance(id_column.type, sqltypes.Integer):
-                LOGGER.debug("Skipping %s (non-integer primary key)", table_name)
-                continue
-
-            # Use pg_get_serial_sequence to find the sequence name
-            # Set to MAX(id) + 1, or 1 if table is empty
-            # The 'false' parameter means the value is not immediately used
-            conn.execute(text(
-                f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), "
-                f"COALESCE((SELECT MAX(id) FROM {table_name}), 0) + 1, false);"
-            ))
-            LOGGER.info("Reset sequence for %s", table_name)
+    reset_all_sequences(engine, tables)
 
 
 def verify_alembic_version(engine: Engine, should_be_set: bool) -> None:

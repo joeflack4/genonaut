@@ -673,3 +673,40 @@ export async function assertSufficientTestData(
     )
   }
 }
+
+// ============================================================================
+// ANALYTICS HELPERS
+// ============================================================================
+
+/**
+ * Wait for analytics data to finish loading
+ *
+ * This helper waits for the analytics components to complete their React Query data fetching
+ * by checking for the presence of loading indicators to disappear and loaded indicators to appear.
+ *
+ * @param page - Playwright page object
+ * @param section - Which analytics section to wait for ('route' or 'generation')
+ * @param timeout - Maximum time to wait in milliseconds (default: 30000ms / 30s)
+ *
+ * @example
+ * await page.goto('/analytics')
+ * await waitForAnalyticsDataLoaded(page, 'route')
+ * await waitForAnalyticsDataLoaded(page, 'generation')
+ * // Now safe to interact with filters and assert on data
+ */
+export async function waitForAnalyticsDataLoaded(
+  page: Page,
+  section: 'route' | 'generation',
+  timeout = 30000
+): Promise<void> {
+  const testId = `${section}-analytics-loaded`
+
+  // Wait for the loaded indicator to appear
+  await page.waitForSelector(`[data-testid="${testId}"]`, {
+    timeout,
+    state: 'attached'
+  })
+
+  // Give the UI a moment to stabilize after data loads
+  await page.waitForTimeout(200)
+}

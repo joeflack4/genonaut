@@ -174,9 +174,11 @@ export function AdminFlaggedContentPage() {
             </Typography>
             <Stack direction="row" spacing={1} data-testid="admin-flagged-header-actions">
               <Tooltip title="Refresh">
-                <IconButton onClick={handleRefresh} disabled={loading} data-testid="admin-flagged-refresh">
-                  <RefreshIcon />
-                </IconButton>
+                <span>
+                  <IconButton onClick={handleRefresh} disabled={loading} data-testid="admin-flagged-refresh">
+                    <RefreshIcon />
+                  </IconButton>
+                </span>
               </Tooltip>
               <Tooltip title={filtersOpen ? 'Hide filters' : 'Show filters'}>
                 <IconButton onClick={() => setFiltersOpen(!filtersOpen)} data-testid="admin-flagged-toggle-filters">

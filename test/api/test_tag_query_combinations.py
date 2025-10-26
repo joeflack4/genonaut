@@ -90,7 +90,6 @@ def _build_unified_content_url(tags, page=1, page_size=DEFAULT_PAGE_SIZE):
 
 
 @pytest.mark.tag_queries
-@pytest.mark.longrunning
 def test_single_tag_anime():
     """Test query with single tag: 'anime'.
 
@@ -122,7 +121,6 @@ def test_single_tag_anime():
 
 
 @pytest.mark.tag_queries
-@pytest.mark.longrunning
 def test_single_tag_4k():
     """Test query with single tag: '4k'.
 
@@ -154,7 +152,6 @@ def test_single_tag_4k():
 
 
 @pytest.mark.tag_queries
-@pytest.mark.longrunning
 def test_two_tags_anime_and_4k():
     """Test query with two tags: 'anime' AND '4k'.
 
@@ -186,7 +183,6 @@ def test_two_tags_anime_and_4k():
 
 
 @pytest.mark.tag_queries
-@pytest.mark.longrunning
 def test_five_tags():
     """Test query with five tags: pastel, moody, crayon, flat, minimalist-typography.
 
@@ -219,7 +215,6 @@ def test_five_tags():
 
 
 @pytest.mark.tag_queries
-@pytest.mark.longrunning
 def test_twenty_tags():
     """Test query with twenty tags (top 20 most popular).
 
@@ -251,7 +246,6 @@ def test_twenty_tags():
 
 
 @pytest.mark.tag_queries
-@pytest.mark.longrunning
 def test_tag_query_returns_different_results():
     """Test that different tag combinations return different content items.
 

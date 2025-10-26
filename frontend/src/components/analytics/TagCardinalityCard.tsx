@@ -16,7 +16,7 @@
  * - Tab state and filter preferences persisted in localStorage
  */
 
-import { useMemo, memo, lazy, Suspense, useState, useEffect } from 'react'
+import { useMemo, memo, useState, useEffect } from 'react'
 import {
   Alert,
   Box,
@@ -45,19 +45,10 @@ import {
   Typography,
 } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts'
 import { usePopularTags } from '../../hooks'
 import type { CardinalityBucket, TagCardinalityStats, PopularTag, TopNPreset, TagCardinalityFilters, TagCardinalityTab } from '../../types/analytics'
 import { usePersistedState } from '../../hooks/usePersistedState'
-
-// Lazy load Recharts for better initial page load performance
-const BarChart = lazy(() => import('recharts').then(module => ({ default: module.BarChart })))
-const Bar = lazy(() => import('recharts').then(module => ({ default: module.Bar })))
-const XAxis = lazy(() => import('recharts').then(module => ({ default: module.XAxis })))
-const YAxis = lazy(() => import('recharts').then(module => ({ default: module.YAxis })))
-const CartesianGrid = lazy(() => import('recharts').then(module => ({ default: module.CartesianGrid })))
-const Tooltip = lazy(() => import('recharts').then(module => ({ default: module.Tooltip })))
-const ResponsiveContainer = lazy(() => import('recharts').then(module => ({ default: module.ResponsiveContainer })))
-const Cell = lazy(() => import('recharts').then(module => ({ default: module.Cell })))
 
 // Default filter values
 const DEFAULT_FILTERS: TagCardinalityFilters = {
@@ -546,46 +537,42 @@ const HistogramSection = memo(function HistogramSection({
             <Typography variant="subtitle2" gutterBottom fontWeight={600}>
               Distribution ({logScale ? 'Log' : 'Linear'} Scale)
             </Typography>
-            <Suspense fallback={<Skeleton variant="rectangular" height={300} />}>
-              <Box sx={{ width: '100%', height: 300 }}>
-                <ResponsiveContainer>
-                  <BarChart data={histogramData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="range"
-                      label={{ value: 'Cardinality Range', position: 'insideBottom', offset: -5 }}
-                    />
-                    <YAxis
-                      scale={logScale ? 'log' : 'linear'}
-                      domain={logScale ? [1, 'auto'] : [0, 'auto']}
-                      label={{ value: 'Number of Tags', angle: -90, position: 'insideLeft' }}
-                    />
-                    <Tooltip
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload as CardinalityBucket
-                          return (
-                            <Paper sx={{ p: 1, border: 1, borderColor: 'divider' }}>
-                              <Typography variant="caption">Range: {data.range}</Typography>
-                              <br />
-                              <Typography variant="body2" fontWeight={600}>
-                                {data.tag_count} tags
-                              </Typography>
-                            </Paper>
-                          )
-                        }
-                        return null
-                      }}
-                    />
-                    <Bar dataKey="tag_count" fill="#8884d8">
-                      {histogramData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={`hsl(${210 + index * 10}, 70%, 50%)`} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </Box>
-            </Suspense>
+            <Box sx={{ width: '100%', height: 300, display: 'flex', justifyContent: 'center' }}>
+              <BarChart data={histogramData} width={600} height={300} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="range"
+                  label={{ value: 'Cardinality Range', position: 'insideBottom', offset: -5 }}
+                />
+                <YAxis
+                  scale={logScale ? 'log' : 'linear'}
+                  domain={logScale ? [1, 'auto'] : [0, 'auto']}
+                  label={{ value: 'Number of Tags', angle: -90, position: 'insideLeft' }}
+                />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload as CardinalityBucket
+                      return (
+                        <Paper sx={{ p: 1, border: 1, borderColor: 'divider' }}>
+                          <Typography variant="caption">Range: {data.range}</Typography>
+                          <br />
+                          <Typography variant="body2" fontWeight={600}>
+                            {data.tag_count} tags
+                          </Typography>
+                        </Paper>
+                      )
+                    }
+                    return null
+                  }}
+                />
+                <Bar dataKey="tag_count" fill="#8884d8">
+                  {histogramData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={`hsl(${210 + index * 10}, 70%, 50%)`} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </Box>
           </Box>
         ) : null}
 
