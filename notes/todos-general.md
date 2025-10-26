@@ -76,3 +76,12 @@ These tests require complex database schema fixes and ComfyUI integration improv
 - [ ] **test_connection_recovery_after_downtime** - Tests system recovery after ComfyUI downtime with connection retry logic. Currently failing due to database binding issues where the `submit_to_comfyui` method attempts to store a dict object (`{'prompt_id': 'recovery-123'}`) directly in the `comfyui_prompt_id` column, but SQLite expects a string. Requires database schema fixes for proper prompt_id storage and mock response handling.
 - [ ] **test_partial_service_degradation_handling** - Tests handling when some ComfyUI features are unavailable but core functionality works. Currently failing due to complex service interactions and mock setup issues with ComfyUI status checking methods. Requires refined service architecture and better separation between ComfyUI submission and status checking.
 - [ ] **test_graceful_degradation_during_high_error_rate** - Tests system behavior under high error rates (80% failure simulation). Currently failing due to complex database transaction issues and mock coordination problems when testing multiple concurrent requests. Requires improved error handling infrastructure and transaction management for high-load scenarios.
+
+### E2E Frontend Tests - Real API (Playwright)
+These Playwright tests verify frontend functionality with the real backend API but are currently skipped due to test environment interactions. **Detailed documentation for these test patterns can be found in `notes/issues/groupings/tests/tests-skipped-troublesome-patterns.md`**.
+
+- [ ] **Gallery Pagination & Image View Tag Navigation** - See detailed analysis in [`notes/issues/groupings/tests/tests-skipped-troublesome-patterns.md`](../issues/groupings/tests/tests-skipped-troublesome-patterns.md)
+  - Two E2E tests skipped due to Playwright/Material UI interaction issues
+  - Both features verified working through manual testing and code review
+  - Comprehensive investigation, attempted fixes, and alternative test approaches documented
+  - Tests serve as examples of patterns to avoid in future E2E tests

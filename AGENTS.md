@@ -75,25 +75,30 @@ TodoWrite and TodoRead functionality. You can utilize those tools here.
    - Run all: `make test-all`
 
    Before database/API tests, initialize test DB: `make init-test` and start test server: `make api-test`
-4. Whenever you touch frontend or UI-adjacent code, add or update stable `data-testid` attributes on new layouts, 
-sections, list items, loading/empty states, and interactive controls. Follow the conventions documented in 
-`frontend/AGENTS.md#data-test-ids` (e.g. `page-or-component-element` naming, using MUI `inputProps`/`slotProps`), and 
+4. Whenever you touch frontend or UI-adjacent code, add or update stable `data-testid` attributes on new layouts,
+sections, list items, loading/empty states, and interactive controls. Follow the conventions documented in
+`frontend/AGENTS.md#data-test-ids` (e.g. `page-or-component-element` naming, using MUI `inputProps`/`slotProps`), and
 update affected unit/E2E tests.
-5. Add documentation: Module level docstrings, class level docstrings, function level docstrings, and method / function
-level docstrings. Function / method docstrings should include information about parameters and returns, and a 
-description. 
-6. Periodic code commenting. For example, for a function that has several distinct steps, where each step involves a 
-block of code (e.g. a `for` loop with several operations), put at least 1 comment above each block, explaining what it 
+5. **Verify frontend changes in browser using MCP Playwright tools**: After making UI/frontend changes, use the available
+MCP Playwright tools to verify functionality directly in the browser. Navigate to http://localhost:5173, take snapshots,
+check console messages, test interactions, and verify API calls. Do NOT rely on the user to manually test - use these
+tools to confirm the feature works correctly before completion. See the "Browser Verification (MCP Playwright)" section
+under "Frontend Testing" for detailed capabilities and workflow.
+6. Add documentation: Module level docstrings, class level docstrings, function level docstrings, and method / function
+level docstrings. Function / method docstrings should include information about parameters and returns, and a
+description.
+7. Periodic code commenting. For example, for a function that has several distinct steps, where each step involves a
+block of code (e.g. a `for` loop with several operations), put at least 1 comment above each block, explaining what it
 does.
-7. If any new Python requirements / packages are added to the project, include them (unversioned) in the 
+8. If any new Python requirements / packages are added to the project, include them (unversioned) in the
 `requirements-unlocked.txt` file.
-8.  If the new feature has a CLI, document it in a "Features" section in the `README.md`. Include a table showing the 
+9. If the new feature has a CLI, document it in a "Features" section in the `README.md`. Include a table showing the
 args, their description, defaults, data types, etc.
-9. Consider otherwise any other documentation that might need to be added or updated in `README.md` after adding a 
+10. Consider otherwise any other documentation that might need to be added or updated in `README.md` after adding a
 feature, and either do those updates or ask for input.
-10. Ensure that the whole test suite passes before completion of a feature or major task.
-11. If there is a command involved that needs to work, but for which it does not make sense to have a test (like if you 
-are asked to fix a one-off script or command), then make sure to run the command to ensure that it works, unless asked 
+11. Ensure that the whole test suite passes before completion of a feature or major task.
+12. If there is a command involved that needs to work, but for which it does not make sense to have a test (like if you
+are asked to fix a one-off script or command), then make sure to run the command to ensure that it works, unless asked
 not to or otherwise if you think it is inadvisable to do so.
 
 ### Frontend Testing
@@ -131,6 +136,39 @@ See [docs/testing.md#e2e-test-database-configuration](docs/testing.md#e2e-test-d
 **Test types:**
 - **Mock tests** - For edge cases (extreme pagination, network failures, error simulation)
 - **Real API tests** - For business logic (user workflows, CRUD operations, integration testing)
+
+**Browser Verification (MCP Playwright):**
+Claude Code has access to MCP Playwright tools for interactive browser verification. Use these to verify frontend changes work correctly WITHOUT relying on the user to manually test:
+
+Available capabilities:
+- `mcp__playwright__browser_navigate` - Navigate to URLs (e.g., http://localhost:5173)
+- `mcp__playwright__browser_snapshot` - Capture accessibility snapshot (preferred over screenshot for verification)
+- `mcp__playwright__browser_take_screenshot` - Take visual screenshots of page or specific elements
+- `mcp__playwright__browser_console_messages` - Check console for errors/warnings
+- `mcp__playwright__browser_click` - Click elements and verify interactions
+- `mcp__playwright__browser_type` - Fill forms and input fields
+- `mcp__playwright__browser_evaluate` - Run JavaScript to inspect page state
+- `mcp__playwright__browser_network_requests` - Monitor API calls and network activity
+- `mcp__playwright__browser_wait_for` - Wait for text to appear/disappear or time to pass
+
+**When to use MCP browser verification:**
+- After implementing UI changes or new features
+- When debugging layout/styling issues
+- To verify form submissions and user interactions work correctly
+- To check for console errors after code changes
+- To validate that API requests are being made correctly
+- Before marking a frontend feature as complete
+
+**Example workflow:**
+1. Make frontend changes
+2. Start frontend dev server: `make frontend-dev`
+3. Use `mcp__playwright__browser_navigate` to open http://localhost:5173
+4. Use `mcp__playwright__browser_snapshot` to see page structure
+5. Use `mcp__playwright__browser_console_messages` to check for errors
+6. Use `mcp__playwright__browser_click` and other interaction tools to verify functionality
+7. Fix any issues found and re-verify
+
+**IMPORTANT**: Do not ask the user to manually verify frontend changes. Use these MCP tools to verify functionality yourself.
 
 ### Performance Test Marking
 When adding tests that measure performance (not just functional correctness), mark them appropriately:

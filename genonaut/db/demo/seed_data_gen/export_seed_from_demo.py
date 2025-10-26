@@ -41,6 +41,8 @@ class ExportConfig:
     output_dir: Path
     default_limit: int
     table_limits: Mapping[str, int]
+    include_admin_user: bool
+    admin_user_id: Optional[str]
 
 
 def parse_args() -> argparse.Namespace:
@@ -79,6 +81,16 @@ def parse_args() -> argparse.Namespace:
         default="info",
         choices=["debug", "info", "warning", "error"],
         help="Logging verbosity",
+    )
+    parser.add_argument(
+        "--exclude-admin-user",
+        action="store_true",
+        help="Exclude the admin user and related data from export (default: include admin user)",
+    )
+    parser.add_argument(
+        "--admin-user-id",
+        default="121e194b-4caa-4b81-ad4f-86ca3919d5b9",
+        help="Admin user ID to export with all dependencies (default: demo_admin user)",
     )
     return parser.parse_args()
 
@@ -214,6 +226,180 @@ def row_key(table: Table, row: Mapping[str, Any]) -> Tuple[Any, ...]:
     return tuple(row.get(col.name) for col in primary_key_columns(table))
 
 
+def build_reverse_fk_graph(metadata_tables: Mapping[str, Table]) -> Dict[str, List[Tuple[str, str, str]]]:
+    """Build a graph of reverse foreign key relationships.
+
+    This maps each parent table to all child tables that have foreign keys
+    pointing to it, enabling efficient lookup of dependent tables.
+
+    Args:
+        metadata_tables: Dictionary of table name to Table objects
+
+    Returns:
+        Dict mapping parent_table_name -> List[(child_table, child_column, parent_column)]
+
+    Example:
+        {
+            'users': [
+                ('content_items', 'creator_id', 'id'),
+                ('generation_jobs', 'user_id', 'id'),
+            ],
+            'content_items': [
+                ('user_interactions', 'content_item_id', 'id'),
+            ]
+        }
+    """
+    reverse_fks: Dict[str, List[Tuple[str, str, str]]] = defaultdict(list)
+
+    for table_name, table in metadata_tables.items():
+        if table_name in EXCLUDED_TABLES:
+            continue
+
+        for fk in table.foreign_key_constraints:
+            for elem in fk.elements:
+                parent_table = elem.column.table.name
+                parent_column = elem.column.name
+                child_table = table_name
+                child_column = elem.parent.name
+
+                reverse_fks[parent_table].append((child_table, child_column, parent_column))
+
+    return dict(reverse_fks)
+
+
+def fetch_related_rows_recursive(
+    engine: Engine,
+    table_name: str,
+    key_values: Dict[str, Any],
+    reverse_fk_graph: Dict[str, List[Tuple[str, str, str]]],
+    metadata_tables: Mapping[str, Table],
+    exported_rows: MutableMapping[str, Dict[Tuple[Any, ...], Dict[str, Any]]],
+    selected_values: MutableMapping[str, MutableMapping[str, set]],
+    visited: set[Tuple[str, Tuple[Any, ...]]],
+    max_depth: int = 10,
+    current_depth: int = 0,
+) -> None:
+    """Recursively fetch all rows related to a specific record.
+
+    This function performs a depth-first traversal of foreign key relationships,
+    fetching all child records that reference the given record, and recursively
+    fetching their children.
+
+    Args:
+        engine: SQLAlchemy engine for database connection
+        table_name: Current table being processed
+        key_values: Primary key values of the record (e.g., {'id': '123...'})
+        reverse_fk_graph: Map of parent_table -> [(child_table, child_col, parent_col), ...]
+        metadata_tables: Dictionary of table name to Table objects
+        exported_rows: Storage for exported data (modified in place)
+        selected_values: Column value sets for FK filtering (modified in place)
+        visited: Set of (table_name, pk_tuple) to prevent infinite loops
+        max_depth: Maximum recursion depth (safety limit)
+        current_depth: Current recursion level (for logging and depth limiting)
+
+    Algorithm:
+        1. Mark current record as visited to prevent loops
+        2. Look up child tables in reverse_fk_graph
+        3. For each child table:
+           - Build WHERE clause matching parent key values
+           - Fetch matching child rows
+           - Store new rows in exported_rows
+           - Recursively process each new child row (if depth < max_depth)
+    """
+    if current_depth >= max_depth:
+        LOGGER.warning(
+            "Maximum recursion depth %d reached at %s %s",
+            max_depth,
+            table_name,
+            key_values,
+        )
+        return
+
+    # Get primary key for the current record to mark as visited
+    table = metadata_tables[table_name]
+    pk_names = [col.name for col in primary_key_columns(table)]
+    pk_tuple = tuple(key_values.get(pk_name) for pk_name in pk_names)
+
+    visit_key = (table_name, pk_tuple)
+    if visit_key in visited:
+        return
+
+    visited.add(visit_key)
+
+    # Find all child tables that reference this table
+    child_relationships = reverse_fk_graph.get(table_name, [])
+    if not child_relationships:
+        return
+
+    LOGGER.debug(
+        "Recursing into %s (depth=%d): found %d child table(s)",
+        table_name,
+        current_depth,
+        len(set(ct for ct, _, _ in child_relationships)),
+    )
+
+    for child_table_name, child_col, parent_col in child_relationships:
+        if child_table_name in EXCLUDED_TABLES:
+            continue
+
+        child_table = metadata_tables[child_table_name]
+
+        # Build WHERE clause: child_col = parent_col_value
+        parent_value = key_values.get(parent_col)
+        if parent_value is None:
+            continue
+
+        child_column = child_table.columns.get(child_col)
+        if child_column is None:
+            continue
+
+        # Fetch child rows
+        stmt = select(child_table).where(child_column == parent_value)
+        with engine.connect() as conn:
+            child_rows = conn.execute(stmt).mappings().all()
+
+        if not child_rows:
+            continue
+
+        # Store child rows
+        dict_rows = [dict(row) for row in child_rows]
+        added_rows = store_rows(child_table, dict_rows, exported_rows, selected_values)
+
+        if not added_rows:
+            continue
+
+        LOGGER.debug(
+            "  %s.%s = %s -> fetched %d new row(s) from %s (depth=%d)",
+            child_table_name,
+            child_col,
+            parent_value,
+            len(added_rows),
+            table_name,
+            current_depth,
+        )
+
+        # Ensure parent rows for newly added rows
+        ensure_parent_rows(child_table, added_rows, engine, exported_rows, selected_values)
+
+        # Recursively fetch children of these rows
+        for child_row in added_rows:
+            child_pk_values = {
+                col.name: child_row.get(col.name) for col in primary_key_columns(child_table)
+            }
+            fetch_related_rows_recursive(
+                engine=engine,
+                table_name=child_table_name,
+                key_values=child_pk_values,
+                reverse_fk_graph=reverse_fk_graph,
+                metadata_tables=metadata_tables,
+                exported_rows=exported_rows,
+                selected_values=selected_values,
+                visited=visited,
+                max_depth=max_depth,
+                current_depth=current_depth + 1,
+            )
+
+
 def store_rows(
     table: Table,
     rows: Iterable[Mapping[str, Any]],
@@ -310,6 +496,79 @@ def ensure_parent_rows(
             ensure_parent_rows(parent_table, added, engine, exported_rows, selected_values)
 
 
+def seed_admin_user_data(
+    engine: Engine,
+    admin_user_id: str,
+    metadata_tables: Mapping[str, Table],
+    exported_rows: MutableMapping[str, Dict[Tuple[Any, ...], Dict[str, Any]]],
+    selected_values: MutableMapping[str, MutableMapping[str, set]],
+) -> None:
+    """Seed the admin user and recursively fetch all related records.
+
+    This function ensures the admin user and all their associated data (content,
+    interactions, jobs, etc.) are included in the export, regardless of table
+    limits. This is critical for E2E tests that depend on a specific admin user.
+
+    Args:
+        engine: SQLAlchemy engine for database connection
+        admin_user_id: UUID of the admin user to export
+        metadata_tables: Dictionary of table name to Table objects
+        exported_rows: Storage for exported data (modified in place)
+        selected_values: Column value sets for FK filtering (modified in place)
+
+    Algorithm:
+        1. Fetch admin user from users table
+        2. Store admin user in exported_rows
+        3. Build reverse FK graph to find dependent tables
+        4. Recursively fetch all rows related to the admin user
+        5. Ensure referential integrity by fetching parent rows
+    """
+    users_table = metadata_tables['users']
+
+    # Fetch the admin user
+    id_column = users_table.columns['id']
+    stmt = select(users_table).where(id_column == admin_user_id)
+
+    with engine.connect() as conn:
+        admin_user_row = conn.execute(stmt).mappings().first()
+
+    if not admin_user_row:
+        LOGGER.warning("Admin user %s not found in source database", admin_user_id)
+        return
+
+    # Store the admin user
+    admin_user_dict = dict(admin_user_row)
+    added_rows = store_rows(users_table, [admin_user_dict], exported_rows, selected_values)
+
+    if not added_rows:
+        LOGGER.info("Admin user %s already in export", admin_user_id)
+        return
+
+    LOGGER.info("Seeding admin user %s with all dependencies", admin_user_id)
+
+    # Build reverse FK graph for recursive fetching
+    reverse_fk_graph = build_reverse_fk_graph(metadata_tables)
+
+    # Recursively fetch all related data
+    visited: set[Tuple[str, Tuple[Any, ...]]] = set()
+    fetch_related_rows_recursive(
+        engine=engine,
+        table_name='users',
+        key_values={'id': admin_user_id},
+        reverse_fk_graph=reverse_fk_graph,
+        metadata_tables=metadata_tables,
+        exported_rows=exported_rows,
+        selected_values=selected_values,
+        visited=visited,
+        max_depth=10,
+        current_depth=0,
+    )
+
+    # Count how many rows were added for the admin user
+    total_rows = sum(len(rows) for rows in exported_rows.values())
+    LOGGER.info("Admin user seeding complete: %d total rows in export", total_rows)
+
+
 def serialize_value(value) -> str:
     if value is None:
         return ""
@@ -351,6 +610,20 @@ def export_tables(engine: Engine, table_order: Sequence[str], config: ExportConf
     selected_values: MutableMapping[str, MutableMapping[str, set]] = defaultdict(lambda: defaultdict(set))
     exported_rows: MutableMapping[str, Dict[Tuple[Any, ...], Dict[str, Any]]] = defaultdict(dict)
 
+    # Seed admin user data first if requested
+    # This ensures the admin user and all dependencies are always included
+    if config.include_admin_user and config.admin_user_id:
+        LOGGER.info("Pre-seeding admin user %s with all dependencies", config.admin_user_id)
+        seed_admin_user_data(
+            engine=engine,
+            admin_user_id=config.admin_user_id,
+            metadata_tables=Base.metadata.tables,
+            exported_rows=exported_rows,
+            selected_values=selected_values,
+        )
+
+    # Continue with normal table export
+    # This will add additional rows up to the configured limits
     for table_name in table_order:
         table = Base.metadata.tables[table_name]
         limit = config.table_limits.get(table_name, config.default_limit)
@@ -398,7 +671,13 @@ def main() -> None:
     logging.basicConfig(level=getattr(logging, args.verbosity.upper()), format="%(levelname)s %(message)s")
 
     table_limits = build_table_limits(args.table_limit)
-    config = ExportConfig(output_dir=args.output_dir, default_limit=args.default_limit, table_limits=table_limits)
+    config = ExportConfig(
+        output_dir=args.output_dir,
+        default_limit=args.default_limit,
+        table_limits=table_limits,
+        include_admin_user=not args.exclude_admin_user,
+        admin_user_id=args.admin_user_id if not args.exclude_admin_user else None,
+    )
 
     metadata_tables = Base.metadata.tables
     requested_tables = candidate_tables(metadata_tables, args.tables)

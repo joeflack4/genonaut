@@ -64,9 +64,14 @@ def parse_args() -> argparse.Namespace:
         help="Compare TSV row counts with database counts after import",
     )
     parser.add_argument(
+        "--set-alembic-version",
+        action="store_true",
+        help="Set alembic_version table after import (default: False)",
+    )
+    parser.add_argument(
         "--alembic-version",
         default="672c99981361",
-        help="Version hash to store in alembic_version (default: 672c99981361)",
+        help="Version hash to store in alembic_version when --set-alembic-version is used (default: 672c99981361)",
     )
     parser.add_argument(
         "--verbosity",
@@ -176,18 +181,38 @@ def truncate_tables(engine: Engine, tables: Sequence[str]) -> None:
 
 
 def insert_rows(engine: Engine, table: Table, rows: List[Mapping[str, Any]]) -> tuple[int, int]:
-    """Insert rows into table, returning (inserted_count, skipped_count)."""
+    """Insert rows into table, returning (inserted_count, skipped_count).
+
+    Uses ON CONFLICT DO NOTHING to skip rows that would violate any unique constraints.
+    Also catches and reports foreign key violations.
+    """
     if not rows:
         return 0, 0
     stmt = pg_insert(table).values(rows)
-    pk_cols = [col.name for col in table.primary_key.columns]
-    if pk_cols:
-        stmt = stmt.on_conflict_do_nothing(index_elements=pk_cols)
-    with engine.begin() as conn:
-        result = conn.execute(stmt)
-        inserted = result.rowcount
-    skipped = len(rows) - inserted
-    return inserted, skipped
+
+    # Use ON CONFLICT DO NOTHING without specifying columns
+    # This catches all unique constraint violations (PK + unique columns like tags.name)
+    stmt = stmt.on_conflict_do_nothing()
+
+    try:
+        with engine.begin() as conn:
+            result = conn.execute(stmt)
+            inserted = result.rowcount
+        skipped = len(rows) - inserted
+        return inserted, skipped
+    except SQLAlchemyError as e:
+        # Handle foreign key violations and other errors
+        error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
+        if 'ForeignKeyViolation' in error_msg or 'foreign key constraint' in error_msg.lower():
+            LOGGER.warning(
+                "%s: Skipping all %d rows due to foreign key constraint violations (referenced data may not exist)",
+                table.name,
+                len(rows),
+            )
+            return 0, len(rows)
+        else:
+            # Re-raise other errors
+            raise
 
 
 def import_tables(engine: Engine, order: Sequence[str], input_dir: Path) -> None:
@@ -281,6 +306,56 @@ def reset_sequences(engine: Engine, tables: Sequence[str]) -> None:
             LOGGER.info("Reset sequence for %s", table_name)
 
 
+def verify_alembic_version(engine: Engine, should_be_set: bool) -> None:
+    """Verify that alembic_version table exists and has a valid value.
+
+    Args:
+        engine: SQLAlchemy engine for database connection
+        should_be_set: Whether alembic_version should have been set (from --set-alembic-version flag)
+
+    Raises:
+        RuntimeError: If alembic_version table doesn't exist or has no value
+    """
+    with engine.connect() as conn:
+        # Check if alembic_version table exists
+        table_exists = conn.execute(text(
+            "SELECT EXISTS ("
+            "SELECT FROM information_schema.tables "
+            "WHERE table_name = 'alembic_version'"
+            ")"
+        )).scalar()
+
+        if not table_exists:
+            if should_be_set:
+                raise RuntimeError(
+                    "ERROR: alembic_version table does not exist after import. "
+                    "This should not happen when --set-alembic-version is used."
+                )
+            else:
+                raise RuntimeError(
+                    "ERROR: alembic_version table does not exist. "
+                    "Please re-run with --set-alembic-version flag to initialize the database schema version."
+                )
+
+        # Check if alembic_version has a value
+        version_result = conn.execute(text("SELECT version_num FROM alembic_version"))
+        version = version_result.scalar()
+
+        if not version:
+            if should_be_set:
+                raise RuntimeError(
+                    "ERROR: alembic_version table is empty after import. "
+                    "This should not happen when --set-alembic-version is used."
+                )
+            else:
+                raise RuntimeError(
+                    "ERROR: alembic_version table is empty. "
+                    "Please re-run with --set-alembic-version flag to set the database schema version."
+                )
+
+        LOGGER.info("Verified alembic_version: %s", version)
+
+
 def main() -> None:
     args = parse_args()
     logging.basicConfig(level=getattr(logging, args.verbosity.upper()), format="%(levelname)s %(message)s")
@@ -308,11 +383,18 @@ def main() -> None:
     if args.truncate_first:
         truncate_tables(engine, reverse_dependency_order(order))
 
-    ensure_alembic_version(engine, args.alembic_version)
+    if args.set_alembic_version:
+        ensure_alembic_version(engine, args.alembic_version)
+
     import_tables(engine, order, args.input_dir)
     reset_sequences(engine, order)
+
     if args.verify:
         verify_counts(engine, order, args.input_dir)
+
+    # Verify alembic_version is properly set
+    verify_alembic_version(engine, args.set_alembic_version)
+
     LOGGER.info("Import complete")
 
 

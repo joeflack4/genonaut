@@ -174,7 +174,7 @@ export async function clickNextPage(page: Page) {
 
   // If we were on page 1, wait for page 2 button to appear
   if (isOnPage1) {
-    await page.waitForSelector('button[aria-label="page 2"][aria-current="true"]', { timeout: 15000 })
+    await page.waitForSelector('button[aria-label="page 2"][aria-current="page"]', { timeout: 15000 })
   }
 
   // Give the UI a moment to update pagination state

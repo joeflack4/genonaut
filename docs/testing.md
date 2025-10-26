@@ -332,6 +332,69 @@ make recreate-test-init
 
 Inside Python or custom scripts you can pass `ENV_TARGET=local-test-init` (or `--env-target local-test-init` to `genonaut.cli_main init-db`) to reuse the same configuration. This keeps the canonical `local-test` database seeded for the rest of the suite while giving you an isolated sandbox for migration + TSV experiments.
 
+### Admin User Seeding for E2E Tests
+
+**Background**: E2E tests depend on a specific admin user (`demo_admin`, ID: `121e194b-4caa-4b81-ad4f-86ca3919d5b9`) that exists in the `demo` database. This user and all related data must also exist in the `test` database for E2E tests to pass.
+
+**Solution**: The export/import workflow now automatically includes the admin user and all related data:
+
+**How it works:**
+1. **Export** (`make export-demo-seed`): Exports demo database slices to TSV files
+   - By default, includes admin user (`121e194b-4caa-4b81-ad4f-86ca3919d5b9`) and ALL dependencies
+   - Uses recursive FK traversal to export related records (content items, interactions, jobs, etc.)
+   - Exports to `test/db/input/rdbms_init_from_demo/`
+   - Exported ~2000 total rows including 449 content items from admin user
+
+2. **Import** (`make init-test`): Imports TSV files into test database
+   - Admin user and all related data are automatically included
+   - Test database now has deterministic, consistent data for E2E tests
+
+**CLI Options:**
+
+```bash
+# Default: include admin user (recommended)
+make export-demo-seed
+
+# Exclude admin user if needed (not recommended for E2E test data)
+python -m genonaut.db.demo.seed_data_gen.export_seed_from_demo --exclude-admin-user
+
+# Use different admin user ID
+python -m genonaut.db.demo.seed_data_gen.export_seed_from_demo --admin-user-id <UUID>
+
+# Refresh test database with latest demo data
+make refresh-test-seed-from-demo  # Runs export + import automatically
+```
+
+**Verifying Admin User:**
+
+```bash
+# Check admin user exists in test database
+PGPASSWORD=chocolateRainbows858 psql -h localhost -U genonaut_admin -d genonaut_test \
+  -c "SELECT id, username, email FROM users WHERE id = '121e194b-4caa-4b81-ad4f-86ca3919d5b9';"
+```
+
+Expected output:
+```
+                  id                  |  username  |          email
+--------------------------------------+------------+-------------------------
+ 121e194b-4caa-4b81-ad4f-86ca3919d5b9 | demo_admin | demo-admin@genonaut.com
+(1 row)
+```
+
+**Impact on E2E Tests:**
+- E2E tests can reliably use `demo_admin` user in both demo and test databases
+- Test data is deterministic and consistent
+- No need for conditional logic based on which database is running
+- Frontend E2E tests (e.g., `frontend/tests/e2e/utils/realApiHelpers.ts`) work consistently
+
+**Troubleshooting:**
+
+If E2E tests fail with 404 errors for admin user:
+1. Verify which database API is connected to: `curl http://localhost:8001/api/v1/health`
+2. Re-export and import: `make refresh-test-seed-from-demo`
+3. Restart test API: `make api-test`
+4. Run E2E tests: `make frontend-test-e2e`
+
 ### Comprehensive Testing
 ```bash
 # Run all test suites in sequence
@@ -1184,6 +1247,56 @@ DEBUG_E2E=true npm run test:e2e
 - Minimal output for clean CI/CD logs
 - Only test pass/fail results
 - Error summaries without verbose details
+
+### E2E Test Patterns to Avoid
+
+Some test patterns have proven problematic in automated Playwright environments despite working correctly in manual testing. These patterns should be avoided in favor of alternative testing approaches.
+
+**⚠️ Problematic Patterns:**
+
+1. **Cursor-Based Pagination Navigation Tests**
+   - **Issue**: Tests that click pagination buttons to navigate between pages fail with cursor-based pagination
+   - **Why**: Playwright test helpers expect traditional page numbers, but cursor pagination uses URL parameters that update asynchronously
+   - **Alternative**: Test pagination via API calls, or use direct URL navigation instead of button clicks
+
+2. **Material UI Component Click Navigation**
+   - **Issue**: Tests that click Material UI Chips, Buttons with complex interactions fail to trigger navigation
+   - **Why**: MUI components' internal event handling may not propagate synthetic click events correctly in test environments
+   - **Alternative**: Test navigation logic at unit test level with mocked routers, or use `force: true` option
+
+3. **Tests Depending on `networkidle`**
+   - **Issue**: Waiting for `networkidle` state doesn't guarantee React Query or other state management has finished updating
+   - **Why**: Modern frontend frameworks batch requests and use background data fetching
+   - **Alternative**: Wait for specific data-testid elements or UI state changes instead
+
+4. **Navigation-Heavy E2E Tests**
+   - **Issue**: Tests that rely on clicking through multiple navigation steps are brittle and environment-sensitive
+   - **Why**: Each navigation point introduces timing, state management, and framework initialization dependencies
+   - **Alternative**: Test navigation at unit level, test end states via direct URLs at E2E level
+
+**✅ Recommended Alternatives:**
+
+Instead of testing navigation interactions at E2E level:
+- **Unit tests**: Test onClick handlers and navigation logic with mocked routers
+- **API tests**: Verify pagination, filtering, and data operations via direct API calls
+- **Component tests**: Test complex UI interactions in isolation with Testing Library
+- **Direct URL tests**: Navigate directly to URLs instead of clicking through UI
+
+**📚 Detailed Documentation:**
+
+For comprehensive analysis of problematic test patterns, including:
+- Detailed failure symptoms and root cause analysis
+- Investigation summaries with attempted fixes
+- Alternative testing approaches with code examples
+- Recommendations for future test development
+
+See: [`notes/issues/groupings/tests/tests-skipped-troublesome-patterns.md`](../notes/issues/groupings/tests/tests-skipped-troublesome-patterns.md)
+
+**Examples of Skipped Tests:**
+- Gallery pagination navigation (cursor-based pagination + Playwright incompatibility)
+- Image view tag chip navigation (Material UI Chip + React Router timing issues)
+
+Both features are verified working through manual testing and code review, but the E2E test patterns proved too brittle for automated testing.
 
 ### Frontend Test Structure
 

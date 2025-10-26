@@ -547,42 +547,44 @@ const HistogramSection = memo(function HistogramSection({
               Distribution ({logScale ? 'Log' : 'Linear'} Scale)
             </Typography>
             <Suspense fallback={<Skeleton variant="rectangular" height={300} />}>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={histogramData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="range"
-                    label={{ value: 'Cardinality Range', position: 'insideBottom', offset: -5 }}
-                  />
-                  <YAxis
-                    scale={logScale ? 'log' : 'linear'}
-                    domain={logScale ? [1, 'auto'] : [0, 'auto']}
-                    label={{ value: 'Number of Tags', angle: -90, position: 'insideLeft' }}
-                  />
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload as CardinalityBucket
-                        return (
-                          <Paper sx={{ p: 1, border: 1, borderColor: 'divider' }}>
-                            <Typography variant="caption">Range: {data.range}</Typography>
-                            <br />
-                            <Typography variant="body2" fontWeight={600}>
-                              {data.tag_count} tags
-                            </Typography>
-                          </Paper>
-                        )
-                      }
-                      return null
-                    }}
-                  />
-                  <Bar dataKey="tag_count" fill="#8884d8">
-                    {histogramData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={`hsl(${210 + index * 10}, 70%, 50%)`} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <Box sx={{ width: '100%', height: 300 }}>
+                <ResponsiveContainer>
+                  <BarChart data={histogramData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="range"
+                      label={{ value: 'Cardinality Range', position: 'insideBottom', offset: -5 }}
+                    />
+                    <YAxis
+                      scale={logScale ? 'log' : 'linear'}
+                      domain={logScale ? [1, 'auto'] : [0, 'auto']}
+                      label={{ value: 'Number of Tags', angle: -90, position: 'insideLeft' }}
+                    />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload as CardinalityBucket
+                          return (
+                            <Paper sx={{ p: 1, border: 1, borderColor: 'divider' }}>
+                              <Typography variant="caption">Range: {data.range}</Typography>
+                              <br />
+                              <Typography variant="body2" fontWeight={600}>
+                                {data.tag_count} tags
+                              </Typography>
+                            </Paper>
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <Bar dataKey="tag_count" fill="#8884d8">
+                      {histogramData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={`hsl(${210 + index * 10}, 70%, 50%)`} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </Box>
             </Suspense>
           </Box>
         ) : null}

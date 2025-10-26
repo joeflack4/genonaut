@@ -25,19 +25,22 @@ async function clickSelect(page: any, selector: string) {
   // Wait for the element to be visible
   await expect(selectElement).toBeVisible({ timeout: 5000 })
 
-  // Try to click the parent element instead of the input
-  // MUI Select has a div wrapper around the hidden input
+  // Click the parent element (MUI Select wrapper div)
   const parentElement = selectElement.locator('..')
-  await parentElement.click()
+  await parentElement.click({ force: true })
 
-  // Wait for menu to open
-  await page.waitForTimeout(300)
+  // Wait for menu to open and be ready
+  await page.waitForTimeout(500)
+
+  // Verify menu opened by checking for listbox (use first() to avoid strict mode violation)
+  const menu = page.locator('[role="listbox"]').first()
+  await expect(menu).toBeVisible({ timeout: 3000 })
 }
 
 test.describe('Analytics Page (Real API)', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to analytics page
-    await page.goto('/analytics')
+    await page.goto('/settings/analytics')
     await waitForPageLoad(page, 'analytics')
     await page.waitForTimeout(1000) // Additional wait for data loading
   })
@@ -67,7 +70,7 @@ test.describe('Analytics Page (Real API)', () => {
       const tagCard = page.getByTestId('tag-cardinality-card')
       const hasTagCard = await tagCard.isVisible().catch(() => false)
       if (hasTagCard) {
-        await expect(page.getByText(TAG_CARDINALITY_TITLE)).toBeVisible()
+        await expect(page.getByTestId('tag-cardinality-title')).toHaveText(TAG_CARDINALITY_TITLE)
       }
     })
   })
@@ -84,7 +87,7 @@ test.describe('Analytics Page (Real API)', () => {
       await analyticsLink.click()
 
       // Should navigate to analytics page
-      await page.waitForURL(/\/analytics/)
+      await page.waitForURL(/\/settings\/analytics/)
       await expect(page.getByTestId('analytics-page-root')).toBeVisible()
     })
   })
@@ -95,7 +98,7 @@ test.describe('Analytics Page (Real API)', () => {
       await expect(page.getByTestId('route-analytics-card')).toBeVisible()
 
       // Check for time range selector
-      await expect(page.getByTestId('route-analytics-timerange-select')).toBeVisible()
+      await expect(page.getByTestId('route-analytics-days-select')).toBeVisible()
 
       // Check for table (should show even if empty)
       const tableOrEmpty = page.locator('[data-testid="route-analytics-table"], [data-testid="route-analytics-empty"]')
@@ -148,13 +151,14 @@ test.describe('Analytics Page (Real API)', () => {
 
     test('changes time range filter', async ({ page }) => {
       // Click on time range select using parent element
-      await clickSelect(page, 'route-analytics-timerange-select')
+      await clickSelect(page, 'route-analytics-days-select')
 
       // Select "Last 7 Days"
       await page.getByRole('option', { name: /last 7 days/i }).click()
 
-      // Verify selection changed
-      await expect(page.getByTestId('route-analytics-timerange-select')).toContainText('Last 7 Days')
+      // Verify selection changed (check parent div since input has no text)
+      const selectParent = page.getByTestId('route-analytics-days-select').locator('..')
+      await expect(selectParent).toContainText('Last 7 Days')
     })
 
     test('changes Top N filter', async ({ page }) => {
@@ -164,13 +168,14 @@ test.describe('Analytics Page (Real API)', () => {
       // Select "Top 20"
       await page.getByRole('option', { name: /top 20/i }).click()
 
-      // Verify selection changed
-      await expect(page.getByTestId('route-analytics-topn-select')).toContainText('Top 20')
+      // Verify selection changed (check parent div since input has no text)
+      const selectParent = page.getByTestId('route-analytics-topn-select').locator('..')
+      await expect(selectParent).toContainText('Top 20')
     })
 
     test('persists filter selections across page reload', async ({ page }) => {
       // Change time range using parent element
-      await clickSelect(page, 'route-analytics-timerange-select')
+      await clickSelect(page, 'route-analytics-days-select')
       await page.getByRole('option', { name: /last 30 days/i }).click()
 
       // Change Top N using parent element
@@ -184,9 +189,11 @@ test.describe('Analytics Page (Real API)', () => {
       await page.reload()
       await waitForPageLoad(page, 'analytics')
 
-      // Verify selections persisted
-      await expect(page.getByTestId('route-analytics-timerange-select')).toContainText('Last 30 Days')
-      await expect(page.getByTestId('route-analytics-topn-select')).toContainText('Top 50')
+      // Verify selections persisted (check parent divs since inputs have no text)
+      const daysParent = page.getByTestId('route-analytics-days-select').locator('..')
+      const topnParent = page.getByTestId('route-analytics-topn-select').locator('..')
+      await expect(daysParent).toContainText('Last 30 Days')
+      await expect(topnParent).toContainText('Top 50')
     })
   })
 
@@ -233,13 +240,14 @@ test.describe('Analytics Page (Real API)', () => {
 
     test('changes time range filter', async ({ page }) => {
       // Click on time range select using parent element
-      await clickSelect(page, 'generation-analytics-timerange-select')
+      await clickSelect(page, 'generation-analytics-days-select')
 
       // Select "Last 7 Days"
       await page.getByRole('option', { name: /last 7 days/i }).click()
 
-      // Verify selection changed
-      await expect(page.getByTestId('generation-analytics-timerange-select')).toContainText('Last 7 Days')
+      // Verify selection changed (check parent div since input has no text)
+      const selectParent = page.getByTestId('generation-analytics-days-select').locator('..')
+      await expect(selectParent).toContainText('Last 7 Days')
     })
   })
 
@@ -365,8 +373,9 @@ test.describe('Analytics Page (Real API)', () => {
       // Select "Top 50"
       await page.getByRole('option', { name: /top 50/i }).click()
 
-      // Verify selection changed
-      await expect(page.getByTestId('tag-cardinality-items-topn-select')).toContainText('Top 50')
+      // Verify selection changed (check parent div since input has no text)
+      const selectParent = page.getByTestId('tag-cardinality-items-topn-select').locator('..')
+      await expect(selectParent).toContainText('Top 50')
     })
 
     test('changes Top N filter for Auto-Generated content', async ({ page }) => {
@@ -382,8 +391,9 @@ test.describe('Analytics Page (Real API)', () => {
       // Select "Top 200"
       await page.getByRole('option', { name: /top 200/i }).click()
 
-      // Verify selection changed
-      await expect(page.getByTestId('tag-cardinality-auto-topn-select')).toContainText('Top 200')
+      // Verify selection changed (check parent div since input has no text)
+      const selectParent = page.getByTestId('tag-cardinality-auto-topn-select').locator('..')
+      await expect(selectParent).toContainText('Top 200')
     })
   })
 
@@ -393,7 +403,7 @@ test.describe('Analytics Page (Real API)', () => {
       await page.setViewportSize({ width: 375, height: 667 })
 
       // Navigate again with mobile viewport
-      await page.goto('/analytics')
+      await page.goto('/settings/analytics')
 
       // Don't use waitForPageLoad on mobile as nav is hidden
       // Wait for main content and network idle instead
