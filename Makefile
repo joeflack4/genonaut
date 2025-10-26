@@ -1,7 +1,8 @@
 # Common development tasks and utilities
 .PHONY: help init-all init-dev init-demo init-test reset-db-1-data--demo reset-db-1-data--test reset-db-2-schema--demo \
 reset-db-2-schema--test reset-db-3-schema-and-history--demo reset-db-3-schema-and-history--test re-seed-demo \
-re-seed-demo-force seed-from-gen-demo seed-from-gen-test seed-static-demo seed-static-test export-demo-data test \
+re-seed-demo-force seed-from-gen-demo seed-from-gen-test seed-static-demo seed-static-test export-demo-data \
+export-demo-seed import-demo-seed-to-test refresh-test-seed-from-demo test \
 test-quick test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-tag-queries \
 test-all clear-excess-test-schemas install install-dev \
 lint format clean migrate-all migrate-all-auto migrate-prep migrate-dev migrate-demo migrate-test backup backup-dev backup-demo \
@@ -80,6 +81,9 @@ help:
 	@echo "  seed-static-demo         Load static seed data from CSV files (demo)"
 	@echo "  seed-static-test         Load static seed data from CSV files (test)"
 	@echo "  export-demo-data         Export demo database data to test TSV files"
+	@echo "  export-demo-seed         Export <=100 rows/table from demo DB into TSV fixtures"
+	@echo "  import-demo-seed-to-test Import TSV fixtures into the test DB (FK-safe order)"
+	@echo "  refresh-test-seed-from-demo Export then import demo slices into the test DB"
 	@echo ""
 	@echo "Database Migration:"
 	@echo "  migrate-all              Create and apply migrations for all databases"
@@ -325,6 +329,18 @@ seed-static-test:
 export-demo-data:
 	@echo "Exporting demo database data to test TSV files..."
 	python -m test.db.utils export-demo-data
+
+export-demo-seed:
+	@echo "Exporting demo database slices to TSV fixtures (<=100 rows per table)..."
+	@python -m genonaut.db.demo.seed_data_gen.export_seed_from_demo --env-target demo $(ARGS)
+
+import-demo-seed-to-test:
+	@echo "Importing TSV fixtures into the test database..."
+	@python -m genonaut.db.demo.seed_data_gen.import_seed_to_test --env-target test $(ARGS)
+
+refresh-test-seed-from-demo:
+	@$(MAKE) export-demo-seed $(if $(EXPORT_ARGS),ARGS="$(EXPORT_ARGS)",)
+	@$(MAKE) import-demo-seed-to-test $(if $(IMPORT_ARGS),ARGS="$(IMPORT_ARGS)",)
 
 # PostgreSQL wal_buffers management
 # todo: Add support for other databases (dev, test) via parameters like db-wal-buffers-reset-dev, db-wal-buffers-set-test, etc.

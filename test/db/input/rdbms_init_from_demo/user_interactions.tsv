@@ -1,0 +1,3 @@
+id	user_id	content_item_id	interaction_type	rating	duration	created_at	interaction_metadata
+1	65185762-93f7-4351-a351-ff1b24f88b79	65004	like	5	120	2025-10-05T21:04:25.549039	"{""source"": ""api_test""}"
+2	0fe03d74-f711-4c4e-b4c5-f5e7a76b4607	65011	view		45	2025-10-05T21:04:28.188687	"{""workflow"": ""test"", ""self_interaction"": true}"

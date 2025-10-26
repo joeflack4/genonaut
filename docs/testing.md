@@ -256,6 +256,63 @@ Because the teardown step calls `initialize_database(..., auto_seed=True)` you d
 
 For lower-level coverage, `test/db/unit/test_database_initializer.py` exercises `DatabaseInitializer` directly—creating/dropping tables, enabling extensions, and seeding TSV directories. These tests run quickly against the local PostgreSQL test database (`ENV_TARGET=local-test`) and now expect the `auto_seed` behaviour documented above.
 
+### Database Truncation Control
+
+**⚠️ Important: Test Database Persistence**
+
+The `genonaut_test` database is **persistent by default** - it will NOT be truncated between test runs. This preserves seeded data and prevents accidental data loss during development. Only the `genonaut_test_init` database is truncated automatically before tests.
+
+**Configuration:**
+
+The truncation behavior is controlled by `test/db/test_config.py`:
+
+| Database | Default Behavior | Purpose |
+|----------|------------------|---------|
+| `genonaut_test` | **NOT truncated** | Main test database - persistent for test runs |
+| `genonaut_test_init` | **Truncated** | Initialization test database - ephemeral |
+
+**Environment Variable Overrides:**
+
+```bash
+# Force truncate genonaut_test (useful for clean slate)
+TRUNCATE_TEST_DB=1 pytest test/
+
+# Skip truncating genonaut_test_init (preserve data)
+TRUNCATE_TEST_INIT_DB=0 pytest test/
+```
+
+**Example Usage:**
+
+```bash
+# Normal test run - genonaut_test data persists
+pytest test/db/unit/
+
+# Output:
+# Skipping truncation of 'genonaut_test' database (persistent mode)
+# To force truncation, set TRUNCATE_TEST_DB=1 environment variable
+
+# Force clean slate - truncate all tables
+TRUNCATE_TEST_DB=1 pytest test/db/unit/
+
+# Output:
+# Truncating 'genonaut_test' database before test session...
+# Truncated 25 tables in 'genonaut_test'
+```
+
+**When to Truncate:**
+
+- **Normal development:** Let `genonaut_test` persist (default)
+- **Clean slate needed:** Use `TRUNCATE_TEST_DB=1` to reset
+- **After schema changes:** Re-run `make init-test` to rebuild with migrations
+- **Debugging test failures:** Try `TRUNCATE_TEST_DB=1` to rule out data pollution
+
+**Implementation Details:**
+
+The `pytest_sessionstart` hook in `test/conftest.py` checks the database name and configuration before deciding whether to truncate. This ensures that:
+- Test data seeded via `make init-test` or `make import-demo-seed-to-test` persists across test runs
+- Initialization tests that need empty databases can use `genonaut_test_init`
+- Developers can force truncation when needed via environment variables
+
 ### `local-test-init` Environment
 
 When you need to build or validate seeding/initialization flows without affecting the main test database, use the dedicated `local-test-init` environment. It lives alongside `config/local-test-init.json` and points at the `genonaut_test_init` database.

@@ -5,11 +5,14 @@ import logging
 import signal
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, status
+from fastapi import Depends, FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from genonaut.api.config import get_settings
+from genonaut.api.dependencies import get_database_session
 from genonaut.api.routes import content, content_auto, generation, interactions, recommendations, system, users, comfyui, images, tags, admin_flagged_content, websocket, notifications, checkpoint_models, lora_models, user_search_history, analytics, generation_analytics
 from genonaut.api.context import build_request_context, reset_request_context, set_request_context
 from genonaut.api.exceptions import StatementTimeoutError
@@ -130,11 +133,19 @@ def create_app() -> FastAPI:
     
     # Root endpoint
     @app.get("/")
-    async def root():
+    async def root(db: Session = Depends(get_database_session)):
         """Root endpoint."""
+        try:
+            # Get database name
+            db_name_result = db.execute(text("SELECT current_database()")).fetchone()
+            db_name = db_name_result[0] if db_name_result else "unknown"
+        except Exception:
+            db_name = "unknown"
+
         return {
             "message": "Welcome to Genonaut API",
             "version": "1.0.0",
+            "database": db_name,
             "docs": "/docs",
             "redoc": "/redoc",
             "health": "/api/v1/health",

@@ -1,0 +1,2 @@
+id	user_id	content_item_id	recommendation_score	algorithm_version	created_at	is_served	served_at	rec_metadata
+1	1596ba58-ac9d-4e4d-8063-e5902851dec4	65005	0.85	test_v1.0	2025-10-05T21:04:25.599937	false		"{""test"": ""recommendation""}"

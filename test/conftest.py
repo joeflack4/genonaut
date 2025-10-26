@@ -197,15 +197,21 @@ def pytest_sessionstart(session):
     """Clean the PostgreSQL test database before starting the test session.
 
     This hook runs once at the beginning of a pytest session (before any tests run).
-    It truncates all tables in the test database to ensure a clean slate.
+    It may truncate tables in the test database depending on configuration.
 
-    This is necessary because some tests use fixtures that bypass the postgres_session
-    rollback mechanism (like tests that create their own DatabaseInitializer), leaving
-    data that can cause IntegrityError in subsequent test runs.
+    Configuration (see test/db/test_config.py):
+    - genonaut_test: Persistent database, NOT truncated by default
+    - genonaut_test_init: Initialization test database, truncated by default
+
+    Environment variable overrides:
+    - TRUNCATE_TEST_DB=1: Force truncate genonaut_test
+    - TRUNCATE_TEST_INIT_DB=0: Skip truncating genonaut_test_init
     """
     try:
         from sqlalchemy import create_engine, text
+        from sqlalchemy.engine.url import make_url
         from test.db.postgres_fixtures import get_postgres_test_url
+        from test.db.test_config import TestDatabaseConfig
         from genonaut.db.safety import validate_test_database_url
 
         # Get test database URL
@@ -214,6 +220,20 @@ def pytest_sessionstart(session):
         # SAFETY CHECK: Ensure we're only truncating a test database
         # This prevents accidental data loss in production, demo, or dev databases
         validate_test_database_url(db_url)
+
+        # Extract database name from URL
+        parsed_url = make_url(db_url)
+        database_name = parsed_url.database
+
+        # Check if this database should be truncated
+        should_truncate = TestDatabaseConfig.should_truncate_database(database_name)
+
+        if not should_truncate:
+            print(f"\nSkipping truncation of '{database_name}' database (persistent mode)")
+            print("To force truncation, set TRUNCATE_TEST_DB=1 environment variable\n")
+            return
+
+        print(f"\nTruncating '{database_name}' database before test session...")
 
         engine = create_engine(db_url)
 
@@ -232,9 +252,11 @@ def pytest_sessionstart(session):
             tables = [row[0] for row in result.fetchall()]
 
             # Truncate each table
+            truncated_count = 0
             for table in tables:
                 try:
                     conn.execute(text(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE"))
+                    truncated_count += 1
                 except Exception:
                     # If truncate fails (e.g., table doesn't exist), continue
                     pass
@@ -242,6 +264,7 @@ def pytest_sessionstart(session):
             conn.commit()
 
         engine.dispose()
+        print(f"Truncated {truncated_count} tables in '{database_name}'\n")
 
     except Exception as e:
         # If cleanup fails, print warning but don't fail the test session
