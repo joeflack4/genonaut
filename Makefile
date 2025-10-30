@@ -30,7 +30,11 @@ clear-excess-test-schemas-keep-3 migrate-down-dev migrate-heads-dev migrate-down
 ontology-refresh ontology-generate ontology-validate ontology-stats ontology-test ontology-json \
 md-collate md-export-tsv md-test md-github-sync-down md-github-sync-up md-github-sync \
 tf-bootstrap-init tf-bootstrap-apply tf-bootstrap-destroy tf-init tf-plan tf-apply tf-destroy tf-fmt tf-validate \
-tf-console aws-login tf-login refresh-tag-stats refresh-tag-stats-dev refresh-tag-stats-demo refresh-tag-stats-test
+tf-console aws-login tf-login \
+aws-ssm-sync aws-ssm-sync-dry-run aws-ssm-sync-env \
+aws-ssm-push aws-ssm-push-dry-run aws-ssm-push-env \
+aws-terraform-gen aws-terraform-gen-dry-run \
+refresh-tag-stats refresh-tag-stats-dev refresh-tag-stats-demo refresh-tag-stats-test
 
 # Load environment variables
 ifneq (,$(wildcard ./env/.env.shared))
@@ -1088,9 +1092,9 @@ check-comfyui-create-img:
 # ============================================
 # Infrastructure
 # ============================================
-# Note: If terraform gives error like "│ Error: No valid credential sources found", run: `make aws login`
+# Note: If terraform gives error like "│ Error: No valid credential sources found", run: `make aws-login`
 
-# Terraform directories
+# Terraform vars
 DEPLOY_TF_BOOTSTRAP_DIR := infra/bootstrap
 DEPLOY_MAIN_DIR := infra/main
 DEPLOY_ENVS := dev test demo prod
@@ -1116,6 +1120,50 @@ aws-login:
 
 tf-login: aws-login
 
+# AWS SSM sync: Push secrets to Parameter Store and generate Terraform config
+# Combined commands (both actions)
+aws-ssm-sync:
+	@echo ">>> Syncing secrets to AWS SSM and generating Terraform config..."
+	python infra/scripts/aws_ssm_sync.py --action all
+
+aws-ssm-sync-dry-run:
+	@echo ">>> Dry run: showing what would be synced to AWS SSM and Terraform..."
+	python infra/scripts/aws_ssm_sync.py --action all --dry-run
+
+aws-ssm-sync-env:
+	@if [ -z "$(ENV)" ]; then \
+		echo "Error: ENV variable required. Usage: make aws-ssm-sync-env ENV=demo"; \
+		exit 1; \
+	fi
+	@echo ">>> Syncing $(ENV) to AWS SSM and regenerating ALL Terraform configs..."
+	python infra/scripts/aws_ssm_sync.py --action all --env $(ENV)
+
+# SSM push only (respects --env flag)
+aws-ssm-push:
+	@echo ">>> Pushing secrets to AWS SSM Parameter Store (all environments)..."
+	python infra/scripts/aws_ssm_sync.py --action ssm
+
+aws-ssm-push-dry-run:
+	@echo ">>> Dry run: showing what would be pushed to AWS SSM..."
+	python infra/scripts/aws_ssm_sync.py --action ssm --dry-run
+
+aws-ssm-push-env:
+	@if [ -z "$(ENV)" ]; then \
+		echo "Error: ENV variable required. Usage: make aws-ssm-push-env ENV=demo"; \
+		exit 1; \
+	fi
+	@echo ">>> Pushing $(ENV) secrets to AWS SSM..."
+	python infra/scripts/aws_ssm_sync.py --action ssm --env $(ENV)
+
+# Terraform generation only (always ALL environments)
+aws-terraform-gen:
+	@echo ">>> Generating Terraform ECS secrets config (all environments)..."
+	python infra/scripts/aws_ssm_sync.py --action terraform
+
+aws-terraform-gen-dry-run:
+	@echo ">>> Dry run: showing Terraform config that would be generated..."
+	python infra/scripts/aws_ssm_sync.py --action terraform --dry-run
+
 # Bootstrap commands: 1-time setup
 tf-bootstrap-init:
 	cd $(DEPLOY_TF_BOOTSTRAP_DIR) && \
@@ -1139,7 +1187,12 @@ tf-bootstrap-destroy:
 	  -var="region=$(DEPLOY_AWS_REGION)"
 
 # Main commands
-# - generator for per-env terraform targets
+# generator for per-env terraform targets
+# $(1) = env (demo, dev, etc.)
+# var="region=$(DEPLOY_AWS_REGION)" redundant because we have AWS_REGION=$(DEPLOY_AWS_REGION), but can be useful if
+#  .tf files explicitly reference var.region.
+# -var="env=$(1)" is redundant because we have it in -var-file=../env/$(1).tfvars. Here for failsafe/clarity.
+# if env/ files are cumbersome, could use simpler way of `-var="env=$(1)"` instead of `-var-file=../env/$(1).tfvars`
 define TF_ENV_RULES
 .PHONY: tf-init-$(1) tf-plan-$(1) tf-apply-$(1) tf-destroy-$(1)
 tf-init-$(1):
@@ -1156,30 +1209,39 @@ tf-plan-$(1):
 	cd $(DEPLOY_MAIN_DIR) && \
 	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) \
 	terraform plan \
+		-var-file=../env/$(1).tfvars \
 		-var="env=$(1)" \
-		-var="region=$(DEPLOY_AWS_REGION)"
+		-var="db_master_password=$(DEPLOY_AWS_RDBMS_SERVICE_ROOT_PW)" \
+		-var="region=$(DEPLOY_AWS_REGION)" \
+		-var="account_id=$(DEPLOY_AWS_ACCOUNT_ID)"
 
 tf-apply-$(1):
 	cd $(DEPLOY_MAIN_DIR) && \
 	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) \
 	terraform apply -auto-approve \
+		-var-file=../env/$(1).tfvars \
 		-var="env=$(1)" \
-		-var="region=$(DEPLOY_AWS_REGION)"
+		-var="db_master_password=$(DEPLOY_AWS_RDBMS_SERVICE_ROOT_PW)" \
+		-var="region=$(DEPLOY_AWS_REGION)" \
+		-var="account_id=$(DEPLOY_AWS_ACCOUNT_ID)"
+
 
 tf-destroy-$(1):
 	cd $(DEPLOY_MAIN_DIR) && \
 	AWS_PROFILE=$(DEPLOY_AWS_PROFILE) AWS_REGION=$(DEPLOY_AWS_REGION) \
 	terraform destroy -auto-approve \
+	  -var-file=../env/$(1).tfvars \
 	  -var="env=$(1)" \
-	  -var="region=$(DEPLOY_AWS_REGION)"
+	  -var="region=$(DEPLOY_AWS_REGION)" \
+	  -var="account_id=$(DEPLOY_AWS_ACCOUNT_ID)"
 endef
 
 $(foreach e,$(DEPLOY_ENVS),$(eval $(call TF_ENV_RULES,$(e))))
 
 # default: demo
-tf-init:   tf-init-demo
-tf-plan:   tf-plan-demo
-tf-apply:  tf-apply-demo
+tf-init: tf-init-demo
+tf-plan: tf-plan-demo
+tf-apply: tf-apply-demo
 tf-destroy: tf-destroy-demo
 
 # Utility commands

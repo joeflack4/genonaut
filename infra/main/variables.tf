@@ -36,3 +36,7 @@ variable "private_subnet_cidrs" {
   type        = list(string)
   default     = ["10.20.10.0/24", "10.20.11.0/24"]
 }
+variable "account_id" {
+  description = "AWS account ID to scope IAM permissions"
+  type        = string
+}
