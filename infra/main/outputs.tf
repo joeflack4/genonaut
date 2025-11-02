@@ -20,18 +20,18 @@ output "nat_gateway_ids" {
 }
 
 # ---- ECS / Compute ----
-# output "service_api_arn" {
-#   value       = try(aws_ecs_service.api.arn, null)
-#   description = "Web API service ARN"
-# }
-# output "service_image_gen_mock_api_arn" {
-#   value       = try(aws_ecs_service.image_gen_mock_api.arn, null)
-#   description = "Image gen mock API service ARN"
-# }
-# output "service_celery_arn" {
-#   value       = try(aws_ecs_service.celery.arn, null)
-#   description = "Celery worker service ARN"
-# }
+output "service_api_arn" {
+  value       = try(aws_ecs_service.api.arn, null)
+  description = "Web API service ARN"
+}
+output "service_image_gen_mock_api_arn" {
+  value       = try(aws_ecs_service.image_gen_mock_api.arn, null)
+  description = "Image gen mock API service ARN"
+}
+output "service_celery_arn" {
+  value       = try(aws_ecs_service.celery.arn, null)
+  description = "Celery worker service ARN"
+}
 
 # ---- Datastores ----
 output "rds_endpoint" {
@@ -44,14 +44,21 @@ output "redis_endpoint" {
 }
 
 # ---- Static site ----
-# output "static_site_bucket" {
-#   value       = try(aws_s3_bucket.static_site.bucket, null)
-#   description = "S3 bucket for React build"
-# }
-# output "cloudfront_domain" {
-#   value       = try(aws_cloudfront_distribution.site.domain_name, null)
-#   description = "CloudFront distribution domain"
-# }
+output "static_site_bucket_name" {
+  value = aws_s3_bucket.static_site.bucket
+  description = "S3 bucket for React build"
+}
+
+output "static_site_cloudfront_domain" {
+  value = aws_cloudfront_distribution.static_site.domain_name
+  description = "CloudFront distribution domain. Hit this in a browser after you upload your build"
+}
+
+output "static_site_cloudfront_distribution_id" {
+  value = aws_cloudfront_distribution.static_site.id
+  description = "CloudFront distribution ID for cache invalidation"
+}
+
 
 # ---- Useful ARNs / misc ----
 output "task_exec_role_arn" {

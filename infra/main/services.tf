@@ -4,6 +4,7 @@
 
 locals {
   container_port_api = 8001
+  container_port_image_gen    = 8189
 }
 
 ########################################
@@ -30,7 +31,10 @@ resource "aws_ecs_task_definition" "api" {
           protocol      = "tcp"
         }
       ]
-      # inject secrets from SSM for this env (generated in ecs_secrets.auto.tf)
+      command = [
+        "make",
+        "cloud-${var.env}"
+      ]
       secrets = lookup(
         {
           demo = local.ecs_secrets_demo
@@ -41,7 +45,8 @@ resource "aws_ecs_task_definition" "api" {
         var.env
       )
     }
-  ])
+])
+
 }
 
 resource "aws_ecs_service" "api" {
@@ -75,14 +80,10 @@ resource "aws_ecs_service" "api" {
 }
 
 ########################################
-# Second API service (api2)
+# Image gen API service
 ########################################
-# This is drafted as a parallel service. We assume you'll
-# later create a second target group + listener rule in alb.tf.
-# For now, we include the task def and service with a TODO.
-
-resource "aws_ecs_task_definition" "api2" {
-  family                   = "genonaut-api2-${var.env}"
+resource "aws_ecs_task_definition" "image_gen_mock_api" {
+  family                   = "genonaut-image-gen-${var.env}"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = 256
@@ -92,12 +93,12 @@ resource "aws_ecs_task_definition" "api2" {
 
   container_definitions = jsonencode([
     {
-      name         = "api2"
-      image        = "nginx:latest" # TODO: swap once you have separate image
+      name         = "image_gen_mock_api"
+      image        = "nginx:latest"  # TODO replace with your mock image-gen container
       essential    = true
       portMappings = [
         {
-          containerPort = local.container_port_api
+          containerPort = local.container_port_image_gen
           protocol      = "tcp"
         }
       ]
@@ -114,30 +115,33 @@ resource "aws_ecs_task_definition" "api2" {
   ])
 }
 
-# NOTE: we don't yet have a second target group/listener rule wired.
-# We'll stub the service but comment out the load_balancer block so plan won't fail.
-
-resource "aws_ecs_service" "api2" {
-  name            = "genonaut-api2-${var.env}"
+resource "aws_ecs_service" "image_gen_mock_api" {
+  name            = "genonaut-image-gen-${var.env}"
   cluster         = aws_ecs_cluster.main.arn
   launch_type     = "FARGATE"
-  task_definition = aws_ecs_task_definition.api2.arn
-  desired_count   = 0 # start disabled / scaled to 0 so you're not billed
+  task_definition = aws_ecs_task_definition.image_gen_mock_api.arn
+  desired_count   = 1
 
   network_configuration {
-    subnets         = [aws_subnet.private.id, aws_subnet.private_b.id]
-    security_groups = [aws_security_group.app_sg.id]
+    subnets          = [aws_subnet.private.id, aws_subnet.private_b.id]
+    security_groups  = [aws_security_group.app_sg.id]
     assign_public_ip = false
   }
 
-  # load_balancer {
-  #   target_group_arn = aws_lb_target_group.api2_tg.arn  # TODO: define in alb.tf later
-  #   container_name   = "api2"
-  #   container_port   = local.container_port_api
-  # }
+  load_balancer {
+    target_group_arn = aws_lb_target_group.image_gen_tg.arn
+    container_name   = "image_gen_mock_api"
+    container_port   = local.container_port_image_gen
+  }
+
+  depends_on = [
+    aws_lb_listener.http,
+    aws_lb_target_group.image_gen_tg,
+    aws_lb_listener_rule.image_gen_rule
+  ]
 
   tags = {
-    Name = "genonaut-api2-${var.env}"
+    Name = "genonaut-image-gen-${var.env}"
     Env  = var.env
   }
 }
@@ -188,7 +192,7 @@ resource "aws_ecs_service" "celery" {
   cluster         = aws_ecs_cluster.main.arn
   launch_type     = "FARGATE"
   task_definition = aws_ecs_task_definition.celery.arn
-  desired_count   = 0 # start at 0 so you're not billed until you want workers
+  desired_count   = 1
 
   network_configuration {
     subnets         = [aws_subnet.private.id, aws_subnet.private_b.id]
@@ -200,23 +204,4 @@ resource "aws_ecs_service" "celery" {
     Name = "genonaut-celery-${var.env}"
     Env  = var.env
   }
-}
-
-########################################
-# Outputs (so you can see ARNs in `plan` / `apply`)
-########################################
-
-output "service_api_arn" {
-  value       = aws_ecs_service.api.arn
-  description = "Web API service ARN"
-}
-
-output "service_api2_arn" {
-  value       = aws_ecs_service.api2.arn
-  description = "Second API service ARN"
-}
-
-output "service_celery_arn" {
-  value       = aws_ecs_service.celery.arn
-  description = "Celery worker service ARN"
 }

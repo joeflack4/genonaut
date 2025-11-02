@@ -44,6 +44,28 @@ resource "aws_lb_target_group" "app_tg" {
   }
 }
 
+resource "aws_lb_target_group" "image_gen_tg" {
+  name        = "genonaut-imggen-tg-${var.env}"
+  port        = 8189
+  protocol    = "HTTP"
+  target_type = "ip"
+  vpc_id      = aws_vpc.main.id
+
+  health_check {
+    path                = "/health"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 5
+    matcher             = "200-399"
+  }
+
+  tags = {
+    Name = "genonaut-imggen-tg-${var.env}"
+    Env  = var.env
+  }
+}
+
 # Listener on port 80 → forwards to the target group
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.app.arn
@@ -53,6 +75,26 @@ resource "aws_lb_listener" "http" {
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.app_tg.arn
+  }
+
+  tags = {
+    Env = var.env
+  }
+}
+
+resource "aws_lb_listener_rule" "image_gen_rule" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 10  # must be unique; lower = evaluated first
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.image_gen_tg.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/image-gen/*"]
+    }
   }
 
   tags = {

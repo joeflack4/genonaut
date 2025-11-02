@@ -16,6 +16,7 @@ frontend-test-e2e-w frontend-test-e2e-headed-w frontend-test-e2e-debug-w fronten
 frontend-test-e2e-real-api frontend-test-e2e-real-api-headed frontend-test-e2e-real-api-ui frontend-test-e2e-real-api-debug frontend-test-e2e-real-api-debug-headed frontend-test-e2e-real-api-skip-missing \
 frontend-test-e2e-real-api-w frontend-test-e2e-real-api-headed-w frontend-test-e2e-real-api-debug-w frontend-test-e2e-real-api-debug-headed-w \
 frontend-lint frontend-type-check frontend-format frontend-format-write \
+frontend-deploy-demo frontend-deploy-dev frontend-deploy-test frontend-deploy-prod \
 test-frontend test-frontend-unit test-frontend-watch test-frontend-coverage test-frontend-e2e test-frontend-e2e-headed \
 test-frontend-e2e-ui test-frontend-e2e-debug test-frontend-e2e-debug-headed \
 test-frontend-e2e-w test-frontend-e2e-headed-w test-frontend-e2e-debug-w test-frontend-e2e-debug-headed-w \
@@ -174,6 +175,12 @@ help:
 	@echo "  frontend-type-check      Type-check frontend code"
 	@echo "  frontend-format          Check frontend formatting"
 	@echo "  frontend-format-write    Format frontend code"
+	@echo ""
+	@echo "Frontend Deployment (AWS):"
+	@echo "  frontend-deploy-demo     Build and deploy frontend to demo environment"
+	@echo "  frontend-deploy-dev      Build and deploy frontend to dev environment"
+	@echo "  frontend-deploy-test     Build and deploy frontend to test environment"
+	@echo "  frontend-deploy-prod     Build and deploy frontend to production environment"
 	@echo ""
 	@echo "Testing (Frontend):"
 	@echo "  frontend-test            Run all frontend tests (unit + e2e)"
@@ -1046,6 +1053,23 @@ frontend-format:
 frontend-format-write:
 	@echo "Formatting frontend code..."
 	npm --prefix frontend run format:write
+
+# Frontend deployment to AWS (S3 + CloudFront)
+frontend-deploy-demo:
+	@echo "Deploying frontend to demo environment..."
+	@./infra/scripts/frontend_deploy.sh demo
+
+frontend-deploy-dev:
+	@echo "Deploying frontend to dev environment..."
+	@./infra/scripts/frontend_deploy.sh dev
+
+frontend-deploy-test:
+	@echo "Deploying frontend to test environment..."
+	@./infra/scripts/frontend_deploy.sh test
+
+frontend-deploy-prod:
+	@echo "Deploying frontend to production environment..."
+	@./infra/scripts/frontend_deploy.sh prod
 
 # Frontend test aliases (test-frontend* variants)
 test-frontend: frontend-test
