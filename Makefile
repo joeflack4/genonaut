@@ -17,6 +17,7 @@ frontend-test-e2e-real-api frontend-test-e2e-real-api-headed frontend-test-e2e-r
 frontend-test-e2e-real-api-w frontend-test-e2e-real-api-headed-w frontend-test-e2e-real-api-debug-w frontend-test-e2e-real-api-debug-headed-w \
 frontend-lint frontend-type-check frontend-format frontend-format-write \
 frontend-deploy-demo frontend-deploy-dev frontend-deploy-test frontend-deploy-prod \
+backend-build backend-deploy-demo backend-deploy-dev backend-deploy-test backend-deploy-prod \
 test-frontend test-frontend-unit test-frontend-watch test-frontend-coverage test-frontend-e2e test-frontend-e2e-headed \
 test-frontend-e2e-ui test-frontend-e2e-debug test-frontend-e2e-debug-headed \
 test-frontend-e2e-w test-frontend-e2e-headed-w test-frontend-e2e-debug-w test-frontend-e2e-debug-headed-w \
@@ -181,6 +182,13 @@ help:
 	@echo "  frontend-deploy-dev      Build and deploy frontend to dev environment"
 	@echo "  frontend-deploy-test     Build and deploy frontend to test environment"
 	@echo "  frontend-deploy-prod     Build and deploy frontend to production environment"
+	@echo ""
+	@echo "Backend Deployment (AWS):"
+	@echo "  backend-build            Build backend Docker image locally"
+	@echo "  backend-deploy-demo      Build and deploy backend to demo environment"
+	@echo "  backend-deploy-dev       Build and deploy backend to dev environment"
+	@echo "  backend-deploy-test      Build and deploy backend to test environment"
+	@echo "  backend-deploy-prod      Build and deploy backend to production environment"
 	@echo ""
 	@echo "Testing (Frontend):"
 	@echo "  frontend-test            Run all frontend tests (unit + e2e)"
@@ -1071,6 +1079,27 @@ frontend-deploy-prod:
 	@echo "Deploying frontend to production environment..."
 	@./infra/scripts/frontend_deploy.sh prod
 
+# Backend deployment to AWS (ECS + ECR)
+backend-build:
+	@echo "Building backend Docker image..."
+	@docker build -t genonaut:latest .
+
+backend-deploy-demo:
+	@echo "Deploying backend to demo environment..."
+	@./infra/scripts/backend_deploy.sh demo
+
+backend-deploy-dev:
+	@echo "Deploying backend to dev environment..."
+	@./infra/scripts/backend_deploy.sh dev
+
+backend-deploy-test:
+	@echo "Deploying backend to test environment..."
+	@./infra/scripts/backend_deploy.sh test
+
+backend-deploy-prod:
+	@echo "Deploying backend to production environment..."
+	@./infra/scripts/backend_deploy.sh prod
+
 # Frontend test aliases (test-frontend* variants)
 test-frontend: frontend-test
 test-frontend-unit: frontend-test-unit
@@ -1106,7 +1135,7 @@ COMFY_PORT=8000  # Manual/portable (python main.py): defaults to 8000 unless you
 
 comfyui-mock:
 	@echo "Starting mock ComfyUI server on port 8189..."
-	python test/_infra/mock_services/comfyui/server.py
+	uvicorn test._infra.mock_services.comfyui.server:app --host 0.0.0.0 --port 8189
 
 check-comfyui-create-img:
 	curl -X POST http://localhost:8000/prompt \

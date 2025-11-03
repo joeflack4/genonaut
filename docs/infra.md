@@ -526,18 +526,552 @@ aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
 - Assets have content hashes in filenames (e.g., `main.abc123.js`)
 - Production optimizations: minification, tree-shaking, code splitting
 
-#### Next Steps
-
-After deploying the frontend, you may want to:
-
-1. **Set up custom domain**: Configure Route 53 and ACM certificate
-2. **Add monitoring**: Set up CloudWatch alarms for 4xx/5xx errors
-3. **Configure CI/CD**: Automate deployments via GitHub Actions
-4. **Add environment variables**: Configure API endpoints for different environments
-
 #### Related Documentation
 
 - [Terraform Infrastructure](../infra/main/s3_cloudfront.tf)
 - [Frontend Development](../frontend/README.md)
 - [API Configuration](./api.md)
 - [Testing Guide](./testing.md)
+
+---
+
+### How to Deploy the Backend (ECS Services to AWS)
+
+This guide explains how to deploy the Genonaut backend services (API, Celery workers, Image Gen Mock) to AWS ECS using Docker containers.
+
+#### Overview
+
+The backend deployment process:
+1. Builds a Docker image containing the entire `genonaut` Python package
+2. Pushes the image to AWS ECR (Elastic Container Registry)
+3. ECS services pull the new image and restart containers
+4. Same image is used for all three services (API, Celery, Image Gen Mock)
+
+#### Prerequisites
+
+##### 1. AWS Infrastructure
+
+The Terraform infrastructure must be applied for the target environment first:
+
+```bash
+# Example for demo environment
+make tf-init-demo
+make tf-apply-demo
+```
+
+This creates:
+- ECR repositories: `genonaut-api-{env}`, `genonaut-worker-{env}`, `genonaut-imagegen-{env}`
+- ECS cluster, services, task definitions
+- ALB (Application Load Balancer) for API and Image Gen services
+- RDS PostgreSQL and ElastiCache Redis instances
+- VPC, subnets, security groups, IAM roles
+
+##### 2. AWS Credentials
+
+Ensure AWS credentials are configured:
+
+```bash
+# Login with SSO (if using AWS SSO)
+make aws-login
+
+# Verify credentials
+aws sts get-caller-identity
+```
+
+##### 3. Docker
+
+Docker must be installed and running:
+
+```bash
+# Check if installed
+docker --version
+
+# Verify Docker daemon is running
+docker ps
+```
+
+#### Deployment Commands
+
+Deploy backend services to specific environments using Make targets:
+
+```bash
+# Build Docker image locally (optional - mainly for testing)
+make backend-build
+
+# Deploy to demo (most common)
+make backend-deploy-demo
+
+# Deploy to dev
+make backend-deploy-dev
+
+# Deploy to test
+make backend-deploy-test
+
+# Deploy to production
+make backend-deploy-prod
+```
+
+#### What Happens During Deployment
+
+The deployment script (`infra/scripts/backend_deploy.sh`) performs these steps:
+
+##### 1. Build Docker Image
+
+```bash
+docker build -t genonaut:latest .
+```
+
+The `Dockerfile` at project root:
+- Uses Python 3.11 slim base image
+- Installs system dependencies (gcc, g++, libpq-dev for psycopg2)
+- Installs Python dependencies from `requirements.txt`
+- Copies entire codebase
+- Installs `genonaut` package: `pip install -e .`
+
+This makes the `genonaut` package and all its modules importable, which is required for:
+- `genonaut.api.main:app` (FastAPI application)
+- `genonaut.worker.queue_app:celery_app` (Celery application)
+- `test._infra.mock_services.comfyui.server:app` (Mock image gen API)
+
+##### 2. Tag Image for Each ECR Repository
+
+```bash
+# Tag for API
+docker tag genonaut:latest <ECR_URL>/genonaut-api-demo:latest
+
+# Tag for Worker
+docker tag genonaut:latest <ECR_URL>/genonaut-worker-demo:latest
+
+# Tag for Image Gen Mock
+docker tag genonaut:latest <ECR_URL>/genonaut-imagegen-demo:latest
+```
+
+We push the same image to all three repositories because all services use the same codebase. The service type is determined by the `command` override in the ECS task definition.
+
+##### 3. Authenticate to ECR
+
+```bash
+aws ecr get-login-password --region us-east-1 | \
+  docker login --username AWS --password-stdin <ECR_URL>
+```
+
+##### 4. Push Images to ECR
+
+```bash
+docker push <ECR_URL>/genonaut-api-demo:latest
+docker push <ECR_URL>/genonaut-worker-demo:latest
+docker push <ECR_URL>/genonaut-imagegen-demo:latest
+```
+
+##### 5. Force ECS Service Updates
+
+```bash
+aws ecs update-service --cluster genonaut-demo \
+  --service genonaut-api-demo --force-new-deployment
+
+aws ecs update-service --cluster genonaut-demo \
+  --service genonaut-celery-demo --force-new-deployment
+
+aws ecs update-service --cluster genonaut-demo \
+  --service genonaut-image-gen-demo --force-new-deployment
+```
+
+This tells ECS to:
+- Stop existing tasks
+- Pull the latest image from ECR (with `:latest` tag)
+- Start new tasks with the updated image
+
+##### 6. Deployment Summary
+
+The script outputs:
+```
+Deployment Summary:
+  Environment: demo
+  Image Tag: latest
+  API Service: genonaut-api-demo
+  Celery Service: genonaut-celery-demo
+  Image Gen Service: genonaut-image-gen-demo
+
+ECS services are updating. This may take 2-5 minutes.
+
+Check service status:
+  make ecs-status-demo
+```
+
+#### How ECS Task Definitions Use the Image
+
+The same Docker image is used by all three services, but each runs a different command:
+
+**API Service** (in `infra/main/services.tf`):
+```hcl
+command = [
+  "uvicorn",
+  "genonaut.api.main:app",
+  "--host", "0.0.0.0",
+  "--port", "8001"
+]
+```
+
+**Celery Worker Service**:
+```hcl
+command = [
+  "celery",
+  "-A", "genonaut.worker.queue_app:celery_app",
+  "worker",
+  "--loglevel=info",
+  "--queues=default,generation",
+  "-B",
+  "--scheduler", "redbeat.RedBeatScheduler"
+]
+```
+
+**Image Gen Mock API Service**:
+```hcl
+command = [
+  "uvicorn",
+  "test._infra.mock_services.comfyui.server:app",
+  "--host", "0.0.0.0",
+  "--port", "8189"
+]
+```
+
+This single-image, multiple-command approach simplifies deployment:
+- One build, one push (faster CI/CD)
+- Consistent dependencies across services
+- Easier maintenance (update once, applies everywhere)
+- Can split into separate images later if services diverge
+
+#### CI/CD Strategy
+
+**Current State (Manual Deployment):**
+
+Right now, deployment is manual. You run:
+```bash
+make backend-deploy-demo
+```
+
+This:
+1. Builds Docker image on your local machine
+2. Pushes to ECR from your local machine
+3. Updates ECS services from your local machine
+
+**Future State (Automated CI/CD with GitHub Actions):**
+
+The plan is to automate this using GitHub Actions:
+
+```yaml
+# .github/workflows/deploy-backend.yml (future)
+name: Deploy Backend to AWS
+
+on:
+  push:
+    branches:
+      - main  # Auto-deploy main to demo
+      - production  # Auto-deploy production to prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t genonaut:$IMAGE_TAG .
+          # Push to all three ECR repos
+          docker tag genonaut:$IMAGE_TAG $ECR_REGISTRY/genonaut-api-demo:latest
+          docker tag genonaut:$IMAGE_TAG $ECR_REGISTRY/genonaut-worker-demo:latest
+          docker tag genonaut:$IMAGE_TAG $ECR_REGISTRY/genonaut-imagegen-demo:latest
+          docker push $ECR_REGISTRY/genonaut-api-demo:latest
+          docker push $ECR_REGISTRY/genonaut-worker-demo:latest
+          docker push $ECR_REGISTRY/genonaut-imagegen-demo:latest
+
+      - name: Force ECS service updates
+        run: |
+          aws ecs update-service --cluster genonaut-demo \
+            --service genonaut-api-demo --force-new-deployment
+          aws ecs update-service --cluster genonaut-demo \
+            --service genonaut-celery-demo --force-new-deployment
+          aws ecs update-service --cluster genonaut-demo \
+            --service genonaut-image-gen-demo --force-new-deployment
+```
+
+**What happens automatically vs. manually:**
+
+| Action | Manual (Now) | Automated (Future) |
+|--------|--------------|-------------------|
+| Code pushed to `main` | No action | GitHub Actions builds & deploys to demo |
+| Code pushed to `production` | No action | GitHub Actions builds & deploys to prod |
+| Infrastructure changes | Run `make tf-apply-demo` | Still manual (Terraform best kept manual/reviewed) |
+| Emergency rollback | Run `make backend-deploy-demo` with old commit | Revert Git commit, push triggers auto-deploy |
+| Check deployment status | Run `make ecs-status-demo` | Check GitHub Actions logs |
+
+**When to use manual vs. automated:**
+
+**Manual deployment (now):**
+- During initial development and testing
+- When testing infrastructure changes
+- When you want full control over timing
+- For hotfixes that need immediate attention
+
+**Automated deployment (future):**
+- Regular feature deployments to demo
+- Scheduled releases to production
+- Post-merge deployments (merge to main = deploy to demo)
+- Reduces human error
+- Faster deployment cycles
+
+**Important Note:** Even with CI/CD automation, you'll still use the same deployment script (`infra/scripts/backend_deploy.sh`). The only difference is *who* runs it (you vs. GitHub Actions).
+
+#### Deployment Workflow Summary
+
+**Complete deployment workflow (manual, current approach):**
+
+```bash
+# 1. Make code changes
+git add .
+git commit -m "Add new feature"
+
+# 2. Ensure infrastructure is up to date (if Terraform changed)
+make tf-apply-demo
+
+# 3. Deploy backend services
+make backend-deploy-demo
+
+# 4. Verify deployment
+make ecs-status-demo
+
+# 5. Check logs if issues
+make ecs-logs-api-demo
+```
+
+**Time estimates:**
+- Docker build: 2-5 minutes (first build), ~30 seconds (cached)
+- Push to ECR: 1-2 minutes
+- ECS service update: 2-5 minutes
+- **Total: ~5-10 minutes for full deployment**
+
+#### Accessing the Deployed Services
+
+After deployment:
+
+**API Service:**
+```bash
+# Get ALB URL from Terraform
+cd infra/main
+terraform output alb_dns_name
+
+# Access API
+curl https://<ALB_URL>/api/v1/health
+```
+
+**Celery Worker:**
+- No direct HTTP access (internal only)
+- Monitor via Flower UI (if deployed)
+- Check CloudWatch logs: `make ecs-logs-celery-demo`
+
+**Image Gen Mock API:**
+```bash
+# Access via ALB (routed to /image-gen)
+curl https://<ALB_URL>/image-gen/health
+```
+
+#### Troubleshooting
+
+##### Error: "Docker daemon not running"
+
+**Solution**: Start Docker Desktop or Docker daemon:
+```bash
+# macOS
+open -a Docker
+
+# Linux
+sudo systemctl start docker
+```
+
+##### Error: "Unable to locate credentials"
+
+**Solution**: Login to AWS:
+```bash
+make aws-login
+# Or set up credentials manually
+aws configure
+```
+
+##### Error: "ECR repository does not exist"
+
+**Solution**: Apply Terraform infrastructure first:
+```bash
+make tf-apply-demo
+```
+
+##### ECS Service Fails to Start
+
+**Check task definition**:
+```bash
+# Get latest task definition
+aws ecs describe-task-definition --task-definition genonaut-api-demo
+
+# Check recent tasks
+aws ecs list-tasks --cluster genonaut-demo --service genonaut-api-demo
+```
+
+**Common issues:**
+1. **Environment variables missing**: Check ECS secrets configuration in `infra/main/ecs_secrets.auto.tf`
+2. **Image pull error**: Verify ECR repository exists and image was pushed successfully
+3. **Port conflicts**: Ensure container ports match ALB target group ports
+4. **Database connection failure**: Check security group rules allow ECS to reach RDS
+
+**View logs**:
+```bash
+make ecs-logs-api-demo
+make ecs-logs-celery-demo
+make ecs-logs-imagegen-demo
+```
+
+##### Docker Build is Slow (25GB+ image)
+
+The image might be large due to including unnecessary files.
+
+**Solution**: Optimize `.dockerignore`:
+```bash
+# Add to .dockerignore
+frontend/node_modules
+.git
+*.log
+*.pyc
+__pycache__
+.pytest_cache
+.vscode
+```
+
+**Rebuild**:
+```bash
+docker build -t genonaut:test .
+```
+
+Expected final image size: ~1-2GB (not 25GB)
+
+##### ECS Service Update Stuck
+
+**Check service events**:
+```bash
+aws ecs describe-services --cluster genonaut-demo \
+  --services genonaut-api-demo \
+  --query 'services[0].events[0:5]'
+```
+
+**Force restart**:
+```bash
+aws ecs update-service --cluster genonaut-demo \
+  --service genonaut-api-demo \
+  --force-new-deployment
+```
+
+#### Environment-Specific Notes
+
+##### Demo Environment
+- Most commonly used for testing and demonstrations
+- ECR repos: `genonaut-api-demo`, `genonaut-worker-demo`, `genonaut-imagegen-demo`
+- ECS cluster: `genonaut-demo`
+- Terraform: `make tf-apply-demo`
+- Deploy: `make backend-deploy-demo`
+
+##### Production Environment
+- Use with caution - this is the live site
+- ECR repos: `genonaut-api-prod`, `genonaut-worker-prod`, `genonaut-imagegen-prod`
+- ECS cluster: `genonaut-prod`
+- Terraform: `make tf-apply-prod`
+- Deploy: `make backend-deploy-prod`
+- **Best practice:** Test in demo first, then deploy to prod
+
+#### Docker Image Location
+
+After building locally, the image is stored in Docker's local image storage:
+
+```bash
+# View local images
+docker images | grep genonaut
+
+# Example output:
+# genonaut     latest    7de1e6a2d37f   13 minutes ago   1.2GB
+```
+
+**Local image locations:**
+- macOS: `~/Library/Containers/com.docker.docker/Data/`
+- Linux: `/var/lib/docker/`
+- Windows: `C:\ProgramData\Docker\`
+
+**ECR image locations (after push):**
+- `<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/genonaut-api-demo:latest`
+- `<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/genonaut-worker-demo:latest`
+- `<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/genonaut-imagegen-demo:latest`
+
+You can inspect images:
+```bash
+# Local image details
+docker inspect genonaut:latest
+
+# ECR image details
+aws ecr describe-images --repository-name genonaut-api-demo
+```
+
+#### Manual Deployment Steps
+
+If you need to deploy manually without the Make target:
+
+```bash
+# 1. Build image
+docker build -t genonaut:latest .
+
+# 2. Get ECR repository URLs
+cd infra/main
+ECR_API=$(terraform output -raw ecr_repo_api_url)
+ECR_WORKER=$(terraform output -raw ecr_repo_worker_url)
+ECR_IMAGEGEN=$(terraform output -raw ecr_repo_image_gen_url)
+
+# 3. Tag images
+docker tag genonaut:latest $ECR_API:latest
+docker tag genonaut:latest $ECR_WORKER:latest
+docker tag genonaut:latest $ECR_IMAGEGEN:latest
+
+# 4. Login to ECR
+aws ecr get-login-password --region us-east-1 | \
+  docker login --username AWS --password-stdin <ECR_URL>
+
+# 5. Push images
+docker push $ECR_API:latest
+docker push $ECR_WORKER:latest
+docker push $ECR_IMAGEGEN:latest
+
+# 6. Update ECS services
+aws ecs update-service --cluster genonaut-demo \
+  --service genonaut-api-demo --force-new-deployment
+aws ecs update-service --cluster genonaut-demo \
+  --service genonaut-celery-demo --force-new-deployment
+aws ecs update-service --cluster genonaut-demo \
+  --service genonaut-image-gen-demo --force-new-deployment
+```
+
+#### Related Documentation
+
+- [Terraform ECS Services](../infra/main/services.tf)
+- [Docker Configuration](../Dockerfile)
+- [API Documentation](./api.md)
+- [Celery Tasks](./queuing.md)
+- [Frontend Deployment](#how-to-deploy-the-frontend-static-site-to-aws)

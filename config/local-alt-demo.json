@@ -1,22 +1,5 @@
 {
-  "db-host": "localhost",
-  "db-port": 5432,
   "db-name": "genonaut_demo",
-  "db-user-ro": "genonaut_ro",
-  "db-user-rw": "genonaut_rw",
-  "db-user-admin": "genonaut_admin",
-  "db-user-admin-uuid": "121e194b-4caa-4b81-ad4f-86ca3919d5b9",
-  "db-user-for-init": "postgres",
-  "db-echo": false,
-  "api-host": "0.0.0.0",
-  "api-port": 8003,
-  "api-debug": false,
-  "test-api-base-url": "http://0.0.0.0:8099",
   "redis-ns": "genonaut_demo",
-  "comfyui-url": "http://localhost:8000",
-  "comfyui-output-dir": "~/Documents/ComfyUI/output",
-  "comfyui-models-dir": "/tmp/comfyui_models",
-  "comfyui-mock-url": "http://localhost:8189",
-  "comfyui-mock-port": 8189,
-  "celery-result-backend-template-string": "redis://:${REDIS_PASSWORD}@localhost:6379/2"
+  "api-port": 8003,
 }

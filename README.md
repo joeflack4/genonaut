@@ -21,20 +21,18 @@ Platforms
 - **Cloud**
 - **Windows, MacOS, & Linux**: Local and browser-based
 
----
-
+<!--
 <p align="center">
   Early alpha development UI.
 </p>
 
-<!-- Row 1: one image centered -->
 <p align="center">
   <a href="docs/screenshots/dash.png">
     <img src="docs/screenshots/dash.png" alt="Dashboard" width="45%">
   </a>
 </p>
 
-<!-- Row 2: two images side by side -->
+
 <table>
   <tr>
     <td align="center" width="50%">
@@ -49,10 +47,13 @@ Platforms
     </td>
   </tr>
 </table>
+-->
 
 <p align="center">
   Join the <a href="https://forms.gle/2e2uC3owXLNNS4tTA">waiting list</a> to be notified for early access.
 </p>
+
+---
 
 ## Setup
 ### Installation

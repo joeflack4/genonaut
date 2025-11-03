@@ -102,6 +102,14 @@ resource "aws_ecs_task_definition" "image_gen_mock_api" {
           protocol      = "tcp"
         }
       ]
+      command = [
+        "uvicorn",
+        "test._infra.mock_services.comfyui.server:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8189"
+      ]
       secrets = lookup(
         {
           demo = local.ecs_secrets_demo
@@ -168,11 +176,23 @@ resource "aws_ecs_task_definition" "celery" {
 
       # usually Celery has no inbound portMappings, so we leave that out
 
-      command = [
-        "bash",
-        "-c",
-        "echo 'TODO run celery worker here' && sleep 3600"
+      environment = [
+        { name = "ENV_TARGET",      value = "cloud-demo" },
+        { name = "APP_CONFIG_PATH", value = "config/cloud-demo.json" }
       ]
+
+      command = [
+        "celery",
+        "-A",
+        "genonaut.worker.queue_app:celery_app",
+        "worker",
+        "--loglevel=info",
+        "--queues=default,generation",
+        "-B",
+        "--scheduler",
+        "redbeat.RedBeatScheduler"
+      ]
+
 
       secrets = lookup(
         {

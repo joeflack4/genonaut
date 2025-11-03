@@ -11,8 +11,8 @@ We are standing up the first deployable stack for Genonaut.
   - ALB + listener(s) and target groups
   - RDS / ElastiCache (internal)
   - And now: static site hosting resources
-- We just added a new Terraform file: `infra/s3_cloudfront.tf`.
-
+- We just added a new Terraform file: `infra/s3_cloudfront.tf`
+.
 ### What `s3_cloudfront.tf` does
 `infra/s3_cloudfront.tf` (new file) creates:
 - An S3 bucket named `genonaut-${var.env}-static-site` (private, no public ACLs).
