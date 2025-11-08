@@ -64,9 +64,18 @@ async def serve_image(
             full_path = Path(image_path)
             base_path = Path(settings.comfyui_output_dir)  # For thumbnail operations
         else:
-            # Relative path - prepend comfyui_output_dir
+            # Relative path - could be either:
+            # 1. Project-relative (e.g., "test/_infra/.../output/file.jpg")
+            # 2. Output-dir relative (e.g., "ComfyUI_00001_.png")
             base_path = Path(settings.comfyui_output_dir)
-            full_path = base_path / image_path
+
+            # Try as project-relative path first
+            project_relative_path = Path(image_path)
+            if project_relative_path.exists():
+                full_path = project_relative_path
+            else:
+                # Otherwise, treat as relative to output_dir
+                full_path = base_path / image_path
     else:
         # Build absolute path to the image (legacy behavior)
         base_path = Path(settings.comfyui_output_dir)
@@ -216,9 +225,18 @@ async def get_image_info(
             full_path = Path(image_path)
             base_path = Path(settings.comfyui_output_dir)
         else:
-            # Relative path - prepend comfyui_output_dir
+            # Relative path - could be either:
+            # 1. Project-relative (e.g., "test/_infra/.../output/file.jpg")
+            # 2. Output-dir relative (e.g., "ComfyUI_00001_.png")
             base_path = Path(settings.comfyui_output_dir)
-            full_path = base_path / image_path
+
+            # Try as project-relative path first
+            project_relative_path = Path(image_path)
+            if project_relative_path.exists():
+                full_path = project_relative_path
+            else:
+                # Otherwise, treat as relative to output_dir
+                full_path = base_path / image_path
     else:
         # Build absolute path to the image (legacy behavior)
         base_path = Path(settings.comfyui_output_dir)
@@ -300,9 +318,18 @@ async def delete_thumbnails(
             full_path = Path(image_path)
             base_path = Path(settings.comfyui_output_dir)
         else:
-            # Relative path - prepend comfyui_output_dir
+            # Relative path - could be either:
+            # 1. Project-relative (e.g., "test/_infra/.../output/file.jpg")
+            # 2. Output-dir relative (e.g., "ComfyUI_00001_.png")
             base_path = Path(settings.comfyui_output_dir)
-            full_path = base_path / image_path
+
+            # Try as project-relative path first
+            project_relative_path = Path(image_path)
+            if project_relative_path.exists():
+                full_path = project_relative_path
+            else:
+                # Otherwise, treat as relative to output_dir
+                full_path = base_path / image_path
     else:
         # Build absolute path to the image (legacy behavior)
         base_path = Path(settings.comfyui_output_dir)

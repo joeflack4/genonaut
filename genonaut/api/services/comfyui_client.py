@@ -55,9 +55,12 @@ class ComfyUIClient:
         # Use backend_url if provided, otherwise fall back to configured URL
         self.base_url = (backend_url or self.settings.comfyui_url).rstrip('/')
         # Use output_dir if provided, otherwise fall back to configured output dir
-        self.output_dir = output_dir or self.settings.comfyui_output_dir
+        # Expand tilde (~) to absolute path to ensure Path.exists() works correctly
+        raw_output_dir = output_dir or self.settings.comfyui_output_dir
+        self.output_dir = str(Path(raw_output_dir).expanduser())
         # Use models_dir if provided, otherwise fall back to configured models dir
-        self.models_dir = models_dir or self.settings.comfyui_models_dir
+        raw_models_dir = models_dir or self.settings.comfyui_models_dir
+        self.models_dir = str(Path(raw_models_dir).expanduser())
         self.timeout = self.settings.comfyui_timeout
         self.poll_interval = self.settings.comfyui_poll_interval
         self.session = requests.Session()
