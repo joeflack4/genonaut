@@ -13,8 +13,10 @@
   "test-api-base-url": "http://0.0.0.0:8099",
   "comfyui-url": "http://localhost:8000",
   "comfyui-output-dir": "~/Documents/ComfyUI/output",
-  "comfyui-models-dir": "/tmp/comfyui_models",
+  "comfyui-models-dir": "~/Documents/ComfyUI/models",
   "comfyui-mock-url": "http://localhost:8189",
+  "comfyui-mock-output-dir": "test/_infra/mock_services/comfyui/output",
+  "comfyui-mock-models-dir": "test/_infra/mock_services/comfyui/models",
   "comfyui-mock-port": 8189,
   "celery-result-backend-template-string": "redis://:${REDIS_PASSWORD}@localhost:6379/2",
   "seed-data": {

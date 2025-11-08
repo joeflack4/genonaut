@@ -30,15 +30,34 @@ class ComfyUIClient:
     Handles workflow submission, status monitoring, and result retrieval.
     """
 
-    def __init__(self, settings: Optional[Settings] = None):
+    def __init__(
+        self,
+        settings: Optional[Settings] = None,
+        backend_url: Optional[str] = None,
+        output_dir: Optional[str] = None,
+        models_dir: Optional[str] = None
+    ):
         """Initialize ComfyUI client with configuration settings.
 
         Args:
             settings: Optional settings instance to bind to this client. When
                 ``None``, configuration is loaded via :func:`get_settings`.
+            backend_url: Optional backend URL override. If provided, this URL
+                will be used instead of the configured comfyui_url.
+            output_dir: Optional output directory override. If provided, this
+                directory will be used for resolving output file paths instead
+                of the configured comfyui_output_dir.
+            models_dir: Optional models directory override. If provided, this
+                directory will be used for model-related operations instead
+                of the configured comfyui_models_dir.
         """
         self.settings = settings or get_cached_settings() or get_settings()
-        self.base_url = self.settings.comfyui_url.rstrip('/')
+        # Use backend_url if provided, otherwise fall back to configured URL
+        self.base_url = (backend_url or self.settings.comfyui_url).rstrip('/')
+        # Use output_dir if provided, otherwise fall back to configured output dir
+        self.output_dir = output_dir or self.settings.comfyui_output_dir
+        # Use models_dir if provided, otherwise fall back to configured models dir
+        self.models_dir = models_dir or self.settings.comfyui_models_dir
         self.timeout = self.settings.comfyui_timeout
         self.poll_interval = self.settings.comfyui_poll_interval
         self.session = requests.Session()
@@ -306,9 +325,9 @@ class ComfyUIClient:
                         filename = image["filename"]
                         subfolder = image["subfolder"]
                         if subfolder:
-                            file_path = f"{self.settings.comfyui_output_dir}/{subfolder}/{filename}"
+                            file_path = f"{self.output_dir}/{subfolder}/{filename}"
                         else:
-                            file_path = f"{self.settings.comfyui_output_dir}/{filename}"
+                            file_path = f"{self.output_dir}/{filename}"
                         file_paths.append(file_path)
 
         return file_paths
@@ -328,7 +347,7 @@ class ComfyUIClient:
             OSError: If reading the file fails.
         """
 
-        base_path = Path(self.settings.comfyui_output_dir)
+        base_path = Path(self.output_dir)
         target_path = base_path / subfolder / filename if subfolder else base_path / filename
 
         if not target_path.exists():

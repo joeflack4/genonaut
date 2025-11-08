@@ -78,6 +78,8 @@ class Settings(BaseModel):
     comfyui_default_height: int = 1216
     comfyui_default_batch_size: int = 1
     comfyui_mock_url: str = "http://localhost:8189"
+    comfyui_mock_output_dir: str = "test/_infra/mock_services/comfyui/output"
+    comfyui_mock_models_dir: str = "test/_infra/mock_services/comfyui/models"
     comfyui_mock_port: int = 8189
 
     # Celery settings

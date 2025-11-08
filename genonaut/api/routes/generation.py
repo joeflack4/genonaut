@@ -57,6 +57,7 @@ async def create_generation_job(
             job_type=job_data.job_type,
             prompt=job_data.prompt,
             params=job_data.params,
+            backend=job_data.backend,
             negative_prompt=job_data.negative_prompt,
             checkpoint_model=job_data.checkpoint_model,
             lora_models=job_data.lora_models,

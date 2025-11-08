@@ -8,6 +8,7 @@ from typing import Optional, Union, Tuple, Dict, Any, List
 from sqlalchemy import (
     Column, Identity, Integer, BigInteger, SmallInteger, String, Text, DateTime, Float, Boolean,
     ForeignKey, JSON, UniqueConstraint, Index, event, func, literal_column, DDL, ARRAY, Table,
+    Sequence, text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship, declarative_base, declared_attr
@@ -222,9 +223,19 @@ class UserSearchHistory(Base):
 
 
 class ContentItemColumns:
-    """Shared column definitions for content item style tables."""
+    """Shared column definitions for content item style tables.
 
-    id = Column(Integer, Identity(), primary_key=True)
+    Note: The id column uses a shared sequence (content_items_id_seq) across
+    both content_items and content_items_auto partitions to ensure globally
+    unique IDs and prevent collisions.
+    """
+
+    id = Column(
+        Integer,
+        Sequence('content_items_id_seq', start=3000000),
+        primary_key=True,
+        server_default=text("nextval('content_items_id_seq')")
+    )
     title = Column(String(255), nullable=False)
     content_type = Column(String(50), nullable=False, index=True)  # text, image, video, audio
     content_data = Column(Text, nullable=False)
@@ -410,9 +421,13 @@ class ContentItemAll(ContentItemColumns, Base):
         """Get creator username (requires join with User table in query)."""
         return getattr(self, '_creator_username', None)
 
-    # No additional indexes defined - indexes are defined per-partition
+    # Indexes for partitioned parent table
     # The partitioned unique index (id, source_type) is created in migrations
     __table_args__ = (
+        # Index on id alone for efficient lookups by content ID
+        # (e.g., image serving endpoint that queries by id without source_type)
+        Index('content_items_all_id_idx', 'id'),
+
         # Documentation: Partitioned table structure
         # - Parent: content_items_all (PARTITION BY LIST (source_type))
         # - Partition 1: content_items FOR VALUES IN ('items')

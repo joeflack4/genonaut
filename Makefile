@@ -4,8 +4,7 @@ reset-db-2-schema--test reset-db-3-schema-and-history--demo reset-db-3-schema-an
 re-seed-demo-force seed-from-gen-demo seed-from-gen-test seed-static-demo seed-static-test export-demo-data \
 export-demo-seed import-demo-seed-to-test refresh-test-seed-from-demo test \
 test-quick test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-tag-queries \
-test-all clear-excess-test-schemas install install-dev \
-lint format clean migrate-all migrate-all-auto migrate-prep migrate-dev migrate-demo migrate-test backup backup-dev backup-demo \
+test-all clear-excess-test-schemas install install-dev lint format clean migrate-all migrate-all-auto migrate-prep migrate-dev migrate-demo migrate-test backup backup-dev backup-demo \
 backup-test api-dev api-demo api-demo-alt api-test celery-dev celery-demo celery-test flower-dev flower-demo flower-test \
 redis-flush-dev redis-flush-demo redis-flush-test redis-keys-dev redis-keys-demo redis-keys-test \
 redis-info-dev redis-info-demo redis-info-test redis-start celery-check-running-workers \
@@ -32,11 +31,9 @@ clear-excess-test-schemas-keep-3 migrate-down-dev migrate-heads-dev migrate-down
 ontology-refresh ontology-generate ontology-validate ontology-stats ontology-test ontology-json \
 md-collate md-export-tsv md-test md-github-sync-down md-github-sync-up md-github-sync \
 tf-bootstrap-init tf-bootstrap-apply tf-bootstrap-destroy tf-init tf-plan tf-apply tf-destroy tf-fmt tf-validate \
-tf-console aws-login tf-login \
-aws-ssm-sync aws-ssm-sync-dry-run aws-ssm-sync-env \
-aws-ssm-push aws-ssm-push-dry-run aws-ssm-push-env \
-aws-terraform-gen aws-terraform-gen-dry-run \
-refresh-tag-stats refresh-tag-stats-dev refresh-tag-stats-demo refresh-tag-stats-test
+tf-console aws-login tf-login aws-ssm-sync aws-ssm-sync-dry-run aws-ssm-sync-env aws-ssm-push aws-ssm-push-dry-run \
+aws-ssm-push-env aws-terraform-gen aws-terraform-gen-dry-run refresh-tag-stats refresh-tag-stats-dev \
+refresh-tag-stats-demo refresh-tag-stats-test kernie-gen image-gen-mock
 
 # Load environment variables
 ifneq (,$(wildcard ./env/.env.shared))
@@ -1136,6 +1133,9 @@ COMFY_PORT=8000  # Manual/portable (python main.py): defaults to 8000 unless you
 comfyui-mock:
 	@echo "Starting mock ComfyUI server on port 8189..."
 	uvicorn test._infra.mock_services.comfyui.server:app --host 0.0.0.0 --port 8189
+
+kernie-gen: comfyui-mock
+image-gen-mock: comfyui-mock
 
 check-comfyui-create-img:
 	curl -X POST http://localhost:8000/prompt \

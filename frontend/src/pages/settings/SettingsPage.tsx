@@ -4,7 +4,11 @@ import {
   Button,
   Card,
   CardContent,
+  FormControl,
   FormControlLabel,
+  FormLabel,
+  Radio,
+  RadioGroup,
   Stack,
   Switch,
   TextField,
@@ -37,7 +41,7 @@ export function SettingsPage() {
   const { data: currentUser } = useCurrentUser()
   const { mutateAsync: updateUser, isPending, isSuccess } = useUpdateUser()
   const { mode, toggleMode } = useThemeMode()
-  const { showButtonLabels, toggleButtonLabels, visibleSidebarPages, toggleSidebarPage } = useUiSettings()
+  const { showButtonLabels, toggleButtonLabels, visibleSidebarPages, toggleSidebarPage, generationBackend, setGenerationBackend } = useUiSettings()
 
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
@@ -155,6 +159,44 @@ export function SettingsPage() {
                 Current mode: {mode}
               </Typography>
             </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Card data-testid="settings-image-generation-card">
+        <CardContent>
+          <Stack spacing={3} data-testid="settings-image-generation-section">
+            <Typography variant="h6" component="h2" fontWeight={600} data-testid="settings-image-generation-title">
+              Image Generation
+            </Typography>
+
+            <FormControl component="fieldset" data-testid="settings-generation-backend-control">
+              <FormLabel component="legend">Generation Backend</FormLabel>
+              <RadioGroup
+                value={generationBackend}
+                onChange={(e) => setGenerationBackend(e.target.value as 'kerniegen' | 'comfyui')}
+                data-testid="settings-generation-backend-group"
+              >
+                <FormControlLabel
+                  value="kerniegen"
+                  control={<Radio inputProps={{ 'data-testid': 'settings-backend-kerniegen-radio' }} />}
+                  label="KernieGen (Mock)"
+                  data-testid="settings-backend-kerniegen-control"
+                />
+                <FormControlLabel
+                  value="comfyui"
+                  control={<Radio inputProps={{ 'data-testid': 'settings-backend-comfyui-radio' }} />}
+                  label="ComfyUI"
+                  data-testid="settings-backend-comfyui-control"
+                />
+              </RadioGroup>
+            </FormControl>
+
+            <Typography variant="body2" color="text.secondary" data-testid="settings-generation-backend-description">
+              {generationBackend === 'kerniegen'
+                ? 'Using KernieGen mock backend (http://localhost:8000). Fast mock responses for development.'
+                : 'Using ComfyUI backend (http://localhost:8189). Full-featured image generation with ComfyUI.'}
+            </Typography>
           </Stack>
         </CardContent>
       </Card>

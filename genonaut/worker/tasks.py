@@ -77,7 +77,6 @@ def process_comfy_job(
     active_settings = get_cached_settings() or get_settings()
 
     workflow_builder = workflow_builder or WorkflowBuilder()
-    comfy_client = comfy_client or ComfyUIWorkerClient(settings=active_settings)
     file_service = file_service or FileStorageService()
     thumbnail_service = thumbnail_service or ThumbnailService()
     content_service = content_service or ContentService(db)
@@ -87,6 +86,37 @@ def process_comfy_job(
     job = db.query(GenerationJob).filter(GenerationJob.id == job_id).first()
     if job is None:
         raise ValueError(f"Job {job_id} not found")
+
+    # Determine backend URL and directories based on job params (default to kerniegen)
+    backend_url = None
+    output_dir = None
+    models_dir = None
+    backend_choice = 'kerniegen'  # Default
+    if not comfy_client:
+        job_params_temp = dict(job.params or {})
+        if override_params:
+            job_params_temp.update(override_params)
+        backend_choice = job_params_temp.get('backend', 'kerniegen')
+        logger.info("Job %s: Backend choice from params: %s", job_id, backend_choice)
+        if backend_choice == 'comfyui':
+            backend_url = active_settings.comfyui_url
+            output_dir = active_settings.comfyui_output_dir
+            models_dir = active_settings.comfyui_models_dir
+            logger.info("Job %s: Using ComfyUI backend URL: %s", job_id, backend_url)
+            logger.info("Job %s: Using ComfyUI output dir: %s", job_id, output_dir)
+        else:
+            backend_url = active_settings.comfyui_mock_url
+            output_dir = active_settings.comfyui_mock_output_dir
+            models_dir = active_settings.comfyui_mock_models_dir
+            logger.info("Job %s: Using KernieGen backend URL: %s", job_id, backend_url)
+            logger.info("Job %s: Using KernieGen output dir: %s", job_id, output_dir)
+
+    comfy_client = comfy_client or ComfyUIWorkerClient(
+        settings=active_settings,
+        backend_url=backend_url,
+        output_dir=output_dir,
+        models_dir=models_dir
+    )
 
     try:
         job.status = "running"
@@ -169,11 +199,17 @@ def process_comfy_job(
         if not output_paths:
             raise ComfyUIWorkflowError(f"No output files produced for job {job_id}")
 
-        organized_paths = file_service.organize_generation_files(
-            job.id,
-            job.user_id,
-            output_paths,
-        )
+        # For KernieGen (mock), use paths directly without organizing
+        # For ComfyUI (real), organize files into user directory structure
+        if backend_choice == 'kerniegen':
+            organized_paths = output_paths
+            logger.info("Job %s: Using KernieGen paths directly: %s", job_id, organized_paths)
+        else:
+            organized_paths = file_service.organize_generation_files(
+                job.id,
+                job.user_id,
+                output_paths,
+            )
 
         thumbnail_summary: Dict[str, Any] = {}
         if organized_paths:

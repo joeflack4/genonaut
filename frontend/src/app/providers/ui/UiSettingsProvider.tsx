@@ -1,9 +1,12 @@
 import type { PropsWithChildren } from 'react'
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
+export type GenerationBackend = 'kerniegen' | 'comfyui'
+
 interface UiSettings {
   showButtonLabels: boolean
   visibleSidebarPages: Record<string, boolean>
+  generationBackend: GenerationBackend
 }
 
 interface UiSettingsContextValue extends UiSettings {
@@ -11,6 +14,7 @@ interface UiSettingsContextValue extends UiSettings {
   setShowButtonLabels: (show: boolean) => void
   toggleSidebarPage: (pageKey: string) => void
   setSidebarPageVisibility: (pageKey: string, visible: boolean) => void
+  setGenerationBackend: (backend: GenerationBackend) => void
 }
 
 const UiSettingsContext = createContext<UiSettingsContextValue | undefined>(undefined)
@@ -45,9 +49,17 @@ const getInitialSettings = (): UiSettings => {
     settings: true,
   }
 
+  // Validate and cast generationBackend to ensure it's a valid value
+  const storedBackend = storedSettings.generationBackend
+  const validBackend: GenerationBackend =
+    storedBackend === 'comfyui' || storedBackend === 'kerniegen'
+      ? storedBackend
+      : 'kerniegen'
+
   return {
     showButtonLabels: storedSettings.showButtonLabels ?? false, // Default is off
     visibleSidebarPages: storedSettings.visibleSidebarPages ?? defaultVisibility,
+    generationBackend: validBackend,
   }
 }
 
@@ -104,6 +116,13 @@ export function UiSettingsProvider({ children }: PropsWithChildren) {
     }))
   }
 
+  const setGenerationBackend = (backend: GenerationBackend) => {
+    setSettings((current) => ({
+      ...current,
+      generationBackend: backend,
+    }))
+  }
+
   const contextValue = useMemo<UiSettingsContextValue>(
     () => ({
       ...settings,
@@ -111,6 +130,7 @@ export function UiSettingsProvider({ children }: PropsWithChildren) {
       setShowButtonLabels,
       toggleSidebarPage,
       setSidebarPageVisibility,
+      setGenerationBackend,
     }),
     [settings]
   )

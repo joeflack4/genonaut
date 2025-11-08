@@ -22,6 +22,7 @@ import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
 import { ModelSelector } from './ModelSelector'
 import { useGenerationJobService } from '../../hooks/useGenerationJobService'
 import { usePersistedState } from '../../hooks/usePersistedState'
+import { useUiSettings } from '../../app/providers/ui'
 import type {
   GenerationJobCreateRequest,
   GenerationJobResponse,
@@ -76,6 +77,9 @@ type ErrorState =
     }
 
 export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelRequest }: GenerationFormProps) {
+  // Get backend selection from UI settings
+  const { generationBackend } = useUiSettings()
+
   // Persisted state - survives page navigation
   const [prompt, setPrompt] = usePersistedState('generation-form-prompt', '')
   const [negativePrompt, setNegativePrompt] = usePersistedState('generation-form-negative-prompt', '')
@@ -175,19 +179,29 @@ export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelReq
     startTimeoutWatcher()
 
     try {
-      const selectedCheckpoint = checkpointModel || 'default-checkpoint'
+      // Use default checkpoint if none selected or if invalid checkpoint from database
+      const selectedCheckpoint = (checkpointModel && checkpointModel !== 'sd_xl_base_1.0')
+        ? checkpointModel
+        : 'illustriousXL_v01.safetensors'
+
+      // Generate random seed if seed is -1 or 0 (ComfyUI requires seed >= 0)
+      const finalSamplerParams = {
+        ...samplerParams,
+        seed: samplerParams.seed <= 0 ? Math.floor(Math.random() * 1000000000) : samplerParams.seed,
+      }
 
       const request: GenerationJobCreateRequest = {
         user_id: '121e194b-4caa-4b81-ad4f-86ca3919d5b9', // TODO: Get from auth context
         job_type: 'image',
         prompt: sanitizedPrompt,
+        backend: generationBackend,
         negative_prompt: negativePrompt.trim() || undefined,
         checkpoint_model: selectedCheckpoint,
         lora_models: loraModels.length > 0 ? loraModels : undefined,
         width,
         height,
         batch_size: batchSize,
-        sampler_params: samplerParams,
+        sampler_params: finalSamplerParams,
       }
 
       const generation = await createGenerationJob(request, { signal: abortController.signal })

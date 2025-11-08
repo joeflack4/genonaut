@@ -21,10 +21,29 @@ class ComfyUIWorkerClient(ComfyUIClient):
     workflows handled by Celery tasks.
     """
 
-    def __init__(self, *, settings: Optional[Settings] = None):
-        """Initialize worker client with optional shared settings."""
+    def __init__(
+        self,
+        *,
+        settings: Optional[Settings] = None,
+        backend_url: Optional[str] = None,
+        output_dir: Optional[str] = None,
+        models_dir: Optional[str] = None
+    ):
+        """Initialize worker client with optional shared settings.
 
-        super().__init__(settings=settings)
+        Args:
+            settings: Optional settings instance.
+            backend_url: Optional backend URL override.
+            output_dir: Optional output directory override.
+            models_dir: Optional models directory override.
+        """
+
+        super().__init__(
+            settings=settings,
+            backend_url=backend_url,
+            output_dir=output_dir,
+            models_dir=models_dir
+        )
 
     def submit_generation(self, workflow: Dict[str, Any], *, client_id: Optional[str] = None) -> str:
         """Submit a workflow and return the ComfyUI prompt ID."""

@@ -137,6 +137,10 @@ class GenerationJobCreateRequest(BaseModel):
     params: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Generation parameters")
 
     # ComfyUI-specific fields (optional for non-ComfyUI jobs)
+    backend: Optional[str] = Field(
+        None,
+        description="Backend to use for image generation: 'kerniegen' (default) or 'comfyui'"
+    )
     negative_prompt: Optional[str] = Field(None, max_length=20000, description="Negative prompt for ComfyUI generation")
     checkpoint_model: Optional[str] = Field(None, max_length=255, description="Checkpoint model name for ComfyUI")
     lora_models: Optional[List[Dict[str, Any]]] = Field(None, description="LoRA models with strengths for ComfyUI")

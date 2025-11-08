@@ -78,7 +78,11 @@ class MockComfyUIServer:
         return prompt_id
 
     def process_job(self, prompt_id: str) -> None:
-        """Process a job by generating mock output file."""
+        """Process a job by returning reference to input file directly.
+
+        No file copying - just returns the path to the input image.
+        This keeps mock behavior simple and avoids unnecessary file operations.
+        """
         if prompt_id not in self.jobs:
             return
 
@@ -91,22 +95,15 @@ class MockComfyUIServer:
         # Update status
         job["status"] = "running"
 
-        # Simulate file generation - copy input file to output with new name
+        # Return direct reference to input file - no copying
         input_file = self.input_dir / "kernie_512x768.jpg"
         if input_file.exists():
-            # Generate output filename
-            prefix = job["filename_prefix"]
-            counter = str(self.job_counter).zfill(5)
-            self.job_counter += 1
-            output_filename = f"{prefix}_{counter}_.png"
-            output_path = self.output_dir / output_filename
-
-            # Copy file
-            shutil.copy(input_file, output_path)
-
-            # Record output file
+            # Record output file using just the filename (relative)
+            # The client will join this with output_dir, so return relative path from output_dir
+            # In this case, we return the path relative to the mock output directory
+            relative_path = f"../input/{input_file.name}"
             job["output_files"].append({
-                "filename": output_filename,
+                "filename": relative_path,
                 "subfolder": "",
                 "type": "output"
             })

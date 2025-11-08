@@ -152,6 +152,7 @@ class GenerationService:
         params: Optional[Dict[str, Any]] = None,
         *,
         user_id: UUID = None,
+        backend: Optional[str] = None,
         negative_prompt: Optional[str] = None,
         checkpoint_model: Optional[str] = None,
         lora_models: Optional[List[Dict[str, Any]]] = None,
@@ -185,6 +186,7 @@ class GenerationService:
             final_job_type = job_data.get('job_type')
             final_prompt = job_data.get('prompt')
             final_params = job_data.get('params') or job_data.get('parameters')
+            final_backend = job_data.get('backend')
             final_negative_prompt = job_data.get('negative_prompt')
             final_checkpoint_model = job_data.get('checkpoint_model')
             final_lora_models = job_data.get('lora_models')
@@ -198,6 +200,7 @@ class GenerationService:
             final_job_type = job_type
             final_prompt = prompt
             final_params = params
+            final_backend = backend
             final_negative_prompt = negative_prompt
             final_checkpoint_model = checkpoint_model
             final_lora_models = lora_models
@@ -211,6 +214,7 @@ class GenerationService:
             final_job_type = job_type
             final_prompt = prompt
             final_params = params
+            final_backend = backend
             final_negative_prompt = negative_prompt
             final_checkpoint_model = checkpoint_model
             final_lora_models = lora_models
@@ -246,6 +250,10 @@ class GenerationService:
             raise ValidationError("params must be a dictionary")
 
         job_params: Dict[str, Any] = dict(final_params or {})
+
+        # Add backend parameter if provided (defaults to 'kerniegen')
+        final_backend = final_backend or job_params.get('backend') or 'kerniegen'
+        job_params['backend'] = final_backend
 
         is_image_job = job_type_value == JobType.IMAGE.value
 

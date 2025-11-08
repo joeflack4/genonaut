@@ -20,6 +20,7 @@ export interface GenerationJobCreateRequest {
   job_type: 'text' | 'image' | 'video' | 'audio'
   prompt: string
   params?: Record<string, any>
+  backend?: 'kerniegen' | 'comfyui'
   negative_prompt?: string
   checkpoint_model?: string
   lora_models?: LoraModel[]
