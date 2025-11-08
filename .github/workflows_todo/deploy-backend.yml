@@ -1,0 +1,50 @@
+# todo: consider Use docker/setup-buildx-action + docker/build-push-action (BuildKit) and registry caching to speed
+#  builds and avoid memory pressure. https://chatgpt.com/g/g-p-68f1d7b5c86c819183c4578c779d151c-genonaut/c/690eb007-a004-8329-a9ba-02407a9a5ee9
+name: Deploy Backend to AWS
+
+on:
+  push:
+    branches:
+      - main  # Auto-deploy main to demo
+      - production  # Auto-deploy production to prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t genonaut:$IMAGE_TAG .
+          # Push to all three ECR repos
+          docker tag genonaut:$IMAGE_TAG $ECR_REGISTRY/genonaut-api-demo:latest
+          docker tag genonaut:$IMAGE_TAG $ECR_REGISTRY/genonaut-worker-demo:latest
+          docker tag genonaut:$IMAGE_TAG $ECR_REGISTRY/genonaut-imagegen-demo:latest
+          docker push $ECR_REGISTRY/genonaut-api-demo:latest
+          docker push $ECR_REGISTRY/genonaut-worker-demo:latest
+          docker push $ECR_REGISTRY/genonaut-imagegen-demo:latest
+
+      - name: Force ECS service updates
+        run: |
+          aws ecs update-service --cluster genonaut-demo \
+            --service genonaut-api-demo --force-new-deployment
+          aws ecs update-service --cluster genonaut-demo \
+            --service genonaut-celery-demo --force-new-deployment
+          aws ecs update-service --cluster genonaut-demo \
+            --service genonaut-image-gen-demo --force-new-deployment

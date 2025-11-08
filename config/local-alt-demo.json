@@ -1,5 +1,5 @@
 {
   "db-name": "genonaut_demo",
   "redis-ns": "genonaut_demo",
-  "api-port": 8003,
+  "api-port": 8003
 }

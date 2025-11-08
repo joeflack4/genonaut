@@ -274,7 +274,6 @@ They're best put by default in `env/.env.shared`. But further customizability ca
 - `DEPLOY_TF_STATE_BUCKET_NAME`: The name of the S3 bucket for Terraform state.
 - `DEPLOY_TF_DYNAMO_DB_TABLE`: The name of the DynamoDB table for Terraform state locking.
 
-
 ## Deployment
 ### How to Deploy the Frontend (Static Site to AWS)
 
@@ -537,7 +536,8 @@ aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
 
 ### How to Deploy the Backend (ECS Services to AWS)
 
-This guide explains how to deploy the Genonaut backend services (API, Celery workers, Image Gen Mock) to AWS ECS using Docker containers.
+This guide explains how to deploy the Genonaut backend services (API, Celery workers, Image Gen Mock) to AWS ECS using 
+Docker containers.
 
 #### Overview
 
@@ -757,59 +757,8 @@ This:
 
 **Future State (Automated CI/CD with GitHub Actions):**
 
-The plan is to automate this using GitHub Actions:
-
-```yaml
-# .github/workflows/deploy-backend.yml (future)
-name: Deploy Backend to AWS
-
-on:
-  push:
-    branches:
-      - main  # Auto-deploy main to demo
-      - production  # Auto-deploy production to prod
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Build, tag, and push image to Amazon ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t genonaut:$IMAGE_TAG .
-          # Push to all three ECR repos
-          docker tag genonaut:$IMAGE_TAG $ECR_REGISTRY/genonaut-api-demo:latest
-          docker tag genonaut:$IMAGE_TAG $ECR_REGISTRY/genonaut-worker-demo:latest
-          docker tag genonaut:$IMAGE_TAG $ECR_REGISTRY/genonaut-imagegen-demo:latest
-          docker push $ECR_REGISTRY/genonaut-api-demo:latest
-          docker push $ECR_REGISTRY/genonaut-worker-demo:latest
-          docker push $ECR_REGISTRY/genonaut-imagegen-demo:latest
-
-      - name: Force ECS service updates
-        run: |
-          aws ecs update-service --cluster genonaut-demo \
-            --service genonaut-api-demo --force-new-deployment
-          aws ecs update-service --cluster genonaut-demo \
-            --service genonaut-celery-demo --force-new-deployment
-          aws ecs update-service --cluster genonaut-demo \
-            --service genonaut-image-gen-demo --force-new-deployment
-```
+The plan is to automate this using GitHub Actions. Drafts and finalized versions of the workflows can be found in:
+`.github/`
 
 **What happens automatically vs. manually:**
 
