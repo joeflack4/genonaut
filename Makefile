@@ -33,7 +33,7 @@ md-collate md-export-tsv md-test md-github-sync-down md-github-sync-up md-github
 tf-bootstrap-init tf-bootstrap-apply tf-bootstrap-destroy tf-init tf-plan tf-apply tf-destroy tf-fmt tf-validate \
 tf-console aws-login tf-login aws-ssm-sync aws-ssm-sync-dry-run aws-ssm-sync-env aws-ssm-push aws-ssm-push-dry-run \
 aws-ssm-push-env aws-terraform-gen aws-terraform-gen-dry-run refresh-tag-stats refresh-tag-stats-dev \
-refresh-tag-stats-demo refresh-tag-stats-test kernie-gen image-gen-mock
+refresh-tag-stats-demo refresh-tag-stats-test get-img-metadata kernie-gen image-gen-mock
 
 # Load environment variables
 ifneq (,$(wildcard ./env/.env.shared))
@@ -120,6 +120,7 @@ help:
 	@echo "  backup-dev               Backup development database"
 	@echo "  backup-demo              Backup demo database"
 	@echo "  backup-test              Backup test database"
+	@echo "  get-img-metadata IMG_ID  Display item_metadata for content item (uses demo DB)"
 	@echo ""
 	@echo "PostgreSQL wal_buffers management:"
 	@echo "  db-wal-buffers-reset     Reset wal_buffers to 4MB (requires PostgreSQL restart)"
@@ -170,7 +171,7 @@ help:
 	@echo "  frontend-build           Build frontend for production"
 	@echo "  frontend-preview         Preview built frontend"
 	@echo "  frontend-lint            Lint frontend code"
-	@echo "  frontend-type-check      Type-check frontend code"
+	@echo "  frontend-type-check      Type-check frontend ddddcode"
 	@echo "  frontend-format          Check frontend formatting"
 	@echo "  frontend-format-write    Format frontend code"
 	@echo ""
@@ -836,6 +837,15 @@ refresh-gen-source-stats-demo:
 	END=$$(date +%s); \
 	ELAPSED=$$((END - START)); \
 	echo "⏱️  Completed in $${ELAPSED}s"
+
+# Get image metadata
+# i = IMG_ID
+get-img-metadata:
+	@if [ -z "$(i)" ]; then \
+		echo "Error: IMG_ID is required. Usage: make get-img-metadata i=<id>"; \
+		exit 1; \
+	fi
+	@python -m genonaut.db.utils.cli --get-image-metadata $(i) --environment demo
 
 refresh-gen-source-stats-test:
 	@echo "🔄 Refreshing gen source stats (test database)..."

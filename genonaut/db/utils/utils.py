@@ -195,6 +195,51 @@ def get_database_session(environment: Optional[str] = None) -> Session:
     return session_factory()
 
 
+def get_image_metadata(image_id: int, environment: Optional[str] = None) -> None:
+    """Retrieve and pretty-print metadata for a content item.
+
+    Args:
+        image_id: The ID of the content item to query.
+        environment: Database environment (dev, demo, test). Defaults to current environment.
+
+    Raises:
+        SystemExit: If image not found or database error occurs.
+    """
+    import json
+    from sqlalchemy import text
+
+    session = None
+    try:
+        session = get_database_session(environment)
+
+        # Query for the item_metadata field from content_items_all view
+        # Using raw SQL to access the view directly
+        query = text("""
+            SELECT item_metadata
+            FROM content_items_all
+            WHERE id = :image_id
+        """)
+
+        result = session.execute(query, {"image_id": image_id})
+        row = result.fetchone()
+
+        if row is None:
+            print(f"Error: No content item found with ID {image_id}")
+            sys.exit(1)
+
+        metadata = row[0] if row[0] is not None else {}
+
+        # Pretty print the metadata
+        print(json.dumps(metadata, indent=2))
+
+    except Exception as e:
+        print(f"Error retrieving metadata: {e}")
+        sys.exit(1)
+    finally:
+        if session is not None:
+            session.close()
+
+
 def main(argv: Optional[Sequence[str]] = None) -> None:
     """Entry point for the module's CLI interface."""
     parser = argparse.ArgumentParser(
@@ -208,10 +253,17 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     )
 
     parser.add_argument(
+        "--get-image-metadata",
+        type=int,
+        metavar="IMG_ID",
+        help="Retrieve and display metadata for a content item by ID"
+    )
+
+    parser.add_argument(
         "--environment",
         "-e",
         choices=("dev", "demo", "test"),
-        help="Target database environment",
+        help="Target database environment (defaults to demo)",
     )
 
     args = parser.parse_args(argv)
@@ -223,6 +275,10 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         except Exception as e:
             print(f"Error: {e}")
             sys.exit(1)
+    elif args.get_image_metadata is not None:
+        # Default to demo environment if not specified
+        env = args.environment or "demo"
+        get_image_metadata(args.get_image_metadata, environment=env)
     else:
         parser.print_help()
 
