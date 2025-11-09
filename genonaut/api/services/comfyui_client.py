@@ -167,14 +167,21 @@ class ComfyUIClient:
             prompt_id: The prompt ID returned from submit_workflow
 
         Returns:
-            Dictionary containing workflow status information
+            Dictionary containing workflow status information, including:
+            - status: Workflow status (queued, running, completed, failed, unknown)
+            - prompt_id: The ComfyUI prompt ID
+            - outputs: Output data (when completed)
+            - messages: Status messages
+            - raw_history: Complete raw response from ComfyUI history endpoint
+            - history_url: URL where the history was fetched from
 
         Raises:
             ComfyUIConnectionError: If unable to connect to ComfyUI
         """
         try:
+            history_url = f"{self.base_url}/history/{prompt_id}"
             response = self.session.get(
-                f"{self.base_url}/history/{prompt_id}",
+                history_url,
                 timeout=self.timeout
             )
             response.raise_for_status()
@@ -195,12 +202,16 @@ class ComfyUIClient:
                     if item[1] == prompt_id:
                         return {
                             "status": "running" if item in queue_data.get("queue_running", []) else "queued",
-                            "prompt_id": prompt_id
+                            "prompt_id": prompt_id,
+                            "history_url": history_url,
+                            "raw_history": None  # No history data yet for queued/running
                         }
 
                 return {
                     "status": "unknown",
-                    "prompt_id": prompt_id
+                    "prompt_id": prompt_id,
+                    "history_url": history_url,
+                    "raw_history": None
                 }
 
             # Workflow is in history - check if completed successfully
@@ -212,13 +223,17 @@ class ComfyUIClient:
                     "status": "completed",
                     "prompt_id": prompt_id,
                     "outputs": workflow_history.get("outputs", {}),
-                    "messages": status.get("messages", [])
+                    "messages": status.get("messages", []),
+                    "history_url": history_url,
+                    "raw_history": workflow_history  # Complete data from the prompt_id key
                 }
             else:
                 return {
                     "status": "failed",
                     "prompt_id": prompt_id,
-                    "messages": status.get("messages", [])
+                    "messages": status.get("messages", []),
+                    "history_url": history_url,
+                    "raw_history": workflow_history  # Complete data even for failed workflows
                 }
 
         except RequestException as e:

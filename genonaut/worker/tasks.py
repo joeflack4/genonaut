@@ -230,6 +230,8 @@ def process_comfy_job(
                 'thumbnails': thumbnail_summary,
                 'comfyui_prompt_id': prompt_id,
                 'workflow_messages': workflow_status.get('messages', []),
+                'comfyui_results_url': workflow_status.get('history_url'),
+                'comfyui_results': workflow_status.get('raw_history'),
             }
         )
 
