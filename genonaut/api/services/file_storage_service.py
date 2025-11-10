@@ -19,7 +19,8 @@ class FileStorageService:
     def __init__(self):
         """Initialize file storage service."""
         self.settings = get_cached_settings() or get_settings()
-        self.base_output_dir = Path(self.settings.comfyui_output_dir)
+        # Expand tilde (~) to absolute path
+        self.base_output_dir = Path(self.settings.comfyui_output_dir).expanduser()
         self.base_output_dir.mkdir(parents=True, exist_ok=True)
 
         # Create subdirectories

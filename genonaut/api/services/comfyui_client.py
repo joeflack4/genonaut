@@ -331,7 +331,7 @@ class ComfyUIClient:
             outputs: The outputs dictionary from workflow completion
 
         Returns:
-            List of output file paths
+            List of output file paths (absolute paths constructed from base output dir + subfolder + filename)
         """
         file_paths = []
 
@@ -339,14 +339,19 @@ class ComfyUIClient:
             if "images" in node_outputs:
                 for image in node_outputs["images"]:
                     if "filename" in image and "subfolder" in image:
-                        # Construct full path
-                        filename = image["filename"]
+                        # Construct full path using Path for proper concatenation
+                        base_path = Path(self.output_dir)
                         subfolder = image["subfolder"]
+                        filename = image["filename"]
+
+                        # Build path: base_path / subfolder / filename
+                        # Path() handles empty subfolder correctly
                         if subfolder:
-                            file_path = f"{self.output_dir}/{subfolder}/{filename}"
+                            full_path = base_path / subfolder / filename
                         else:
-                            file_path = f"{self.output_dir}/{filename}"
-                        file_paths.append(file_path)
+                            full_path = base_path / filename
+
+                        file_paths.append(str(full_path))
 
         return file_paths
 

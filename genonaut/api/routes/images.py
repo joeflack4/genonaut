@@ -58,16 +58,17 @@ async def serve_image(
         # Get the content_data field which contains the file path
         image_path = content.content_data
 
-        # Check if it's an absolute path
-        if Path(image_path).is_absolute():
-            # Use the path as-is (trust database content)
-            full_path = Path(image_path)
-            base_path = Path(settings.comfyui_output_dir)  # For thumbnail operations
+        # Expand tilde if present and check if it's an absolute path
+        expanded_path = Path(image_path).expanduser()
+        if expanded_path.is_absolute():
+            # Use the expanded path
+            full_path = expanded_path
+            base_path = Path(settings.comfyui_output_dir).expanduser().expanduser()  # For thumbnail operations
         else:
             # Relative path - could be either:
             # 1. Project-relative (e.g., "test/_infra/.../output/file.jpg")
             # 2. Output-dir relative (e.g., "ComfyUI_00001_.png")
-            base_path = Path(settings.comfyui_output_dir)
+            base_path = Path(settings.comfyui_output_dir).expanduser()
 
             # Try as project-relative path first
             project_relative_path = Path(image_path)
@@ -219,16 +220,17 @@ async def get_image_info(
         # Get the content_data field which contains the file path
         image_path = content.content_data
 
-        # Check if it's an absolute path
-        if Path(image_path).is_absolute():
-            # Use the path as-is (trust database content)
-            full_path = Path(image_path)
-            base_path = Path(settings.comfyui_output_dir)
+        # Expand tilde if present and check if it's an absolute path
+        expanded_path = Path(image_path).expanduser()
+        if expanded_path.is_absolute():
+            # Use the expanded path
+            full_path = expanded_path
+            base_path = Path(settings.comfyui_output_dir).expanduser().expanduser()
         else:
             # Relative path - could be either:
             # 1. Project-relative (e.g., "test/_infra/.../output/file.jpg")
             # 2. Output-dir relative (e.g., "ComfyUI_00001_.png")
-            base_path = Path(settings.comfyui_output_dir)
+            base_path = Path(settings.comfyui_output_dir).expanduser()
 
             # Try as project-relative path first
             project_relative_path = Path(image_path)
@@ -312,16 +314,17 @@ async def delete_thumbnails(
         # Get the content_data field which contains the file path
         image_path = content.content_data
 
-        # Check if it's an absolute path
-        if Path(image_path).is_absolute():
-            # Use the path as-is (trust database content)
-            full_path = Path(image_path)
-            base_path = Path(settings.comfyui_output_dir)
+        # Expand tilde if present and check if it's an absolute path
+        expanded_path = Path(image_path).expanduser()
+        if expanded_path.is_absolute():
+            # Use the expanded path
+            full_path = expanded_path
+            base_path = Path(settings.comfyui_output_dir).expanduser().expanduser()
         else:
             # Relative path - could be either:
             # 1. Project-relative (e.g., "test/_infra/.../output/file.jpg")
             # 2. Output-dir relative (e.g., "ComfyUI_00001_.png")
-            base_path = Path(settings.comfyui_output_dir)
+            base_path = Path(settings.comfyui_output_dir).expanduser()
 
             # Try as project-relative path first
             project_relative_path = Path(image_path)
