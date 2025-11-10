@@ -3,7 +3,7 @@
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -73,6 +73,8 @@ class Settings(BaseModel):
     comfyui_max_wait_time: int = 900
     comfyui_output_dir: str = "/tmp/comfyui/output"
     comfyui_models_dir: str = "/tmp/comfyui_models"
+    model_file_extensions_loras: List[str] = [".safetensors", ".pt"]
+    model_file_extensions_checkpoints: List[str] = [".safetensors", ".ckpt"]
     comfyui_default_width: int = 832
     comfyui_default_height: int = 1216
     comfyui_default_batch_size: int = 1

@@ -33,7 +33,7 @@ md-collate md-export-tsv md-test md-github-sync-down md-github-sync-up md-github
 tf-bootstrap-init tf-bootstrap-apply tf-bootstrap-destroy tf-init tf-plan tf-apply tf-destroy tf-fmt tf-validate \
 tf-console aws-login tf-login aws-ssm-sync aws-ssm-sync-dry-run aws-ssm-sync-env aws-ssm-push aws-ssm-push-dry-run \
 aws-ssm-push-env aws-terraform-gen aws-terraform-gen-dry-run refresh-tag-stats refresh-tag-stats-dev \
-refresh-tag-stats-demo refresh-tag-stats-test get-img-metadata kernie-gen image-gen-mock
+refresh-tag-stats-demo refresh-tag-stats-test get-img-metadata sync-models-from-fs kernie-gen image-gen-mock
 
 # Load environment variables
 ifneq (,$(wildcard ./env/.env.shared))
@@ -846,6 +846,11 @@ get-img-metadata:
 		exit 1; \
 	fi
 	@python -m genonaut.db.utils.cli --get-image-metadata $(i) --environment demo
+
+# Sync models from filesystem to database
+sync-models-from-fs:
+	@echo "🔄 Syncing models from filesystem to database..."
+	@python -m genonaut.db.utils.cli --sync-models-from-fs --environment demo
 
 refresh-gen-source-stats-test:
 	@echo "🔄 Refreshing gen source stats (test database)..."
