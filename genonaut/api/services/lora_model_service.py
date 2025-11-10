@@ -63,7 +63,8 @@ class LoraModelService:
         self,
         page: int = 1,
         page_size: int = 10,
-        checkpoint_id: Optional[str] = None
+        checkpoint_id: Optional[str] = None,
+        show_unresolved: bool = False
     ) -> Tuple[List[Dict[str, Any]], int, int]:
         """Get paginated LoRA models with compatibility and optimality flags.
 
@@ -71,6 +72,7 @@ class LoraModelService:
             page: Page number (1-indexed)
             page_size: Number of items per page
             checkpoint_id: UUID of checkpoint to check compatibility against
+            show_unresolved: Show models with unresolved paths (default: False)
 
         Returns:
             Tuple of (list of enriched LoRA model dicts, total count, total pages)
@@ -82,7 +84,8 @@ class LoraModelService:
         # Get paginated models
         models, total = self.repository.get_paginated(
             page=page,
-            page_size=page_size
+            page_size=page_size,
+            show_unresolved=show_unresolved
         )
 
         # Enrich with compatibility/optimality flags
@@ -99,7 +102,7 @@ class LoraModelService:
 
         return enriched_models, total, total_pages
 
-    def _check_compatibility(self, lora: LoraModel, checkpoint: Optional[CheckpointModel]) -> bool:
+    def _check_compatibility(self, lora: LoraModel, checkpoint: Optional[CheckpointModel]) -> Optional[bool]:
         """Check if LoRA is compatible with checkpoint.
 
         Args:
@@ -107,21 +110,21 @@ class LoraModelService:
             checkpoint: Checkpoint model to check against
 
         Returns:
-            True if compatible, False otherwise
+            True if compatible, False if incompatible, None if unknown
         """
         if not checkpoint or not checkpoint.architecture:
-            return False
+            return None
 
         if not lora.compatible_architectures:
-            return False
+            return None
 
-        # Case-insensitive partial match
-        checkpoint_arch = checkpoint.architecture.lower()
-        lora_archs = lora.compatible_architectures.lower()
+        # Case-insensitive exact match
+        checkpoint_arch = checkpoint.architecture.lower().strip()
+        lora_arch = lora.compatible_architectures.lower().strip()
 
-        return checkpoint_arch in lora_archs
+        return checkpoint_arch == lora_arch
 
-    def _check_optimality(self, lora: LoraModel, checkpoint: Optional[CheckpointModel]) -> bool:
+    def _check_optimality(self, lora: LoraModel, checkpoint: Optional[CheckpointModel]) -> Optional[bool]:
         """Check if LoRA is optimal for checkpoint.
 
         Args:
@@ -129,16 +132,16 @@ class LoraModelService:
             checkpoint: Checkpoint model to check against
 
         Returns:
-            True if optimal, False otherwise
+            True if optimal, False if not optimal, None if unknown
         """
-        if not checkpoint or not checkpoint.family:
-            return False
+        if not checkpoint or not checkpoint.name:
+            return None
 
         if not lora.optimal_checkpoints or len(lora.optimal_checkpoints) == 0:
-            return False
+            return None
 
-        # Case-insensitive check if family is in optimal_checkpoints list
-        checkpoint_family = checkpoint.family.lower()
-        optimal_checkpoints = [cp.lower() for cp in lora.optimal_checkpoints]
+        # Case-insensitive check if checkpoint name is in optimal_checkpoints list
+        checkpoint_name = checkpoint.name.lower().strip()
+        optimal_checkpoints = [cp.lower().strip() for cp in lora.optimal_checkpoints]
 
-        return checkpoint_family in optimal_checkpoints
+        return checkpoint_name in optimal_checkpoints

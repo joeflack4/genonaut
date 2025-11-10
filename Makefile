@@ -33,7 +33,8 @@ md-collate md-export-tsv md-test md-github-sync-down md-github-sync-up md-github
 tf-bootstrap-init tf-bootstrap-apply tf-bootstrap-destroy tf-init tf-plan tf-apply tf-destroy tf-fmt tf-validate \
 tf-console aws-login tf-login aws-ssm-sync aws-ssm-sync-dry-run aws-ssm-sync-env aws-ssm-push aws-ssm-push-dry-run \
 aws-ssm-push-env aws-terraform-gen aws-terraform-gen-dry-run refresh-tag-stats refresh-tag-stats-dev \
-refresh-tag-stats-demo refresh-tag-stats-test get-img-metadata sync-models-from-fs kernie-gen image-gen-mock
+refresh-tag-stats-demo refresh-tag-stats-test get-img-metadata sync-models-from-fs sync-models-export-csv \
+sync-models-export-csv-only-critical-nulls sync-models-import-csv kernie-gen image-gen-mock
 
 # Load environment variables
 ifneq (,$(wildcard ./env/.env.shared))
@@ -851,6 +852,21 @@ get-img-metadata:
 sync-models-from-fs:
 	@echo "🔄 Syncing models from filesystem to database..."
 	@python -m genonaut.db.utils.cli --sync-models-from-fs --environment demo
+
+# Export model metadata to CSV files
+sync-models-export-csv:
+	@echo "📤 Exporting model metadata to CSV..."
+	@python -m genonaut.db.utils.cli --sync-models-export-csv --environment demo
+
+# Export only models with critical null fields to CSV files
+sync-models-export-csv-only-critical-nulls:
+	@echo "📤 Exporting models with critical null fields to CSV..."
+	@python -m genonaut.db.utils.cli --sync-models-export-csv --only-critical-nulls --environment demo
+
+# Import model metadata from CSV files
+sync-models-import-csv:
+	@echo "📥 Importing model metadata from CSV..."
+	@python -m genonaut.db.utils.cli --sync-models-import-csv --environment demo
 
 refresh-gen-source-stats-test:
 	@echo "🔄 Refreshing gen source stats (test database)..."

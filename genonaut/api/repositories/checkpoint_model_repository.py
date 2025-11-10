@@ -4,7 +4,7 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import desc
+from sqlalchemy import desc, text
 
 from genonaut.db.schema import CheckpointModel
 from genonaut.api.repositories.base import BaseRepository
@@ -39,8 +39,11 @@ class CheckpointModelRepository(BaseRepository[CheckpointModel, Dict[str, Any], 
         except SQLAlchemyError as e:
             raise DatabaseError(f"Failed to get checkpoint model with id {id}: {str(e)}")
 
-    def get_all(self) -> List[CheckpointModel]:
+    def get_all(self, show_unresolved: bool = False) -> List[CheckpointModel]:
         """Get all checkpoint models sorted by rating descending.
+
+        Args:
+            show_unresolved: If False (default), exclude models where path_resolves != True
 
         Returns:
             List of all checkpoint models sorted by rating (highest first)
@@ -49,8 +52,16 @@ class CheckpointModelRepository(BaseRepository[CheckpointModel, Dict[str, Any], 
             DatabaseError: If database operation fails
         """
         try:
+            query = self.db.query(CheckpointModel)
+
+            # Filter out unresolved models by default
+            if not show_unresolved:
+                query = query.filter(
+                    text("model_metadata->>'path_resolves' = 'true'")
+                )
+
             return (
-                self.db.query(CheckpointModel)
+                query
                 .order_by(desc(CheckpointModel.rating))
                 .all()
             )

@@ -215,7 +215,8 @@ class WorkflowBuilder:
             "class_type": "SaveImage",
             "inputs": {
                 "images": [vae_decode_node_id, 0],
-                "filename_prefix": request.filename_prefix
+                "filename_prefix": request.filename_prefix,
+                "subfolder": ""  # Empty string to save directly in output dir, no subdirectories
             }
         }
 

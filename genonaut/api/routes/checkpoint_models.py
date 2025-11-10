@@ -1,7 +1,7 @@
 """Checkpoint model API routes."""
 
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from genonaut.api.dependencies import get_database_session
@@ -17,9 +17,13 @@ router = APIRouter(prefix="/api/v1/checkpoint-models", tags=["checkpoint-models"
 
 @router.get("/", response_model=CheckpointModelListResponse)
 async def get_checkpoint_models(
+    show_unresolved: bool = Query(False, description="Show models with unresolved paths (default: False)"),
     db: Session = Depends(get_database_session)
 ):
     """Get all checkpoint models sorted by rating descending.
+
+    Args:
+        show_unresolved: Show models with unresolved paths (default: False)
 
     Returns:
         List of all checkpoint models sorted by rating (highest first)
@@ -27,7 +31,7 @@ async def get_checkpoint_models(
     service = CheckpointModelService(db)
 
     try:
-        models = service.get_all()
+        models = service.get_all(show_unresolved=show_unresolved)
         return CheckpointModelListResponse(
             items=[CheckpointModelResponse.model_validate(model) for model in models],
             total=len(models)

@@ -1,6 +1,7 @@
 """ComfyUI client for workflow submission and management."""
 
 import json
+import logging
 import time
 import uuid
 from pathlib import Path
@@ -12,6 +13,8 @@ from requests.exceptions import RequestException, ConnectionError, Timeout
 from genonaut.api.config import get_settings, Settings, get_cached_settings
 from genonaut.api.exceptions import ValidationError
 from genonaut.api.services.cache_service import ComfyUICacheService
+
+logger = logging.getLogger(__name__)
 
 
 class ComfyUIConnectionError(Exception):
@@ -130,6 +133,16 @@ class ComfyUIClient:
             "prompt": workflow,
             "client_id": client_id
         }
+
+        # Log the workflow being sent for debugging
+        logger.info(f"Submitting workflow to ComfyUI. Client ID: {client_id}")
+        logger.debug(f"Full workflow payload: {json.dumps(workflow, indent=2)}")
+
+        # Check for SaveImage node and log its configuration
+        # for node_id, node_data in workflow.items():
+        #     if node_data.get("class_type") == "SaveImage":
+        #         logger.info(f"SaveImage node ({node_id}): filename_prefix={node_data.get('inputs', {}).\
+        #         get('filename_prefix')}, subfolder={node_data.get('inputs', {}).get('subfolder')}")
 
         try:
             response = self.session.post(

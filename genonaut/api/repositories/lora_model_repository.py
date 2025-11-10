@@ -4,7 +4,7 @@ from typing import List, Optional, Dict, Any, Tuple
 from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, text
 
 from genonaut.db.schema import LoraModel
 from genonaut.api.repositories.base import BaseRepository
@@ -39,8 +39,11 @@ class LoraModelRepository(BaseRepository[LoraModel, Dict[str, Any], Dict[str, An
         except SQLAlchemyError as e:
             raise DatabaseError(f"Failed to get LoRA model with id {id}: {str(e)}")
 
-    def get_all(self) -> List[LoraModel]:
+    def get_all(self, show_unresolved: bool = False) -> List[LoraModel]:
         """Get all LoRA models sorted by rating descending.
+
+        Args:
+            show_unresolved: If False (default), exclude models where path_resolves != True
 
         Returns:
             List of all LoRA models sorted by rating (highest first)
@@ -49,8 +52,16 @@ class LoraModelRepository(BaseRepository[LoraModel, Dict[str, Any], Dict[str, An
             DatabaseError: If database operation fails
         """
         try:
+            query = self.db.query(LoraModel)
+
+            # Filter out unresolved models by default
+            if not show_unresolved:
+                query = query.filter(
+                    text("model_metadata->>'path_resolves' = 'true'")
+                )
+
             return (
-                self.db.query(LoraModel)
+                query
                 .order_by(desc(LoraModel.rating))
                 .all()
             )
@@ -62,7 +73,8 @@ class LoraModelRepository(BaseRepository[LoraModel, Dict[str, Any], Dict[str, An
         page: int = 1,
         page_size: int = 10,
         checkpoint_architecture: Optional[str] = None,
-        checkpoint_family: Optional[str] = None
+        checkpoint_family: Optional[str] = None,
+        show_unresolved: bool = False
     ) -> Tuple[List[LoraModel], int]:
         """Get paginated LoRA models with optional filtering.
 
@@ -71,6 +83,7 @@ class LoraModelRepository(BaseRepository[LoraModel, Dict[str, Any], Dict[str, An
             page_size: Number of items per page
             checkpoint_architecture: Filter by compatible architecture
             checkpoint_family: Filter by optimal checkpoint family
+            show_unresolved: If False (default), exclude models where path_resolves != True
 
         Returns:
             Tuple of (list of LoRA models, total count)
@@ -80,6 +93,12 @@ class LoraModelRepository(BaseRepository[LoraModel, Dict[str, Any], Dict[str, An
         """
         try:
             query = self.db.query(LoraModel)
+
+            # Filter out unresolved models by default
+            if not show_unresolved:
+                query = query.filter(
+                    text("model_metadata->>'path_resolves' = 'true'")
+                )
 
             # Apply filters if provided
             if checkpoint_architecture:

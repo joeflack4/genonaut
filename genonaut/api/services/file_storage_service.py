@@ -23,12 +23,12 @@ class FileStorageService:
         self.base_output_dir = Path(self.settings.comfyui_output_dir).expanduser()
         self.base_output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Create subdirectories
-        self.generations_dir = self.base_output_dir / "generations"
+        # Create subdirectories for thumbnails and temp files only
+        # Do NOT create generations/ subdirectory - files save directly to output dir
         self.thumbnails_dir = self.base_output_dir / "thumbnails"
         self.temp_dir = self.base_output_dir / "temp"
 
-        for directory in [self.generations_dir, self.thumbnails_dir, self.temp_dir]:
+        for directory in [self.thumbnails_dir, self.temp_dir]:
             directory.mkdir(parents=True, exist_ok=True)
 
     def organize_generation_files(
@@ -61,9 +61,9 @@ class FileStorageService:
             logger.info(f"Skipping file organization for generation {generation_id} (organize=False)")
             return file_paths
 
-        # Create user directory structure: generations/user_id/YYYY/MM/DD/
+        # Create user directory structure: user_id/YYYY/MM/DD/
         now = datetime.utcnow()
-        user_dir = self.generations_dir / str(user_id) / now.strftime("%Y") / now.strftime("%m") / now.strftime("%d")
+        user_dir = self.base_output_dir / str(user_id) / now.strftime("%Y") / now.strftime("%m") / now.strftime("%d")
         user_dir.mkdir(parents=True, exist_ok=True)
 
         organized_paths = []
@@ -101,7 +101,7 @@ class FileStorageService:
         Returns:
             Dictionary with storage usage statistics
         """
-        user_dir = self.generations_dir / str(user_id)
+        user_dir = self.base_output_dir / str(user_id)
 
         if not user_dir.exists():
             return {
@@ -160,9 +160,13 @@ class FileStorageService:
             "errors": 0
         }
 
-        # Clean up generation files
-        for file_path in self.generations_dir.rglob("*"):
+        # Clean up generation files from base output directory
+        # Skip thumbnails and temp subdirectories
+        for file_path in self.base_output_dir.rglob("*"):
             if file_path.is_file():
+                # Skip thumbnails and temp directories
+                if self.thumbnails_dir in file_path.parents or self.temp_dir in file_path.parents:
+                    continue
                 try:
                     if file_path.stat().st_mtime < cutoff_timestamp:
                         file_size = file_path.stat().st_size
@@ -205,7 +209,7 @@ class FileStorageService:
                     stats["errors"] += 1
 
         # Clean up empty directories
-        self._cleanup_empty_directories(self.generations_dir)
+        self._cleanup_empty_directories(self.base_output_dir)
         self._cleanup_empty_directories(self.thumbnails_dir)
 
         logger.info(f"Cleanup completed: {stats}")
@@ -294,7 +298,7 @@ class FileStorageService:
         # Find and delete generation files (pattern: gen_{generation_id}_*)
         pattern = f"gen_{generation_id}_*"
 
-        for file_path in self.generations_dir.rglob(pattern):
+        for file_path in self.base_output_dir.rglob(pattern):
             if file_path.is_file():
                 try:
                     file_path.unlink()
@@ -333,9 +337,12 @@ class FileStorageService:
             "users_with_data": 0
         }
 
-        # Count generation files
-        for file_path in self.generations_dir.rglob("*"):
+        # Count generation files (excluding thumbnails and temp)
+        for file_path in self.base_output_dir.rglob("*"):
             if file_path.is_file():
+                # Skip thumbnails and temp directories
+                if self.thumbnails_dir in file_path.parents or self.temp_dir in file_path.parents:
+                    continue
                 stats["total_generations"] += 1
                 stats["total_size_bytes"] += file_path.stat().st_size
 
@@ -351,9 +358,9 @@ class FileStorageService:
                 stats["total_temp_files"] += 1
                 stats["total_size_bytes"] += file_path.stat().st_size
 
-        # Count users with data
-        for user_dir in self.generations_dir.iterdir():
-            if user_dir.is_dir():
+        # Count users with data (directories at base level that look like UUIDs)
+        for item in self.base_output_dir.iterdir():
+            if item.is_dir() and item != self.thumbnails_dir and item != self.temp_dir:
                 stats["users_with_data"] += 1
 
         stats["total_size_mb"] = round(stats["total_size_bytes"] / (1024 * 1024), 2)

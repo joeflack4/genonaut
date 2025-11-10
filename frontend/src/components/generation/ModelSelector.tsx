@@ -45,6 +45,13 @@ const clampStrength = (value: number | undefined) => {
   return Math.min(3, Math.max(0, numeric))
 }
 
+const getDisplayNameFromPath = (path: string) => {
+  // Extract filename from path and remove extension for display
+  // e.g., "loras/Pony/styles/Ghibli_1.safetensors" -> "Ghibli_1"
+  const filename = path.split('/').pop() || path
+  return filename.replace(/\.(safetensors|pt|ckpt)$/i, '')
+}
+
 interface ModelSelectorProps {
   checkpointModel: string
   onCheckpointChange: (model: string) => void
@@ -73,9 +80,8 @@ export function ModelSelector({
   const { data: checkpoints, isLoading: checkpointsLoading, error: checkpointsError } = useCheckpointModels()
 
   // Find the currently selected checkpoint to get its ID
-  const selectedCheckpoint = checkpoints?.find(cp =>
-    (cp.name || cp.filename || cp.path) === checkpointModel
-  )
+  // checkpointModel contains the path, so match against cp.path
+  const selectedCheckpoint = checkpoints?.find(cp => cp.path === checkpointModel)
 
   // Fetch LoRAs with pagination and checkpoint filtering
   const { data: lorasData, isLoading: lorasLoading, error: lorasError } = useLoraModelsList({
@@ -107,17 +113,19 @@ export function ModelSelector({
   useEffect(() => {
     // Auto-select first checkpoint if none selected
     if (!checkpointModel && checkpoints && checkpoints.length > 0) {
-      onCheckpointChange(checkpoints[0].name || checkpoints[0].filename || checkpoints[0].path)
+      // Use path for ComfyUI compatibility (includes subdirectory)
+      onCheckpointChange(checkpoints[0].path)
     }
   }, [checkpoints, checkpointModel, onCheckpointChange])
 
   const addLoraModel = (lora: LoraModelData, keepDialogOpen = false) => {
-    const loraName = lora.name || lora.filename || lora.path
-    const isAlreadyAdded = loraModels.some(l => l.name === loraName)
+    // Use path for ComfyUI compatibility (includes subdirectory)
+    const loraPath = lora.path
+    const isAlreadyAdded = loraModels.some(l => l.name === loraPath)
     if (isAlreadyAdded) return
 
     const newLora: LoraModel = {
-      name: loraName,
+      name: loraPath, // Use path for ComfyUI
       strength_model: 1.0,
       strength_clip: 1.0,
     }
@@ -135,8 +143,8 @@ export function ModelSelector({
     onLoraModelsChange(newModels)
   }
 
-  const removeLoraModelByName = (loraName: string, keepDialogOpen = false) => {
-    const newModels = loraModels.filter(l => l.name !== loraName)
+  const removeLoraModelByName = (loraPath: string, keepDialogOpen = false) => {
+    const newModels = loraModels.filter(l => l.name !== loraPath)
     onLoraModelsChange(newModels)
 
     // Only close dialog if not keeping it open for multi-select
@@ -146,11 +154,12 @@ export function ModelSelector({
   }
 
   const toggleLoraModel = (lora: LoraModelData, keepDialogOpen = false) => {
-    const loraName = lora.name || lora.filename || lora.path
-    const isAlreadyAdded = loraModels.some(l => l.name === loraName)
+    // Use path for ComfyUI compatibility (includes subdirectory)
+    const loraPath = lora.path
+    const isAlreadyAdded = loraModels.some(l => l.name === loraPath)
 
     if (isAlreadyAdded) {
-      removeLoraModelByName(loraName, keepDialogOpen)
+      removeLoraModelByName(loraPath, keepDialogOpen)
     } else {
       addLoraModel(lora, keepDialogOpen)
     }
@@ -186,9 +195,12 @@ export function ModelSelector({
 
   const filteredLoras = (lorasData?.items || [])
     .filter(lora => {
-      // Search filter
-      const loraName = lora.name || lora.filename || lora.path
-      if (!loraName.toLowerCase().includes(loraSearch.toLowerCase())) {
+      // Search filter - search in both display name and path
+      const displayName = lora.name || lora.filename || lora.path
+      const path = lora.path
+      const searchLower = loraSearch.toLowerCase()
+      const matchesSearch = displayName.toLowerCase().includes(searchLower) || path.toLowerCase().includes(searchLower)
+      if (!matchesSearch) {
         return false
       }
 
@@ -254,9 +266,10 @@ export function ModelSelector({
         >
           {checkpoints && checkpoints.map((model) => {
             const displayName = model.name || model.filename || model.path
-            const displayValue = model.name || model.filename || model.path
+            // Use path as value for ComfyUI compatibility (includes subdirectory)
+            const valueForComfyUI = model.path
             return (
-              <MenuItem key={model.id} value={displayValue}>
+              <MenuItem key={model.id} value={valueForComfyUI}>
                 {displayName}
                 {model.description && (
                   <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
@@ -291,7 +304,7 @@ export function ModelSelector({
                 <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 1, flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                   <Box display="flex" alignItems="center" sx={{ mb: 1 }}>
                     <Typography variant="body2" fontWeight="medium" sx={{ flex: 1, mr: 1 }}>
-                      {lora.name}
+                      {getDisplayNameFromPath(lora.name)}
                     </Typography>
                     <IconButton
                       size="small"
@@ -407,6 +420,8 @@ export function ModelSelector({
                     </Box>
                   </TableCell>
                   <TableCell>Description</TableCell>
+                  <TableCell>Arch</TableCell>
+                  <TableCell>Category</TableCell>
                   <TableCell align="center" sx={{ width: 100 }}>Compatible</TableCell>
                   <TableCell align="center" sx={{ width: 100 }}>Optimal</TableCell>
                   <TableCell align="center" sx={{ width: 100 }}>Selected</TableCell>
@@ -415,7 +430,7 @@ export function ModelSelector({
               <TableBody>
                 {filteredLoras.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
+                    <TableCell colSpan={8} align="center">
                       <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
                         {loraSearch ? 'No LoRA models match your search' : 'No LoRA models available'}
                       </Typography>
@@ -423,8 +438,9 @@ export function ModelSelector({
                   </TableRow>
                 ) : (
                   filteredLoras.map((lora) => {
-                    const loraName = lora.name || lora.filename || lora.path
-                    const isAlreadyAdded = loraModels.some(l => l.name === loraName)
+                    const displayName = lora.name || lora.filename || lora.path
+                    const loraPath = lora.path
+                    const isAlreadyAdded = loraModels.some(l => l.name === loraPath)
                     return (
                       <TableRow
                         key={lora.id}
@@ -440,8 +456,11 @@ export function ModelSelector({
                         }}
                       >
                         <TableCell>{lora.rating?.toFixed(2) ?? '-'}</TableCell>
-                        <TableCell>{loraName}</TableCell>
-                        <TableCell>{lora.description || 'No description available'}</TableCell>
+                        <TableCell>{displayName}</TableCell>
+						{/*<TableCell>{lora.description || 'No description available'}</TableCell>*/}
+                        <TableCell>{lora.description || '-'}</TableCell>
+                        <TableCell>{lora.compatibleArchitectures || '-'}</TableCell>
+                        <TableCell>{lora.family || '-'}</TableCell>
                         <TableCell align="center">
                           {lora.isCompatible === true && <CheckCircle sx={{ color: 'text.primary' }} />}
                           {lora.isCompatible === false && <Cancel sx={{ color: 'text.disabled' }} />}

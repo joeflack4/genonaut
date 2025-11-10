@@ -7,6 +7,7 @@ URL construction, configuration management, and maintenance helpers.
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import os
@@ -317,7 +318,7 @@ def sync_models_from_fs(environment: Optional[str] = None) -> None:
             session=session,
             model_class=CheckpointModel,
             models_dir=checkpoints_dir,
-            base_dir=models_dir,
+            base_dir=checkpoints_dir,
             valid_extensions=checkpoint_exts,
             model_type="checkpoint"
         )
@@ -328,7 +329,7 @@ def sync_models_from_fs(environment: Optional[str] = None) -> None:
             session=session,
             model_class=LoraModel,
             models_dir=loras_dir,
-            base_dir=models_dir,
+            base_dir=loras_dir,
             valid_extensions=lora_exts,
             model_type="lora"
         )
@@ -343,12 +344,14 @@ def sync_models_from_fs(environment: Optional[str] = None) -> None:
         print(f"\nCheckpoints:")
         print(f"  Added: {checkpoint_stats['added']}")
         print(f"  Updated: {checkpoint_stats['updated']}")
+        print(f"  Unchanged (already up-to-date): {checkpoint_stats['unchanged']}")
         print(f"  Unresolved: {checkpoint_stats['unresolved']}")
         print(f"  Unrecognized files: {len(checkpoint_stats['unrecognized'])}")
 
         print(f"\nLoRAs:")
         print(f"  Added: {lora_stats['added']}")
         print(f"  Updated: {lora_stats['updated']}")
+        print(f"  Unchanged (already up-to-date): {lora_stats['unchanged']}")
         print(f"  Unresolved: {lora_stats['unresolved']}")
         print(f"  Unrecognized files: {len(lora_stats['unrecognized'])}")
 
@@ -412,6 +415,7 @@ def _sync_model_type(
     stats = {
         'added': 0,
         'updated': 0,
+        'unchanged': 0,
         'unresolved': 0,
         'unrecognized': [],
         'imported': []
@@ -510,19 +514,34 @@ def _sync_model_type(
                 print(f"  Added new record for {rel_path_str}")
             else:
                 # Path matches and (MD5 matches or doesn't exist)
-                existing_metadata['md5'] = md5_hash
-                existing_metadata['path_resolves'] = True
-                existing_by_path.model_metadata = existing_metadata
-                flag_modified(existing_by_path, 'model_metadata')
+                # Check if update is actually needed
+                needs_update = False
+                if existing_metadata.get('md5') != md5_hash:
+                    existing_metadata['md5'] = md5_hash
+                    needs_update = True
+                if existing_metadata.get('path_resolves') != True:
+                    existing_metadata['path_resolves'] = True
+                    needs_update = True
+
                 touched_ids.add(str(existing_by_path.id))
-                stats['updated'] += 1
-                print(f"  Updated {rel_path_str}")
+
+                if needs_update:
+                    existing_by_path.model_metadata = existing_metadata
+                    flag_modified(existing_by_path, 'model_metadata')
+                    stats['updated'] += 1
+                    print(f"  Updated {rel_path_str}")
+                else:
+                    stats['unchanged'] += 1
         else:
             # No path match - check for MD5 match (file may have moved)
             md5_matches = records_by_md5.get(md5_hash, [])
 
             if len(md5_matches) > 1:
                 print(f"Error: Multiple MD5 matches for {rel_path_str}")
+                print(f"  MD5: {md5_hash}")
+                print(f"  Matching records:")
+                for record in md5_matches:
+                    print(f"    - {record.path}")
                 sys.exit(1)
             elif len(md5_matches) == 1:
                 # Single MD5 match - update the record
@@ -568,6 +587,530 @@ def _sync_model_type(
     return stats
 
 
+def _has_critical_nulls_checkpoint(checkpoint: any) -> bool:
+    """Check if a checkpoint model has any critical null fields.
+
+    Critical fields for checkpoints:
+    - architecture
+    - model_metadata
+
+    Args:
+        checkpoint: CheckpointModel instance
+
+    Returns:
+        True if any critical field is null/empty, False otherwise
+    """
+    # Check architecture
+    if not checkpoint.architecture or not checkpoint.architecture.strip():
+        return True
+
+    # Check model_metadata (should not be None or empty dict)
+    if not checkpoint.model_metadata or len(checkpoint.model_metadata) == 0:
+        return True
+
+    return False
+
+
+def _has_critical_nulls_lora(lora: any) -> bool:
+    """Check if a LoRA model has any critical null fields.
+
+    Critical fields for LoRAs:
+    - compatible_architectures
+    - family
+    - trigger_words
+    - model_metadata
+
+    Args:
+        lora: LoraModel instance
+
+    Returns:
+        True if any critical field is null/empty, False otherwise
+    """
+    # Check compatible_architectures
+    if not lora.compatible_architectures or not lora.compatible_architectures.strip():
+        return True
+
+    # Check family
+    if not lora.family or not lora.family.strip():
+        return True
+
+    # Check trigger_words (should not be None or empty list)
+    # Exception: If model_metadata.has_no_trigger_words is True, skip this check
+    has_no_trigger_words = (
+        lora.model_metadata
+        and isinstance(lora.model_metadata, dict)
+        and lora.model_metadata.get('has_no_trigger_words') is True
+    )
+    if not has_no_trigger_words:
+        if not lora.trigger_words or len(lora.trigger_words) == 0:
+            return True
+
+    # Check optimal_checkpoints (should not be None or empty list)
+    # - note: If reactivate this, add field to list in docstring
+    # if not lora.optimal_checkpoints or len(lora.optimal_checkpoints) == 0:
+    #     return True
+
+    # Check model_metadata (should not be None or empty dict)
+    if not lora.model_metadata or len(lora.model_metadata) == 0:
+        return True
+
+    return False
+
+
+def export_models_to_csv(
+    output_dir: Optional[str] = None,
+    environment: Optional[str] = None,
+    only_critical_nulls: bool = False
+) -> None:
+    """Export model metadata to CSV files.
+
+    Creates two CSV files (checkpoints.csv and loras.csv) with model metadata
+    for easy editing and management. By default, exports to io/output/ directory.
+
+    Args:
+        output_dir: Directory to write CSV files (defaults to io/output/)
+        environment: Database environment (dev, demo, test). Defaults to demo.
+        only_critical_nulls: If True, only export records with critical null fields
+                            (checkpoint: architecture, model_metadata)
+                            (lora: compatible_architectures, family, trigger_words,
+                             optimal_checkpoints, model_metadata)
+
+    The CSV files will contain all metadata fields for each model type:
+    - Checkpoints: path, name, version, architecture, family, description, tags, model_metadata
+    - LoRAs: path, name, version, compatible_architectures, family, description, tags,
+             trigger_words, optimal_checkpoints, model_metadata
+    """
+    from genonaut.db.schema import CheckpointModel, LoraModel
+
+    env = environment or "demo"
+    session = None
+
+    try:
+        # Determine output directory
+        if output_dir is None:
+            # Go up from genonaut/db/utils/utils.py to project root
+            project_root = Path(__file__).parent.parent.parent.parent
+            output_path = project_root / "io" / "output"
+        else:
+            output_path = Path(output_dir)
+
+        # Create output directory if it doesn't exist
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        print(f"Exporting model metadata to: {output_path}")
+
+        # Get database session
+        session = get_database_session(env)
+
+        # Export checkpoints
+        checkpoints_csv = output_path / "checkpoints.csv"
+        checkpoint_fields = [
+            'path', 'name', 'version', 'architecture', 'family',
+            'description', 'tags', 'model_metadata'
+        ]
+
+        print(f"\nExporting checkpoints...")
+        checkpoints = session.query(CheckpointModel).order_by(CheckpointModel.name).all()
+
+        # Filter if only_critical_nulls is True
+        if only_critical_nulls:
+            checkpoints = [c for c in checkpoints if _has_critical_nulls_checkpoint(c)]
+            print(f"  Filtering to only records with critical null fields...")
+
+        with open(checkpoints_csv, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=checkpoint_fields)
+            writer.writeheader()
+
+            for checkpoint in checkpoints:
+                row = {
+                    'path': checkpoint.path or '',
+                    'name': checkpoint.name or '',
+                    'version': checkpoint.version or '',
+                    'architecture': checkpoint.architecture or '',
+                    'family': checkpoint.family or '',
+                    'description': checkpoint.description or '',
+                    'tags': json.dumps(checkpoint.tags or []),
+                    'model_metadata': json.dumps(checkpoint.model_metadata or {})
+                }
+                writer.writerow(row)
+
+        print(f"  Exported {len(checkpoints)} checkpoints to {checkpoints_csv}")
+
+        # Export LoRAs
+        loras_csv = output_path / "loras.csv"
+        lora_fields = [
+            'path', 'name', 'version', 'compatible_architectures', 'family',
+            'description', 'tags', 'trigger_words', 'optimal_checkpoints', 'model_metadata'
+        ]
+
+        print(f"\nExporting LoRAs...")
+        loras = session.query(LoraModel).order_by(LoraModel.name).all()
+
+        # Filter if only_critical_nulls is True
+        if only_critical_nulls:
+            loras = [l for l in loras if _has_critical_nulls_lora(l)]
+            print(f"  Filtering to only records with critical null fields...")
+
+        with open(loras_csv, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=lora_fields)
+            writer.writeheader()
+
+            for lora in loras:
+                row = {
+                    'path': lora.path or '',
+                    'name': lora.name or '',
+                    'version': lora.version or '',
+                    'compatible_architectures': lora.compatible_architectures or '',
+                    'family': lora.family or '',
+                    'description': lora.description or '',
+                    'tags': json.dumps(lora.tags or []),
+                    'trigger_words': json.dumps(lora.trigger_words or []),
+                    'optimal_checkpoints': json.dumps(lora.optimal_checkpoints or []),
+                    'model_metadata': json.dumps(lora.model_metadata or {})
+                }
+                writer.writerow(row)
+
+        print(f"  Exported {len(loras)} LoRAs to {loras_csv}")
+
+        print(f"\nExport completed successfully!")
+        print(f"\nNext steps:")
+        print(f"  1. Edit the CSV files to update model metadata")
+        print(f"  2. Run: make sync-models-import-csv")
+
+    except Exception as e:
+        print(f"\nError during export: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+    finally:
+        if session:
+            session.close()
+
+
+def import_models_from_csv(input_dir: Optional[str] = None, environment: Optional[str] = None) -> None:
+    """Import model metadata from CSV files.
+
+    Reads CSV files (checkpoints.csv and loras.csv) and updates the database
+    with the metadata from the files. Matches records by 'name' field.
+
+    Args:
+        input_dir: Directory containing CSV files (defaults to io/output/)
+        environment: Database environment (dev, demo, test). Defaults to demo.
+
+    For records that don't exist in the database, prompts the user to
+    optionally import them as new records (not recommended - use sync-models-from-fs instead).
+    """
+    from genonaut.db.schema import CheckpointModel, LoraModel
+
+    env = environment or "demo"
+    session = None
+
+    try:
+        # Determine input directory
+        if input_dir is None:
+            # Go up from genonaut/db/utils/utils.py to project root
+            project_root = Path(__file__).parent.parent.parent.parent
+            input_path = project_root / "io" / "output"
+        else:
+            input_path = Path(input_dir)
+
+        if not input_path.exists():
+            print(f"Error: Input directory does not exist: {input_path}")
+            sys.exit(1)
+
+        print(f"Importing model metadata from: {input_path}")
+
+        # Get database session
+        session = get_database_session(env)
+
+        # Track statistics
+        stats = {
+            'checkpoints': {'updated': 0, 'unmatched': [], 'errors': 0},
+            'loras': {'updated': 0, 'unmatched': [], 'errors': 0}
+        }
+
+        # Import checkpoints
+        checkpoints_csv = input_path / "checkpoints.csv"
+        if checkpoints_csv.exists():
+            print(f"\nImporting checkpoints from {checkpoints_csv}...")
+            stats['checkpoints'] = _import_model_csv(
+                session=session,
+                csv_path=checkpoints_csv,
+                model_class=CheckpointModel,
+                model_type="checkpoint"
+            )
+        else:
+            print(f"Warning: {checkpoints_csv} not found, skipping checkpoints import")
+
+        # Import LoRAs
+        loras_csv = input_path / "loras.csv"
+        if loras_csv.exists():
+            print(f"\nImporting LoRAs from {loras_csv}...")
+            stats['loras'] = _import_model_csv(
+                session=session,
+                csv_path=loras_csv,
+                model_class=LoraModel,
+                model_type="lora"
+            )
+        else:
+            print(f"Warning: {loras_csv} not found, skipping LoRAs import")
+
+        # Commit all changes
+        session.commit()
+
+        # Print summary
+        print("\n" + "=" * 80)
+        print("IMPORT SUMMARY")
+        print("=" * 80)
+        print(f"\nCheckpoints:")
+        print(f"  Updated: {stats['checkpoints']['updated']}")
+        print(f"  Unmatched: {len(stats['checkpoints']['unmatched'])}")
+        print(f"  Errors: {stats['checkpoints']['errors']}")
+
+        print(f"\nLoRAs:")
+        print(f"  Updated: {stats['loras']['updated']}")
+        print(f"  Unmatched: {len(stats['loras']['unmatched'])}")
+        print(f"  Errors: {stats['loras']['errors']}")
+
+        # Handle unmatched records
+        all_unmatched = stats['checkpoints']['unmatched'] + stats['loras']['unmatched']
+        if all_unmatched:
+            print(f"\n\nUnmatched records ({len(all_unmatched)} total):")
+            for name in sorted(all_unmatched):
+                print(f"  {name}")
+
+            print("\n" + "-" * 80)
+            print("WARNING: Importing new model records via CSV is NOT recommended!")
+            print("Recommended practice: First sync with filesystem using 'make sync-models-from-fs'")
+            print("-" * 80)
+
+            # Prompt user to import new records
+            response = input("\nDo you want to import these unmatched records as new models? (yes/no): ")
+            if response.lower().strip() == 'yes':
+                print("\nImporting new records...")
+                # Re-process unmatched records with create flag
+                if stats['checkpoints']['unmatched']:
+                    _import_unmatched_models(
+                        session=session,
+                        csv_path=input_path / "checkpoints.csv",
+                        model_class=CheckpointModel,
+                        unmatched_names=stats['checkpoints']['unmatched'],
+                        model_type="checkpoint"
+                    )
+                if stats['loras']['unmatched']:
+                    _import_unmatched_models(
+                        session=session,
+                        csv_path=input_path / "loras.csv",
+                        model_class=LoraModel,
+                        unmatched_names=stats['loras']['unmatched'],
+                        model_type="lora"
+                    )
+                session.commit()
+                print(f"Imported {len(all_unmatched)} new records")
+            else:
+                print("Skipping import of unmatched records")
+
+        print("\nImport completed successfully!")
+
+    except Exception as e:
+        if session:
+            session.rollback()
+        print(f"\nError during import: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+    finally:
+        if session:
+            session.close()
+
+
+def _import_model_csv(
+    session: Session,
+    csv_path: Path,
+    model_class: type,
+    model_type: str
+) -> Dict[str, any]:
+    """Import a single model type CSV file.
+
+    Args:
+        session: Database session
+        csv_path: Path to CSV file
+        model_class: CheckpointModel or LoraModel class
+        model_type: "checkpoint" or "lora" for logging
+
+    Returns:
+        Dictionary with statistics: updated, unmatched, errors
+    """
+    stats = {
+        'updated': 0,
+        'unmatched': [],
+        'errors': 0
+    }
+
+    # Load all existing records by name
+    all_records = session.query(model_class).all()
+    records_by_name = {record.name: record for record in all_records if record.name}
+
+    print(f"  Found {len(records_by_name)} existing {model_type} records in database")
+
+    # Read CSV
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+
+        for row_num, row in enumerate(reader, start=2):  # Start at 2 (1 is header)
+            try:
+                name = row.get('name', '').strip()
+
+                if not name:
+                    print(f"  Warning: Row {row_num} has no name, skipping")
+                    stats['errors'] += 1
+                    continue
+
+                # Check if record exists
+                record = records_by_name.get(name)
+
+                if record is None:
+                    # No match found
+                    stats['unmatched'].append(name)
+                    continue
+
+                # Update record fields
+                _update_model_from_csv_row(record, row, model_type)
+                stats['updated'] += 1
+                print(f"  Updated {name}")
+
+            except Exception as e:
+                print(f"  Error processing row {row_num}: {e}")
+                stats['errors'] += 1
+                continue
+
+    return stats
+
+
+def _import_unmatched_models(
+    session: Session,
+    csv_path: Path,
+    model_class: type,
+    unmatched_names: List[str],
+    model_type: str
+) -> None:
+    """Import unmatched CSV records as new database records.
+
+    Args:
+        session: Database session
+        csv_path: Path to CSV file
+        model_class: CheckpointModel or LoraModel class
+        unmatched_names: List of names to import
+        model_type: "checkpoint" or "lora" for logging
+    """
+    unmatched_set = set(unmatched_names)
+
+    # Read CSV again and create new records
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+
+        for row in reader:
+            name = row.get('name', '').strip()
+
+            if name not in unmatched_set:
+                continue
+
+            # Create new record
+            try:
+                new_record = model_class()
+                _update_model_from_csv_row(new_record, row, model_type)
+                session.add(new_record)
+                print(f"  Created new {model_type}: {name}")
+            except Exception as e:
+                print(f"  Error creating {model_type} '{name}': {e}")
+
+
+def _parse_array_field(value: str) -> List[str]:
+    """Parse an array field value from CSV.
+
+    Supports two formats:
+    1. JSON array: ["item1", "item2", "item3"]
+    2. Comma-separated: item1, item2, item3
+
+    Args:
+        value: Raw field value from CSV
+
+    Returns:
+        List of string values
+    """
+    if not value or not value.strip():
+        return []
+
+    value = value.strip()
+
+    # Check if it's already JSON format
+    if value.startswith('['):
+        try:
+            parsed = json.loads(value)
+            # Ensure it's a list of strings
+            return [str(item) for item in parsed] if isinstance(parsed, list) else []
+        except json.JSONDecodeError:
+            print(f"    Warning: Invalid JSON array format, parsing as comma-separated")
+            # Fall through to comma-separated parsing
+
+    # Parse as comma-separated values
+    items = [item.strip() for item in value.split(',')]
+    # Filter out empty strings
+    return [item for item in items if item]
+
+
+def _update_model_from_csv_row(record: any, row: Dict[str, str], model_type: str) -> None:
+    """Update a model record from a CSV row.
+
+    Args:
+        record: CheckpointModel or LoraModel instance
+        row: Dictionary of CSV row data
+        model_type: "checkpoint" or "lora"
+    """
+    # Define array fields that should be parsed from comma-separated format
+    array_fields = {
+        'checkpoint': ['tags'],
+        'lora': ['tags', 'trigger_words', 'optimal_checkpoints']
+    }
+
+    # Update simple string fields
+    for field in ['path', 'name', 'version', 'family', 'description']:
+        if field in row:
+            value = row[field].strip()
+            setattr(record, field, value if value else None)
+
+    # Model-specific fields
+    if model_type == "checkpoint":
+        if 'architecture' in row:
+            value = row['architecture'].strip()
+            record.architecture = value if value else None
+    else:  # lora
+        if 'compatible_architectures' in row:
+            value = row['compatible_architectures'].strip()
+            record.compatible_architectures = value if value else None
+
+    # Handle array fields with special parsing
+    for field in array_fields.get(model_type, []):
+        if field in row:
+            value = row[field].strip()
+            if value:
+                parsed_array = _parse_array_field(value)
+                setattr(record, field, parsed_array)
+            else:
+                setattr(record, field, [])
+
+    # Handle model_metadata (non-array JSON field)
+    if 'model_metadata' in row and row['model_metadata'].strip():
+        try:
+            value = json.loads(row['model_metadata'])
+            record.model_metadata = value
+        except json.JSONDecodeError:
+            print(f"    Warning: Invalid JSON for model_metadata, using empty dict")
+            record.model_metadata = {}
+    else:
+        record.model_metadata = {}
+
+
 def main(argv: Optional[Sequence[str]] = None) -> None:
     """Entry point for the module's CLI interface."""
     parser = argparse.ArgumentParser(
@@ -594,6 +1137,31 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     )
 
     parser.add_argument(
+        "--sync-models-export-csv",
+        action="store_true",
+        help="Export model metadata to CSV files"
+    )
+
+    parser.add_argument(
+        "--sync-models-import-csv",
+        action="store_true",
+        help="Import model metadata from CSV files"
+    )
+
+    parser.add_argument(
+        "--csv-dir",
+        type=str,
+        metavar="PATH",
+        help="Directory for CSV import/export (defaults to io/output/)"
+    )
+
+    parser.add_argument(
+        "--only-critical-nulls",
+        action="store_true",
+        help="Export only models with critical null fields (architecture, metadata, etc.)"
+    )
+
+    parser.add_argument(
         "--environment",
         "-e",
         choices=("dev", "demo", "test"),
@@ -617,6 +1185,18 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         # Default to demo environment if not specified
         env = args.environment or "demo"
         sync_models_from_fs(environment=env)
+    elif args.sync_models_export_csv:
+        # Default to demo environment if not specified
+        env = args.environment or "demo"
+        export_models_to_csv(
+            output_dir=args.csv_dir,
+            environment=env,
+            only_critical_nulls=args.only_critical_nulls
+        )
+    elif args.sync_models_import_csv:
+        # Default to demo environment if not specified
+        env = args.environment or "demo"
+        import_models_from_csv(input_dir=args.csv_dir, environment=env)
     else:
         parser.print_help()
 

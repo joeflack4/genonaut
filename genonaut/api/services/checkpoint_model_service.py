@@ -20,13 +20,16 @@ class CheckpointModelService:
         """
         self.repository = CheckpointModelRepository(db)
 
-    def get_all(self) -> List[CheckpointModel]:
+    def get_all(self, show_unresolved: bool = False) -> List[CheckpointModel]:
         """Get all checkpoint models sorted by rating descending.
+
+        Args:
+            show_unresolved: Show models with unresolved paths (default: False)
 
         Returns:
             List of all checkpoint models sorted by rating (highest first)
         """
-        return self.repository.get_all()
+        return self.repository.get_all(show_unresolved=show_unresolved)
 
     def get_by_id(self, id: UUID) -> CheckpointModel:
         """Get checkpoint model by ID.

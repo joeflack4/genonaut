@@ -22,6 +22,7 @@ async def get_lora_models(
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(10, ge=1, le=100, description="Items per page"),
     checkpoint_id: Optional[str] = Query(None, description="UUID of checkpoint to check compatibility against"),
+    show_unresolved: bool = Query(False, description="Show models with unresolved paths (default: False)"),
     db: Session = Depends(get_database_session)
 ):
     """Get paginated LoRA models with optional compatibility/optimality checking.
@@ -30,6 +31,7 @@ async def get_lora_models(
         page: Page number (1-indexed)
         page_size: Number of items per page
         checkpoint_id: Optional checkpoint UUID to check compatibility against
+        show_unresolved: Show models with unresolved paths (default: False)
 
     Returns:
         Paginated list of LoRA models with compatibility/optimality flags
@@ -42,7 +44,8 @@ async def get_lora_models(
             enriched_models, total, total_pages = service.get_paginated_with_compatibility(
                 page=page,
                 page_size=page_size,
-                checkpoint_id=checkpoint_id
+                checkpoint_id=checkpoint_id,
+                show_unresolved=show_unresolved
             )
 
             # Convert enriched models to responses
@@ -69,7 +72,8 @@ async def get_lora_models(
             # Simple pagination without compatibility checking
             models, total = service.repository.get_paginated(
                 page=page,
-                page_size=page_size
+                page_size=page_size,
+                show_unresolved=show_unresolved
             )
             total_pages = (total + page_size - 1) // page_size
 
