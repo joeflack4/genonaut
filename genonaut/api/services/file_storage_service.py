@@ -35,7 +35,8 @@ class FileStorageService:
         self,
         generation_id: int,
         user_id: UUID,
-        file_paths: List[str]
+        file_paths: List[str],
+        organize: bool = False
     ) -> List[str]:
         """Organize generation files into user/date directory structure.
 
@@ -43,15 +44,22 @@ class FileStorageService:
             generation_id: Generation request ID
             user_id: User ID who created the generation
             file_paths: List of generated file paths
+            organize: If True, organize files into generations/user_id/YYYY/MM/DD/ structure.
+                     If False (default), leave files in their original location.
 
         Returns:
-            List of new organized file paths
+            List of file paths (organized or original depending on organize parameter)
 
         Raises:
             OSError: If file operations fail
         """
         if not file_paths:
             return []
+
+        # If organize is False, just return the original paths
+        if not organize:
+            logger.info(f"Skipping file organization for generation {generation_id} (organize=False)")
+            return file_paths
 
         # Create user directory structure: generations/user_id/YYYY/MM/DD/
         now = datetime.utcnow()
