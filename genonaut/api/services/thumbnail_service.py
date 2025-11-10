@@ -25,7 +25,8 @@ class ThumbnailService:
     def __init__(self):
         """Initialize thumbnail service."""
         self.settings = get_cached_settings() or get_settings()
-        self.thumbnail_dir = Path(self.settings.comfyui_output_dir) / "thumbnails"
+        # Expand tilde (~) to absolute path
+        self.thumbnail_dir = Path(self.settings.comfyui_output_dir).expanduser() / "thumbnails"
         self.thumbnail_dir.mkdir(parents=True, exist_ok=True)
 
     def generate_thumbnails(

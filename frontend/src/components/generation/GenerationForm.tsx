@@ -49,7 +49,7 @@ const defaultSamplerParams: SamplerParams = {
 
 const FORM_ID = 'generation-form'
 
-type FieldErrors = Partial<Record<'prompt' | 'width' | 'steps', string>>
+type FieldErrors = Partial<Record<'prompt' | 'checkpoint' | 'width' | 'steps', string>>
 
 type SuggestionEventDetail = {
   batchSize?: number
@@ -153,6 +153,12 @@ export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelReq
       return
     }
 
+    if (!checkpointModel || !checkpointModel.trim()) {
+      setFieldErrors(prev => ({ ...prev, checkpoint: 'Please select a checkpoint model' }))
+      setErrorState({ type: 'generic', message: 'Please resolve the highlighted issues.' })
+      return
+    }
+
     const validationErrors: FieldErrors = {}
     if (!Number.isFinite(width) || width < 64 || width > 2048) {
       validationErrors.width = 'Width must be between 64 and 2048.'
@@ -179,11 +185,6 @@ export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelReq
     startTimeoutWatcher()
 
     try {
-      // Use default checkpoint if none selected or if invalid checkpoint from database
-      const selectedCheckpoint = (checkpointModel && checkpointModel !== 'sd_xl_base_1.0')
-        ? checkpointModel
-        : 'illustriousXL_v01.safetensors'
-
       // Generate random seed if seed is -1 or 0 (ComfyUI requires seed >= 0)
       const finalSamplerParams = {
         ...samplerParams,
@@ -196,7 +197,7 @@ export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelReq
         prompt: sanitizedPrompt,
         backend: generationBackend,
         negative_prompt: negativePrompt.trim() || undefined,
-        checkpoint_model: selectedCheckpoint,
+        checkpoint_model: checkpointModel,
         lora_models: loraModels.length > 0 ? loraModels : undefined,
         width,
         height,
@@ -379,6 +380,7 @@ export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelReq
         onCheckpointChange={setCheckpointModel}
         loraModels={loraModels}
         onLoraModelsChange={setLoraModels}
+        validationError={fieldErrors.checkpoint}
         sx={{ mb: 3 }}
       />
 

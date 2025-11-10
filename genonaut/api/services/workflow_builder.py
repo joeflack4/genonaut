@@ -30,8 +30,8 @@ class SamplerParams:
 class GenerationRequest:
     """ComfyUI generation request parameters."""
     prompt: str
+    checkpoint_model: str
     negative_prompt: str = ""
-    checkpoint_model: str = "illustriousXL_v01.safetensors"
     lora_models: List[LoRAModel] = None
     width: int = 832
     height: int = 1216

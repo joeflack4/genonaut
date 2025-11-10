@@ -73,7 +73,6 @@ class Settings(BaseModel):
     comfyui_max_wait_time: int = 900
     comfyui_output_dir: str = "/tmp/comfyui/output"
     comfyui_models_dir: str = "/tmp/comfyui_models"
-    comfyui_default_checkpoint: str = "illustriousXL_v01.safetensors"
     comfyui_default_width: int = 832
     comfyui_default_height: int = 1216
     comfyui_default_batch_size: int = 1

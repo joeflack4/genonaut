@@ -164,7 +164,7 @@ def process_comfy_job(
         generation_request = GenerationRequest(
             prompt=job.prompt,
             negative_prompt=job.negative_prompt or job_params.get('negative_prompt', ""),
-            checkpoint_model=job.checkpoint_model or job_params.get('checkpoint_model', active_settings.comfyui_default_checkpoint),
+            checkpoint_model=job.checkpoint_model or job_params.get('checkpoint_model'),
             lora_models=lora_models,
             width=job.width or job_params.get('width', active_settings.comfyui_default_width),
             height=job.height or job_params.get('height', active_settings.comfyui_default_height),

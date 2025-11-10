@@ -270,7 +270,6 @@ class GenerationService:
             final_checkpoint_model = (
                 final_checkpoint_model
                 or job_params.get('checkpoint_model')
-                or settings.comfyui_default_checkpoint
             )
             final_lora_models = final_lora_models or job_params.get('lora_models') or []
             final_width = (

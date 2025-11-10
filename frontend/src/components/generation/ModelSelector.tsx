@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   Box,
   FormControl,
+  FormHelperText,
   InputLabel,
   Select,
   MenuItem,
@@ -49,6 +50,7 @@ interface ModelSelectorProps {
   onCheckpointChange: (model: string) => void
   loraModels: LoraModel[]
   onLoraModelsChange: (models: LoraModel[]) => void
+  validationError?: string
   sx?: any
 }
 
@@ -57,6 +59,7 @@ export function ModelSelector({
   onCheckpointChange,
   loraModels,
   onLoraModelsChange,
+  validationError,
   sx,
 }: ModelSelectorProps) {
   const [loraDialogOpen, setLoraDialogOpen] = useState(false)
@@ -242,7 +245,7 @@ export function ModelSelector({
   return (
     <Box sx={sx}>
       {/* Checkpoint Model Selection */}
-      <FormControl fullWidth sx={{ mb: 2 }} data-testid="model-selector">
+      <FormControl fullWidth sx={{ mb: 2 }} error={!!validationError} data-testid="model-selector">
         <InputLabel>Checkpoint Model</InputLabel>
         <Select
           value={checkpointModel}
@@ -264,6 +267,7 @@ export function ModelSelector({
             )
           })}
         </Select>
+        {validationError && <FormHelperText>{validationError}</FormHelperText>}
       </FormControl>
 
       {/* LoRA Models */}

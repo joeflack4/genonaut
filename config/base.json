@@ -19,6 +19,8 @@
   "comfyui-mock-models-dir": "test/_infra/mock_services/comfyui/models",
   "comfyui-mock-port": 8189,
   "celery-result-backend-template-string": "redis://:${REDIS_PASSWORD}@localhost:6379/2",
+  "model-file-extensions-loras": [".safetensors", ".pt"],
+  "model-file-extensions-checkpoints": [".safetensors", ".ckpt"],
   "seed-data": {
     "main": "io/input/init/rdbms",
     "demo": "io/input/init/demo_rdbms",
