@@ -268,6 +268,33 @@ export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelReq
     setErrorState({ type: 'none' })
   }
 
+  const handleAddTriggerWords = (triggerWords: string[]) => {
+    if (!triggerWords || triggerWords.length === 0) return
+
+    // Format trigger words as comma-separated plain text
+    const triggerWordsText = triggerWords.join(', ')
+
+    setPrompt(currentPrompt => {
+      const trimmedPrompt = currentPrompt.trim()
+
+      // If prompt is empty, just add the trigger words
+      if (!trimmedPrompt) {
+        return triggerWordsText
+      }
+
+      // Check if prompt ends with comma (optionally followed by whitespace)
+      const endsWithComma = /,\s*$/.test(trimmedPrompt)
+
+      if (endsWithComma) {
+        // Already ends with comma, just add the trigger words with a space
+        return `${trimmedPrompt} ${triggerWordsText}`
+      } else {
+        // Doesn't end with comma, add comma + space + trigger words
+        return `${trimmedPrompt}, ${triggerWordsText}`
+      }
+    })
+  }
+
   const handleSubmissionError = (error: unknown) => {
     if (error instanceof ApiError) {
       if (error.status === 503) {
@@ -380,6 +407,7 @@ export function GenerationForm({ onGenerationStart, onTimeoutChange, onCancelReq
         onCheckpointChange={setCheckpointModel}
         loraModels={loraModels}
         onLoraModelsChange={setLoraModels}
+        onAddTriggerWords={handleAddTriggerWords}
         validationError={fieldErrors.checkpoint}
         sx={{ mb: 3 }}
       />

@@ -57,6 +57,7 @@ interface ModelSelectorProps {
   onCheckpointChange: (model: string) => void
   loraModels: LoraModel[]
   onLoraModelsChange: (models: LoraModel[]) => void
+  onAddTriggerWords?: (triggerWords: string[]) => void
   validationError?: string
   sx?: any
 }
@@ -66,6 +67,7 @@ export function ModelSelector({
   onCheckpointChange,
   loraModels,
   onLoraModelsChange,
+  onAddTriggerWords,
   validationError,
   sx,
 }: ModelSelectorProps) {
@@ -348,6 +350,26 @@ export function ModelSelector({
                       size="small"
                     />
                   </Box>
+                  {onAddTriggerWords && (() => {
+                    // Find the full LoRA data to get trigger words
+                    const fullLoraData = lorasData?.items?.find(l => l.path === lora.name)
+                    const hasTriggerWords = fullLoraData?.triggerWords && fullLoraData.triggerWords.length > 0
+
+                    if (hasTriggerWords) {
+                      return (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => onAddTriggerWords(fullLoraData.triggerWords)}
+                          sx={{ mt: 1 }}
+                          data-testid={`add-trigger-words-button-${index}`}
+                        >
+                          Add trigger words
+                        </Button>
+                      )
+                    }
+                    return null
+                  })()}
                 </Box>
               </Grid>
             ))}
