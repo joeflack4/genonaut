@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from genonaut.api.config import get_settings
 from genonaut.api.dependencies import get_database_session
-from genonaut.api.routes import content, content_auto, generation, interactions, recommendations, system, users, comfyui, images, tags, admin_flagged_content, websocket, notifications, checkpoint_models, lora_models, user_search_history, analytics, generation_analytics
+from genonaut.api.routes import content, content_auto, generation, interactions, recommendations, system, users, comfyui, images, tags, admin_flagged_content, websocket, notifications, checkpoint_models, lora_models, user_search_history, analytics, generation_analytics, bookmarks, bookmark_categories
 from genonaut.api.context import build_request_context, reset_request_context, set_request_context
 from genonaut.api.exceptions import StatementTimeoutError
 from genonaut.api.middleware.route_analytics import RouteAnalyticsMiddleware
@@ -115,6 +115,8 @@ def create_app() -> FastAPI:
     app.include_router(comfyui.router)
     app.include_router(images.router)
     app.include_router(tags.router)
+    app.include_router(bookmarks.router)
+    app.include_router(bookmark_categories.router)
     app.include_router(admin_flagged_content.router)
     app.include_router(notifications.router)
     app.include_router(checkpoint_models.router)

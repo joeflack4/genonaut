@@ -379,3 +379,87 @@ class NotificationListRequest(BaseModel):
         None,
         description="Optional list of notification types to filter by"
     )
+
+
+# Bookmark request models
+class BookmarkCreateRequest(BaseModel):
+    """Request model for creating a bookmark."""
+    content_id: int = Field(..., gt=0, description="Content item ID to bookmark")
+    content_source_type: str = Field(..., pattern="^(items|auto)$", description="Content source type ('items' or 'auto')")
+    note: Optional[str] = Field(None, max_length=5000, description="Optional note about the bookmark")
+    pinned: bool = Field(False, description="Whether the bookmark is pinned")
+    is_public: bool = Field(False, description="Whether the bookmark is public")
+
+
+class BookmarkUpdateRequest(BaseModel):
+    """Request model for updating a bookmark."""
+    note: Optional[str] = Field(None, max_length=5000, description="New note for the bookmark")
+    pinned: Optional[bool] = Field(None, description="New pinned status")
+    is_public: Optional[bool] = Field(None, description="New public status")
+
+
+class BookmarkListRequest(BaseModel):
+    """Request model for listing bookmarks."""
+    pinned: Optional[bool] = Field(None, description="Filter by pinned status")
+    is_public: Optional[bool] = Field(None, description="Filter by public status")
+    category_id: Optional[UUID] = Field(None, description="Filter by category ID")
+    skip: int = Field(0, ge=0, description="Number of records to skip")
+    limit: int = Field(100, ge=1, le=1000, description="Maximum number of records to return")
+    cursor: Optional[str] = Field(None, description="Cursor for cursor-based pagination")
+    sort_field: Optional[str] = Field("created_at", description="Field to sort by")
+    sort_order: str = Field("desc", pattern="^(asc|desc)$", description="Sort order")
+
+
+# Bookmark category request models
+class BookmarkCategoryCreateRequest(BaseModel):
+    """Request model for creating a bookmark category."""
+    name: str = Field(..., min_length=1, max_length=100, description="Category name")
+    description: Optional[str] = Field(None, max_length=2000, description="Category description")
+    color: Optional[str] = Field(None, pattern="^#[0-9A-Fa-f]{6}$", description="Hex color code for category")
+    icon: Optional[str] = Field(None, max_length=50, description="Icon identifier for category")
+    cover_content_id: Optional[int] = Field(None, gt=0, description="Content item ID to use as cover")
+    cover_content_source_type: Optional[str] = Field(None, pattern="^(items|auto)$", description="Cover content source type")
+    parent_id: Optional[UUID] = Field(None, description="Parent category ID for hierarchical organization")
+    sort_index: Optional[int] = Field(None, description="Sort index for manual ordering")
+    is_public: bool = Field(False, description="Whether the category is public")
+
+    @validator('cover_content_source_type')
+    def validate_cover_source(cls, v, values):
+        if v is not None and 'cover_content_id' not in values:
+            raise ValueError('cover_content_source_type requires cover_content_id')
+        return v
+
+
+class BookmarkCategoryUpdateRequest(BaseModel):
+    """Request model for updating a bookmark category."""
+    name: Optional[str] = Field(None, min_length=1, max_length=100, description="New category name")
+    description: Optional[str] = Field(None, max_length=2000, description="New category description")
+    color: Optional[str] = Field(None, pattern="^#[0-9A-Fa-f]{6}$", description="New hex color code")
+    icon: Optional[str] = Field(None, max_length=50, description="New icon identifier")
+    cover_content_id: Optional[int] = Field(None, gt=0, description="New cover content item ID")
+    cover_content_source_type: Optional[str] = Field(None, pattern="^(items|auto)$", description="New cover content source type")
+    parent_id: Optional[UUID] = Field(None, description="New parent category ID")
+    sort_index: Optional[int] = Field(None, description="New sort index")
+    is_public: Optional[bool] = Field(None, description="New public status")
+
+
+class BookmarkCategoryListRequest(BaseModel):
+    """Request model for listing bookmark categories."""
+    parent_id: Optional[UUID] = Field(None, description="Filter by parent category ID")
+    is_public: Optional[bool] = Field(None, description="Filter by public status")
+    skip: int = Field(0, ge=0, description="Number of records to skip")
+    limit: int = Field(100, ge=1, le=1000, description="Maximum number of records to return")
+    sort_field: Optional[str] = Field("sort_index", description="Field to sort by")
+    sort_order: str = Field("asc", pattern="^(asc|desc)$", description="Sort order")
+
+
+# Category membership request models
+class CategoryMembershipAddRequest(BaseModel):
+    """Request model for adding a bookmark to a category."""
+    category_id: UUID = Field(..., description="Category ID to add bookmark to")
+    position: Optional[int] = Field(None, description="Position within the category")
+
+
+class CategoryMembershipUpdateRequest(BaseModel):
+    """Request model for updating bookmark position in a category."""
+    position: int = Field(..., ge=0, description="New position within the category")

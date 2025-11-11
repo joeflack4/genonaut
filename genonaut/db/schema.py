@@ -8,7 +8,7 @@ from typing import Optional, Union, Tuple, Dict, Any, List
 from sqlalchemy import (
     Column, Identity, Integer, BigInteger, SmallInteger, String, Text, DateTime, Float, Boolean,
     ForeignKey, JSON, UniqueConstraint, Index, event, func, literal_column, DDL, ARRAY, Table,
-    Sequence, text,
+    Sequence, text, ForeignKeyConstraint, PrimaryKeyConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship, declarative_base, declared_attr
@@ -1426,6 +1426,210 @@ class GenerationMetricsHourly(Base):
         Index("idx_gen_metrics_timestamp", timestamp.desc()),
         # Unique constraint for idempotent hourly aggregation
         UniqueConstraint('timestamp', name='uq_generation_metrics_hourly_timestamp'),
+    )
+
+
+class Bookmark(Base):
+    """User bookmark model for favoriting content items.
+
+    Allows users to save/favorite content items with optional notes and settings.
+
+    Attributes:
+        id: Primary key (UUID)
+        user_id: Foreign key to users table
+        content_id: Foreign key to content_items_all table (with source_type)
+        content_source_type: Source type ('items' or 'auto') for partitioned FK
+        note: Optional text note about the bookmark
+        pinned: Whether bookmark is pinned to the top (default False)
+        is_public: Whether bookmark is publicly visible (default False)
+        created_at: Timestamp when bookmark was created
+        updated_at: Timestamp when bookmark was last updated
+        deleted_at: Timestamp when bookmark was soft deleted (nullable)
+    """
+    __tablename__ = 'bookmarks'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
+    content_id = Column(BigInteger, nullable=False, index=True)
+    content_source_type = Column(Text, nullable=False)  # 'items' or 'auto'
+    note = Column(Text, nullable=True)
+    pinned = Column(Boolean, default=False, nullable=False)
+    is_public = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+    def __repr__(self) -> str:
+        """Return a readable string representation of the Bookmark."""
+        return (f"Bookmark(id={self.id}, user_id={self.user_id}, "
+                f"content_id={self.content_id}, source_type='{self.content_source_type}', pinned={self.pinned})")
+
+    # Relationships
+    user = relationship("User", backref="bookmarks")
+    content = relationship("ContentItemAll",
+                          foreign_keys=[content_id, content_source_type],
+                          primaryjoin="and_(Bookmark.content_id == ContentItemAll.id, "
+                                     "Bookmark.content_source_type == ContentItemAll.source_type)",
+                          viewonly=True)
+
+    # Constraints and indexes
+    __table_args__ = (
+        # Composite FK to content_items_all (partitioned table)
+        ForeignKeyConstraint(
+            ['content_id', 'content_source_type'],
+            ['content_items_all.id', 'content_items_all.source_type'],
+            name='fk_bookmark_content'
+        ),
+        # Unique constraint: one user can only bookmark a content item once
+        UniqueConstraint('user_id', 'content_id', 'content_source_type', name='uq_bookmark_user_content'),
+        # Composite unique constraint for user_id enforcement on joins
+        UniqueConstraint('id', 'user_id', name='uq_bookmark_id_user'),
+        # Indexes for common queries
+        Index("idx_bookmarks_user_created", user_id, created_at.desc()),
+        Index("idx_bookmarks_user_pinned", user_id, pinned, created_at.desc()),
+        Index("idx_bookmarks_is_public", is_public),
+        Index("idx_bookmarks_content", content_id, content_source_type),
+        # Index for soft delete queries (non-deleted bookmarks)
+        Index("idx_bookmarks_user_not_deleted", user_id, created_at.desc(),
+              postgresql_where=text('deleted_at IS NULL')),
+    )
+
+
+class BookmarkCategory(Base):
+    """User-defined categories for organizing bookmarks.
+
+    Supports hierarchical categories (parent-child relationships) with
+    customization options like colors, icons, and cover images.
+
+    Attributes:
+        id: Primary key (UUID)
+        user_id: Foreign key to users table
+        name: Category name (max 100 characters)
+        description: Optional longer description
+        color_hex: Hex color code for UI display (e.g., #FF5733)
+        icon: Icon identifier (max 64 characters)
+        cover_content_id: Optional FK to content_items_all for cover image
+        cover_content_source_type: Source type for cover content ('items' or 'auto')
+        parent_id: Optional self-referential FK for hierarchical categories
+        sort_index: Integer for manual sorting order
+        is_public: Whether category is publicly visible (default False)
+        share_token: Optional UUID for public/secret sharing link
+        created_at: Timestamp when category was created
+        updated_at: Timestamp when category was last updated
+    """
+    __tablename__ = 'bookmark_categories'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    color_hex = Column(String(7), nullable=True)  # e.g., #FF5733
+    icon = Column(String(64), nullable=True)
+    cover_content_id = Column(BigInteger, nullable=True)
+    cover_content_source_type = Column(Text, nullable=True)  # 'items' or 'auto'
+    parent_id = Column(UUID(as_uuid=True), nullable=True)  # Self-referential FK defined below
+    sort_index = Column(Integer, nullable=True)
+    is_public = Column(Boolean, default=False, nullable=False)
+    share_token = Column(UUID(as_uuid=True), nullable=True, unique=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        """Return a readable string representation of the BookmarkCategory."""
+        return (f"BookmarkCategory(id={self.id}, user_id={self.user_id}, "
+                f"name='{self.name}', parent_id={self.parent_id})")
+
+    # Relationships
+    user = relationship("User", backref="bookmark_categories")
+    cover_content = relationship("ContentItemAll",
+                                foreign_keys=[cover_content_id, cover_content_source_type],
+                                primaryjoin="and_(BookmarkCategory.cover_content_id == ContentItemAll.id, "
+                                           "BookmarkCategory.cover_content_source_type == ContentItemAll.source_type)",
+                                viewonly=True)
+    # Self-referential relationship for parent-child hierarchy
+    children = relationship("BookmarkCategory", backref="parent", remote_side=[id])
+
+    # Constraints and indexes
+    __table_args__ = (
+        # Composite FK to content_items_all for cover image (partitioned table)
+        ForeignKeyConstraint(
+            ['cover_content_id', 'cover_content_source_type'],
+            ['content_items_all.id', 'content_items_all.source_type'],
+            name='fk_bookmark_category_cover_content'
+        ),
+        # Composite unique constraint for user_id enforcement on joins
+        UniqueConstraint('id', 'user_id', name='uq_bookmark_category_id_user'),
+        # Optional: Unique constraint on (user_id, name, parent_id)
+        # This prevents duplicate category names at the same hierarchy level
+        UniqueConstraint('user_id', 'name', 'parent_id', name='uq_bookmark_category_user_name_parent'),
+        # Self-referential FK constraint to ensure parent is from same user
+        ForeignKeyConstraint(
+            ['parent_id', 'user_id'],
+            ['bookmark_categories.id', 'bookmark_categories.user_id'],
+            name='fk_bookmark_category_parent_same_user',
+            ondelete='SET NULL'
+        ),
+        # Indexes for common queries
+        Index("idx_bookmark_categories_user_created", user_id, created_at.desc()),
+        Index("idx_bookmark_categories_parent", parent_id),
+        Index("idx_bookmark_categories_user_sort", user_id, sort_index),
+        Index("idx_bookmark_categories_share_token", share_token),
+    )
+
+
+class BookmarkCategoryMember(Base):
+    """Many-to-many relationship table linking bookmarks to categories.
+
+    A bookmark can belong to multiple categories, and a category can contain
+    multiple bookmarks. This table also tracks position for manual ordering
+    within categories.
+
+    Attributes:
+        bookmark_id: Foreign key to bookmarks table (part of composite PK)
+        category_id: Foreign key to bookmark_categories table (part of composite PK)
+        user_id: Derived user_id to enforce same-user constraint (NOT NULL)
+        position: Integer position for manual ordering within category
+        added_at: Timestamp when bookmark was added to category
+    """
+    __tablename__ = 'bookmark_category_members'
+
+    bookmark_id = Column(UUID(as_uuid=True), nullable=False, primary_key=True)
+    category_id = Column(UUID(as_uuid=True), nullable=False, primary_key=True)
+    user_id = Column(UUID(as_uuid=True), nullable=False)  # Enforces same-user constraint
+    position = Column(Integer, nullable=True)  # For manual ordering within category
+    added_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        """Return a readable string representation of the BookmarkCategoryMember."""
+        return (f"BookmarkCategoryMember(bookmark_id={self.bookmark_id}, "
+                f"category_id={self.category_id}, position={self.position})")
+
+    # Relationships
+    bookmark = relationship("Bookmark", backref="category_memberships")
+    category = relationship("BookmarkCategory", backref="bookmark_memberships")
+
+    # Constraints and indexes
+    __table_args__ = (
+        # Composite foreign key to bookmarks (id, user_id) to ensure same-user constraint
+        ForeignKeyConstraint(
+            ['bookmark_id', 'user_id'],
+            ['bookmarks.id', 'bookmarks.user_id'],
+            name='fk_bookmark_member_bookmark_same_user',
+            ondelete='CASCADE'
+        ),
+        # Composite foreign key to bookmark_categories (id, user_id) to ensure same-user constraint
+        ForeignKeyConstraint(
+            ['category_id', 'user_id'],
+            ['bookmark_categories.id', 'bookmark_categories.user_id'],
+            name='fk_bookmark_member_category_same_user',
+            ondelete='CASCADE'
+        ),
+        # Index for querying bookmarks by category
+        Index("idx_bookmark_members_category", 'category_id'),
+        # Index for querying categories by bookmark
+        Index("idx_bookmark_members_bookmark", 'bookmark_id'),
+        # Index for user queries
+        Index("idx_bookmark_members_user", 'user_id'),
     )
 
 

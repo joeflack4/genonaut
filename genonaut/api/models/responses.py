@@ -698,3 +698,111 @@ class LoraModelListResponse(BaseModel):
     pagination: Optional[LoraModelPaginationMeta] = Field(None, description="Pagination metadata")
 
     model_config = {"from_attributes": True}
+
+
+# Bookmark response models
+class BookmarkResponse(BaseModel):
+    """Response model for bookmark data."""
+    id: UUID = Field(..., description="Bookmark ID")
+    user_id: UUID = Field(..., description="User ID")
+    content_id: int = Field(..., description="Content item ID")
+    content_source_type: str = Field(..., description="Content source type ('items' or 'auto')")
+    note: Optional[str] = Field(None, description="Bookmark note")
+    pinned: bool = Field(..., description="Whether bookmark is pinned")
+    is_public: bool = Field(..., description="Whether bookmark is public")
+    created_at: datetime = Field(..., description="Creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
+
+    model_config = {"from_attributes": True}
+
+
+class BookmarkListResponse(BaseModel):
+    """Response model for list of bookmarks."""
+    items: List[BookmarkResponse] = Field(..., description="List of bookmarks")
+    total: int = Field(..., description="Total number of bookmarks")
+    skip: int = Field(..., description="Number of records skipped")
+    limit: int = Field(..., description="Maximum number of records returned")
+
+    model_config = {"from_attributes": True}
+
+
+class BookmarkWithContentResponse(BookmarkResponse):
+    """Bookmark response with content details."""
+    content: Optional[ContentResponse] = Field(None, description="Bookmarked content details")
+
+
+# Bookmark category response models
+class BookmarkCategoryResponse(BaseModel):
+    """Response model for bookmark category data."""
+    id: UUID = Field(..., description="Category ID")
+    user_id: UUID = Field(..., description="User ID")
+    name: str = Field(..., description="Category name")
+    description: Optional[str] = Field(None, description="Category description")
+    color: Optional[str] = Field(None, description="Category hex color code")
+    icon: Optional[str] = Field(None, description="Category icon identifier")
+    cover_content_id: Optional[int] = Field(None, description="Cover content item ID")
+    cover_content_source_type: Optional[str] = Field(None, description="Cover content source type")
+    parent_id: Optional[UUID] = Field(None, description="Parent category ID")
+    sort_index: Optional[int] = Field(None, description="Sort index for ordering")
+    is_public: bool = Field(..., description="Whether category is public")
+    share_token: Optional[UUID] = Field(None, description="Share token for public access")
+    created_at: datetime = Field(..., description="Creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
+
+    model_config = {"from_attributes": True}
+
+
+class BookmarkCategoryListResponse(BaseModel):
+    """Response model for list of bookmark categories."""
+    items: List[BookmarkCategoryResponse] = Field(..., description="List of categories")
+    total: int = Field(..., description="Total number of categories")
+    skip: int = Field(..., description="Number of records skipped")
+    limit: int = Field(..., description="Maximum number of records returned")
+
+    model_config = {"from_attributes": True}
+
+
+class BookmarkCategoryWithChildrenResponse(BookmarkCategoryResponse):
+    """Category response with child categories."""
+    children: List[BookmarkCategoryResponse] = Field(default_factory=list, description="Child categories")
+
+
+class BookmarkCategoryTreeNode(BaseModel):
+    """Response model for a category tree node."""
+    id: UUID = Field(..., description="Category ID")
+    name: str = Field(..., description="Category name")
+    description: Optional[str] = Field(None, description="Category description")
+    color: Optional[str] = Field(None, description="Category hex color code")
+    icon: Optional[str] = Field(None, description="Category icon identifier")
+    parent_id: Optional[UUID] = Field(None, description="Parent category ID")
+    sort_index: Optional[int] = Field(None, description="Sort index")
+    children: List['BookmarkCategoryTreeNode'] = Field(default_factory=list, description="Child categories")
+
+    model_config = {"from_attributes": True}
+
+
+# Category membership response models
+class CategoryMembershipResponse(BaseModel):
+    """Response model for category membership data."""
+    bookmark_id: UUID = Field(..., description="Bookmark ID")
+    category_id: UUID = Field(..., description="Category ID")
+    user_id: UUID = Field(..., description="User ID")
+    position: Optional[int] = Field(None, description="Position within category")
+    created_at: datetime = Field(..., description="Creation timestamp")
+
+    model_config = {"from_attributes": True}
+
+
+class CategoryMembershipListResponse(BaseModel):
+    """Response model for list of category memberships."""
+    items: List[CategoryMembershipResponse] = Field(..., description="List of category memberships")
+    total: int = Field(..., description="Total number of memberships")
+
+    model_config = {"from_attributes": True}
+
+
+class BookmarksInCategoryResponse(BaseModel):
+    """Response model for bookmarks in a category."""
+    category: BookmarkCategoryResponse = Field(..., description="Category details")
+    bookmarks: List[BookmarkResponse] = Field(..., description="Bookmarks in the category")
+    total: int = Field(..., description="Total number of bookmarks in category")
