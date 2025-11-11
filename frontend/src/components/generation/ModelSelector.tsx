@@ -74,7 +74,7 @@ export function ModelSelector({
   const [loraDialogOpen, setLoraDialogOpen] = useState(false)
   const [loraSearch, setLoraSearch] = useState('')
   const [loraPage, setLoraPage] = useState(0) // MUI TablePagination uses 0-indexed pages
-  const [sortField, setSortField] = useState<'name' | 'rating'>('rating')
+  const [sortField, setSortField] = useState<'name' | 'rating' | 'family' | 'category' | 'compatible' | 'optimal' | 'selected'>('rating')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [showOnlyCompatible, setShowOnlyCompatible] = useState(false)
   const [showOnlyOptimal, setShowOnlyOptimal] = useState(false)
@@ -184,14 +184,18 @@ export function ModelSelector({
     setLoraPage(0)
   }, [showOnlyCompatible, showOnlyOptimal, loraSearch])
 
-  const handleSortChange = (field: 'name' | 'rating') => {
+  const handleSortChange = (field: 'name' | 'rating' | 'family' | 'category' | 'compatible' | 'optimal' | 'selected') => {
     if (sortField === field) {
       // Toggle sort order if clicking the same field
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
     } else {
       // Set new field with its default sort order
       setSortField(field)
-      setSortOrder(field === 'rating' ? 'desc' : 'asc')
+      // Boolean fields (compatible, optimal, selected) default to desc (true first)
+      // Rating defaults to desc (highest first)
+      // Other fields default to asc (alphabetical)
+      const defaultOrder = ['rating', 'compatible', 'optimal', 'selected'].includes(field) ? 'desc' : 'asc'
+      setSortOrder(defaultOrder)
     }
   }
 
@@ -225,11 +229,36 @@ export function ModelSelector({
         const ratingA = a.rating ?? 0
         const ratingB = b.rating ?? 0
         comparison = ratingA - ratingB
-      } else {
+      } else if (sortField === 'name') {
         // Sort by name
         const nameA = (a.name || a.filename || a.path).toLowerCase()
         const nameB = (b.name || b.filename || b.path).toLowerCase()
         comparison = nameA.localeCompare(nameB)
+      } else if (sortField === 'family') {
+        // Sort by family (compatible architectures)
+        const familyA = (a.compatibleArchitectures || '').toLowerCase()
+        const familyB = (b.compatibleArchitectures || '').toLowerCase()
+        comparison = familyA.localeCompare(familyB)
+      } else if (sortField === 'category') {
+        // Sort by category (family field in the data)
+        const categoryA = (a.family || '').toLowerCase()
+        const categoryB = (b.family || '').toLowerCase()
+        comparison = categoryA.localeCompare(categoryB)
+      } else if (sortField === 'compatible') {
+        // Sort by compatibility: true > false > null/undefined
+        const compatA = a.isCompatible === true ? 2 : a.isCompatible === false ? 1 : 0
+        const compatB = b.isCompatible === true ? 2 : b.isCompatible === false ? 1 : 0
+        comparison = compatA - compatB
+      } else if (sortField === 'optimal') {
+        // Sort by optimality: true > false > null/undefined
+        const optimalA = a.isOptimal === true ? 2 : a.isOptimal === false ? 1 : 0
+        const optimalB = b.isOptimal === true ? 2 : b.isOptimal === false ? 1 : 0
+        comparison = optimalA - optimalB
+      } else if (sortField === 'selected') {
+        // Sort by selected status
+        const isSelectedA = loraModels.some(l => l.name === a.path)
+        const isSelectedB = loraModels.some(l => l.name === b.path)
+        comparison = (isSelectedA ? 1 : 0) - (isSelectedB ? 1 : 0)
       }
 
       return sortOrder === 'asc' ? comparison : -comparison
@@ -442,11 +471,64 @@ export function ModelSelector({
                     </Box>
                   </TableCell>
                   <TableCell>Description</TableCell>
-                  <TableCell>Arch</TableCell>
-                  <TableCell>Category</TableCell>
-                  <TableCell align="center" sx={{ width: 100 }}>Compatible</TableCell>
-                  <TableCell align="center" sx={{ width: 100 }}>Optimal</TableCell>
-                  <TableCell align="center" sx={{ width: 100 }}>Selected</TableCell>
+                  <TableCell
+                    onClick={() => handleSortChange('family')}
+                    sx={{ cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      Family
+                      {sortField === 'family' && (
+                        sortOrder === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell
+                    onClick={() => handleSortChange('category')}
+                    sx={{ cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      Category
+                      {sortField === 'category' && (
+                        sortOrder === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell
+                    onClick={() => handleSortChange('compatible')}
+                    align="center"
+                    sx={{ width: 100, cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
+                      Compatible
+                      {sortField === 'compatible' && (
+                        sortOrder === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell
+                    onClick={() => handleSortChange('optimal')}
+                    align="center"
+                    sx={{ width: 100, cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
+                      Optimal
+                      {sortField === 'optimal' && (
+                        sortOrder === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell
+                    onClick={() => handleSortChange('selected')}
+                    align="center"
+                    sx={{ width: 100, cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
+                      Selected
+                      {sortField === 'selected' && (
+                        sortOrder === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
+                      )}
+                    </Box>
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

@@ -112,17 +112,17 @@ class LoraModelService:
         Returns:
             True if compatible, False if incompatible, None if unknown
         """
-        if not checkpoint or not checkpoint.architecture:
+        if not checkpoint or not checkpoint.family:
             return None
 
         if not lora.compatible_architectures:
             return None
 
-        # Case-insensitive exact match
-        checkpoint_arch = checkpoint.architecture.lower().strip()
+        # Case-insensitive exact match against checkpoint family
+        checkpoint_family = checkpoint.family.lower().strip()
         lora_arch = lora.compatible_architectures.lower().strip()
 
-        return checkpoint_arch == lora_arch
+        return checkpoint_family == lora_arch
 
     def _check_optimality(self, lora: LoraModel, checkpoint: Optional[CheckpointModel]) -> Optional[bool]:
         """Check if LoRA is optimal for checkpoint.
