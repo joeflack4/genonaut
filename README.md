@@ -12,6 +12,7 @@ Core features
 - **Browse & Catalogue**: Browse, search, filter, rate, and tag.
 - **Advanced Search**: Search with quoted phrases for exact matching, full search history with management UI. See [Search Documentation](docs/search.md).
 - **Tag System**: Hierarchical tag organization with 127+ curated tags, polyhierarchy support, and gallery filtering.
+- **Bookmarks & Favorites**: Save and organize your favorite images into hierarchical categories. Pin important bookmarks, add notes, control privacy, and sort by rating or date. Automatically creates an "Uncategorized" category for easy organization.
 - **Recommenders**: Automatically generate works based on your preferences and use cases. Explore novel combinations /
 directions.
 - **Community**: Browse and auto-generate based on popular community trends, and other users like you.

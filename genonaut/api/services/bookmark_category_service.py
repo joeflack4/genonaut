@@ -44,9 +44,14 @@ class BookmarkCategoryService:
         limit: int = 100,
         parent_id: Optional[UUID] = None,
         is_public: Optional[bool] = None,
-        sort_by_index: bool = True
+        sort_by_index: bool = True,
+        sort_field: str = "updated_at",
+        sort_order: str = "desc"
     ) -> List[BookmarkCategory]:
-        """Get categories for a user with optional filtering.
+        """Get categories for a user with optional filtering and sorting.
+
+        If the user has no categories at all (and no filters are applied),
+        automatically creates an 'Uncategorized' category.
 
         Args:
             user_id: User ID
@@ -54,7 +59,9 @@ class BookmarkCategoryService:
             limit: Maximum number of records to return
             parent_id: Optional filter by parent category ID
             is_public: Optional filter by public status
-            sort_by_index: If True, sort by sort_index; otherwise by created_at
+            sort_by_index: Deprecated - use sort_field instead
+            sort_field: Field to sort by (updated_at, created_at, name, sort_index)
+            sort_order: Sort order (asc or desc)
 
         Returns:
             List of user categories
@@ -64,13 +71,40 @@ class BookmarkCategoryService:
         """
         # Verify user exists
         self.user_repo.get_or_404(user_id)
+
+        # Only auto-create "Uncategorized" when no filters are applied
+        if parent_id is None and is_public is None:
+            # Check if user has any categories
+            total_count = self.category_repo.count_by_user(user_id)
+
+            # If user has no categories, create "Uncategorized"
+            if total_count == 0:
+                # Create with minimal required fields only
+                category_data = {
+                    'user_id': user_id,
+                    'name': 'Uncategorized',
+                    'description': 'Default category for uncategorized bookmarks',
+                    'is_public': False,
+                    'created_at': datetime.utcnow(),
+                    'updated_at': datetime.utcnow()
+                }
+                uncategorized = self.category_repo.create(category_data)
+                # Return just the newly created category if on first page
+                if skip == 0:
+                    return [uncategorized]
+                else:
+                    return []
+
+        # Get categories normally
         return self.category_repo.get_by_user(
             user_id,
             skip=skip,
             limit=limit,
             parent_id=parent_id,
             is_public=is_public,
-            sort_by_index=sort_by_index
+            sort_by_index=sort_by_index,
+            sort_field=sort_field,
+            sort_order=sort_order
         )
 
     def count_user_categories(
@@ -148,7 +182,7 @@ class BookmarkCategoryService:
             'user_id': user_id,
             'name': name,
             'description': description,
-            'color': color,
+            'color_hex': color,
             'icon': icon,
             'cover_content_id': cover_content_id,
             'cover_content_source_type': cover_content_source_type,
@@ -217,7 +251,7 @@ class BookmarkCategoryService:
         if description is not None:
             update_data['description'] = description
         if color is not None:
-            update_data['color'] = color
+            update_data['color_hex'] = color
         if icon is not None:
             update_data['icon'] = icon
         if cover_content_id is not None:
@@ -243,21 +277,68 @@ class BookmarkCategoryService:
 
         return self.category_repo.update(category_id, update_data)
 
-    def delete_category(self, category_id: UUID) -> bool:
-        """Delete a category.
-
-        Note: Child categories and memberships will be handled by database cascade rules.
-        Application should handle re-parenting children if desired before deleting.
+    def delete_category(
+        self,
+        category_id: UUID,
+        target_category_id: Optional[UUID] = None,
+        delete_all: bool = False
+    ) -> bool:
+        """Delete a category with optional bookmark migration.
 
         Args:
-            category_id: Category ID
+            category_id: Category ID to delete
+            target_category_id: Optional category ID to move bookmarks to (defaults to 'Uncategorized')
+            delete_all: If True, delete all bookmarks instead of moving them
 
         Returns:
             True if deleted successfully
 
         Raises:
             EntityNotFoundError: If category not found
+            ValidationError: If trying to delete 'Uncategorized' or invalid target category
         """
+        # Get category to verify it exists and check name
+        category = self.category_repo.get_or_404(category_id)
+
+        # Protect 'Uncategorized' from deletion
+        if category.name == 'Uncategorized':
+            raise ValidationError("Cannot delete the 'Uncategorized' category")
+
+        # Handle bookmarks in this category
+        if not delete_all:
+            # Move bookmarks to target category (or 'Uncategorized' by default)
+            if target_category_id is None:
+                # Find or create 'Uncategorized' category
+                uncategorized = self.category_repo.get_by_user_and_name(
+                    category.user_id, 'Uncategorized', None
+                )
+                if uncategorized is None:
+                    # Create 'Uncategorized' if it doesn't exist
+                    from datetime import datetime
+                    category_data = {
+                        'user_id': category.user_id,
+                        'name': 'Uncategorized',
+                        'description': 'Default category for uncategorized bookmarks',
+                        'is_public': False,
+                        'created_at': datetime.utcnow(),
+                        'updated_at': datetime.utcnow()
+                    }
+                    uncategorized = self.category_repo.create(category_data)
+                target_category_id = uncategorized.id
+            else:
+                # Verify target category exists and belongs to same user
+                target_category = self.category_repo.get_or_404(target_category_id)
+                if target_category.user_id != category.user_id:
+                    raise ValidationError("Target category must belong to the same user")
+
+            # Move all bookmarks from this category to target category
+            self.member_repo.move_bookmarks_to_category(category_id, target_category_id)
+        else:
+            # Delete all bookmark memberships (bookmarks will be deleted by cascade if needed)
+            # Note: The database cascade rules will handle this automatically
+            pass
+
+        # Delete the category (cascade will handle child categories and memberships)
         return self.category_repo.delete(category_id)
 
     def get_root_categories(

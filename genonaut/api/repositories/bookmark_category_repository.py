@@ -24,9 +24,11 @@ class BookmarkCategoryRepository(BaseRepository[BookmarkCategory, Dict[str, Any]
         limit: int = 100,
         parent_id: Optional[UUID] = None,
         is_public: Optional[bool] = None,
-        sort_by_index: bool = True
+        sort_by_index: bool = True,
+        sort_field: str = "updated_at",
+        sort_order: str = "desc"
     ) -> List[BookmarkCategory]:
-        """Get categories by user with optional filtering.
+        """Get categories by user with optional filtering and sorting.
 
         Args:
             user_id: User ID
@@ -34,7 +36,9 @@ class BookmarkCategoryRepository(BaseRepository[BookmarkCategory, Dict[str, Any]
             limit: Maximum number of records to return
             parent_id: Optional filter by parent category ID (None for root categories)
             is_public: Optional filter by public status
-            sort_by_index: If True, sort by sort_index; otherwise by created_at
+            sort_by_index: Deprecated - use sort_field instead
+            sort_field: Field to sort by (updated_at, created_at, name, sort_index)
+            sort_order: Sort order (asc or desc)
 
         Returns:
             List of user categories
@@ -52,14 +56,33 @@ class BookmarkCategoryRepository(BaseRepository[BookmarkCategory, Dict[str, Any]
                 query = query.filter(BookmarkCategory.is_public == is_public)
 
             # Apply sorting
-            if sort_by_index:
+            order_func = desc if sort_order == "desc" else asc
+
+            # Backward compatibility: if sort_by_index is False, use created_at
+            if not sort_by_index and sort_field == "updated_at":
+                sort_field = "created_at"
+
+            if sort_field == "updated_at":
+                query = query.order_by(order_func(BookmarkCategory.updated_at))
+            elif sort_field == "created_at":
+                query = query.order_by(order_func(BookmarkCategory.created_at))
+            elif sort_field == "name":
+                query = query.order_by(order_func(BookmarkCategory.name))
+            elif sort_field == "sort_index":
                 # Sort by sort_index (nulls last), then by created_at
-                query = query.order_by(
-                    BookmarkCategory.sort_index.asc().nullslast(),
-                    BookmarkCategory.created_at.desc()
-                )
+                if sort_order == "asc":
+                    query = query.order_by(
+                        BookmarkCategory.sort_index.asc().nullslast(),
+                        BookmarkCategory.created_at.desc()
+                    )
+                else:
+                    query = query.order_by(
+                        BookmarkCategory.sort_index.desc().nullsfirst(),
+                        BookmarkCategory.created_at.desc()
+                    )
             else:
-                query = query.order_by(desc(BookmarkCategory.created_at))
+                # Default fallback
+                query = query.order_by(desc(BookmarkCategory.updated_at))
 
             return query.offset(skip).limit(limit).all()
         except SQLAlchemyError as e:

@@ -1,5 +1,6 @@
 """Pydantic request models for the Genonaut API."""
 
+from enum import Enum
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 from pydantic import BaseModel, Field, validator, EmailStr
@@ -398,6 +399,16 @@ class BookmarkUpdateRequest(BaseModel):
     is_public: Optional[bool] = Field(None, description="New public status")
 
 
+class BookmarkSortField(str, Enum):
+    """Sort fields for bookmarks."""
+    USER_RATING_THEN_CREATED = "user_rating_then_created"  # Composite: rating DESC NULLS LAST, then created_at
+    USER_RATING = "user_rating"  # User's rating from user_interactions
+    QUALITY_SCORE = "quality_score"  # Content quality_score
+    DATETIME_ADDED = "datetime_added"  # When bookmark was created
+    DATETIME_CREATED = "datetime_created"  # When content was created
+    ALPHABETICAL = "alphabetical"  # Content title
+
+
 class BookmarkListRequest(BaseModel):
     """Request model for listing bookmarks."""
     pinned: Optional[bool] = Field(None, description="Filter by pinned status")
@@ -406,7 +417,10 @@ class BookmarkListRequest(BaseModel):
     skip: int = Field(0, ge=0, description="Number of records to skip")
     limit: int = Field(100, ge=1, le=1000, description="Maximum number of records to return")
     cursor: Optional[str] = Field(None, description="Cursor for cursor-based pagination")
-    sort_field: Optional[str] = Field("created_at", description="Field to sort by")
+    sort_field: BookmarkSortField = Field(
+        BookmarkSortField.USER_RATING_THEN_CREATED,
+        description="Field to sort by"
+    )
     sort_order: str = Field("desc", pattern="^(asc|desc)$", description="Sort order")
 
 
@@ -443,14 +457,25 @@ class BookmarkCategoryUpdateRequest(BaseModel):
     is_public: Optional[bool] = Field(None, description="New public status")
 
 
+class BookmarkCategorySortField(str, Enum):
+    """Sort fields for bookmark categories."""
+    UPDATED_AT = "updated_at"  # When category was last updated
+    CREATED_AT = "created_at"  # When category was created
+    NAME = "name"  # Alphabetical by category name
+    SORT_INDEX = "sort_index"  # Manual sort index
+
+
 class BookmarkCategoryListRequest(BaseModel):
     """Request model for listing bookmark categories."""
     parent_id: Optional[UUID] = Field(None, description="Filter by parent category ID")
     is_public: Optional[bool] = Field(None, description="Filter by public status")
     skip: int = Field(0, ge=0, description="Number of records to skip")
     limit: int = Field(100, ge=1, le=1000, description="Maximum number of records to return")
-    sort_field: Optional[str] = Field("sort_index", description="Field to sort by")
-    sort_order: str = Field("asc", pattern="^(asc|desc)$", description="Sort order")
+    sort_field: BookmarkCategorySortField = Field(
+        BookmarkCategorySortField.UPDATED_AT,
+        description="Field to sort by"
+    )
+    sort_order: str = Field("desc", pattern="^(asc|desc)$", description="Sort order")
 
 
 # Category membership request models

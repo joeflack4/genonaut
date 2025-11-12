@@ -226,3 +226,77 @@ export interface PaginatedLoraModels {
   total: number
   pagination: LoraModelPaginationMeta
 }
+
+// Bookmark domain types
+export interface Bookmark {
+  id: string  // UUID
+  userId: string  // UUID
+  contentId: number
+  contentSourceType: string  // 'items' or 'auto'
+  note: string | null
+  pinned: boolean
+  isPublic: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BookmarkWithContent extends Bookmark {
+  content: GalleryItem | null
+  userRating: number | null  // 1-5 scale
+}
+
+export interface BookmarkCategory {
+  id: string  // UUID
+  userId: string  // UUID
+  name: string
+  description: string | null
+  color: string | null
+  icon: string | null
+  coverContentId: number | null
+  coverContentSourceType: string | null
+  parentId: string | null  // UUID
+  sortIndex: number | null
+  isPublic: boolean
+  shareToken: string | null  // UUID
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BookmarkCategoryCreateRequest {
+  name: string
+  description?: string
+  color?: string
+  icon?: string
+  parentId?: string  // UUID
+  isPublic?: boolean
+}
+
+export interface BookmarkCategoryUpdateRequest {
+  name?: string
+  description?: string
+  color?: string
+  icon?: string
+  parentId?: string  // UUID
+  sortIndex?: number
+  isPublic?: boolean
+}
+
+export interface BookmarkQueryParams {
+  skip?: number
+  limit?: number
+  pinned?: boolean
+  isPublic?: boolean
+  categoryId?: string  // UUID
+  sortField?: string
+  sortOrder?: 'asc' | 'desc'
+  includeContent?: boolean
+}
+
+export interface BookmarkCategoryQueryParams {
+  skip?: number
+  limit?: number
+  parentId?: string | null  // UUID
+  isPublic?: boolean
+  sortField?: string
+  sortOrder?: 'asc' | 'desc'
+}

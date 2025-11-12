@@ -12,6 +12,8 @@ import { CheckpointModelService } from './checkpoint-model-service'
 import { LoraModelService } from './lora-model-service'
 import { TagService } from './tag-service'
 import { searchHistoryService } from './search-history-service'
+import { BookmarksService } from './bookmarks-service'
+import { BookmarkCategoriesService } from './bookmark-categories-service'
 
 const apiClient = new ApiClient()
 
@@ -27,6 +29,8 @@ export const flaggedContentService = new FlaggedContentService(apiClient)
 export const checkpointModelService = new CheckpointModelService(apiClient)
 export const loraModelService = new LoraModelService(apiClient)
 export const tagService = new TagService(apiClient)
+export const bookmarksService = new BookmarksService(apiClient)
+export const bookmarkCategoriesService = new BookmarkCategoriesService(apiClient)
 export { searchHistoryService }
 
 export type { GalleryListParams } from './gallery-service'

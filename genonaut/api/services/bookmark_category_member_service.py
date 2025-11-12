@@ -1,6 +1,6 @@
 """Bookmark category membership service for business logic."""
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from uuid import UUID
 from sqlalchemy.orm import Session
 
@@ -141,6 +141,55 @@ class BookmarkCategoryMemberService:
             skip=skip,
             limit=limit
         )
+
+    def get_bookmarks_in_category_with_content(
+        self,
+        category_id: UUID,
+        user_id: UUID,
+        skip: int = 0,
+        limit: int = 100,
+        sort_field: str = "user_rating_then_created",
+        sort_order: str = "desc"
+    ) -> List[Dict[str, Any]]:
+        """Get bookmarks in a category with content data and user ratings.
+
+        Args:
+            category_id: Category ID
+            user_id: User ID (for getting user ratings)
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+            sort_field: Field to sort by
+            sort_order: Sort order (asc or desc)
+
+        Returns:
+            List of bookmark dictionaries with content and user_rating
+
+        Raises:
+            EntityNotFoundError: If category not found
+        """
+        # Verify category exists
+        self.category_repo.get_or_404(category_id)
+
+        results = self.member_repo.get_bookmarks_in_category_with_content(
+            category_id,
+            user_id,
+            skip=skip,
+            limit=limit,
+            sort_field=sort_field,
+            sort_order=sort_order
+        )
+
+        # Transform results into dictionary format
+        bookmarks_with_content = []
+        for bookmark, content, user_rating in results:
+            bookmark_dict = {
+                'bookmark': bookmark,
+                'content': content,
+                'user_rating': user_rating
+            }
+            bookmarks_with_content.append(bookmark_dict)
+
+        return bookmarks_with_content
 
     def count_bookmarks_in_category(self, category_id: UUID) -> int:
         """Count bookmarks in a category.

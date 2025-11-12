@@ -196,6 +196,62 @@ Seed-data directories for the main and demo databases are configured in `config.
 - `updated_at`: Timestamp when rating was last updated
 - Unique constraint on (user_id, tag_id) - each user can rate a tag only once
 
+**Bookmarks Table (`bookmarks`):**
+- `id` (Primary Key, UUID): Unique bookmark identifier
+- `user_id` (Foreign Key): Reference to the user who created the bookmark
+- `content_id` (Integer): ID of the content item being bookmarked
+- `content_source_type` (String): Content source type ('items' or 'auto') for partitioned FK support
+- `note` (Text): Optional user note about the bookmark (max 1000 characters)
+- `pinned` (Boolean): Whether bookmark is pinned for priority display (default: false)
+- `is_public` (Boolean): Whether bookmark is publicly visible (default: false)
+- `created_at` (Timestamp): When bookmark was created
+- `updated_at` (Timestamp): When bookmark was last updated
+- `deleted_at` (Timestamp): Soft delete timestamp (nullable)
+- **Constraints:**
+  - Unique constraint on (user_id, content_id, content_source_type) - prevents duplicate bookmarks
+  - Foreign key to `content_items_all` via composite (content_id, content_source_type)
+  - Soft delete: deleted_at != NULL excluded from queries
+
+**Bookmark Categories Table (`bookmark_categories`):**
+- `id` (Primary Key, UUID): Unique category identifier
+- `user_id` (Foreign Key): Reference to the user who owns the category
+- `name` (String): Category name (max 255 characters)
+- `description` (Text): Optional category description (max 500 characters)
+- `color` (String): Optional hex color code for UI display
+- `icon` (String): Optional icon identifier for UI display
+- `cover_content_id` (Integer): Optional cover image content ID
+- `cover_content_source_type` (String): Cover image source type ('items' or 'auto')
+- `parent_id` (UUID): Optional parent category for hierarchical organization
+- `sort_index` (Integer): User-defined sort order (default: 0)
+- `is_public` (Boolean): Whether category is publicly visible (default: false)
+- `share_token` (UUID): Unique token for public sharing (auto-generated)
+- `created_at` (Timestamp): When category was created
+- `updated_at` (Timestamp): When category was last updated
+- **Constraints:**
+  - Unique constraint on (user_id, name, parent_id) - prevents duplicate names at same hierarchy level
+  - Foreign key to `bookmark_categories.id` for parent_id (self-referential)
+  - Foreign key to `content_items_all` via composite (cover_content_id, cover_content_source_type)
+  - Name cannot be 'Uncategorized' (reserved for auto-created default category)
+
+**Bookmark Category Members Table (`bookmark_category_members`):**
+- Composite Primary Key: (bookmark_id, category_id)
+- `bookmark_id` (Foreign Key): Reference to the bookmark
+- `category_id` (Foreign Key): Reference to the category
+- `user_id` (Foreign Key): Reference to the user (for row-level security)
+- `position` (Integer): Position/order within the category (nullable)
+- `created_at` (Timestamp): When bookmark was added to category
+- `updated_at` (Timestamp): When position was last updated
+- **Constraints:**
+  - Composite FK to `bookmarks` via (bookmark_id, user_id) - enforces same-user constraint
+  - Composite FK to `bookmark_categories` via (category_id, user_id) - enforces same-user constraint
+  - Prevents User A from adding User B's bookmark to User A's category
+
+**Special Behavior - Uncategorized Category:**
+- Automatically created when a user has zero categories
+- Always displayed first in UI, regardless of sort preferences
+- Cannot be deleted or renamed
+- Serves as default category for uncategorized bookmarks
+
 ### Database Indexes
 
 Genonaut uses a comprehensive indexing strategy optimized for both general queries and high-performance pagination scenarios.
@@ -274,6 +330,35 @@ The database includes specialized composite indexes designed to support efficien
 
 **Users (Tag-Related):**
 - `idx_users_favorite_tags_gin` - GIN index on favorite_tag_ids array for efficient tag favorite queries (PostgreSQL only)
+
+**Bookmarks:**
+- `ix_bookmarks_user_id` - User-specific bookmark queries
+- `ix_bookmarks_content_id` - Content-specific bookmark lookups
+- `ix_bookmarks_pinned` - Filter by pinned status
+- `ix_bookmarks_is_public` - Public/private bookmark filtering
+- `ix_bookmarks_deleted_at` - Soft delete filtering (WHERE deleted_at IS NULL)
+- `idx_bookmarks_user_created` - (user_id, created_at DESC) - User bookmark history pagination
+- `idx_bookmarks_composite_content` - (content_id, content_source_type) - Composite FK index for partitioned table joins
+- Unique constraint index on (user_id, content_id, content_source_type) - Prevents duplicate bookmarks
+
+**Bookmark Categories:**
+- `ix_bookmark_categories_user_id` - User-specific category queries
+- `ix_bookmark_categories_parent_id` - Hierarchical category queries
+- `ix_bookmark_categories_sort_index` - User-defined sort order
+- `ix_bookmark_categories_is_public` - Public/private category filtering
+- `ix_bookmark_categories_share_token` - Unique index for public sharing
+- `idx_bookmark_categories_user_updated` - (user_id, updated_at DESC) - Recently updated categories
+- `idx_bookmark_categories_user_created` - (user_id, created_at DESC) - Recently created categories
+- `idx_bookmark_categories_composite` - (id, user_id) - Composite key for row-level security FKs
+- Unique constraint index on (user_id, name, parent_id) - Prevents duplicate category names at same level
+
+**Bookmark Category Members:**
+- `ix_bookmark_category_members_bookmark_id` - Find categories for a bookmark
+- `ix_bookmark_category_members_category_id` - Find bookmarks in a category
+- `ix_bookmark_category_members_user_id` - User-specific membership queries
+- `idx_bookmark_category_members_category_position` - (category_id, position) - Manual ordering within category
+- Composite primary key (bookmark_id, category_id) - Prevents duplicate memberships
+- Composite FK indexes for row-level security enforcement
 
 #### Index Design Principles
 

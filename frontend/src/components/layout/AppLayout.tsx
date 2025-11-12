@@ -36,6 +36,8 @@ import BarChartIcon from '@mui/icons-material/BarChart'
 import HistoryIcon from '@mui/icons-material/History'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import BurstModeIcon from '@mui/icons-material/BurstMode'
+import CollectionsBookmarkIcon from '@mui/icons-material/CollectionsBookmark'
 import { Collapse } from '@mui/material'
 import { useCurrentUser, useRecentSearches, useAddSearchHistory, useDeleteSearchHistory } from '../../hooks'
 import { useThemeMode } from '../../app/providers/theme'
@@ -58,7 +60,15 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', to: '/dashboard', icon: DashboardIcon, key: 'dashboard' },
-  { label: 'Gallery', to: '/gallery', icon: ArticleIcon, key: 'gallery' },
+  {
+    label: 'Gallery',
+    to: '/gallery',
+    icon: BurstModeIcon,
+    key: 'gallery',
+    children: [
+      { label: 'Bookmarks', to: '/bookmarks', icon: CollectionsBookmarkIcon, key: 'bookmarks' },
+    ]
+  },
   { label: 'Generate', to: '/generate', icon: AutoFixHighIcon, key: 'generate' },
   { label: 'Tag Hierarchy', to: '/tags', icon: AccountTreeIcon, key: 'tags' },
   { label: 'Recommendations', to: '/recommendations', icon: RecommendIcon, key: 'recommendations' },

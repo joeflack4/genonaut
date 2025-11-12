@@ -1,12 +1,12 @@
 """Bookmark repository for database operations."""
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from uuid import UUID
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import func, desc, asc, and_
+from sqlalchemy import func, desc, asc, and_, case, nullslast, nullsfirst
 
-from genonaut.db.schema import Bookmark, BookmarkCategory, BookmarkCategoryMember
+from genonaut.db.schema import Bookmark, BookmarkCategory, BookmarkCategoryMember, ContentItemAll, UserInteraction, User
 from genonaut.api.repositories.base import BaseRepository
 from genonaut.api.exceptions import DatabaseError
 
@@ -173,6 +173,108 @@ class BookmarkRepository(BaseRepository[Bookmark, Dict[str, Any], Dict[str, Any]
             return query.count()
         except SQLAlchemyError as e:
             raise DatabaseError(f"Failed to count bookmarks for user {user_id}: {str(e)}")
+
+    def get_by_user_with_content(
+        self,
+        user_id: UUID,
+        skip: int = 0,
+        limit: int = 100,
+        pinned: Optional[bool] = None,
+        is_public: Optional[bool] = None,
+        category_id: Optional[UUID] = None,
+        sort_field: str = "user_rating_then_created",
+        sort_order: str = "desc"
+    ) -> List[Tuple[Bookmark, Optional[ContentItemAll], Optional[int]]]:
+        """Get bookmarks with content data and user ratings.
+
+        Args:
+            user_id: User ID
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+            pinned: Optional filter by pinned status
+            is_public: Optional filter by public status
+            category_id: Optional filter by category ID
+            sort_field: Field to sort by (user_rating_then_created, user_rating, quality_score, datetime_added, datetime_created, alphabetical)
+            sort_order: Sort order (asc or desc)
+
+        Returns:
+            List of tuples: (Bookmark, ContentItemAll, user_rating)
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        try:
+            # Base query with JOINs
+            query = (
+                self.db.query(Bookmark, ContentItemAll, UserInteraction.rating)
+                .filter(Bookmark.user_id == user_id)
+                .filter(Bookmark.deleted_at.is_(None))
+                # JOIN with content_items_all using composite key
+                .outerjoin(
+                    ContentItemAll,
+                    and_(
+                        Bookmark.content_id == ContentItemAll.id,
+                        Bookmark.content_source_type == ContentItemAll.source_type
+                    )
+                )
+                # LEFT JOIN with user_interactions to get user's rating
+                .outerjoin(
+                    UserInteraction,
+                    and_(
+                        UserInteraction.user_id == user_id,
+                        UserInteraction.content_item_id == Bookmark.content_id
+                    )
+                )
+            )
+
+            # Apply optional filters
+            if pinned is not None:
+                query = query.filter(Bookmark.pinned == pinned)
+            if is_public is not None:
+                query = query.filter(Bookmark.is_public == is_public)
+            if category_id is not None:
+                # Join with category members to filter by category
+                query = query.join(
+                    BookmarkCategoryMember,
+                    and_(
+                        BookmarkCategoryMember.bookmark_id == Bookmark.id,
+                        BookmarkCategoryMember.category_id == category_id
+                    )
+                )
+
+            # Apply sorting
+            order_func = desc if sort_order == "desc" else asc
+
+            if sort_field == "user_rating_then_created":
+                # Composite sort: user_rating DESC NULLS LAST, then bookmark created_at
+                if sort_order == "desc":
+                    query = query.order_by(
+                        nullslast(desc(UserInteraction.rating)),
+                        desc(Bookmark.created_at)
+                    )
+                else:
+                    query = query.order_by(
+                        nullsfirst(asc(UserInteraction.rating)),
+                        asc(Bookmark.created_at)
+                    )
+            elif sort_field == "user_rating":
+                query = query.order_by(nullslast(order_func(UserInteraction.rating)))
+            elif sort_field == "quality_score":
+                query = query.order_by(order_func(ContentItemAll.quality_score))
+            elif sort_field == "datetime_added":
+                query = query.order_by(order_func(Bookmark.created_at))
+            elif sort_field == "datetime_created":
+                query = query.order_by(order_func(ContentItemAll.created_at))
+            elif sort_field == "alphabetical":
+                query = query.order_by(order_func(ContentItemAll.title))
+            else:
+                # Default fallback
+                query = query.order_by(desc(Bookmark.created_at))
+
+            return query.offset(skip).limit(limit).all()
+
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Failed to get bookmarks with content for user {user_id}: {str(e)}")
 
     def soft_delete(self, bookmark_id: UUID) -> bool:
         """Soft delete a bookmark by setting deleted_at timestamp.

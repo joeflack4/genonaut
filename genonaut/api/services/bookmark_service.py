@@ -75,6 +75,61 @@ class BookmarkService:
             category_id=category_id
         )
 
+    def get_user_bookmarks_with_content(
+        self,
+        user_id: UUID,
+        skip: int = 0,
+        limit: int = 100,
+        pinned: Optional[bool] = None,
+        is_public: Optional[bool] = None,
+        category_id: Optional[UUID] = None,
+        sort_field: str = "user_rating_then_created",
+        sort_order: str = "desc"
+    ) -> List[Dict[str, Any]]:
+        """Get bookmarks with content data for a user with optional filtering.
+
+        Args:
+            user_id: User ID
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+            pinned: Optional filter by pinned status
+            is_public: Optional filter by public status
+            category_id: Optional filter by category ID
+            sort_field: Field to sort by
+            sort_order: Sort order (asc or desc)
+
+        Returns:
+            List of bookmark dictionaries with content and user_rating
+
+        Raises:
+            EntityNotFoundError: If user not found
+        """
+        # Verify user exists
+        self.user_repo.get_or_404(user_id)
+
+        results = self.bookmark_repo.get_by_user_with_content(
+            user_id,
+            skip=skip,
+            limit=limit,
+            pinned=pinned,
+            is_public=is_public,
+            category_id=category_id,
+            sort_field=sort_field,
+            sort_order=sort_order
+        )
+
+        # Transform results into dictionary format
+        bookmarks_with_content = []
+        for bookmark, content, user_rating in results:
+            bookmark_dict = {
+                'bookmark': bookmark,
+                'content': content,
+                'user_rating': user_rating
+            }
+            bookmarks_with_content.append(bookmark_dict)
+
+        return bookmarks_with_content
+
     def count_user_bookmarks(
         self,
         user_id: UUID,

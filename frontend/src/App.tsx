@@ -14,6 +14,7 @@ import { GenerationPage } from './pages/generation'
 import { TagsPage, TagDetailPage } from './pages/tags'
 import { AdminFlaggedContentPage } from './pages/admin'
 import { NotificationsPage, NotificationDetailPage } from './pages/notifications'
+import { BookmarksPage, BookmarksCategoryPage } from './pages/bookmarks'
 
 // Lazy load Analytics page for code splitting (contains heavy charting library)
 const AnalyticsPage = lazy(() => import('./pages/settings/AnalyticsPage').then(module => ({ default: module.AnalyticsPage })))
@@ -35,6 +36,8 @@ const routes: RouteObject[] = [
       { path: 'dashboard/:id', element: <LegacyViewRedirect /> },
       { path: 'gallery', element: <GalleryPage /> },
       { path: 'gallery/:id', element: <LegacyViewRedirect /> },
+      { path: 'bookmarks', element: <BookmarksPage /> },
+      { path: 'bookmarks/:categoryId', element: <BookmarksCategoryPage /> },
       { path: 'view/:id', element: <ImageViewPage /> },
       { path: 'recommendations', element: <RecommendationsPage /> },
       { path: 'generate', element: <GenerationPage /> },

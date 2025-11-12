@@ -60,27 +60,71 @@ async def list_bookmarks(
     category_id: UUID = Query(None, description="Filter by category ID"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
+    sort_field: str = Query("user_rating_then_created", description="Field to sort by"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$", description="Sort order"),
+    include_content: bool = Query(True, description="Include content data in response"),
     db: Session = Depends(get_database_session)
 ):
-    """Get list of bookmarks for a user with optional filtering."""
+    """Get list of bookmarks for a user with optional filtering and sorting."""
     service = BookmarkService(db)
     try:
-        bookmarks = service.get_user_bookmarks(
-            user_id=user_id,
-            skip=skip,
-            limit=limit,
-            pinned=pinned,
-            is_public=is_public,
-            category_id=category_id
-        )
+        if include_content:
+            # Get bookmarks with content data
+            bookmark_dicts = service.get_user_bookmarks_with_content(
+                user_id=user_id,
+                skip=skip,
+                limit=limit,
+                pinned=pinned,
+                is_public=is_public,
+                category_id=category_id,
+                sort_field=sort_field,
+                sort_order=sort_order
+            )
+
+            # Construct BookmarkWithContentResponse objects
+            from genonaut.api.models.responses import BookmarkWithContentResponse, ContentResponse
+            items = []
+            for bm_dict in bookmark_dicts:
+                bookmark = bm_dict['bookmark']
+                content = bm_dict['content']
+                user_rating = bm_dict['user_rating']
+
+                # Create BookmarkWithContentResponse
+                bookmark_response = BookmarkWithContentResponse(
+                    id=bookmark.id,
+                    user_id=bookmark.user_id,
+                    content_id=bookmark.content_id,
+                    content_source_type=bookmark.content_source_type,
+                    note=bookmark.note,
+                    pinned=bookmark.pinned,
+                    is_public=bookmark.is_public,
+                    created_at=bookmark.created_at,
+                    updated_at=bookmark.updated_at,
+                    content=ContentResponse.model_validate(content) if content else None,
+                    user_rating=user_rating
+                )
+                items.append(bookmark_response)
+        else:
+            # Get bookmarks without content (legacy behavior)
+            bookmarks = service.get_user_bookmarks(
+                user_id=user_id,
+                skip=skip,
+                limit=limit,
+                pinned=pinned,
+                is_public=is_public,
+                category_id=category_id
+            )
+            items = [BookmarkResponse.model_validate(bookmark) for bookmark in bookmarks]
+
         total = service.count_user_bookmarks(
             user_id=user_id,
             pinned=pinned,
             is_public=is_public,
             category_id=category_id
         )
+
         return BookmarkListResponse(
-            items=[BookmarkResponse.model_validate(bookmark) for bookmark in bookmarks],
+            items=items,
             total=total,
             skip=skip,
             limit=limit

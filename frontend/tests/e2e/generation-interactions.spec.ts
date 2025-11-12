@@ -39,7 +39,7 @@ test.describe('Generation Page Interactions', () => {
     await expect(historyTab).toHaveAttribute('aria-selected', 'false')
 
     // Verify content changed back - should show create form
-    const createSection = page.locator('text=Create New Generation')
+    const createSection = page.locator('text=Create')
     await expect(createSection).toBeVisible()
   })
 

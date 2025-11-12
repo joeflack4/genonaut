@@ -73,7 +73,7 @@ test.describe('ComfyUI Generation', () => {
     await expect(page).toHaveURL('/generate')
 
     // Should show generation form
-    await expect(page.locator('h6:has-text("Create New Generation")')).toBeVisible()
+    await expect(page.locator('h6:has-text("Create")')).toBeVisible()
 
     // Should show prompt input (wait for form to fully load)
     await expect(page.getByPlaceholder('Describe the image you want to generate...')).toBeVisible()

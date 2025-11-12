@@ -1,6 +1,6 @@
 """Pydantic response models for the Genonaut API."""
 
-from typing import Optional, List, Dict, Any, Generic, TypeVar
+from typing import Optional, List, Dict, Any, Generic, TypeVar, Union
 from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, Field, computed_field, field_validator
@@ -718,7 +718,7 @@ class BookmarkResponse(BaseModel):
 
 class BookmarkListResponse(BaseModel):
     """Response model for list of bookmarks."""
-    items: List[BookmarkResponse] = Field(..., description="List of bookmarks")
+    items: List[Union[BookmarkResponse, 'BookmarkWithContentResponse']] = Field(..., description="List of bookmarks (may include content data)")
     total: int = Field(..., description="Total number of bookmarks")
     skip: int = Field(..., description="Number of records skipped")
     limit: int = Field(..., description="Maximum number of records returned")
@@ -727,8 +727,9 @@ class BookmarkListResponse(BaseModel):
 
 
 class BookmarkWithContentResponse(BookmarkResponse):
-    """Bookmark response with content details."""
+    """Bookmark response with content details and user rating."""
     content: Optional[ContentResponse] = Field(None, description="Bookmarked content details")
+    user_rating: Optional[int] = Field(None, description="User's rating for this content (1-5 scale, None if not rated)")
 
 
 # Bookmark category response models

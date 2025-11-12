@@ -380,6 +380,314 @@ This granular control is not possible with the legacy `content_types` + `creator
 - `GET /api/v1/metrics` - System performance metrics
 - `GET /api/v1/version` - API version information
 
+### Bookmarks & Favorites
+
+The bookmarks system allows users to save and organize content items into hierarchical categories with notes, privacy settings, and custom ordering.
+
+**Core Bookmark Operations:**
+- `POST /api/v1/bookmarks` - Create new bookmark
+- `GET /api/v1/bookmarks` - List user's bookmarks with filtering and sorting
+- `GET /api/v1/bookmarks/{id}` - Get bookmark by ID
+- `PUT /api/v1/bookmarks/{id}` - Update bookmark (note, pinned, public status)
+- `DELETE /api/v1/bookmarks/{id}` - Delete bookmark (soft delete)
+
+**Bookmark Category Operations:**
+- `POST /api/v1/bookmark-categories` - Create new category
+- `GET /api/v1/bookmark-categories` - List user's categories with sorting
+- `GET /api/v1/bookmark-categories/{id}` - Get category by ID
+- `PUT /api/v1/bookmark-categories/{id}` - Update category
+- `DELETE /api/v1/bookmark-categories/{id}` - Delete category with bookmark migration
+- `GET /api/v1/bookmark-categories/tree` - Get hierarchical category tree
+- `GET /api/v1/bookmark-categories/{id}/children` - Get child categories
+- `GET /api/v1/bookmark-categories/{id}/bookmarks` - Get bookmarks in category with content data
+- `GET /api/v1/bookmark-categories/share/{share_token}` - Get public category by share token
+
+**Category Membership:**
+- `POST /api/v1/bookmarks/{id}/categories` - Add bookmark to category
+- `GET /api/v1/bookmarks/{id}/categories` - List categories containing bookmark
+- `DELETE /api/v1/bookmarks/{id}/categories/{category_id}` - Remove bookmark from category
+- `PUT /api/v1/bookmarks/{id}/categories/{category_id}/position` - Update bookmark position in category
+
+#### List Bookmarks with Content Data
+
+Get a user's bookmarks with joined content metadata (title, images, ratings, etc.) for display in grids.
+
+**Endpoint:**
+```
+GET /api/v1/bookmarks?user_id={uuid}
+```
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `user_id` | UUID | required | User ID to list bookmarks for |
+| `pinned` | boolean | null | Filter by pinned status |
+| `is_public` | boolean | null | Filter by public status |
+| `category_id` | UUID | null | Filter by category ID |
+| `skip` | integer | 0 | Number of records to skip |
+| `limit` | integer | 100 | Maximum records to return (max: 1000) |
+| `sort_field` | string | `user_rating_then_created` | Field to sort by |
+| `sort_order` | string | `desc` | Sort order: `asc` or `desc` |
+| `include_content` | boolean | true | Include content data (images, title, etc.) |
+
+**Sort Field Options:**
+- `user_rating_then_created` - User rating DESC NULLS LAST, then content creation date DESC
+- `user_rating` - User's rating of the content item
+- `quality_score` - Content quality score
+- `created` - Content item creation date
+- `title` - Content item title (alphabetical)
+
+**Example Request:**
+```bash
+# Get first 15 pinned bookmarks sorted by user rating
+GET /api/v1/bookmarks?user_id=a04237b8-f14e-4fed-9427-576c780d6e2a&pinned=true&limit=15&sort_field=user_rating_then_created
+
+# Get bookmarks in a specific category
+GET /api/v1/bookmarks?user_id=a04237b8-f14e-4fed-9427-576c780d6e2a&category_id=550e8400-e29b-41d4-a716-446655440000
+```
+
+**Response Format:**
+```json
+{
+  "items": [
+    {
+      "id": "bookmark-uuid",
+      "user_id": "user-uuid",
+      "content_id": 123,
+      "content_source_type": "items",
+      "note": "My favorite image",
+      "pinned": true,
+      "is_public": false,
+      "created_at": "2025-01-15T10:30:00Z",
+      "updated_at": "2025-01-15T10:30:00Z",
+      "content": {
+        "id": 123,
+        "title": "Beautiful Landscape",
+        "quality_score": 0.95,
+        "created_at": "2025-01-10T08:20:00Z",
+        "path_thumb_184x272": "/path/to/thumbnail.jpg",
+        "path_thumb_368x544": "/path/to/thumbnail_2x.jpg"
+      },
+      "user_rating": 5
+    }
+  ],
+  "total": 42,
+  "skip": 0,
+  "limit": 15
+}
+```
+
+#### List Bookmark Categories
+
+Get a user's bookmark categories with optional filtering and sorting.
+
+**Endpoint:**
+```
+GET /api/v1/bookmark-categories?user_id={uuid}
+```
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `user_id` | UUID | required | User ID to list categories for |
+| `parent_id` | UUID | null | Filter by parent category ID |
+| `is_public` | boolean | null | Filter by public status |
+| `skip` | integer | 0 | Number of records to skip |
+| `limit` | integer | 100 | Maximum records to return (max: 1000) |
+| `sort_field` | string | `sort_index` | Field to sort by |
+| `sort_order` | string | `asc` | Sort order: `asc` or `desc` |
+
+**Sort Field Options:**
+- `sort_index` - User-defined sort order
+- `updated_at` - Last updated timestamp
+- `created_at` - Creation timestamp
+- `name` - Category name (alphabetical)
+
+**Special Behavior:**
+- If a user has zero categories, an "Uncategorized" category is automatically created
+- The "Uncategorized" category cannot be deleted or renamed
+- The "Uncategorized" category always displays first in frontend, regardless of sort preferences
+
+**Example Request:**
+```bash
+# Get all categories sorted by last updated
+GET /api/v1/bookmark-categories?user_id=a04237b8-f14e-4fed-9427-576c780d6e2a&sort_field=updated_at&sort_order=desc
+
+# Get child categories of a parent
+GET /api/v1/bookmark-categories?user_id=a04237b8-f14e-4fed-9427-576c780d6e2a&parent_id=parent-uuid
+```
+
+**Response Format:**
+```json
+{
+  "items": [
+    {
+      "id": "category-uuid",
+      "user_id": "user-uuid",
+      "name": "Nature Photography",
+      "description": "My favorite nature photos",
+      "color": "#4CAF50",
+      "icon": "nature",
+      "cover_content_id": 456,
+      "cover_content_source_type": "items",
+      "parent_id": null,
+      "sort_index": 0,
+      "is_public": false,
+      "share_token": "share-token-uuid",
+      "created_at": "2025-01-15T10:30:00Z",
+      "updated_at": "2025-01-15T10:30:00Z"
+    }
+  ],
+  "total": 8,
+  "skip": 0,
+  "limit": 100
+}
+```
+
+#### Get Bookmarks in Category with Content Data
+
+Get all bookmarks in a specific category with joined content metadata and sorting.
+
+**Endpoint:**
+```
+GET /api/v1/bookmark-categories/{category_id}/bookmarks?user_id={uuid}
+```
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `user_id` | UUID | required | User ID (for user ratings) |
+| `skip` | integer | 0 | Number of records to skip |
+| `limit` | integer | 100 | Maximum records to return (max: 1000) |
+| `sort_field` | string | `user_rating_then_created` | Field to sort by |
+| `sort_order` | string | `desc` | Sort order: `asc` or `desc` |
+| `include_content` | boolean | true | Include content data |
+
+**Sort Field Options:** Same as List Bookmarks endpoint
+
+**Example Request:**
+```bash
+# Get bookmarks in category sorted by quality score
+GET /api/v1/bookmark-categories/cat-uuid/bookmarks?user_id=user-uuid&sort_field=quality_score&sort_order=desc&limit=50
+```
+
+**Response Format:**
+```json
+{
+  "category": {
+    "id": "category-uuid",
+    "name": "Nature Photography",
+    "description": "My favorite nature photos",
+    ...
+  },
+  "bookmarks": [
+    {
+      "id": "bookmark-uuid",
+      "content": {...},
+      "user_rating": 5,
+      ...
+    }
+  ],
+  "total": 24
+}
+```
+
+#### Create Bookmark Category
+
+Create a new bookmark category with optional hierarchical parent.
+
+**Endpoint:**
+```
+POST /api/v1/bookmark-categories?user_id={uuid}
+```
+
+**Request Body:**
+```json
+{
+  "name": "Nature Photography",
+  "description": "My favorite nature photos",
+  "color": "#4CAF50",
+  "icon": "nature",
+  "cover_content_id": null,
+  "cover_content_source_type": null,
+  "parent_id": null,
+  "sort_index": 0,
+  "is_public": false
+}
+```
+
+**Field Constraints:**
+- `name` - Required, max 255 chars, unique per user (per parent level)
+- `description` - Optional, max 500 chars
+- `color` - Optional, hex color code
+- `icon` - Optional, icon identifier
+- `cover_content_id` - Optional, must exist in content_items_all if provided
+- `cover_content_source_type` - Required if cover_content_id provided (either `items` or `auto`)
+- `parent_id` - Optional, must be valid category owned by same user
+- `sort_index` - Optional, integer for custom ordering
+- `is_public` - Optional, boolean (default: false)
+
+**Response:** `201 Created` with BookmarkCategoryResponse
+
+#### Delete Bookmark Category
+
+Delete a category with optional bookmark migration to another category.
+
+**Endpoint:**
+```
+DELETE /api/v1/bookmark-categories/{category_id}?target_category_id={uuid}&delete_all={bool}
+```
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `target_category_id` | UUID | Uncategorized | Category to move bookmarks to |
+| `delete_all` | boolean | false | If true, delete all bookmarks instead of moving |
+
+**Behavior:**
+- By default, bookmarks are moved to "Uncategorized" category
+- Specify `target_category_id` to move bookmarks to a different category
+- Set `delete_all=true` to delete all bookmarks in the category
+- Child categories will have their `parent_id` set to NULL (orphaned)
+- The "Uncategorized" category cannot be deleted (returns 422 error)
+
+**Example Requests:**
+```bash
+# Delete category and move bookmarks to Uncategorized
+DELETE /api/v1/bookmark-categories/cat-uuid
+
+# Delete category and move bookmarks to another category
+DELETE /api/v1/bookmark-categories/cat-uuid?target_category_id=other-cat-uuid
+
+# Delete category and all its bookmarks
+DELETE /api/v1/bookmark-categories/cat-uuid?delete_all=true
+```
+
+**Response:** `200 OK` with success message
+
+#### Technical Notes
+
+**Partitioned Table Support:**
+- The `content_items_all` table is partitioned by `source_type` with composite primary key `(id, source_type)`
+- Bookmarks reference content with both `content_id` and `content_source_type` to support partitioned FK constraints
+- Valid `content_source_type` values: `items` (user-created) or `auto` (auto-generated)
+
+**Row-Level Security:**
+- Composite foreign keys enforce same-user constraints between bookmarks, categories, and category memberships
+- Prevents cross-user contamination (e.g., User A adding User B's bookmark to User A's category)
+- Both parent tables expose `(id, user_id)` composite keys
+- Join table includes `user_id` with composite FKs to both parents
+
+**Composite Sorting:**
+- `user_rating_then_created` sorts by user rating DESC NULLS LAST, then falls back to content creation date DESC
+- Ensures unrated content appears after rated content but still in chronological order
+- SQL: `ORDER BY user_rating DESC NULLS LAST, content.created_at DESC`
+
+**Soft Deletes:**
+- Bookmarks use soft delete (sets `deleted_at` timestamp)
+- Soft-deleted bookmarks are excluded from all queries by default
+- Allows recovery and maintains referential integrity
+
 ## Route Analytics & Cache Planning
 
 Genonaut includes a comprehensive route analytics system that tracks API endpoint usage, latency, and user patterns. This data is used to identify high-priority routes for caching to optimize performance.

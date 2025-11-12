@@ -1,13 +1,13 @@
 """Bookmark category membership repository for database operations."""
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import func, desc, asc, and_
+from sqlalchemy import func, desc, asc, and_, nullslast, nullsfirst
 from datetime import datetime
 
-from genonaut.db.schema import BookmarkCategoryMember, Bookmark, BookmarkCategory
+from genonaut.db.schema import BookmarkCategoryMember, Bookmark, BookmarkCategory, ContentItemAll, UserInteraction
 from genonaut.api.repositories.base import BaseRepository
 from genonaut.api.exceptions import DatabaseError
 
@@ -146,6 +146,98 @@ class BookmarkCategoryMemberRepository(BaseRepository[BookmarkCategoryMember, Di
         except SQLAlchemyError as e:
             raise DatabaseError(f"Failed to get bookmarks in category {category_id}: {str(e)}")
 
+    def get_bookmarks_in_category_with_content(
+        self,
+        category_id: UUID,
+        user_id: UUID,
+        skip: int = 0,
+        limit: int = 100,
+        sort_field: str = "user_rating_then_created",
+        sort_order: str = "desc"
+    ) -> List[Tuple[Bookmark, Optional[ContentItemAll], Optional[int]]]:
+        """Get bookmarks in a category with content data and user ratings.
+
+        Args:
+            category_id: Category ID
+            user_id: User ID (for getting user ratings)
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+            sort_field: Field to sort by
+            sort_order: Sort order (asc or desc)
+
+        Returns:
+            List of tuples: (Bookmark, ContentItemAll, user_rating)
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        try:
+            # Base query with JOINs
+            query = (
+                self.db.query(Bookmark, ContentItemAll, UserInteraction.rating)
+                .join(
+                    BookmarkCategoryMember,
+                    BookmarkCategoryMember.bookmark_id == Bookmark.id
+                )
+                .filter(
+                    BookmarkCategoryMember.category_id == category_id,
+                    Bookmark.deleted_at.is_(None)
+                )
+                # JOIN with content_items_all using composite key
+                .outerjoin(
+                    ContentItemAll,
+                    and_(
+                        Bookmark.content_id == ContentItemAll.id,
+                        Bookmark.content_source_type == ContentItemAll.source_type
+                    )
+                )
+                # LEFT JOIN with user_interactions to get user's rating
+                .outerjoin(
+                    UserInteraction,
+                    and_(
+                        UserInteraction.user_id == user_id,
+                        UserInteraction.content_item_id == Bookmark.content_id
+                    )
+                )
+            )
+
+            # Apply sorting
+            order_func = desc if sort_order == "desc" else asc
+
+            if sort_field == "user_rating_then_created":
+                # Composite sort: user_rating DESC NULLS LAST, then bookmark created_at
+                if sort_order == "desc":
+                    query = query.order_by(
+                        nullslast(desc(UserInteraction.rating)),
+                        desc(Bookmark.created_at)
+                    )
+                else:
+                    query = query.order_by(
+                        nullsfirst(asc(UserInteraction.rating)),
+                        asc(Bookmark.created_at)
+                    )
+            elif sort_field == "user_rating":
+                query = query.order_by(nullslast(order_func(UserInteraction.rating)))
+            elif sort_field == "quality_score":
+                query = query.order_by(order_func(ContentItemAll.quality_score))
+            elif sort_field == "datetime_added":
+                query = query.order_by(order_func(Bookmark.created_at))
+            elif sort_field == "datetime_created":
+                query = query.order_by(order_func(ContentItemAll.created_at))
+            elif sort_field == "alphabetical":
+                query = query.order_by(order_func(ContentItemAll.title))
+            else:
+                # Default fallback to position ordering
+                query = query.order_by(
+                    BookmarkCategoryMember.position.asc().nullslast(),
+                    BookmarkCategoryMember.added_at.desc()
+                )
+
+            return query.offset(skip).limit(limit).all()
+
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Failed to get bookmarks with content in category {category_id}: {str(e)}")
+
     def add_bookmark_to_category(
         self,
         bookmark_id: UUID,
@@ -279,3 +371,35 @@ class BookmarkCategoryMemberRepository(BaseRepository[BookmarkCategoryMember, Di
             DatabaseError: If database operation fails
         """
         return self.get_by_bookmark_and_category(bookmark_id, category_id) is not None
+
+    def move_bookmarks_to_category(
+        self,
+        source_category_id: UUID,
+        target_category_id: UUID
+    ) -> int:
+        """Move all bookmarks from source category to target category.
+
+        Args:
+            source_category_id: Category ID to move bookmarks from
+            target_category_id: Category ID to move bookmarks to
+
+        Returns:
+            Number of bookmarks moved
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        try:
+            # Update all memberships to point to new category
+            result = (
+                self.db.query(BookmarkCategoryMember)
+                .filter(BookmarkCategoryMember.category_id == source_category_id)
+                .update({BookmarkCategoryMember.category_id: target_category_id})
+            )
+            self.db.commit()
+            return result
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            raise DatabaseError(
+                f"Failed to move bookmarks from {source_category_id} to {target_category_id}: {str(e)}"
+            )

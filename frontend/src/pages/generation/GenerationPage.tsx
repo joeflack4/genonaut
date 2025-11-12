@@ -91,7 +91,7 @@ export function GenerationPage() {
           <Grid size={{ xs: 12, md: 7, lg: 9, xl: 9 }} data-testid="generation-form-column">
             <Paper sx={{ p: 3 }} data-testid="generation-form-card">
               <Typography variant="h6" gutterBottom data-testid="generation-form-title">
-                Create New Generation
+                Create
               </Typography>
               <ErrorBoundary
                 fallbackMessage="An error occurred in the generation form. Please refresh the page and try again."

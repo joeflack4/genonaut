@@ -296,3 +296,91 @@ export interface ApiTagRatingValue {
 export interface ApiTagUserRatings {
   ratings: Record<string, number>
 }
+
+// Bookmark types
+export interface ApiBookmark {
+  id: string  // UUID
+  user_id: string  // UUID
+  content_id: number
+  content_source_type: string  // 'items' or 'auto'
+  note: string | null
+  pinned: boolean
+  is_public: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ApiBookmarkWithContent extends ApiBookmark {
+  content: ApiContentItem | null
+  user_rating: number | null  // 1-5 scale
+}
+
+export interface ApiBookmarkListResponse {
+  items: ApiBookmarkWithContent[]
+  total: number
+  limit: number
+  skip: number
+}
+
+export interface ApiBookmarkCategory {
+  id: string  // UUID
+  user_id: string  // UUID
+  name: string
+  description: string | null
+  color: string | null
+  icon: string | null
+  cover_content_id: number | null
+  cover_content_source_type: string | null
+  parent_id: string | null  // UUID
+  sort_index: number | null
+  is_public: boolean
+  share_token: string | null  // UUID
+  created_at: string
+  updated_at: string
+}
+
+export interface ApiBookmarkCategoryListResponse {
+  items: ApiBookmarkCategory[]
+  total: number
+  limit: number
+  skip: number
+}
+
+export interface ApiBookmarkCategoryCreateRequest {
+  name: string
+  description?: string
+  color?: string
+  icon?: string
+  parent_id?: string  // UUID
+  is_public?: boolean
+}
+
+export interface ApiBookmarkCategoryUpdateRequest {
+  name?: string
+  description?: string
+  color?: string
+  icon?: string
+  parent_id?: string  // UUID
+  sort_index?: number
+  is_public?: boolean
+}
+
+export interface ApiBookmarkQueryParams {
+  skip?: number
+  limit?: number
+  pinned?: boolean
+  is_public?: boolean
+  category_id?: string  // UUID
+  sort_field?: string
+  sort_order?: 'asc' | 'desc'
+  include_content?: boolean
+}
+
+export interface ApiBookmarkCategoryQueryParams {
+  skip?: number
+  limit?: number
+  parent_id?: string | null  // UUID
+  is_public?: boolean
+  sort_field?: string
+  sort_order?: 'asc' | 'desc'
+}

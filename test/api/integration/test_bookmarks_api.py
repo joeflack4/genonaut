@@ -605,3 +605,292 @@ class TestCategoryMembership:
         assert response.status_code == 200
         data = response.json()
         assert data["total"] >= 2
+
+
+@pytest.mark.api_server
+class TestBookmarkSortingAndContent:
+    """Test bookmark sorting and content inclusion features (Phase 5)."""
+
+    def test_list_bookmarks_with_content(self, api_client, test_user, test_content):
+        """Test listing bookmarks with content data included."""
+        # Create bookmark
+        bookmark_data = {
+            "content_id": test_content["id"],
+            "content_source_type": "items",
+            "note": "Test note"
+        }
+        api_client.post(
+            f"/api/v1/bookmarks?user_id={test_user['id']}",
+            json_data=bookmark_data
+        )
+
+        # List bookmarks with content
+        response = api_client.get(
+            f"/api/v1/bookmarks?user_id={test_user['id']}&include_content=true"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] >= 1
+
+        # Verify content data is included
+        bookmark = data["items"][0]
+        assert "content" in bookmark
+        assert bookmark["content"] is not None
+        assert bookmark["content"]["id"] == test_content["id"]
+        assert bookmark["content"]["title"] == test_content["title"]
+        assert "user_rating" in bookmark
+
+    def test_list_bookmarks_without_content(self, api_client, test_user, test_content):
+        """Test listing bookmarks without content data (legacy mode)."""
+        # Create bookmark
+        bookmark_data = {
+            "content_id": test_content["id"],
+            "content_source_type": "items"
+        }
+        api_client.post(
+            f"/api/v1/bookmarks?user_id={test_user['id']}",
+            json_data=bookmark_data
+        )
+
+        # List bookmarks without content
+        response = api_client.get(
+            f"/api/v1/bookmarks?user_id={test_user['id']}&include_content=false"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] >= 1
+
+        # Verify content data is NOT included
+        bookmark = data["items"][0]
+        assert "content" not in bookmark
+        assert "user_rating" not in bookmark
+
+    def test_bookmark_sorting_by_datetime_added(self, api_client, test_user):
+        """Test sorting bookmarks by datetime_added."""
+        # Create multiple content items and bookmarks
+        bookmark_ids = []
+        for i in range(3):
+            content_data = {
+                "title": f"Content {i}",
+                "content_type": "text",
+                "content_data": f"Content {i}",
+                "prompt": "test",
+                "creator_id": test_user["id"]
+            }
+            content_response = api_client.post("/api/v1/content", json_data=content_data)
+            content = content_response.json()
+
+            bookmark_data = {
+                "content_id": content["id"],
+                "content_source_type": "items"
+            }
+            bookmark_response = api_client.post(
+                f"/api/v1/bookmarks?user_id={test_user['id']}",
+                json_data=bookmark_data
+            )
+            bookmark_ids.append(bookmark_response.json()["id"])
+
+        # List bookmarks sorted by datetime_added DESC (most recent first)
+        response = api_client.get(
+            f"/api/v1/bookmarks?user_id={test_user['id']}&sort_field=datetime_added&sort_order=desc"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["items"]) >= 3
+
+        # Verify DESC order (most recent first)
+        for i in range(len(data["items"]) - 1):
+            assert data["items"][i]["created_at"] >= data["items"][i + 1]["created_at"]
+
+    def test_bookmark_sorting_by_quality_score(self, api_client, test_user):
+        """Test sorting bookmarks by content quality_score."""
+        # Create content items with different quality scores
+        for i, score in enumerate([0.5, 0.9, 0.3]):
+            content_data = {
+                "title": f"Content Quality {score}",
+                "content_type": "text",
+                "content_data": f"Content {i}",
+                "prompt": "test",
+                "creator_id": test_user["id"],
+                "quality_score": score
+            }
+            content_response = api_client.post("/api/v1/content", json_data=content_data)
+            content = content_response.json()
+
+            bookmark_data = {
+                "content_id": content["id"],
+                "content_source_type": "items"
+            }
+            api_client.post(
+                f"/api/v1/bookmarks?user_id={test_user['id']}",
+                json_data=bookmark_data
+            )
+
+        # List bookmarks sorted by quality_score DESC
+        response = api_client.get(
+            f"/api/v1/bookmarks?user_id={test_user['id']}&sort_field=quality_score&sort_order=desc&include_content=true"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["items"]) >= 3
+
+        # Verify DESC order (highest quality first)
+        for i in range(len(data["items"]) - 1):
+            score1 = data["items"][i]["content"]["quality_score"]
+            score2 = data["items"][i + 1]["content"]["quality_score"]
+            assert score1 >= score2
+
+    def test_bookmark_sorting_alphabetical(self, api_client, test_user):
+        """Test sorting bookmarks by content title alphabetically."""
+        # Create content with alphabetically sortable titles
+        titles = ["Zebra Content", "Apple Content", "Mango Content"]
+        for title in titles:
+            content_data = {
+                "title": title,
+                "content_type": "text",
+                "content_data": "test",
+                "prompt": "test",
+                "creator_id": test_user["id"]
+            }
+            content_response = api_client.post("/api/v1/content", json_data=content_data)
+            content = content_response.json()
+
+            bookmark_data = {
+                "content_id": content["id"],
+                "content_source_type": "items"
+            }
+            api_client.post(
+                f"/api/v1/bookmarks?user_id={test_user['id']}",
+                json_data=bookmark_data
+            )
+
+        # List bookmarks sorted alphabetically ASC
+        response = api_client.get(
+            f"/api/v1/bookmarks?user_id={test_user['id']}&sort_field=alphabetical&sort_order=asc&include_content=true"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["items"]) >= 3
+
+        # Verify ASC alphabetical order
+        for i in range(len(data["items"]) - 1):
+            title1 = data["items"][i]["content"]["title"]
+            title2 = data["items"][i + 1]["content"]["title"]
+            assert title1 <= title2
+
+    def test_category_bookmarks_with_content_and_sorting(self, api_client, test_user):
+        """Test getting category bookmarks with content data and sorting."""
+        # Create category
+        category_data = {"name": "Sorted Category", "is_public": False}
+        category_response = api_client.post(
+            f"/api/v1/bookmark-categories?user_id={test_user['id']}",
+            json_data=category_data
+        )
+        category = category_response.json()
+
+        # Create bookmarks with different quality scores
+        for i, score in enumerate([0.7, 0.9, 0.5]):
+            content_data = {
+                "title": f"Category Content {i}",
+                "content_type": "text",
+                "content_data": f"Content {i}",
+                "prompt": "test",
+                "creator_id": test_user["id"],
+                "quality_score": score
+            }
+            content_response = api_client.post("/api/v1/content", json_data=content_data)
+            content = content_response.json()
+
+            # Create bookmark
+            bookmark_data = {
+                "content_id": content["id"],
+                "content_source_type": "items"
+            }
+            bookmark_response = api_client.post(
+                f"/api/v1/bookmarks?user_id={test_user['id']}",
+                json_data=bookmark_data
+            )
+            bookmark = bookmark_response.json()
+
+            # Add to category
+            api_client.post(
+                f"/api/v1/bookmarks/{bookmark['id']}/categories",
+                json_data={"category_id": category["id"]}
+            )
+
+        # Get category bookmarks sorted by quality_score
+        response = api_client.get(
+            f"/api/v1/bookmark-categories/{category['id']}/bookmarks"
+            f"?user_id={test_user['id']}&sort_field=quality_score&sort_order=desc&include_content=true"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] >= 3
+
+        # Verify content is included and sorted by quality_score
+        bookmarks = data["bookmarks"]
+        assert all("content" in bm for bm in bookmarks)
+        for i in range(len(bookmarks) - 1):
+            score1 = bookmarks[i]["content"]["quality_score"]
+            score2 = bookmarks[i + 1]["content"]["quality_score"]
+            assert score1 >= score2
+
+    def test_category_sorting_by_updated_at(self, api_client, test_user):
+        """Test sorting bookmark categories by updated_at."""
+        # Create multiple categories
+        category_ids = []
+        for i in range(3):
+            category_data = {
+                "name": f"Category {i}",
+                "description": f"Description {i}",
+                "is_public": False
+            }
+            response = api_client.post(
+                f"/api/v1/bookmark-categories?user_id={test_user['id']}",
+                json_data=category_data
+            )
+            category_ids.append(response.json()["id"])
+
+        # Update middle category to make it most recent
+        api_client.put(
+            f"/api/v1/bookmark-categories/{category_ids[1]}",
+            json_data={"description": "Updated description"}
+        )
+
+        # List categories sorted by updated_at DESC
+        response = api_client.get(
+            f"/api/v1/bookmark-categories?user_id={test_user['id']}&sort_field=updated_at&sort_order=desc"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["items"]) >= 3
+
+        # Verify DESC order by updated_at
+        for i in range(len(data["items"]) - 1):
+            updated1 = data["items"][i]["updated_at"]
+            updated2 = data["items"][i + 1]["updated_at"]
+            assert updated1 >= updated2
+
+    def test_category_sorting_alphabetical(self, api_client, test_user):
+        """Test sorting bookmark categories alphabetically by name."""
+        # Create categories with alphabetically sortable names
+        names = ["Zebra Category", "Apple Category", "Mango Category"]
+        for name in names:
+            api_client.post(
+                f"/api/v1/bookmark-categories?user_id={test_user['id']}",
+                json_data={"name": name, "is_public": False}
+            )
+
+        # List categories sorted alphabetically ASC
+        response = api_client.get(
+            f"/api/v1/bookmark-categories?user_id={test_user['id']}&sort_field=name&sort_order=asc"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["items"]) >= 3
+
+        # Verify ASC alphabetical order
+        for i in range(len(data["items"]) - 1):
+            name1 = data["items"][i]["name"]
+            name2 = data["items"][i + 1]["name"]
+            assert name1 <= name2
