@@ -5,6 +5,20 @@ Genonaut uses a comprehensive three-tier testing approach to ensure code quality
 ## Related documentation
 - `test-troubleshooting-db-and-server.md`: When to read this? If you are having difficulties with tests involving: database setup, server startup, and E2E test execution.
 
+## Test Worktree Setup
+
+**IMPORTANT**: If you are working in a secondary git worktree (e.g., `/Users/joeflack4/projects/genonaut-wt2`), you must use dedicated infrastructure to avoid port conflicts with the main worktree.
+
+See [testing-test-worktree.md](./testing-test-worktree.md) for complete instructions on:
+- Starting worktree-specific services (API, Celery, Frontend)
+- Running tests against the correct infrastructure
+- Port and queue separation strategy
+- Troubleshooting worktree-specific issues
+
+**Quick Reference for Worktree 2:**
+- Starting services: `make api-test-wt2` and `make celery-test-wt2` (and also `make frontend-dev-wt2` if needed)
+- Running tests: `make test-wt2`, `make test-api-wt2`, `make frontend-test-e2e-wt2`
+
 ## Testing Strategy
 
 **🔄 Incremental Testing During Development**

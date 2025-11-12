@@ -10,14 +10,15 @@ Test data reference: test/api/notes/tag_query_test_data.md
 """
 
 import math
+import os
 import pytest
 import requests
 
 # Test user ID from demo database
 TEST_USER_ID = "121e194b-4caa-4b81-ad4f-86ca3919d5b9"
 
-# API base URL (assumes demo API server is running on port 8001)
-API_BASE_URL = "http://localhost:8001"
+# API base URL (defaults to port 8001, can override with API_BASE_URL env var)
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8001")
 
 # Tag IDs from demo database (see test/api/notes/tag_query_test_data.md)
 TAG_ANIME = "dfbb88fc-3c31-468f-a2d7-99605206c985"

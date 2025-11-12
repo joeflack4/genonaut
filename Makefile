@@ -4,11 +4,12 @@ reset-db-2-schema--test reset-db-3-schema-and-history--demo reset-db-3-schema-an
 re-seed-demo-force seed-from-gen-demo seed-from-gen-test seed-static-demo seed-static-test export-demo-data \
 export-demo-seed import-demo-seed-to-test refresh-test-seed-from-demo test \
 test-quick test-verbose test-specific test-unit test-db test-db-unit test-db-integration test-api test-tag-queries \
+test-wt2 test-api-wt2 test-long-running-wt2 test-performance-wt2 frontend-test-e2e-wt2 frontend-test-unit-wt2 \
 test-all clear-excess-test-schemas install install-dev lint format clean migrate-all migrate-all-auto migrate-prep migrate-dev migrate-demo migrate-test backup backup-dev backup-demo \
-backup-test api-dev api-demo api-demo-alt api-test celery-dev celery-demo celery-test flower-dev flower-demo flower-test \
+backup-test api-dev api-demo api-demo-alt api-test api-test-wt2 celery-dev celery-demo celery-test celery-test-wt2 flower-dev flower-demo flower-test \
 redis-flush-dev redis-flush-demo redis-flush-test redis-keys-dev redis-keys-demo redis-keys-test \
 redis-info-dev redis-info-demo redis-info-test redis-start celery-check-running-workers \
-frontend-install frontend-dev frontend-dev-debug frontend-dev-debug-alt frontend-build frontend-preview frontend-test \
+frontend-install frontend-dev frontend-dev-debug frontend-dev-debug-alt frontend-dev-wt2 frontend-build frontend-preview frontend-test \
 frontend-test-unit frontend-test-watch frontend-test-coverage frontend-test-e2e frontend-test-e2e-headed \
 frontend-test-e2e-ui frontend-test-e2e-debug frontend-test-e2e-debug-headed frontend-test-e2e-skip-missing \
 frontend-test-e2e-w frontend-test-e2e-headed-w frontend-test-e2e-debug-w frontend-test-e2e-debug-headed-w \
@@ -222,6 +223,17 @@ help:
 	@echo "  test-frontend-e2e-real-api-ui Alias for frontend-test-e2e-real-api-ui"
 	@echo "  test-frontend-e2e-real-api-debug Alias for frontend-test-e2e-real-api-debug"
 	@echo "  test-frontend-e2e-real-api-debug-headed Alias for frontend-test-e2e-real-api-debug-headed"
+	@echo ""
+	@echo "Worktree 2 Commands (for /genonaut-wt2 worktree):"
+	@echo "  api-test-wt2             Start API server for worktree 2 (port 8002, test DB)"
+	@echo "  celery-test-wt2          Start Celery worker for worktree 2 (queues: default_wt2, generation_wt2)"
+	@echo "  frontend-dev-wt2         Start frontend for worktree 2 (port 5174, API: 8002)"
+	@echo "  test-wt2                 Run quick tests against worktree 2 API (port 8002)"
+	@echo "  test-api-wt2             Run API integration tests against worktree 2"
+	@echo "  test-long-running-wt2    Run long-running tests against worktree 2"
+	@echo "  test-performance-wt2     Run performance tests against worktree 2"
+	@echo "  frontend-test-e2e-wt2    Run frontend E2E tests against worktree 2"
+	@echo "  frontend-test-unit-wt2   Run frontend unit tests (worktree 2)"
 	@echo ""
 	@echo "Documentation:"
 	@echo "  docs                     Generate documentation"
@@ -474,6 +486,41 @@ test-api:
 	@echo "Prerequisites: API server should be running on http://0.0.0.0:8001. (it's probably running; this is just a reminder)"
 	@echo "Start with: make api-test"
 	API_BASE_URL=http://0.0.0.0:8001 pytest test/api/integration/ -v --durations=0 --durations-min=0.5
+
+# ============================================
+# Worktree 2 Test Commands
+# ============================================
+# Test commands for worktree 2 (uses port 8002 API server)
+# Prerequisites: Start worktree 2 services with: make api-test-wt2, make celery-test-wt2
+
+test-wt2:
+	@echo "Running quick tests against worktree 2 API (port 8002)..."
+	API_BASE_URL=http://0.0.0.0:8002 pytest test/ -v -m "not manual and not longrunning and not performance" --durations=0 --durations-min=0.5
+
+test-api-wt2:
+	@echo "Running API integration tests against worktree 2..."
+	@echo "Prerequisites: Worktree 2 API server should be running on http://0.0.0.0:8002"
+	@echo "Start with: make api-test-wt2"
+	API_BASE_URL=http://0.0.0.0:8002 pytest test/api/integration/ -v --durations=0 --durations-min=0.5
+
+test-long-running-wt2:
+	@echo "Running long-running tests against worktree 2..."
+	API_BASE_URL=http://0.0.0.0:8002 pytest test/ -v -m "longrunning" --durations=0
+
+test-performance-wt2:
+	@echo "Running performance tests against worktree 2 API (port 8002)..."
+	@echo "Prerequisites: Worktree 2 API server must be running on port 8002"
+	@echo "Start with: make api-test-wt2"
+	API_BASE_URL=http://0.0.0.0:8002 pytest test/ -v -s -m "performance" --durations=0
+
+frontend-test-e2e-wt2:
+	@echo "Running frontend E2E tests against worktree 2..."
+	@echo "Prerequisites: Worktree 2 API server running on port 8002"
+	VITE_API_BASE_URL=http://localhost:8002 npm --prefix frontend run test:e2e -- --workers=1
+
+frontend-test-unit-wt2:
+	@echo "Running frontend unit tests (worktree 2)..."
+	npm --prefix frontend run test-unit
 
 # Database management
 clear-excess-test-schemas:
@@ -755,6 +802,11 @@ api-test-load-test:
 	@echo "Starting FastAPI server for test load testing (4 workers)..."
 	python -m genonaut.cli_main run-api --env-target local-test --workers 4
 
+# Worktree 2 API target (test database, port 8002)
+api-test-wt2:
+	@echo "Starting FastAPI server for test worktree 2 (port 8002, test database)..."
+	python -m genonaut.cli_main run-api --env-target local-test-wt2
+
 # ============================================
 # Queuing / message broking: Redis & Celery
 # ============================================
@@ -772,6 +824,12 @@ celery-test:
 	@echo "Starting Celery worker with Beat scheduler for test environment..."
 	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-test ] && . env/.env.local-test && set +a && \
 	ENV_TARGET=local-test APP_CONFIG_PATH=config/local-test.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default,generation -B --scheduler redbeat.RedBeatScheduler
+
+# Worktree 2 Celery target (queues: default_wt2, generation_wt2)
+celery-test-wt2:
+	@echo "Starting Celery worker for test worktree 2 (queues: default_wt2, generation_wt2)..."
+	@set -a && [ -f env/.env.shared ] && . env/.env.shared && [ -f env/.env.local-test-wt2 ] && . env/.env.local-test-wt2 && set +a && \
+	ENV_TARGET=local-test-wt2 APP_CONFIG_PATH=config/local-test-wt2.json celery -A genonaut.worker.queue_app:celery_app worker --loglevel=info --queues=default_wt2,generation_wt2 -B --scheduler redbeat.RedBeatScheduler
 
 # alt: python -c "from genonaut.api.services.generation_service import check_celery_workers_available; print('Workers available:', check_celery_workers_available())"
 celery-check-running-workers:
@@ -961,6 +1019,11 @@ frontend-dev-debug:
 frontend-dev-debug-alt:
 	@echo "Starting frontend dev server with debug logging (port 8003 API, port 5174 frontend)..."
 	VITE_API_BASE_URL=http://localhost:8003 npm --prefix frontend run dev:debug -- --port 5174
+
+# Worktree 2 frontend target (port 5174, API: 8002)
+frontend-dev-wt2:
+	@echo "Starting frontend dev server for worktree 2 (port 5174, API: 8002)..."
+	VITE_API_BASE_URL=http://localhost:8002 npm --prefix frontend run dev -- --port 5174
 
 frontend-build:
 	@echo "Building frontend..."

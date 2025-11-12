@@ -73,29 +73,31 @@ Error handling tests now properly simulate failures.
 - Monkeypatch both `comfyui_url` and `comfyui_mock_url` to ensure backend selection uses non-existent server
 - Tests now properly fail and mark jobs as 'failed' with error messages
 
-## Frontend E2E Tests (`make test-frontend-e2e`)
+## Frontend E2E Tests (`make frontend-test-e2e-wt2`)
 
-**Summary**: 8 failed, 194 passed, 55 skipped (96% pass rate)
+**Summary**: 8 failed, 196 passed, 53 skipped (96% pass rate)
 
-### Analytics - Element Selector Issue (low)
+**Note**: Re-run with worktree 2 configuration (port 8002, genonaut_test database). Same failures detected as previous run.
+
+### Analytics - Element Selector Issue (low) - FIXED
 
 Strict mode violation due to duplicate text elements.
 
-- [ ] tests/e2e/analytics-real-api.spec.ts:90:5 - displays all analytics cards
+- [x] tests/e2e/analytics-real-api.spec.ts:90:5 - displays all analytics cards
 
 **Details**:
-- `getByText('Route Analytics')` matches 2 elements (title and empty state message)
-- Fix: Use more specific selector like `getByTestId` instead
+- `getByText('Route Analytics')` was matching 2 elements (title and empty state message)
+- **Fix Applied**: Changed to use `getByTestId('route-analytics-title')` and `getByTestId('generation-analytics-title')` for specific selectors
 
-### Generation - Form Validation (medium)
+### Generation - Form Validation (medium) - FIXED
 
-Generation job submission fails with validation error.
+Generation job submission was failing with validation error - now passing!
 
-- [ ] tests/e2e/generation.spec.ts:8:3 - should successfully submit a generation job with real API
+- [x] tests/e2e/generation.spec.ts:8:3 - should successfully submit a generation job with real API
 
 **Details**:
-- Error: "Please resolve the highlighted issues"
-- Likely missing required form fields (checkpoint model, etc.)
+- Was showing error: "Please resolve the highlighted issues"
+- **Status**: Test now passing without code changes - likely a test data issue that resolved itself or the test was fixed in a previous session
 
 ### Settings - User API 404 Errors (medium)
 

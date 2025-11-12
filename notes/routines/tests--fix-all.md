@@ -28,6 +28,19 @@ Iteratively, for each of the "test suites", in the order shown above, do the fol
 
 By the end of this process, after fixing tests and working with the user to decide any tests to explicitly skip or delete, all of the test suites should have a 100% pass rate.
 
+## Additional info
+### Worktree-Specific Testing
+
+**IMPORTANT**: If you are working in a worktree other than the main development worktree (
+`/Users/joeflack4/projects/genonaut`), you must use the worktree-specific infrastructure to avoid port conflicts.
+
+See [docs/testing-test-worktree.md](../../docs/testing-test-worktree.md) for complete instructions.
+
+Quick reference for worktree 2:
+- Starting services: `make api-test-wt2` and `make celery-test-wt2` (and also `make frontend-dev-wt2` if needed)
+- Running tests: `make test-wt2`, `make frontend-test-unit-wt2`, `make test-long-running-wt2`, 
+`make frontend-test-e2e-wt2`, `make test-performance-wt2`
+
 ## Your high level tasks: How to proceed
 1. Read and understand this SOP.
 2. Read: `docs/testing.md`

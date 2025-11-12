@@ -1,3 +1,5 @@
+# Create new batch of tests
+## Overview
 I want to make sure we have good test coverage. Please do an analysis. Iterate through every frontend page, and on each 
 page, look at each widget, and think about some workflows that are good to perhaps test that involve manipulating 
 several different widgets in order, and checking that the results are what you would expect. Similarly, look through all
@@ -22,3 +24,14 @@ want you to do those or not.
 When you finish a subsection of tests, be sure to check them off.
 
 Go ahead, get started! Thanks in advance.
+
+## Additional info
+### Worktree-Specific Testing
+
+**IMPORTANT**: If you are working in a worktree other than the main development worktree (`/Users/joeflack4/projects/genonaut`), you must use the worktree-specific infrastructure to avoid port conflicts.
+
+See [docs/testing-test-worktree.md](../../docs/testing-test-worktree.md) for complete instructions.
+
+Quick reference for worktree 2:
+- Starting services: `make api-test-wt2` and `make celery-test-wt2` (and also `make frontend-dev-wt2` if needed)
+- Running tests: `make test-wt2`, `make test-api-wt2`, `make frontend-test-e2e-wt2`
