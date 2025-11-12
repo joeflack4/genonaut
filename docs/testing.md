@@ -2,6 +2,9 @@
 
 Genonaut uses a comprehensive three-tier testing approach to ensure code quality and reliability across all components.
 
+## Related documentation
+- `test-troubleshooting-db-and-server.md`: When to read this? If you are having difficulties with tests involving: database setup, server startup, and E2E test execution.
+
 ## Testing Strategy
 
 **🔄 Incremental Testing During Development**
