@@ -102,6 +102,7 @@ def test_process_comfy_job_happy_path(db_session):
         user_id=user.id,
         job_type="image",
         prompt="A whimsical sunrise over the lake",
+        checkpoint_model="test_model.safetensors",
         params={
             "sampler_params": {"steps": 12, "cfg": 6.5},
             "negative_prompt": "low quality"
@@ -153,6 +154,7 @@ def test_process_comfy_job_handles_errors(db_session):
         user_id=user.id,
         job_type="image",
         prompt="This should fail",
+        checkpoint_model="test_model.safetensors",
         params={},
         status="pending",
     )

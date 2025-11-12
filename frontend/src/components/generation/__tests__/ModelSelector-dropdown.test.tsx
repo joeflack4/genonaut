@@ -117,7 +117,7 @@ describe('ModelSelector', () => {
       expect(screen.getByTestId('model-selector')).toBeInTheDocument()
     })
 
-    // Auto-select first checkpoint should have been called
-    expect(onCheckpointChange).toHaveBeenCalledWith('Model 1')
+    // Auto-select first checkpoint should have been called with path (for ComfyUI compatibility)
+    expect(onCheckpointChange).toHaveBeenCalledWith('/path/to/model1')
   })
 })

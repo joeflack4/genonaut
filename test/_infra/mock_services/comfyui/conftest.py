@@ -57,11 +57,12 @@ def mock_comfyui_url(mock_comfyui_server: str) -> str:
     This is a function-scoped fixture that resets server state
     between tests.
     """
-    # Import here to avoid circular dependencies
-    from test._infra.mock_services.comfyui.server import reset_server
-
-    # Reset server state before each test
-    reset_server()
+    # Reset server state before each test via HTTP endpoint
+    try:
+        requests.post(f"{mock_comfyui_server}/reset", timeout=2)
+    except requests.exceptions.RequestException:
+        # If reset fails, that's okay - server might not support it yet
+        pass
 
     return mock_comfyui_server
 

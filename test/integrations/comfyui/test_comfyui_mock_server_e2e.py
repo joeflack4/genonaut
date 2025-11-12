@@ -343,12 +343,17 @@ class TestErrorRecovery:
         monkeypatch
     ):
         """Test job failure with error message recording."""
+        from genonaut.api import config
         from genonaut.api.config import get_settings
         from genonaut.api.services.generation_service import GenerationService
+
+        # Clear settings cache to ensure monkeypatch takes effect
+        config._LAST_SETTINGS = None
 
         settings = get_settings()
         # Point to non-existent server to force failure
         monkeypatch.setattr(settings, 'comfyui_url', 'http://localhost:9999')
+        monkeypatch.setattr(settings, 'comfyui_mock_url', 'http://localhost:9998')
 
         generation_service = GenerationService(db_session)
 
@@ -382,11 +387,16 @@ class TestErrorRecovery:
         monkeypatch
     ):
         """Test cleanup occurs on failed jobs."""
+        from genonaut.api import config
         from genonaut.api.config import get_settings
         from genonaut.api.services.generation_service import GenerationService
 
+        # Clear settings cache to ensure monkeypatch takes effect
+        config._LAST_SETTINGS = None
+
         settings = get_settings()
         monkeypatch.setattr(settings, 'comfyui_url', 'http://localhost:9999')
+        monkeypatch.setattr(settings, 'comfyui_mock_url', 'http://localhost:9998')
 
         generation_service = GenerationService(db_session)
 

@@ -78,10 +78,10 @@ class MockComfyUIServer:
         return prompt_id
 
     def process_job(self, prompt_id: str) -> None:
-        """Process a job by returning reference to input file directly.
+        """Process a job by copying input file to output with unique filename.
 
-        No file copying - just returns the path to the input image.
-        This keeps mock behavior simple and avoids unnecessary file operations.
+        Generates unique filenames using prefix from workflow and job counter.
+        Copies input file to output directory to simulate real ComfyUI behavior.
         """
         if prompt_id not in self.jobs:
             return
@@ -95,15 +95,24 @@ class MockComfyUIServer:
         # Update status
         job["status"] = "running"
 
-        # Return direct reference to input file - no copying
+        # Generate unique filename using prefix and counter
         input_file = self.input_dir / "kernie_512x768.jpg"
         if input_file.exists():
-            # Record output file using just the filename (relative)
-            # The client will join this with output_dir, so return relative path from output_dir
-            # In this case, we return the path relative to the mock output directory
-            relative_path = f"../input/{input_file.name}"
+            # Get filename prefix from job (extracted during submission)
+            prefix = job["filename_prefix"]
+
+            # Generate unique filename: prefix_counter_.png
+            # This matches ComfyUI's naming pattern
+            output_filename = f"{prefix}_{self.job_counter:05d}_.png"
+            self.job_counter += 1
+
+            # Copy file to output directory with unique name
+            output_path = self.output_dir / output_filename
+            shutil.copy2(input_file, output_path)
+
+            # Record output file
             job["output_files"].append({
-                "filename": relative_path,
+                "filename": output_filename,
                 "subfolder": "",
                 "type": "output"
             })
@@ -300,6 +309,13 @@ async def interrupt():
     """Interrupt current workflow execution."""
     mock_server.interrupt()
     return {"status": "interrupted"}
+
+
+@app.post("/reset")
+async def reset():
+    """Reset server state (for testing)."""
+    reset_server()
+    return {"status": "reset", "message": "Server state has been reset"}
 
 
 @app.get("/")

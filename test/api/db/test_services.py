@@ -781,7 +781,8 @@ class TestGenerationService:
         assert job.status == "pending"
         assert job.created_at is not None
         assert job.celery_task_id == "task-123"
-        assert job.params == {"max_length": 1000}
+        # The service automatically adds 'backend' field (defaults to 'kerniegen')
+        assert job.params == {"backend": "kerniegen", "max_length": 1000}
     
     def test_start_job_processing(self, test_db_session, sample_user):
         """Test starting job processing."""
