@@ -38,7 +38,7 @@ class Settings(BaseModel):
     # Database settings
     db_host: str = "localhost"
     db_port: int = 5432
-    db_name: str = "genonaut"
+    db_name: str = "genonaut_test"  # Default for testing; override in config for production
     db_user_ro: str = "genonaut_ro"
     db_user_rw: str = "genonaut_rw"
     db_user_admin: str = "genonaut_admin"
@@ -142,14 +142,23 @@ class Settings(BaseModel):
 
     @property
     def environment_type(self) -> str:
-        """Extract environment type from ENV_TARGET (e.g., 'local-dev' -> 'dev')."""
+        """Extract environment type from ENV_TARGET (e.g., 'local-dev' -> 'dev', 'local-test-wt2' -> 'test')."""
         if not self.env_target:
             return "dev"
 
-        # Extract the type portion (e.g., 'local-dev' -> 'dev', 'cloud-prod' -> 'prod')
-        if "-" in self.env_target:
-            return self.env_target.split("-")[-1]
-        return self.env_target
+        # Extract the type portion, ignoring worktree suffixes
+        # Examples: 'local-dev' -> 'dev', 'local-test-wt2' -> 'test', 'cloud-prod' -> 'prod'
+        parts = self.env_target.split("-")
+
+        # Remove worktree suffix if present (e.g., 'wt2', 'wt3')
+        if len(parts) > 0 and parts[-1].startswith("wt"):
+            parts = parts[:-1]
+
+        # Return the last part (environment type)
+        if len(parts) > 0:
+            return parts[-1]
+
+        return "dev"
 
     @field_validator("statement_timeout", "lock_timeout", "idle_in_transaction_session_timeout")
     @classmethod

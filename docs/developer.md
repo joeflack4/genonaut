@@ -12,7 +12,7 @@ This directory contains comprehensive documentation for Genonaut development.
 - [Queuing system](./queuing.md) - Queuing system for processing tasks
 
 ### Specialized Documentation
-- [Database Migrations](./db_migrations.md) - Alembic migration procedures and troubleshooting
+- [Database Migrations](db-migrations.md) - Alembic migration procedures and troubleshooting
 - [Tag Ontology](./tag_ontology.md) - Hierarchical tag classification and semantic organization
 - [Tag System Implementation](../notes/issues/complete/uncategorized/tags-db-and-gallery-and-view.md) - Database-backed tag system with ratings, hierarchy, and gallery filtering
 
@@ -20,9 +20,8 @@ This directory contains comprehensive documentation for Genonaut development.
 
 ### Essential Commands
 - `make init` - Initialize main database
-- `make api-dev` - Start API server (development)
+- `make api-dev` / `make api-demo` - Start API server (development / demo)
 - `make test-all` - Run complete test suite
-- `make test-unit` - Run unit tests only
 
 ### Development Workflow
 1. **Setup:** Follow database setup in [db.md](./db.md)

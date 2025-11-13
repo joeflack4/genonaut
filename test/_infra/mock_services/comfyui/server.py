@@ -37,12 +37,16 @@ class MockComfyUIServer:
         input_dir: Directory containing input files for mock generation
         output_dir: Directory to write generated output files
         processing_delay: Minimum time in seconds before job completion (default 0.5)
+        static_return_mode: If True (default), return input file path directly without copying.
+                          If False, copy input file to output directory with unique filename.
     """
 
-    def __init__(self, input_dir: Path, output_dir: Path, processing_delay: float = 0.5):
+    def __init__(self, input_dir: Path, output_dir: Path, processing_delay: float = 0.5,
+                 static_return_mode: bool = True):
         self.input_dir = input_dir
         self.output_dir = output_dir
         self.processing_delay = processing_delay
+        self.static_return_mode = static_return_mode
         self.jobs: Dict[str, Dict[str, Any]] = {}
         self.queue_running: List[tuple] = []
         self.queue_pending: List[tuple] = []
@@ -78,10 +82,13 @@ class MockComfyUIServer:
         return prompt_id
 
     def process_job(self, prompt_id: str) -> None:
-        """Process a job by copying input file to output with unique filename.
+        """Process a job.
 
-        Generates unique filenames using prefix from workflow and job counter.
-        Copies input file to output directory to simulate real ComfyUI behavior.
+        In static mode (default): Returns path to input file directly without copying.
+        In dynamic mode (--disable-static-return): Copies input file to output with unique filename.
+
+        Dynamic mode generates unique filenames using prefix from workflow and job counter,
+        copying input file to output directory to simulate real ComfyUI behavior.
         """
         if prompt_id not in self.jobs:
             return
@@ -95,27 +102,36 @@ class MockComfyUIServer:
         # Update status
         job["status"] = "running"
 
-        # Generate unique filename using prefix and counter
+        # Handle file generation based on mode
         input_file = self.input_dir / "kernie_512x768.jpg"
         if input_file.exists():
-            # Get filename prefix from job (extracted during submission)
-            prefix = job["filename_prefix"]
+            if self.static_return_mode:
+                # Static mode: Return input file path directly (fast, no file I/O)
+                job["output_files"].append({
+                    "filename": "../input/kernie_512x768.jpg",
+                    "subfolder": "",
+                    "type": "output"
+                })
+            else:
+                # Dynamic mode: Generate unique file in output directory
+                # Get filename prefix from job (extracted during submission)
+                prefix = job["filename_prefix"]
 
-            # Generate unique filename: prefix_counter_.png
-            # This matches ComfyUI's naming pattern
-            output_filename = f"{prefix}_{self.job_counter:05d}_.png"
-            self.job_counter += 1
+                # Generate unique filename: prefix_counter_.png
+                # This matches ComfyUI's naming pattern
+                output_filename = f"{prefix}_{self.job_counter:05d}_.png"
+                self.job_counter += 1
 
-            # Copy file to output directory with unique name
-            output_path = self.output_dir / output_filename
-            shutil.copy2(input_file, output_path)
+                # Copy file to output directory with unique name
+                output_path = self.output_dir / output_filename
+                shutil.copy2(input_file, output_path)
 
-            # Record output file
-            job["output_files"].append({
-                "filename": output_filename,
-                "subfolder": "",
-                "type": "output"
-            })
+                # Record output file
+                job["output_files"].append({
+                    "filename": output_filename,
+                    "subfolder": "",
+                    "type": "output"
+                })
 
         # Mark as completed
         job["status"] = "completed"
@@ -221,8 +237,8 @@ OUTPUT_DIR = BASE_DIR / "output"
 INPUT_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-# Create server instance
-mock_server = MockComfyUIServer(INPUT_DIR, OUTPUT_DIR)
+# Create server instance (will be configured when server starts)
+mock_server = None
 
 # Create FastAPI app
 app = FastAPI(title="Mock ComfyUI Server")
@@ -346,5 +362,36 @@ def reset_server():
 
 
 if __name__ == "__main__":
+    import argparse
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8189)
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Mock ComfyUI Server for testing")
+    parser.add_argument(
+        "--disable-static-return",
+        action="store_true",
+        default=False,
+        help="Enable dynamic file generation mode (copy input files to output with unique names). "
+             "By default, server uses static return mode (returns input file path directly)."
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8189,
+        help="Port to run server on (default: 8189)"
+    )
+    args = parser.parse_args()
+
+    # Initialize server with appropriate mode
+    # static_return_mode = True means use static mode (default)
+    # --disable-static-return sets static_return_mode = False (dynamic mode)
+    mock_server = MockComfyUIServer(
+        INPUT_DIR,
+        OUTPUT_DIR,
+        static_return_mode=not args.disable_static_return
+    )
+
+    print(f"Starting Mock ComfyUI Server on port {args.port}")
+    print(f"Mode: {'Dynamic (unique file generation)' if args.disable_static_return else 'Static (return input file)'}")
+
+    uvicorn.run(app, host="0.0.0.0", port=args.port)

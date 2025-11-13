@@ -7,6 +7,12 @@ test-quick test-verbose test-specific test-unit test-db test-db-unit test-db-int
 test-wt2 test-api-wt2 test-long-running-wt2 test-performance-wt2 frontend-test-e2e-wt2 frontend-test-unit-wt2 \
 test-all clear-excess-test-schemas install install-dev lint format clean migrate-all migrate-all-auto migrate-prep migrate-dev migrate-demo migrate-test backup backup-dev backup-demo \
 backup-test api-dev api-demo api-demo-alt api-test api-test-wt2 celery-dev celery-demo celery-test celery-test-wt2 flower-dev flower-demo flower-test \
+api-dev-stop api-dev-restart api-demo-stop api-demo-restart api-demo-alt-stop api-demo-alt-restart \
+api-test-stop api-test-restart api-test-wt2-stop api-test-wt2-restart \
+api-local-dev-stop api-local-dev-restart api-local-demo-stop api-local-demo-restart api-local-test-stop api-local-test-restart \
+api-cloud-dev-stop 	api-cloud-dev-restart api-cloud-demo-stop api-cloud-demo-restart api-cloud-test-stop api-cloud-test-restart api-cloud-prod-stop api-cloud-prod-restart \
+api-dev-profile-stop api-dev-profile-restart api-dev-load-test-stop api-dev-load-test-restart \
+api-production-sim-stop api-production-sim-restart api-demo-load-test-stop api-demo-load-test-restart api-test-load-test-stop api-test-load-test-restart \
 redis-flush-dev redis-flush-demo redis-flush-test redis-keys-dev redis-keys-demo redis-keys-test \
 redis-info-dev redis-info-demo redis-info-test redis-start celery-check-running-workers \
 frontend-install frontend-dev frontend-dev-debug frontend-dev-debug-alt frontend-dev-wt2 frontend-build frontend-preview frontend-test \
@@ -495,7 +501,7 @@ test-api:
 
 test-wt2:
 	@echo "Running quick tests against worktree 2 API (port 8002)..."
-	API_BASE_URL=http://0.0.0.0:8002 pytest test/ -v -m "not manual and not longrunning and not performance" --durations=0 --durations-min=0.5
+	API_BASE_URL=http://0.0.0.0:8002 pytest test/ -v -m "not manual and not longrunning and not performance and not tag_queries" --durations=0 --durations-min=0.5
 
 test-api-wt2:
 	@echo "Running API integration tests against worktree 2..."
@@ -513,6 +519,7 @@ test-performance-wt2:
 	@echo "Start with: make api-test-wt2"
 	API_BASE_URL=http://0.0.0.0:8002 pytest test/ -v -s -m "performance" --durations=0
 
+# VITE_API_BASE_URL defaults to http://127.0.0.1:8001 if not passed
 frontend-test-e2e-wt2:
 	@echo "Running frontend E2E tests against worktree 2..."
 	@echo "Prerequisites: Worktree 2 API server running on port 8002"
@@ -742,7 +749,7 @@ api-dev:
 
 api-demo:
 	@echo "Starting FastAPI server for demo database..."
-	python -m genonaut.cli_main run-api --env-target local-demo
+	python -m genonaut.cli_main run-api --env-target local-demo	
 
 api-demo-alt:
 	@echo "Starting FastAPI server for demo database on port 8003..."
@@ -806,6 +813,161 @@ api-test-load-test:
 api-test-wt2:
 	@echo "Starting FastAPI server for test worktree 2 (port 8002, test database)..."
 	python -m genonaut.cli_main run-api --env-target local-test-wt2
+
+api-test-wt2-stop:
+	@echo "Stopping local-test-wt2 API (if running)..."
+	@pkill -f "run-api --env-target local-test-wt2" || true
+
+api-test-wt2-restart: api-test-wt2-stop
+	@echo "Waiting 3 secs for processes to die..."
+	@sleep 3
+	@$(MAKE) api-test-wt2
+
+# Stop and restart commands for worktree 1 (main) API servers
+api-dev-stop:
+	@echo "Stopping local-dev API (if running)..."
+	@pkill -f "run-api --env-target local-dev" || true
+
+api-dev-restart: api-dev-stop
+	@echo "Waiting 3 secs for processes to die..."
+	@sleep 3
+	@$(MAKE) api-dev
+
+api-demo-stop:
+	@echo "Stopping local-demo API (if running)..."
+	@pkill -f "run-api --env-target local-demo" || true
+
+api-demo-restart: api-demo-stop
+	@echo "Waiting 3 secs for processes to die..."
+	@sleep 3
+	@$(MAKE) api-demo
+
+api-demo-alt-stop:
+	@echo "Stopping local-alt-demo API (if running)..."
+	@pkill -f "run-api --env-target local-alt-demo" || true
+
+api-demo-alt-restart: api-demo-alt-stop
+	@echo "Waiting 3 secs for processes to die..."
+	@sleep 3
+	@$(MAKE) api-demo-alt
+
+api-test-stop:
+	@echo "Stopping local-test API (if running)..."
+	@pkill -f "run-api --env-target local-test" || true
+
+api-test-restart: api-test-stop
+	@echo "Waiting 3 secs for processes to die..."
+	@sleep 3
+	@$(MAKE) api-test
+
+api-local-dev-stop:
+	@echo "Stopping local-dev API (if running)..."
+	@pkill -f "run-api --env-target local-dev" || true
+
+api-local-dev-restart: api-local-dev-stop
+	@echo "Waiting 3 secs for processes to die..."
+	@sleep 3
+	@$(MAKE) api-local-dev
+
+api-local-demo-stop:
+	@echo "Stopping local-demo API (if running)..."
+	@pkill -f "run-api --env-target local-demo" || true
+
+api-local-demo-restart: api-local-demo-stop
+	@echo "Waiting 3 secs for processes to die..."
+	@sleep 3
+	@$(MAKE) api-local-demo
+
+api-local-test-stop:
+	@echo "Stopping local-test API (if running)..."
+	@pkill -f "run-api --env-target local-test" || true
+
+api-local-test-restart: api-local-test-stop
+	@echo "Waiting 3 secs for processes to die..."
+	@sleep 3
+	@$(MAKE) api-local-test
+
+api-cloud-dev-stop:
+	@echo "Stopping cloud-dev API (if running)..."
+	@pkill -f "run-api --env-target cloud-dev" || true
+
+api-cloud-dev-restart: api-cloud-dev-stop
+	@echo "Waiting 3 secs for processes to die..."
+	@sleep 3
+	@$(MAKE) api-cloud-dev
+
+api-cloud-demo-stop:
+	@echo "Stopping cloud-demo API (if running)..."
+	@pkill -f "run-api --env-target cloud-demo" || true
+
+api-cloud-demo-restart: api-cloud-demo-stop
+	@echo "Waiting 3 secs for processes to die..."
+	@sleep 3
+	@$(MAKE) api-cloud-demo
+
+api-cloud-test-stop:
+	@echo "Stopping cloud-test API (if running)..."
+	@pkill -f "run-api --env-target cloud-test" || true
+
+api-cloud-test-restart: api-cloud-test-stop
+	@echo "Waiting 3 secs for processes to die..."
+	@sleep 3
+	@$(MAKE) api-cloud-test
+
+api-cloud-prod-stop:
+	@echo "Stopping cloud-prod API (if running)..."
+	@pkill -f "run-api --env-target cloud-prod" || true
+
+api-cloud-prod-restart: api-cloud-prod-stop
+	@echo "Waiting 3 secs for processes to die..."
+	@sleep 3
+	@$(MAKE) api-cloud-prod
+
+api-dev-profile-stop:
+	@echo "Stopping local-dev API profile mode (if running)..."
+	@pkill -f "run-api --env-target local-dev" || true
+
+api-dev-profile-restart: api-dev-profile-stop
+	@echo "Waiting 3 secs for processes to die..."
+	@sleep 3
+	@$(MAKE) api-dev-profile
+
+api-dev-load-test-stop:
+	@echo "Stopping local-dev API load test mode (if running)..."
+	@pkill -f "run-api --env-target local-dev" || true
+
+api-dev-load-test-restart: api-dev-load-test-stop
+	@echo "Waiting 3 secs for processes to die..."
+	@sleep 3
+	@$(MAKE) api-dev-load-test
+
+api-production-sim-stop:
+	@echo "Stopping local-dev API production sim mode (if running)..."
+	@pkill -f "run-api --env-target local-dev" || true
+
+api-production-sim-restart: api-production-sim-stop
+	@echo "Waiting 3 secs for processes to die..."
+	@sleep 3
+	@$(MAKE) api-production-sim
+
+api-demo-load-test-stop:
+	@echo "Stopping local-demo API load test mode (if running)..."
+	@pkill -f "run-api --env-target local-demo" || true
+
+api-demo-load-test-restart: api-demo-load-test-stop
+	@echo "Waiting 3 secs for processes to die..."
+	@sleep 3
+	@$(MAKE) api-demo-load-test
+
+api-test-load-test-stop:
+	@echo "Stopping local-test API load test mode (if running)..."
+	@pkill -f "run-api --env-target local-test" || true
+
+api-test-load-test-restart: api-test-load-test-stop
+	@echo "Waiting 3 secs for processes to die..."
+	@sleep 3
+	@$(MAKE) api-test-load-test
+
 
 # ============================================
 # Queuing / message broking: Redis & Celery

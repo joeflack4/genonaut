@@ -100,4 +100,4 @@ make test-db               # Run database tests
 - Add clear migration message describing the change
 - Document complex migrations with comments in the migration file
 - Update schema documentation if making significant changes
-- Consider updating `docs/db_migrations.md` for new patterns
+- Consider updating `docs/db-migrations.md` for new patterns

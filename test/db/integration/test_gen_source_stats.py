@@ -61,6 +61,47 @@ def ensure_gen_source_stats_table(db_session):
         db_session.commit()
 
 
+@pytest.fixture(scope="function", autouse=True)
+def clean_database(db_session):
+    """Clean all data before each test to ensure isolation.
+
+    These tests verify statistics computed from the ENTIRE database,
+    so they need a completely clean slate. This fixture truncates all
+    relevant tables before each test.
+    """
+    # Delete all tables in dependency order (children first, then parents)
+    # Some tables don't have ORM models, so we use raw SQL
+
+    # Level 1: Tables that reference content items or users (deepest children)
+    db_session.execute(text("DELETE FROM bookmark_categories"))
+    db_session.execute(text("DELETE FROM bookmarks"))
+    db_session.execute(text("DELETE FROM content_items_ext"))
+    db_session.execute(text("DELETE FROM content_items_auto_ext"))
+    db_session.execute(text("DELETE FROM flagged_content"))
+    db_session.execute(text("DELETE FROM route_analytics"))
+    db_session.execute(text("DELETE FROM user_search_history"))
+    db_session.execute(text("DELETE FROM user_notifications"))
+    db_session.execute(text("DELETE FROM tag_ratings"))
+
+    # Level 2: Tables specific to this test
+    db_session.query(GenSourceStats).delete()
+    db_session.query(UserInteraction).delete()
+    db_session.query(GenerationJob).delete()
+
+    # Level 3: Content tables (before users since users are creators)
+    db_session.query(ContentItemAuto).delete()
+    db_session.query(ContentItem).delete()
+
+    # Level 4: Users (root level)
+    db_session.query(User).delete()
+
+    db_session.commit()
+
+    yield
+
+    # No cleanup needed - postgres_session fixture handles rollback
+
+
 @pytest.fixture
 def repository(db_session):
     """Create ContentRepository instance."""
@@ -69,22 +110,13 @@ def repository(db_session):
 
 @pytest.fixture
 def sample_users(db_session):
-    """Create sample users.
+    """Create sample users for testing.
 
-    Note: Requires database to be initialized with core tables.
+    Note: No cleanup is needed because the postgres_session fixture provides
+    automatic rollback via savepoints. Any data created during the test will be
+    automatically rolled back after the test completes. Explicit deletes would
+    bypass this protection and could delete seed data.
     """
-    # Clean up existing data
-    # Order matters due to foreign key constraints:
-    # GenSourceStats, UserInteraction -> ContentItemAuto, ContentItem -> User
-    # GenerationJob -> User
-    db_session.query(GenSourceStats).delete()
-    db_session.query(UserInteraction).delete()
-    db_session.query(GenerationJob).delete()
-    db_session.query(ContentItemAuto).delete()
-    db_session.query(ContentItem).delete()
-    db_session.query(User).delete()
-    db_session.commit()
-
     # Create users
     users = []
     for i in range(3):
@@ -157,16 +189,10 @@ class TestRefreshGenSourceStats:
     """Test refresh_gen_source_stats repository method."""
 
     def test_refresh_gen_source_stats_empty_database(self, repository, db_session):
-        """Test refreshing stats with no content."""
-        # Clean slate - delete all data
-        db_session.query(GenSourceStats).delete()
-        db_session.query(UserInteraction).delete()
-        db_session.query(GenerationJob).delete()
-        db_session.query(ContentItemAuto).delete()
-        db_session.query(ContentItem).delete()
-        db_session.query(User).delete()
-        db_session.commit()
+        """Test refreshing stats with no content.
 
+        Note: The clean_database fixture already ensures we start with an empty database.
+        """
         # Refresh
         count = repository.refresh_gen_source_stats()
 
@@ -449,16 +475,10 @@ class TestRefreshGenSourceStats:
     def test_refresh_gen_source_stats_no_users_with_content(
         self, repository, db_session
     ):
-        """Test refreshing when users exist but have no content."""
-        # Clean slate - delete all data first
-        db_session.query(GenSourceStats).delete()
-        db_session.query(UserInteraction).delete()
-        db_session.query(GenerationJob).delete()
-        db_session.query(ContentItemAuto).delete()
-        db_session.query(ContentItem).delete()
-        db_session.query(User).delete()
-        db_session.commit()
+        """Test refreshing when users exist but have no content.
 
+        Note: The clean_database fixture already ensures we start with an empty database.
+        """
         user = User(
             username=f"testuser-{uuid4().hex[:8]}",
             email=f"test-{uuid4().hex[:8]}@example.com",

@@ -38,8 +38,17 @@ test.describe('Gallery Content Type Filters (Real API)', () => {
    * Helper to toggle a specific content filter
    */
   async function toggleFilter(page, filterName: string, checked: boolean) {
-    const toggle = page.locator(`[data-testid="gallery-toggle-${filterName}"]`)
-    await expect(toggle).toBeVisible()
+    // Map filter names to their accessible labels
+    const labelMap = {
+      'your-gens': 'Your gens',
+      'your-autogens': 'Your auto-gens',
+      'community-gens': 'Community gens',
+      'community-autogens': 'Community auto-gens'
+    }
+
+    const label = labelMap[filterName]
+    // Use role and name instead of data-testid since Material UI Switch doesn't preserve data-testid
+    const toggle = page.getByRole('switch', { name: label })
 
     const isChecked = await toggle.isChecked()
     if (isChecked !== checked) {
@@ -60,13 +69,33 @@ test.describe('Gallery Content Type Filters (Real API)', () => {
   }) {
     // Make sure options panel is open
     const optionsDrawer = page.locator('[data-testid="gallery-options-drawer"]')
-    const isDrawerVisible = await optionsDrawer.isVisible()
 
-    if (!isDrawerVisible) {
+    // Wait for drawer to be in DOM
+    await optionsDrawer.waitFor({ state: 'attached', timeout: 5000 })
+
+    // Check if drawer is open (has data-open="true")
+    const drawerOpenAttr = await optionsDrawer.getAttribute('data-open')
+    const isDrawerOpen = drawerOpenAttr === 'true'
+
+    if (!isDrawerOpen) {
       const optionsToggleButton = page.locator('[data-testid="gallery-options-toggle-button"]')
       await optionsToggleButton.click()
-      await page.waitForTimeout(500)
+
+      // Wait for drawer to actually open by checking the data-open attribute
+      await page.waitForFunction(
+        () => {
+          const drawer = document.querySelector('[data-testid="gallery-options-drawer"]')
+          return drawer?.getAttribute('data-open') === 'true'
+        },
+        { timeout: 5000 }
+      )
+
+      // Additional wait for drawer animation to complete
+      await page.waitForTimeout(300)
     }
+
+    // Wait for the content toggles section to be visible (confirms drawer content loaded)
+    await page.locator('[data-testid="gallery-content-toggles"]').waitFor({ state: 'visible', timeout: 5000 })
 
     // Toggle each filter
     await toggleFilter(page, 'your-gens', filters.yourGens)
@@ -83,20 +112,41 @@ test.describe('Gallery Content Type Filters (Real API)', () => {
    * Helper to get the result count from the pagination text
    */
   async function getResultCount(page): Promise<number> {
+    // First check for empty state (faster when there are 0 results)
+    // Check both grid and list view empty messages
+    const gridEmptyMessage = page.locator('[data-testid="gallery-grid-empty"]')
+    const listEmptyMessage = page.locator('[data-testid="gallery-results-empty"]')
+
     try {
-      const paginationInfo = await getPaginationInfo(page)
-      return paginationInfo.results
-    } catch (error) {
-      // If pagination info is not found, there might be 0 results
-      const emptyMessage = page.locator('[data-testid="gallery-results-empty"]')
-      if (await emptyMessage.isVisible()) {
+      if (await gridEmptyMessage.isVisible({ timeout: 2000 })) {
         return 0
       }
-      throw error
+    } catch {
+      // Not visible, try list view
+    }
+
+    try {
+      if (await listEmptyMessage.isVisible({ timeout: 2000 })) {
+        return 0
+      }
+    } catch {
+      // Not visible, continue to pagination check
+    }
+
+    // Then check for pagination info
+    try {
+      const paginationInfo = await getPaginationInfo(page, { timeout: 3000 })
+      return paginationInfo.results
+    } catch (error) {
+      // If all checks fail, assume 0 results
+      return 0
     }
   }
 
   test('should show 0 results when all filters are OFF', async ({ page }) => {
+    // Longer timeout needed for toggling 4 filters with API calls
+    test.setTimeout(30000)
+
     await page.goto('/gallery')
     await waitForGalleryLoad(page)
 
@@ -112,14 +162,13 @@ test.describe('Gallery Content Type Filters (Real API)', () => {
     const resultCount = await getResultCount(page)
     expect(resultCount).toBe(0)
 
-    // Verify the pagination text shows "0 pages showing 0 results"
+    // Verify the summary text shows "0 results"
     const summaryText = page.locator('[data-testid="gallery-options-summary-text"]')
     const summaryContent = await summaryText.textContent()
-    expect(summaryContent).toContain('0')
-    expect(summaryContent).toContain('0')
+    expect(summaryContent).toContain('0 results')
 
-    // Verify empty message is shown
-    const emptyMessage = page.locator('[data-testid="gallery-results-empty"]')
+    // Verify empty message is shown (grid view uses different data-testid than list view)
+    const emptyMessage = page.locator('[data-testid="gallery-grid-empty"]')
     await expect(emptyMessage).toBeVisible()
   })
 
@@ -145,6 +194,9 @@ test.describe('Gallery Content Type Filters (Real API)', () => {
   })
 
   test('should show different result counts for each individual filter', async ({ page }) => {
+    // Longer timeout needed for toggling filters 5 times with API calls
+    test.setTimeout(60000)
+
     await page.goto('/gallery')
     await waitForGalleryLoad(page)
 

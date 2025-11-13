@@ -19,6 +19,51 @@ See [testing-test-worktree.md](./testing-test-worktree.md) for complete instruct
 - Starting services: `make api-test-wt2` and `make celery-test-wt2` (and also `make frontend-dev-wt2` if needed)
 - Running tests: `make test-wt2`, `make test-api-wt2`, `make frontend-test-e2e-wt2`
 
+## API Server Management for Testing
+
+**IMPORTANT**: When working with test API servers, use the environment-specific stop and restart commands instead of manually killing processes with `pkill` or `killall`.
+
+**Why this matters:**
+- Prevents accidentally killing API servers in other worktrees
+- Pattern-matches on exact `--env-target` flag for precise targeting
+- Includes proper cleanup with a 3-second wait period
+- Essential when debugging test failures that may be caused by stale server state
+
+**Common Testing Scenarios:**
+
+**Restarting After Code Changes:**
+```bash
+# After changing Pydantic models or other non-hot-reload code:
+make api-test-wt2-restart
+
+# Or manually:
+make api-test-wt2-stop
+# ... clear Python bytecode cache if needed ...
+make api-test-wt2
+```
+
+**Clearing Python Bytecode Cache:**
+```bash
+# When Uvicorn auto-reload doesn't pick up changes:
+find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+make api-test-wt2-restart
+```
+
+**Available Test Server Commands:**
+- `make api-test-stop` / `make api-test-restart` - Worktree 1 test server (port 8001)
+- `make api-test-wt2-stop` / `make api-test-wt2-restart` - Worktree 2 test server (port 8002)
+
+**What NOT to do:**
+```bash
+# DON'T use generic pkill - kills ALL API servers:
+pkill -f "run-api"
+
+# DO use environment-specific commands:
+make api-test-wt2-restart
+```
+
+See [docs/infra.md](./infra.md#api-server-management-stop-and-restart-commands) for the complete list of stop/restart commands for all environments.
+
 ## Testing Strategy
 
 **🔄 Incremental Testing During Development**
@@ -329,6 +374,26 @@ The `pytest_sessionstart` hook in `test/conftest.py` checks the database name an
 - Test data seeded via `make init-test` or `make import-demo-seed-to-test` persists across test runs
 - Initialization tests that need empty databases can use `genonaut_test_init`
 - Developers can force truncation when needed via environment variables
+
+### Two-Database Architecture: Persistent vs Ephemeral
+
+Genonaut uses two separate test databases with fundamentally different purposes and lifecycle management:
+
+**`genonaut_test` (Persistent Database)**
+- **Purpose**: Main test database for all standard test runs (unit, integration, API tests)
+- **Seeding**: Initialized once via `make init-test`, data persists across test runs
+- **Teardown**: Uses savepoint-based rollback for test isolation - seed data is NEVER deleted during tests
+- **When to use**: All normal tests that rely on stable seed data (test users, content items, tags, etc.)
+- **Risk**: Database initialization tests that call `initialize_database(drop_existing=True)` would wipe seed data if run against this database
+
+**`genonaut_test_init` (Ephemeral Database)**
+- **Purpose**: Dedicated database for testing database initialization logic itself
+- **Seeding**: Recreated/reseeded as needed by initialization tests
+- **Teardown**: Tests can freely drop tables, truncate data, or call `initialize_database(drop_existing=True)`
+- **When to use**: Database initialization tests, migration tests, schema validation tests that need to start from empty state
+- **Protection**: Keeps destructive initialization tests isolated from the persistent test database
+
+This separation prevents database initialization tests from accidentally wiping seed data that other tests depend on. Tests that need to perform destructive operations (drop tables, recreate schema) should always use `genonaut_test_init` to avoid affecting the persistent `genonaut_test` database.
 
 ### `local-test-init` Environment
 
@@ -1138,6 +1203,11 @@ npm run test:e2e           # Tests run against whatever is on port 8001
   make api-test              # Start test API
   make frontend-test-e2e     # Run tests
   ```
+
+**Pitfall 4: No `VITE_API_BASE_URL` passed**
+`VITE_API_BASE_URL` defaults to http://127.0.0.1:8001 if not passed. 
+Note that if you run `frontend-test-e2e-wt2`, it will use a localhost with port 8002 specifically designed to run off 
+the test database.
 
 ### Best Practices
 

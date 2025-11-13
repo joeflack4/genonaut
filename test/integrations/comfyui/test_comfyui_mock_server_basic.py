@@ -84,8 +84,12 @@ class TestMockServerBasics:
 
     @pytest.mark.longrunning
     @pytest.mark.comfyui_poll
-    def test_get_history_completed(self, mock_comfyui_url: str):
-        """Test getting history for completed job with outputs."""
+    def test_get_history_completed(self, mock_comfyui_url_dynamic: str):
+        """Test getting history for completed job with outputs.
+
+        Uses dynamic mode to verify unique file generation.
+        """
+        mock_comfyui_url = mock_comfyui_url_dynamic  # Alias for minimal changes
         import time
 
         # Submit a job
@@ -177,8 +181,12 @@ class TestMockServerBasics:
 
     @pytest.mark.longrunning
     @pytest.mark.comfyui_poll
-    def test_multiple_jobs_unique_files(self, mock_comfyui_url: str):
-        """Test that multiple jobs create unique output files."""
+    def test_multiple_jobs_unique_files(self, mock_comfyui_url_dynamic: str):
+        """Test that multiple jobs create unique output files.
+
+        Uses dynamic mode to verify unique file generation per job.
+        """
+        mock_comfyui_url = mock_comfyui_url_dynamic  # Alias for minimal changes
         import time
 
         filenames = []

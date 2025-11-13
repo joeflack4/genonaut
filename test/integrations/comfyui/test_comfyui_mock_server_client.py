@@ -77,8 +77,9 @@ class TestComfyUIClientIntegration:
 
     @pytest.mark.longrunning
     @pytest.mark.comfyui_poll
-    def test_get_output_files(self, mock_comfyui_client: ComfyUIClient):
+    def test_get_output_files(self, mock_comfyui_client_dynamic: ComfyUIClient):
         """Test extracting output files from workflow result."""
+        mock_comfyui_client = mock_comfyui_client_dynamic  # Alias for minimal changes
         workflow = {
             "1": {"class_type": "SaveImage", "inputs": {"filename_prefix": "output_test"}}
         }

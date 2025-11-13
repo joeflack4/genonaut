@@ -165,6 +165,8 @@ API_BASE_URL=http://0.0.0.0:8002 pytest test/ -v
 VITE_API_BASE_URL=http://localhost:8002 npm --prefix frontend run test:e2e
 ```
 
+Note, `VITE_API_BASE_URL` defaults to http://127.0.0.1:8001 if not passed.
+
 ## Configuration Details
 
 ### Config File: `config/local-test-wt2.json`
@@ -371,5 +373,5 @@ cat config/local-test-wt2.json | grep redis-ns
 
 - [Main Testing Documentation](./testing.md)
 - [Configuration Management](./configuration.md)
-- [Database Migrations](./db_migrations.md)
+- [Database Migrations](db-migrations.md)
 - [API Documentation](./api.md)
