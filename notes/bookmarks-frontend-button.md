@@ -38,4 +38,16 @@ have the following options.
 This should also have text that says: 'Public bookmarks have not yet been implemented. As of now, even if you set it to 
 public, all bookmarks will be private.'
 
+2. Multi-assign: categories
+TODO
+- Stateful, paginated table of categories. (10 each)
+- Sort by: most recent added (updated_at), n items, alphabetical (default), date created (created_at)
 
+3. Buttons at bottom
+
+- Remove bookmark
+- Cancel
+- Save
+
+Make the 'remove bookmark' button red, and appear at the bottom left. 'Save' and 'Cancel' should be on the right, with
+'Save' being the furthest to the right.

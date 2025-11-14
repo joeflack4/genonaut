@@ -179,13 +179,16 @@ export function CategoryFormModal({
             select
             fullWidth
             disabled={isSubmitting}
-            helperText="Optional: Leave blank for top-level category"
+            // {/* helperText="Optional: Leave blank for top-level category" */}
             slotProps={{
               select: {
                 displayEmpty: true,
               },
               htmlInput: {
                 'data-testid': `${dataTestId}-parent-select`,
+              },
+              inputLabel: {
+                shrink: true,
               }
             }}
             data-testid={`${dataTestId}-parent-field`}
