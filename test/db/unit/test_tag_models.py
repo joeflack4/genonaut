@@ -274,7 +274,7 @@ class TestTagRatingModel:
 
     def test_tag_rating_allows_half_stars(self):
         """Test that half-star ratings (0.5 increments) are allowed."""
-        valid_ratings = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+        valid_ratings = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
 
         for i, rating_value in enumerate(valid_ratings):
             tag = Tag(name=f"Test Tag {i}", tag_metadata={})
@@ -290,8 +290,10 @@ class TestTagRatingModel:
 
         self.session.commit()
 
-        # All ratings should be persisted
-        rating_count = self.session.query(TagRating).count()
+        # All ratings should be persisted for this user
+        rating_count = self.session.query(TagRating).filter(
+            TagRating.user_id == self.user.id
+        ).count()
         assert rating_count == len(valid_ratings)
 
     def test_tag_rating_foreign_keys(self):

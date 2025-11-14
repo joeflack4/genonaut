@@ -52,6 +52,11 @@ Genonaut is a multi-tier application consisting of several interconnected servic
 
 **Startup:** `make api-demo` (uses demo database)
 
+**Stopping/Restarting:** Use environment-specific stop and restart commands rather than manually killing processes:
+- `make api-demo-stop` - Stop the demo API server
+- `make api-demo-restart` - Restart the demo API server
+- Similar commands exist for all API variants (see below)
+
 **Documentation:** See `docs/api.md` for endpoint details and `http://localhost:8001/docs` for interactive API docs
 
 ---
@@ -203,6 +208,66 @@ make frontend-dev
 ```
 
 See `CLAUDE.md` for detailed setup instructions and `Makefile` for all available commands.
+
+### API Server Management: Stop and Restart Commands
+
+**IMPORTANT**: When you need to restart an API server, use the environment-specific stop and restart commands instead of manually killing processes.
+
+**Why use these commands:**
+- Prevents accidentally killing the wrong API server (important when running multiple worktrees)
+- Ensures proper process cleanup with a 3-second wait period
+- Pattern-matches on the exact `--env-target` flag to kill only the intended server
+
+**Available stop/restart commands:**
+
+**Worktree 1 (Main) API Servers:**
+- `make api-dev-stop` / `make api-dev-restart` - Development database (local-dev)
+- `make api-demo-stop` / `make api-demo-restart` - Demo database (local-demo)
+- `make api-demo-alt-stop` / `make api-demo-alt-restart` - Demo on alternate port (local-alt-demo)
+- `make api-test-stop` / `make api-test-restart` - Test database (local-test)
+
+**Worktree 2 API Server:**
+- `make api-test-wt2-stop` / `make api-test-wt2-restart` - Worktree 2 test server (local-test-wt2, port 8002)
+
+**Cloud Environment API Servers:**
+- `make api-cloud-dev-stop` / `make api-cloud-dev-restart`
+- `make api-cloud-demo-stop` / `make api-cloud-demo-restart`
+- `make api-cloud-test-stop` / `make api-cloud-test-restart`
+- `make api-cloud-prod-stop` / `make api-cloud-prod-restart`
+
+**Load Testing/Profile Variants:**
+- `make api-dev-profile-stop` / `make api-dev-profile-restart`
+- `make api-dev-load-test-stop` / `make api-dev-load-test-restart`
+- `make api-production-sim-stop` / `make api-production-sim-restart`
+- `make api-demo-load-test-stop` / `make api-demo-load-test-restart`
+- `make api-test-load-test-stop` / `make api-test-load-test-restart`
+
+**Example usage:**
+```bash
+# Restart the worktree 2 test API server
+make api-test-wt2-restart
+
+# Stop the demo server
+make api-demo-stop
+
+# Restart after code changes
+make api-demo-restart
+```
+
+**Common use cases:**
+- After making code changes that require a hard restart (e.g., Pydantic model changes)
+- When switching between different database configurations
+- After clearing Python bytecode cache
+- When troubleshooting server connection issues
+
+**What NOT to do:**
+```bash
+# Don't do this - kills ALL API servers:
+pkill -f "run-api"
+
+# Do this instead - kills only the specific server:
+make api-test-wt2-stop
+```
 
 ## `infra/` directory: Terraform setup
 

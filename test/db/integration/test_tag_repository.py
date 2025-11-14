@@ -9,9 +9,37 @@ from genonaut.db.schema import Base, Tag, TagParent, TagRating, TagCardinalitySt
 from genonaut.api.repositories.tag_repository import TagRepository
 from genonaut.api.models.requests import PaginationRequest
 from genonaut.api.exceptions import DatabaseError
+from sqlalchemy import text
 
 
 # db_session fixture now provided by conftest.py (PostgreSQL)
+
+
+@pytest.fixture(scope="function", autouse=True)
+def clean_database(db_session):
+    """Clean all tag-related data before each test to ensure isolation.
+
+    These tests verify tag operations that query the ENTIRE database,
+    so they need a completely clean slate. This fixture deletes all
+    tag-related tables before each test.
+    """
+    # Delete all tag-related tables in dependency order (children first, then parents)
+    # Some tables don't have ORM models, so we use raw SQL
+
+    # Level 1: Tables that reference tags (children)
+    db_session.execute(text("DELETE FROM content_tags"))
+    db_session.execute(text("DELETE FROM tag_cardinality_stats"))
+    db_session.query(TagRating).delete()
+    db_session.query(TagParent).delete()
+
+    # Level 2: Tags table (parent)
+    db_session.query(Tag).delete()
+
+    db_session.commit()
+
+    yield
+
+    # No cleanup needed - postgres_session fixture handles rollback
 
 
 @pytest.fixture
@@ -22,13 +50,13 @@ def repository(db_session):
 
 @pytest.fixture
 def sample_tags(db_session):
-    """Create sample tag hierarchy."""
-    # Ensure a clean slate for each test run to avoid data leakage across tests
-    db_session.query(TagRating).delete()
-    db_session.query(TagParent).delete()
-    db_session.query(Tag).delete()
-    db_session.commit()
+    """Create sample tag hierarchy for testing.
 
+    Note: No cleanup is needed because the postgres_session fixture provides
+    automatic rollback via savepoints. Any data created during the test will be
+    automatically rolled back after the test completes. Explicit deletes would
+    bypass this protection and could delete seed data.
+    """
     # Root tags
     root1 = Tag(name="Art", tag_metadata={})
     root2 = Tag(name="Science", tag_metadata={})

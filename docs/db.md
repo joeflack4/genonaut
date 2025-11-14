@@ -966,4 +966,4 @@ SHOW idle_in_transaction_session_timeout;
 
 Settings take effect on new connections only. Restart the application to apply changes.
 
-For more detailed migration procedures and troubleshooting, see [Database Migrations](./db_migrations.md).
+For more detailed migration procedures and troubleshooting, see [Database Migrations](db-migrations.md).

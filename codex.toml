@@ -4,6 +4,6 @@ name = "genonaut"
 always_read = [
   "AGENTS.md",
   "README.md",
-  "docs/db_migrations.md",
+  "docs/db-migrations.md",
   "docs/developer.md"
 ]

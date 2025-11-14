@@ -10,8 +10,12 @@ class TestMockServerFileOutput:
 
     @pytest.mark.longrunning
     @pytest.mark.comfyui_poll
-    def test_output_file_naming_pattern(self, mock_comfyui_client: ComfyUIClient):
-        """Test output files follow correct naming pattern."""
+    def test_output_file_naming_pattern(self, mock_comfyui_client_dynamic: ComfyUIClient):
+        """Test output files follow correct naming pattern.
+
+        Uses dynamic mode to verify unique file generation.
+        """
+        mock_comfyui_client = mock_comfyui_client_dynamic  # Alias for minimal changes
         workflow = {
             "1": {"class_type": "SaveImage", "inputs": {"filename_prefix": "naming_test"}}
         }
@@ -47,8 +51,9 @@ class TestMockServerFileOutput:
 
     @pytest.mark.longrunning
     @pytest.mark.comfyui_poll
-    def test_concurrent_jobs_unique_files(self, mock_comfyui_client: ComfyUIClient):
+    def test_concurrent_jobs_unique_files(self, mock_comfyui_client_dynamic: ComfyUIClient):
         """Test concurrent jobs create unique output files."""
+        mock_comfyui_client = mock_comfyui_client_dynamic  # Alias for minimal changes
         filenames = []
 
         for i in range(5):
@@ -121,8 +126,9 @@ class TestMockServerFileOutput:
 
     @pytest.mark.longrunning
     @pytest.mark.comfyui_poll
-    def test_filename_counter_increments(self, mock_comfyui_client: ComfyUIClient):
+    def test_filename_counter_increments(self, mock_comfyui_client_dynamic: ComfyUIClient):
         """Test filename counter increments across jobs."""
+        mock_comfyui_client = mock_comfyui_client_dynamic  # Alias for minimal changes
         filenames = []
 
         # Submit 3 jobs with same prefix

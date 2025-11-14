@@ -278,7 +278,7 @@ This maintains compatibility with the new config system without requiring CLI ch
 ### Phase 4: Documentation & Prevention (Priority 4) - COMPLETED
 
 - [x] 4.1: (Skipped - README already has sufficient migration info)
-- [x] 4.2: Updated docs/db_migrations.md with troubleshooting for DATABASE_URL and constraint issues
+- [x] 4.2: Updated docs/db-migrations.md with troubleshooting for DATABASE_URL and constraint issues
 - [x] 4.3: Added note about config system and DATABASE_URL construction to documentation
 - [x] 4.4: Documented test database migration approach
 - [ ] 4.5: (Deferred) Consider adding migration version check to API startup (log warning if behind)
@@ -308,7 +308,7 @@ This maintains compatibility with the new config system without requiring CLI ch
 2. Fixed migration 3a7d7f5eafca to conditionally check for constraints before dropping
 3. Migrated test database to head (3a7d7f5eafca)
 4. Restarted API with demo database - verified 500 errors resolved
-5. Updated docs/db_migrations.md with troubleshooting guidance
+5. Updated docs/db-migrations.md with troubleshooting guidance
 
 **Databases Status:**
 - Demo DB (genonaut_demo): At head (3a7d7f5eafca) - VERIFIED

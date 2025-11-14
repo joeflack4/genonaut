@@ -33,8 +33,9 @@ This must be done at the beginning of every session before running any Python co
 ```bash
 # Database
 make init-demo              # Initialize demo database
-make api-demo               # Start API server (demo DB)
+make api-demo              # Start API server (demo DB)
 make migrate-demo           # Generate and apply DB migration
+make api-test-wt2-restart  # Restarts API server (test DB, designed for worktree 2; uses different port; there are various restart commands for various ENV-worktree combos. if no 'wtN' is specified, it is designed for the default worktree) 
 
 # Testing
 make test-unit              # Unit tests (backend)
@@ -45,7 +46,6 @@ make frontend-test          # All frontend tests
 
 # Services
 make celery-dev             # Start Celery worker
-make flower-dev             # Celery monitoring UI
 make frontend-dev           # Start frontend dev server
 make beat-status            # Check Celery Beat schedule status
 
@@ -237,7 +237,7 @@ Frontend configuration lives in `frontend/src/config/`. See [docs/configuration.
 - Forward-only in prod; rollbacks are for local/dev only
 - For non-null columns: add with `server_default`, backfill, then remove default
 - For indexes on large tables: use `postgresql_concurrently=True` with `autocommit_block()`
-- See [docs/db_migrations.md](docs/db_migrations.md) for detailed procedures and troubleshooting
+- See [docs/db-migrations.md](docs/db-migrations.md) for detailed procedures and troubleshooting
 
 ### Service Management
 If at any point you need a service to be running (e.g. database, backend web API, frontend, or other services), you should:
@@ -245,16 +245,30 @@ If at any point you need a service to be running (e.g. database, backend web API
 1. **Start required services**: Go ahead and try to start the process as a background process using appropriate commands
 (e.g., `make start-db`, `npm run dev`, `python -m uvicorn app:app`, etc.).
 
-2. **Restart existing services**: If you need to restart a service that is already running, try to stop and start the 
-process again. Use commands like:
+2. **Restart existing services**: **IMPORTANT - For API servers, always use environment-specific stop/restart commands:**
+
+   **For API servers, use these commands (NOT generic pkill):**
+   - `make api-demo-stop` / `make api-demo-restart` - Demo database server
+   - `make api-test-stop` / `make api-test-restart` - Test database server (worktree 1)
+   - `make api-test-wt2-stop` / `make api-test-wt2-restart` - Worktree 2 test server
+   - `make api-dev-stop` / `make api-dev-restart` - Development database server
+   - See [docs/infra.md](docs/infra.md#api-server-management-stop-and-restart-commands) for complete list
+
+   **Why use these instead of pkill:**
+   - Pattern-matches on exact `--env-target` flag to kill only the intended server
+   - Prevents accidentally killing API servers in other worktrees
+   - Includes proper cleanup with 3-second wait period
+   - Critical when running multiple worktrees or environments
+
+   **For other services**, use:
    - `pkill -f <process_name>` or `killall <service>` to stop
    - Then start the service again with the appropriate command
-   
+
 3. **Check service status**: Before starting, you can check if a service is already running using commands like:
    - `ps aux | grep <service_name>`
    - `lsof -i :<port_number>` for services running on specific ports
-   
-4. **Use project-specific commands**: Look for Makefile targets, npm scripts, or other project-specific commands for 
+
+4. **Use project-specific commands**: Look for Makefile targets, npm scripts, or other project-specific commands for
 service management (e.g., `make start-services`, `docker-compose up -d`, etc.).
 
 Always prioritize using project-specific service management commands when available, as they are likely configured with

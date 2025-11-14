@@ -90,11 +90,11 @@ test.describe('Analytics Page (Real API)', () => {
     test('displays all analytics cards', async ({ page }) => {
       // Route Analytics Card
       await expect(page.getByTestId('route-analytics-card')).toBeVisible()
-      await expect(page.getByText(ROUTE_ANALYTICS_TITLE)).toBeVisible()
+      await expect(page.getByTestId('route-analytics-title')).toHaveText(ROUTE_ANALYTICS_TITLE)
 
       // Generation Analytics Card
       await expect(page.getByTestId('generation-analytics-card')).toBeVisible()
-      await expect(page.getByText(GENERATION_ANALYTICS_TITLE)).toBeVisible()
+      await expect(page.getByTestId('generation-analytics-title')).toHaveText(GENERATION_ANALYTICS_TITLE)
 
       // Tag Cardinality Card (may not be visible if no data)
       const tagCard = page.getByTestId('tag-cardinality-card')

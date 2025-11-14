@@ -286,12 +286,13 @@ class TestConcurrentJobs:
         self,
         db_session: Session,
         test_user: User,
-        mock_comfyui_config: dict
+        mock_comfyui_worker_client_dynamic
     ):
-        """Test each job gets unique output files."""
-        from genonaut.api.config import get_settings
-        from genonaut.api.services.generation_service import GenerationService
+        """Test each job gets unique output files.
 
+        Uses dynamic mode to verify unique file generation per job.
+        """
+        from genonaut.api.services.generation_service import GenerationService
 
         generation_service = GenerationService(db_session)
 
@@ -307,7 +308,7 @@ class TestConcurrentJobs:
                 height=512
             )
 
-            process_comfy_job(db_session, job.id)
+            process_comfy_job(db_session, job.id, comfy_client=mock_comfyui_worker_client_dynamic)
 
             db_session.refresh(job)
             if 'output_paths' in job.params:
@@ -339,16 +340,12 @@ class TestErrorRecovery:
     def test_job_failure_handling(
         self,
         db_session: Session,
-        test_user: User,
-        monkeypatch
+        test_user: User
     ):
         """Test job failure with error message recording."""
-        from genonaut.api.config import get_settings
         from genonaut.api.services.generation_service import GenerationService
-
-        settings = get_settings()
-        # Point to non-existent server to force failure
-        monkeypatch.setattr(settings, 'comfyui_url', 'http://localhost:9999')
+        from genonaut.worker.comfyui_client import ComfyUIConnectionError
+        from unittest.mock import Mock
 
         generation_service = GenerationService(db_session)
 
@@ -361,9 +358,15 @@ class TestErrorRecovery:
             height=512
         )
 
+        # Create a mock client that simulates connection failure
+        mock_client = Mock()
+        mock_client.submit_generation.side_effect = ComfyUIConnectionError(
+            "Failed to connect to ComfyUI server at http://localhost:9999"
+        )
+
         # Try to process - should fail
         try:
-            process_comfy_job(db_session, job.id)
+            process_comfy_job(db_session, job.id, comfy_client=mock_client)
         except Exception:
             pass  # Expected to fail
 
@@ -378,15 +381,12 @@ class TestErrorRecovery:
     def test_cleanup_on_failed_job(
         self,
         db_session: Session,
-        test_user: User,
-        monkeypatch
+        test_user: User
     ):
         """Test cleanup occurs on failed jobs."""
-        from genonaut.api.config import get_settings
         from genonaut.api.services.generation_service import GenerationService
-
-        settings = get_settings()
-        monkeypatch.setattr(settings, 'comfyui_url', 'http://localhost:9999')
+        from genonaut.worker.comfyui_client import ComfyUIWorkflowError
+        from unittest.mock import Mock
 
         generation_service = GenerationService(db_session)
 
@@ -399,9 +399,15 @@ class TestErrorRecovery:
             height=512
         )
 
+        # Create a mock client that simulates workflow failure
+        mock_client = Mock()
+        mock_client.submit_generation.side_effect = ComfyUIWorkflowError(
+            "Workflow execution failed"
+        )
+
         # Try to process
         try:
-            process_comfy_job(db_session, job.id)
+            process_comfy_job(db_session, job.id, comfy_client=mock_client)
         except Exception:
             pass
 

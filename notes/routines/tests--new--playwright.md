@@ -15,8 +15,9 @@ bases.
 - [ ] Check off any checkboxes after the task has been completed. Your work will be considered complete when all
   checkboxes in the document are marked off. Keep working until then.
 
-## Task Completion Summary
 
+## Task Completion Summary
+```
 ### Frontend Pages Analyzed:
 TODO: Put one bullet for each page here
 
@@ -25,3 +26,15 @@ TODO: 1 bullet for each test file created (test name & a description)
 
 ### Additional notes
 TODO: Any additional notes, if applicable
+```
+
+## Additional info
+### Worktree-Specific Testing
+
+**IMPORTANT**: If you are working in a worktree other than the main development worktree (`/Users/joeflack4/projects/genonaut`), you must use the worktree-specific infrastructure to avoid port conflicts.
+
+See [docs/testing-test-worktree.md](../../docs/testing-test-worktree.md) for complete instructions.
+
+Quick reference for worktree 2:
+- Starting services: `make api-test-wt2` and `make celery-test-wt2` (and also `make frontend-dev-wt2` if needed)
+- Running tests: `make test-wt2`, `make test-api-wt2`, `make frontend-test-e2e-wt2`

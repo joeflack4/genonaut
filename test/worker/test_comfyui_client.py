@@ -29,8 +29,7 @@ def test_worker_client_method_delegation():
 
 
 def test_worker_client_download_image_reads_bytes(tmp_path):
-    client = ComfyUIWorkerClient()
-    client.settings.comfyui_output_dir = str(tmp_path)
+    client = ComfyUIWorkerClient(output_dir=str(tmp_path))
 
     target = tmp_path / "image.png"
     target.write_bytes(b"example")

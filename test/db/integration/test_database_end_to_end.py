@@ -32,15 +32,19 @@ class TestDatabaseEndToEnd:
     @pytest.fixture(autouse=True)
     def setup_method(self):
         """Set up test environment for each test."""
-        # Use PostgreSQL test database URL from environment
-        # Note: These tests use initialize_database() which runs Alembic migrations.
-        # Alembic's ConfigParser can't handle URL-encoded schema parameters,
-        # so we use the base test database without schema isolation.
-        self.test_db_url = os.getenv('DATABASE_URL_TEST', 'postgresql://localhost/genonaut_test')
+        # Use genonaut_test_init database for these initialization tests
+        # This database is designed for destructive operations (drop/recreate)
+        # and won't affect the persistent genonaut_test database used by other tests.
+        db_password = os.getenv('DB_PASSWORD_ADMIN', 'chocolateRainbows858')
+        self.test_db_url = os.getenv(
+            'DATABASE_URL_TEST_INIT',
+            f'postgresql://genonaut_admin:{db_password}@localhost:5432/genonaut_test_init'
+        )
 
         yield
 
-        # Restore seeded state to keep subsequent suites consistent
+        # Restore seeded state for genonaut_test_init database
+        # This is safe because genonaut_test_init is designed for destructive operations
         try:
             initialize_database(
                 database_url=self.test_db_url,
@@ -50,7 +54,7 @@ class TestDatabaseEndToEnd:
                 auto_seed=True,
             )
         except Exception as exc:
-            print(f"Warning: failed to restore test database state: {exc}")
+            print(f"Warning: failed to restore test_init database state: {exc}")
     
     @patch('builtins.print')  # Suppress print output during tests
     def test_complete_database_initialization_with_all_options(self, mock_print):

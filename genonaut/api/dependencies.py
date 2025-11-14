@@ -193,7 +193,11 @@ def get_database_session(settings: Settings = Depends(get_settings)) -> Generato
 
     environment = settings.environment_type or "dev"
     if environment not in SUPPORTED_ENVIRONMENTS:
-        environment = "dev"
+        raise ValueError(
+            f"Invalid environment type: '{environment}'. "
+            f"Must be one of {SUPPORTED_ENVIRONMENTS}. "
+            f"Check env_target: '{settings.env_target}'"
+        )
 
     if environment == "demo":
         yield from get_demo_session()

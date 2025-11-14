@@ -10,14 +10,44 @@ Test data reference: test/api/notes/tag_query_test_data.md
 """
 
 import math
+import os
 import pytest
 import requests
 
 # Test user ID from demo database
 TEST_USER_ID = "121e194b-4caa-4b81-ad4f-86ca3919d5b9"
 
-# API base URL (assumes demo API server is running on port 8001)
-API_BASE_URL = "http://localhost:8001"
+# API base URL (defaults to port 8001, can override with API_BASE_URL env var)
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8001")
+
+
+@pytest.fixture(scope="module", autouse=True)
+def require_demo_database():
+    """Skip all tests in this module if not running against demo database.
+
+    These tests are designed to run against the demo database which contains
+    hundreds of thousands of content items with tags. They will fail if run
+    against the test database which has minimal seed data.
+    """
+    try:
+        response = requests.get(f"{API_BASE_URL}/api/v1/health", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            # Handle both old and new health endpoint response formats
+            db_info = data.get("database", {})
+            if isinstance(db_info, dict):
+                db_name = db_info.get("name", "unknown")
+            else:
+                db_name = str(db_info)
+
+            if db_name != "genonaut_demo":
+                pytest.skip(
+                    f"Skipping tag query tests: requires genonaut_demo database, "
+                    f"but connected to '{db_name}'. "
+                    f"API URL: {API_BASE_URL}"
+                )
+    except Exception as e:
+        pytest.skip(f"Skipping tag query tests: API not available at {API_BASE_URL}: {e}")
 
 # Tag IDs from demo database (see test/api/notes/tag_query_test_data.md)
 TAG_ANIME = "dfbb88fc-3c31-468f-a2d7-99605206c985"

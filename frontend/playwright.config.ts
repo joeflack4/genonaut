@@ -27,6 +27,8 @@ export default defineConfig({
     port: 4173,
     reuseExistingServer: true,
     timeout: process.env.CI ? 120_000 : 30_000,
-    env: { VITE_API_BASE_URL: 'http://127.0.0.1:8001' },
+    env: {
+      VITE_API_BASE_URL: process.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8001'
+    },
   }
 })

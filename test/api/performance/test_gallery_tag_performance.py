@@ -13,14 +13,15 @@ Run manually with:
     pytest test/api/performance/ -v -s -m performance
 """
 
+import os
 import pytest
 import requests
 import time
 from typing import Optional
 
 
-# Demo server configuration
-DEMO_SERVER_BASE_URL = "http://localhost:8001"
+# Demo server configuration (defaults to port 8001, can override with API_BASE_URL env var)
+DEMO_SERVER_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8001")
 TIMEOUT_SECONDS = 15  # Must complete before this timeout
 PERFORMANCE_TARGET_SECONDS = 3  # Should complete within this time
 NON_TAG_QUERY_TARGET_SECONDS = 3.5  # Allow margin for system variance (CPU, GC, background services)

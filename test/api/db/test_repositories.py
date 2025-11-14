@@ -216,16 +216,24 @@ class TestUserRepository:
         admin_uuid_str = os.environ.get("DB_USER_ADMIN_UUID")
         admin_uuid = uuid.UUID(admin_uuid_str)
 
-        # Create admin user
-        admin_user = User(
-            id=admin_uuid,
-            username="Admin",
-            email="admin@example.com",
-        )
-        test_db_session.add(admin_user)
-        test_db_session.commit()
+        # Check if admin user already exists (from seed data)
+        existing_user = test_db_session.query(User).filter(User.id == admin_uuid).first()
 
-        user = repo.get_by_username("Admin")
+        if not existing_user:
+            # Create admin user if it doesn't exist
+            admin_user = User(
+                id=admin_uuid,
+                username="Admin",
+                email="admin@example.com",
+            )
+            test_db_session.add(admin_user)
+            test_db_session.commit()
+            test_username = "Admin"
+        else:
+            # Use the existing user's username from seed data
+            test_username = existing_user.username
+
+        user = repo.get_by_username(test_username)
         assert user is not None
         assert user.id == admin_uuid
 

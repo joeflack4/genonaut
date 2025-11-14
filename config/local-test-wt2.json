@@ -1,0 +1,5 @@
+{
+  "db-name": "genonaut_test",
+  "redis-ns": "genonaut_test_wt2",
+  "api-port": 8002
+}
