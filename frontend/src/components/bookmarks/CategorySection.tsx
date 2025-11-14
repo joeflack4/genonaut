@@ -112,6 +112,7 @@ export function CategorySection({
             border: 'none',
             background: 'transparent',
             padding: 0,
+            color: 'text.primary',
             '&:hover': {
               opacity: 0.7,
             },
@@ -133,7 +134,13 @@ export function CategorySection({
           aria-label={`View all bookmarks in ${category.name} category`}
           data-testid={`${dataTestId}-title-section`}
         >
-          <Typography variant="h5" component="h2" gutterBottom data-testid={`${dataTestId}-name`}>
+          <Typography
+            variant="h5"
+            component="h2"
+            gutterBottom
+            color="inherit"
+            data-testid={`${dataTestId}-name`}
+          >
             {category.name}
           </Typography>
           {category.description && (
