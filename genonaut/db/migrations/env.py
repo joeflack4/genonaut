@@ -7,6 +7,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import create_engine, pool, text
+import re
 
 import genonaut.db.schema  # ensure package is imported for migration references
 
@@ -52,6 +53,7 @@ def include_object(obj, name, type_, reflected, compare_to):
     - content_items_all_uidx_id_src: Partitioned unique index on parent
     - items_uidx_id_src, auto_uidx_id_src: Per-partition unique indexes
     - idx_content_items_created_id_desc, idx_content_items_auto_created_id_desc: Pagination indexes
+    - Partition-inherited foreign keys: Auto-generated FKs from partition inheritance
     """
     # Exclude partitioned parent table
     if type_ == "table" and name == "content_items_all":
@@ -76,7 +78,59 @@ def include_object(obj, name, type_, reflected, compare_to):
     if type_ == "index" and name in postgres_partial_indexes:
         return False
 
+    # Exclude partition-inherited foreign keys on tables that reference content_items_all
+    # When we create an FK to content_items_all (partitioned parent), PostgreSQL auto-creates
+    # inherited FK constraints from the child partitions (content_items, content_items_auto).
+    # These appear in pg_constraint but cannot be dropped directly ("cannot drop inherited constraint").
+    # We keep only the explicit FKs we defined (fk_bookmark_content, fk_bookmark_category_cover_content).
+    partition_inherited_fks = {
+        "bookmarks_content_id_content_source_type_fkey",   # Inherited from content_items partition
+        "bookmarks_content_id_content_source_type_fkey1",  # Inherited from content_items_auto partition
+        "bookmark_categories_cover_content_id_cover_content_source__fkey",  # Inherited from content_items
+        "bookmark_categories_cover_content_id_cover_content_source_fkey1",  # Inherited from content_items_auto
+    }
+    if type_ == "foreign_key_constraint" and name in partition_inherited_fks:
+        return False
+
     return True
+
+
+def compare_server_default(context, inspected_column, metadata_column, inspected_default, metadata_default, rendered_metadata_default):
+    """Custom comparator for server defaults to handle PostgreSQL::regclass casting differences.
+
+    PostgreSQL stores sequence defaults as nextval('seq_name'::regclass) while SQLAlchemy
+    generates nextval('seq_name'). These are functionally identical, so we normalize both
+    before comparing to avoid generating unnecessary migrations.
+
+    Returns:
+        True: Defaults are different (generate migration)
+        False: Defaults are the same (no migration needed)
+        None: Use default comparison logic
+    """
+    # Handle None cases
+    if inspected_default is None and metadata_default is None:
+        return False
+    if inspected_default is None or metadata_default is None:
+        return None
+
+    # Convert to strings for comparison
+    inspected_str = str(inspected_default).strip()
+    metadata_str = str(rendered_metadata_default or metadata_default).strip()
+
+    # Normalize by removing ::regclass from both (in case either has it)
+    normalized_inspected = re.sub(r"::regclass\)", ")", inspected_str)
+    normalized_metadata = re.sub(r"::regclass\)", ")", metadata_str)
+
+    # Also handle case where one has text() wrapper and other doesn't
+    normalized_inspected = re.sub(r"^text\('(.*)'\)$", r"\1", normalized_inspected)
+    normalized_metadata = re.sub(r"^text\('(.*)'\)$", r"\1", normalized_metadata)
+
+    # If they match after normalization, consider them equal (no change needed)
+    if normalized_inspected == normalized_metadata:
+        return False
+
+    # Fall back to default comparison
+    return None
 
 
 # Helper to resolve the database URL. Allows programmatic runners to inject the
@@ -102,7 +156,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         include_object=include_object,
         compare_type=True,             # detect column type changes
-        compare_server_default=True,   # detect server default changes
+        compare_server_default=compare_server_default,  # custom comparator for server defaults
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         process_revision_directives=process_revision_directives,
@@ -126,7 +180,7 @@ def run_migrations_online() -> None:
             target_metadata=target_metadata,
             include_object=include_object,
             compare_type=True,
-            compare_server_default=True,
+            compare_server_default=compare_server_default,  # custom comparator for server defaults
             render_as_batch=False,  # keep False for Postgres
             process_revision_directives=process_revision_directives,
         )

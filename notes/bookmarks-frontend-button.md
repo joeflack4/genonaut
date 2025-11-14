@@ -4,7 +4,7 @@ individual bookmarks. We're going to do that now.
 
 ## The Icon
 When an image is not bookmarked by the user, the icon will be `BookmarkBorder` (`import BookmarkBorderIcon from 
-'@mui/icons-material/BookmarkBorder';). Otherwise if it is a bookmark, use `BookmarkIcon` (`import BookmarkIcon from 
+'@mui/icons-material/BookmarkBorder';`). Otherwise if it is a bookmark, use `BookmarkIcon` (`import BookmarkIcon from 
 '@mui/icons-material/Bookmark';`).
 
 ## Button location 1: Image view page
@@ -28,5 +28,14 @@ in that way, to not display it.
 If the image is currently not bookmarked, then when the user clicks it, the following should happen:
 - Add the bookmark to the default category, which should be set to 'Uncategorized'.
 - Set the bookmark to 'private' by default.
+- The icon should change from `BookmarkBorder` to `BookmarkIcon`
 
 ## Behavior: Update bookmark
+If the image is currently a bookmark, then if the user clicks the bookmark icon, it will open up a modal, which will 
+have the following options.
+
+1. Public/Private toggle.
+This should also have text that says: 'Public bookmarks have not yet been implemented. As of now, even if you set it to 
+public, all bookmarks will be private.'
+
+
