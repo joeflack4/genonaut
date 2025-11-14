@@ -537,7 +537,7 @@ describe('CategoryFormModal', () => {
         />
       )
 
-      expect(screen.getByText('Make this category visible to others')).toBeInTheDocument()
+      expect(screen.getByText('Public bookmarks have not yet been implemented. As of now, even if you set it to public, all bookmarks will be private.')).toBeInTheDocument()
     })
 
     it('should be disabled when isSubmitting', () => {

@@ -219,7 +219,7 @@ export function CategoryFormModal({
               <Box>
                 <Typography variant="body2">Public</Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Make this category visible to others
+                  Public bookmarks have not yet been implemented. As of now, even if you set it to public, all bookmarks will be private.
                 </Typography>
               </Box>
             }

@@ -142,6 +142,8 @@ class User(Base):
     auto_content_items = relationship("ContentItemAuto", back_populates="creator")
     interactions = relationship("UserInteraction", back_populates="user")
     recommendations = relationship("Recommendation", back_populates="user")
+    bookmarks = relationship("Bookmark", back_populates="user")
+    bookmark_categories = relationship("BookmarkCategory", back_populates="user", overlaps="children,parent")
 
     # Pagination optimization indexes
     __table_args__ = (
@@ -1465,12 +1467,17 @@ class Bookmark(Base):
                 f"content_id={self.content_id}, source_type='{self.content_source_type}', pinned={self.pinned})")
 
     # Relationships
-    user = relationship("User", backref="bookmarks")
+    user = relationship("User", back_populates="bookmarks")
     content = relationship("ContentItemAll",
                           foreign_keys=[content_id, content_source_type],
                           primaryjoin="and_(Bookmark.content_id == ContentItemAll.id, "
                                      "Bookmark.content_source_type == ContentItemAll.source_type)",
                           viewonly=True)
+    category_memberships = relationship(
+        "BookmarkCategoryMember",
+        back_populates="bookmark",
+        overlaps="category_memberships"
+    )
 
     # Constraints and indexes
     __table_args__ = (
@@ -1540,14 +1547,32 @@ class BookmarkCategory(Base):
                 f"name='{self.name}', parent_id={self.parent_id})")
 
     # Relationships
-    user = relationship("User", backref="bookmark_categories")
+    user = relationship("User", back_populates="bookmark_categories", overlaps="children,parent")
     cover_content = relationship("ContentItemAll",
                                 foreign_keys=[cover_content_id, cover_content_source_type],
                                 primaryjoin="and_(BookmarkCategory.cover_content_id == ContentItemAll.id, "
                                            "BookmarkCategory.cover_content_source_type == ContentItemAll.source_type)",
                                 viewonly=True)
     # Self-referential relationship for parent-child hierarchy
-    children = relationship("BookmarkCategory", backref="parent", remote_side=[id])
+    children = relationship(
+        "BookmarkCategory",
+        foreign_keys='[BookmarkCategory.parent_id]',
+        back_populates="parent",
+        remote_side=[id],  # This is the "one" side (parent has many children)
+        overlaps="bookmark_categories,user"
+    )
+    parent = relationship(
+        "BookmarkCategory",
+        foreign_keys='[BookmarkCategory.parent_id]',
+        back_populates="children",
+        # No remote_side here - this is the "many" side (child has one parent)
+        overlaps="bookmark_categories,user"
+    )
+    bookmark_memberships = relationship(
+        "BookmarkCategoryMember",
+        back_populates="category",
+        overlaps="bookmark,category_memberships"
+    )
 
     # Constraints and indexes
     __table_args__ = (
@@ -1605,8 +1630,16 @@ class BookmarkCategoryMember(Base):
                 f"category_id={self.category_id}, position={self.position})")
 
     # Relationships
-    bookmark = relationship("Bookmark", backref="category_memberships")
-    category = relationship("BookmarkCategory", backref="bookmark_memberships")
+    bookmark = relationship(
+        "Bookmark",
+        back_populates="category_memberships",
+        overlaps="category_memberships"
+    )
+    category = relationship(
+        "BookmarkCategory",
+        back_populates="bookmark_memberships",
+        overlaps="bookmark,category_memberships"
+    )
 
     # Constraints and indexes
     __table_args__ = (
