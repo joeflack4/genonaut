@@ -21,7 +21,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from alembic import command
 from alembic.config import Config
 
-from genonaut.db.schema import Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob, ContentItemAuto, ensure_pg_trgm_extension, ensure_trigram_indexes
+from genonaut.db.schema import Base, User, ContentItem, UserInteraction, Recommendation, GenerationJob, ContentItemAuto, Bookmark, BookmarkCategory, BookmarkCategoryMember, ensure_pg_trgm_extension, ensure_trigram_indexes
 from genonaut.db.schema_extensions import install_extensions
 
 

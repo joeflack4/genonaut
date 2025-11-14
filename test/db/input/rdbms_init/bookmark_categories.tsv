@@ -1,0 +1,9 @@
+id	user_id	name	description	color_hex	icon	cover_content_id	cover_content_source_type	parent_id	sort_index	is_public	share_token	created_at	updated_at
+a2a87dc4-224b-4cc2-b876-3d9c3fff6a36	a04237b8-f14e-4fed-9427-576c780d6e2a	Uncategorized	Default category for uncategorized bookmarks						0	False		2025-10-01T10:00:00	2025-10-01T10:00:00
+b3f5e8d2-4c5a-4d3e-9f2b-1a8c7e6d5f4a	a04237b8-f14e-4fed-9427-576c780d6e2a	Favorites	My favorite images	#FF5733	star				1	True		2025-10-05T14:30:00	2025-11-10T09:15:00
+c4e7f9a1-5d6b-4e3f-8a2c-9b1d0e8f7c6d	a04237b8-f14e-4fed-9427-576c780d6e2a	Landscapes	Beautiful landscape photography	#2ECC71					2	False		2025-10-08T16:20:00	2025-11-08T11:45:00
+d5a8b0c2-6e7c-4f3d-9b2a-0c1e9d8f7e6c	a04237b8-f14e-4fed-9427-576c780d6e2a	Portraits	Portrait photography collection	#3498DB					3	True		2025-10-12T08:10:00	2025-11-12T13:20:00
+e6b9c1d3-7f8d-403e-0c2b-1d0e9f8a7b6c	a04237b8-f14e-4fed-9427-576c780d6e2a	Abstract	Abstract and surreal art	#9B59B6					4	False		2025-10-15T12:40:00	2025-11-09T10:30:00
+f7c0d2e4-8a9e-4f3b-1d2c-0e1f9a8b7c6d	a04237b8-f14e-4fed-9427-576c780d6e2a	Nature	All nature-related images	#27AE60					5	True		2025-10-20T09:50:00	2025-11-11T15:00:00
+a8d1e3f5-9b0f-4a3c-2e1d-0f2a9b8c7d6e	a04237b8-f14e-4fed-9427-576c780d6e2a	Wildlife	Amazing wildlife shots		camera			f7c0d2e4-8a9e-4f3b-1d2c-0e1f9a8b7c6d	0	True		2025-10-22T11:15:00	2025-11-07T14:25:00
+b9e2f4a6-0c1a-4b3d-3f2e-1a3b0c9d8e7f	a04237b8-f14e-4fed-9427-576c780d6e2a	Plants	Flora and botanical images	#1ABC9C	leaf			f7c0d2e4-8a9e-4f3b-1d2c-0e1f9a8b7c6d	1	False		2025-10-25T13:30:00	2025-11-06T16:40:00

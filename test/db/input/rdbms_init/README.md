@@ -11,6 +11,9 @@ This directory contains TSV files used for seeding test databases.
 - `users.tsv` - 57 rows
 - `user_interactions.tsv` - minimal data
 - `recommendations.tsv` - minimal data
+- `bookmark_categories.tsv` - 8 rows (for test user aandersen)
+- `bookmarks.tsv` - 25 rows (15 from items, 10 from auto)
+- `bookmark_category_members.tsv` - 34 rows (many-to-many relationships)
 
 ### Full Dataset (Archived)
 - `content_items_full.tsv` - 1000 rows (original)

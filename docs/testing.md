@@ -1248,6 +1248,149 @@ DEBUG_E2E=true npm run test:e2e
 - Only test pass/fail results
 - Error summaries without verbose details
 
+### Frontend Unit Test Best Practices (Vitest + Testing Library)
+
+When writing React component tests with Vitest and Testing Library, certain patterns help avoid test state pollution and timing issues.
+
+**✅ Recommended Patterns:**
+
+1. **Always use `userEvent.setup()` for test isolation**
+   - **Why**: Global `userEvent` from `@testing-library/user-event` shares state between tests
+   - **Issue**: Typed characters or interactions from one test can bleed into subsequent tests
+   - **Solution**: Create a fresh userEvent instance per test with `userEvent.setup()`
+
+   ```typescript
+   // AVOID - Global userEvent causes state pollution
+   import userEvent from '@testing-library/user-event'
+
+   it('test 1', async () => {
+     await userEvent.type(input, 'test')  // State persists!
+   })
+
+   it('test 2', async () => {
+     await userEvent.type(input, 'other')  // May have leftover state from test 1
+   })
+
+   // PREFER - Isolated userEvent instance per test
+   it('test 1', async () => {
+     const user = userEvent.setup()
+     await user.type(input, 'test')  // Fresh instance
+   })
+
+   it('test 2', async () => {
+     const user = userEvent.setup()  // New instance, no pollution
+     await user.type(input, 'other')
+   })
+   ```
+
+2. **Use `fireEvent.change()` for long text inputs**
+   - **Why**: `userEvent.type()` simulates typing character-by-character (realistic but slow)
+   - **Issue**: Typing 500+ characters causes test timeouts and performance issues
+   - **Solution**: Use `fireEvent.change()` for bulk text input when realism isn't needed
+
+   ```typescript
+   // AVOID - Typing 501 characters one by one is very slow
+   await userEvent.type(descriptionInput, 'A'.repeat(501))  // 5+ seconds, may timeout
+
+   // PREFER - Direct value change for long text
+   fireEvent.change(descriptionInput, { target: { value: 'A'.repeat(501) } })  // <10ms
+   ```
+
+3. **Split complex multi-step tests into smaller, focused tests**
+   - **Why**: Tests with multiple user interactions and assertions accumulate state and are brittle
+   - **Issue**: Complex tests fail unpredictably due to timing, state pollution, or MUI Portal issues
+   - **Solution**: Each test should: render once, perform ONE action, assert ONE thing
+
+   ```typescript
+   // AVOID - Complex multi-step test with many assertions
+   it('should validate and submit form with trimmed data', async () => {
+     render(...)
+     await userEvent.type(nameInput, '  Test  ')
+     await userEvent.type(descInput, 'A'.repeat(501))
+     fireEvent.click(submitButton)
+     await waitFor(() => {
+       expect(screen.getByText('Description too long')).toBeInTheDocument()
+     })
+     await userEvent.clear(descInput)
+     await userEvent.type(descInput, 'Valid')
+     fireEvent.click(submitButton)
+     await waitFor(() => {
+       expect(onSubmit).toHaveBeenCalledWith({ name: 'Test', description: 'Valid' })
+     })
+   })
+
+   // PREFER - Split into focused, single-purpose tests
+   it('should accept whitespace in name input', async () => {
+     const user = userEvent.setup()
+     render(...)
+     await user.type(nameInput, '  Test  ')
+     expect(nameInput.value).toBe('  Test  ')
+   })
+
+   it('should show validation error for long description', async () => {
+     const user = userEvent.setup()
+     render(...)
+     fireEvent.change(descInput, { target: { value: 'A'.repeat(501) } })
+     fireEvent.click(submitButton)
+     expect(await screen.findByText('Description too long')).toBeInTheDocument()
+   })
+
+   it('should trim name when submitting form', async () => {
+     const user = userEvent.setup()
+     render(...)
+     await user.type(nameInput, '  Test  ')
+     fireEvent.click(submitButton)
+     await waitFor(() => {
+       expect(onSubmit).toHaveBeenCalledWith({ name: 'Test', ... })
+     })
+   })
+   ```
+
+4. **Create fresh QueryClient instance per test**
+   - **Why**: React Query caches data that can persist between tests
+   - **Solution**: Use `beforeEach` to create new QueryClient, `afterEach` to clear it
+
+   ```typescript
+   let queryClient: QueryClient
+
+   beforeEach(() => {
+     queryClient = new QueryClient({
+       defaultOptions: {
+         queries: { retry: false },
+         mutations: { retry: false },
+       },
+     })
+   })
+
+   afterEach(() => {
+     cleanup()
+     queryClient.clear()
+   })
+   ```
+
+**Common Pitfalls:**
+
+- **userEvent state pollution**: Tests pass individually but fail when run together
+  - **Symptom**: Input fields contain unexpected characters from previous tests
+  - **Fix**: Use `userEvent.setup()` for every test
+
+- **Long text timeouts**: Tests timeout when typing many characters
+  - **Symptom**: Test exceeds 5000ms timeout during `userEvent.type()`
+  - **Fix**: Use `fireEvent.change()` for text longer than ~50 characters
+
+- **Complex test failures**: Multi-step tests fail with cryptic errors
+  - **Symptom**: "Element not found", "Timeout", or assertion failures deep in test
+  - **Fix**: Break into smaller tests, each testing one behavior
+
+**When These Patterns Were Discovered:**
+
+These patterns emerged from fixing CategoryFormModal tests where:
+- 4 tests passed individually but failed when run together (userEvent pollution)
+- Tests timed out typing 501 'A' characters (performance issue)
+- Complex form validation + submission tests were brittle (too many steps)
+
+After refactoring with these patterns, all tests passed reliably.
+
 ### E2E Test Patterns to Avoid
 
 Some test patterns have proven problematic in automated Playwright environments despite working correctly in manual testing. These patterns should be avoided in favor of alternative testing approaches.
