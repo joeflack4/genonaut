@@ -59,6 +59,9 @@ async function clickSelect(page: any, selector: string) {
   await parentElement.click({ force: true })
 
   // Increase wait for menu to open and be ready (1s instead of 500ms)
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
   await page.waitForTimeout(1000)
 
   // Verify menu opened by checking for listbox (use first() to avoid strict mode violation)
@@ -71,8 +74,10 @@ test.describe('Analytics Page (Real API)', () => {
     // Navigate to analytics page
     await page.goto('/settings/analytics')
     await waitForPageLoad(page, 'analytics')
-    // Increase wait for React Query data loading (3s instead of 1s)
-    await page.waitForTimeout(3000)
+    // Wait for analytics data to fully load using network-aware waits
+    // This replaces the arbitrary 3000ms timeout with actual API response waits
+    await waitForAnalyticsDataLoaded(page, 'route')
+    await waitForAnalyticsDataLoaded(page, 'generation')
   })
 
   test.describe('Page Structure', () => {
@@ -219,6 +224,9 @@ test.describe('Analytics Page (Real API)', () => {
       await page.getByRole('option', { name: /last 7 days/i }).click({ timeout: 10000 })
 
       // Wait for selection to apply
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Verify selection changed (check parent div since input has no text)
@@ -256,6 +264,9 @@ test.describe('Analytics Page (Real API)', () => {
       await page.getByRole('option', { name: /last 30 days/i }).click({ timeout: 10000 })
 
       // Wait for selection to apply
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Change Top N using parent element
@@ -263,11 +274,17 @@ test.describe('Analytics Page (Real API)', () => {
       await page.getByRole('option', { name: /top 50/i }).click({ timeout: 10000 })
 
       // Wait for changes to be saved
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(1000)
 
       // Reload page
       await page.reload()
       await waitForPageLoad(page, 'analytics')
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(3000)
 
       // Verify selections persisted (check parent divs since inputs have no text)
@@ -299,6 +316,9 @@ test.describe('Analytics Page (Real API)', () => {
       await page.getByRole('option', { name: /7 days/i }).click()
 
       // Wait for selection to apply and data to reload
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
       await waitForAnalyticsDataLoaded(page, 'route')
 
@@ -322,19 +342,31 @@ test.describe('Analytics Page (Real API)', () => {
       // Change time range
       await clickSelect(page, 'route-analytics-days-select')
       await page.getByRole('option', { name: /30 days/i }).click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Change Top N
       await clickSelect(page, 'route-analytics-topn-select')
       await page.getByRole('option', { name: /top 50/i }).click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Wait for changes to be saved
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(1000)
 
       // Reload page
       await page.reload()
       await waitForPageLoad(page, 'analytics', 20000)  // Increase timeout for reload
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(3000)
       await waitForAnalyticsDataLoaded(page, 'route')
 
@@ -445,6 +477,9 @@ test.describe('Analytics Page (Real API)', () => {
       await page.getByRole('option', { name: /last 7 days/i }).click({ timeout: 10000 })
 
       // Wait for selection to apply
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Verify selection changed (check parent div since input has no text)
@@ -516,6 +551,9 @@ test.describe('Analytics Page (Real API)', () => {
       await page.getByRole('option', { name: /7 days/i }).click()
 
       // Wait for selection to apply and data to reload
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
       await waitForAnalyticsDataLoaded(page, 'generation')
 
@@ -564,6 +602,9 @@ test.describe('Analytics Page (Real API)', () => {
       await expect(vizTab).toBeVisible({ timeout: 10000 })
       await vizTab.click()
       // Increase wait for tab content to render (1s instead of 500ms)
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(1000)
 
       // Visualization tab should be selected
@@ -576,6 +617,9 @@ test.describe('Analytics Page (Real API)', () => {
       const tableTab = page.getByTestId('tag-cardinality-tab-table')
       await tableTab.click()
       // Increase wait for tab content to render (1s instead of 500ms)
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(1000)
 
       // Table tab should be selected
@@ -615,6 +659,9 @@ test.describe('Analytics Page (Real API)', () => {
       await expect(vizTab).toBeVisible({ timeout: 10000 })
       await vizTab.click()
       // Increase wait for tab content to render (1s instead of 500ms)
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(1000)
 
       // Find log scale toggle
@@ -686,6 +733,9 @@ test.describe('Analytics Page (Real API)', () => {
       // Wait for main content and network idle instead
       await page.waitForSelector('main', { state: 'visible' })
       await page.waitForLoadState('networkidle')
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(1000)
 
       // Page should still load

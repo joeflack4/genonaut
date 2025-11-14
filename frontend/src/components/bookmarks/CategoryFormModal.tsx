@@ -133,7 +133,7 @@ export function CategoryFormModal({
       maxWidth="sm"
       fullWidth
       disableRestoreFocus
-      data-testid={dataTestId}
+      data-testid={`${dataTestId}-root`}
     >
       <DialogTitle data-testid={`${dataTestId}-title`}>
         {mode === 'create' ? 'Create Category' : 'Edit Category'}

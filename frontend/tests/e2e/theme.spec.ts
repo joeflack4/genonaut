@@ -23,6 +23,9 @@ test.describe('Theme and UI Settings Tests', () => {
     const initialStored = await page.evaluate(() => window.localStorage.getItem('theme-mode'))
 
     await getToggle().click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(200)
 
     const toggledMode = await extractMode()
@@ -50,6 +53,9 @@ test.describe('Theme and UI Settings Tests', () => {
     await page.waitForSelector('[data-testid="settings-page-root"]', { timeout: 10000 })
 
     await getToggle().click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(200)
 
     const finalMode = await extractMode()
@@ -82,6 +88,9 @@ test.describe('Theme and UI Settings Tests', () => {
       await firstToggle.click()
 
       // Wait for change to apply
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(100)
 
       // Verify state changed

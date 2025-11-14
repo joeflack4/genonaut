@@ -442,7 +442,7 @@ export function BookmarksPage() {
           isUpdating={updateCategoryMutation.isPending}
           isDeleting={deleteCategoryMutation.isPending}
           redirectAfterDelete={false}
-          dataTestId="bookmarks-page-category-edit-dialog"
+          dataTestId="bookmarks-page-category-modal"
         />
       ) : (
         <CategoryFormModal

@@ -1512,6 +1512,37 @@ Instead of testing navigation interactions at E2E level:
 - **Component tests**: Test complex UI interactions in isolation with Testing Library
 - **Direct URL tests**: Navigate directly to URLs instead of clicking through UI
 
+### Good Design Patterns for E2E Tests
+
+**Network-Aware Wait Pattern**
+
+When E2E tests interact with UI controls that trigger API requests, use network-aware waits instead of arbitrary `waitForTimeout()` delays. This pattern waits for actual API responses rather than guessing with fixed delays.
+
+**Key principle**: Set up API response wait BEFORE performing actions, perform all actions, then wait for the FINAL API response.
+
+**Example**:
+```typescript
+// BEFORE (FLAKY - uses arbitrary timeout):
+await toggle.click()
+await page.waitForTimeout(500)  // Guess!
+
+// AFTER (RELIABLE - waits for actual API response):
+await performActionAndWaitForApi(
+  page,
+  async () => await toggle.click(),
+  '/api/v1/endpoint'
+)
+```
+
+**When to use**:
+- Multiple rapid UI actions that each trigger API requests
+- Tests failing intermittently with timeout errors
+- Actions where intermediate API requests may be canceled or batched by the frontend
+
+**Real-world results**: Gallery filter tests improved from 0/3 passing to 7/7 passing by applying this pattern.
+
+See [E2E Network-Aware Wait Pattern](e2e-network-wait-pattern.md) for detailed documentation, before/after comparisons, implementation guide, and troubleshooting.
+
 ### Handling React Query Timing Issues
 
 For components with complex React Query dependencies that cause E2E test timing failures, use explicit loading indicators with data-testid attributes.

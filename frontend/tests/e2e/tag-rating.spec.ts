@@ -4,7 +4,11 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { waitForPageLoad } from './utils/realApiHelpers'
+import {
+  waitForPageLoad,
+  waitForApiResponse,
+  performActionAndWaitForApi
+} from './utils/realApiHelpers'
 import { handleMissingData } from './utils/testDataHelpers'
 
 test.describe('Tag Rating (Real API)', () => {
@@ -21,6 +25,9 @@ test.describe('Tag Rating (Real API)', () => {
     // Open the sidebar to see available tags
     const sidebarToggle = page.getByTestId('app-layout-toggle-sidebar')
     await sidebarToggle.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(500)
 
     // Check if any tags are available in the sidebar
@@ -72,6 +79,9 @@ test.describe('Tag Rating (Real API)', () => {
     await starLabels.nth(7).click({ force: true })
 
     // Wait for the mutation to complete (API may be too fast to show "Saving...")
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1000)
 
     // Verify the rating was applied by checking the displayed value
@@ -87,6 +97,9 @@ test.describe('Tag Rating (Real API)', () => {
     // Open the sidebar to see available tags
     const sidebarToggle = page.getByTestId('app-layout-toggle-sidebar')
     await sidebarToggle.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(500)
 
     // Check if any tags are available in the sidebar
@@ -137,12 +150,18 @@ test.describe('Tag Rating (Real API)', () => {
     await starLabels.nth(5).click({ force: true })
 
     // Wait for mutation to complete
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1000)
 
     // Now update to 5 stars (index 9 for 5.0 stars with 0.5 precision)
     await starLabels.nth(9).click({ force: true })
 
     // Wait for mutation to complete
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1000)
 
     // Verify the rating was updated by checking the displayed value
@@ -158,6 +177,9 @@ test.describe('Tag Rating (Real API)', () => {
     // Open the sidebar to see available tags
     const sidebarToggle = page.getByTestId('app-layout-toggle-sidebar')
     await sidebarToggle.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(500)
 
     // Check if any tags are available in the sidebar
@@ -204,6 +226,9 @@ test.describe('Tag Rating (Real API)', () => {
     await starLabels.nth(3).click({ force: true })
 
     // Wait for mutation to complete
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1000)
 
     // Verify initial rating by checking the displayed value

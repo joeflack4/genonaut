@@ -132,6 +132,9 @@ test.describe('Dashboard Page Interactions', () => {
       if (isClickable) {
         // Click the card
         await firstCard.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
         await page.waitForTimeout(500)
 
         // Should potentially navigate somewhere or trigger an action
@@ -162,6 +165,9 @@ test.describe('Dashboard Page Interactions', () => {
           if (isClickable) {
             // Click the item
             await item.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
             await page.waitForTimeout(500)
 
             // Might navigate to detail view or gallery
@@ -179,6 +185,9 @@ test.describe('Dashboard Page Interactions', () => {
 
   test('should open dashboard detail view from grid', async ({ page }) => {
     await page.locator('[data-testid="dashboard-view-toggle-grid"]').click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300)
     await expect(page.locator('[data-testid="dashboard-user-recent-grid"]')).toBeVisible()
 
@@ -247,6 +256,9 @@ test.describe('Dashboard Page Interactions', () => {
   test('should update grid cell dimensions when resolution changes', async ({ page }) => {
     // Switch to grid view
     await page.locator('[data-testid="dashboard-view-toggle-grid"]').click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300)
 
     const gridView = page.locator('[data-testid="dashboard-user-recent-grid"]')
@@ -272,8 +284,14 @@ test.describe('Dashboard Page Interactions', () => {
 
     // Select smallest (152x232) - should fit most columns
     await resolutionDropdown.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(200)
     await page.locator('[data-testid="dashboard-resolution-dropdown-option-152x232"]').click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300)
 
     const smallInfo = await getGridInfo()
@@ -281,8 +299,14 @@ test.describe('Dashboard Page Interactions', () => {
 
     // Select medium (256x384 - the default) - should fit fewer columns than small
     await resolutionDropdown.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(200)
     await page.locator('[data-testid="dashboard-resolution-dropdown-option-256x384"]').click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300)
 
     const mediumInfo = await getGridInfo()
@@ -291,8 +315,14 @@ test.describe('Dashboard Page Interactions', () => {
 
     // Select largest (512x768) - should fit fewest columns
     await resolutionDropdown.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(200)
     await page.locator('[data-testid="dashboard-resolution-dropdown-option-512x768"]').click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300)
 
     const largeInfo = await getGridInfo()

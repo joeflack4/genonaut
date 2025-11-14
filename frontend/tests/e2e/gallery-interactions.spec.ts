@@ -26,6 +26,9 @@ test.describe('Gallery Page Interactions', () => {
     const closeButton = page.locator('[data-testid="gallery-options-close-button"]').first()
     if (await closeButton.isVisible()) {
       await closeButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(300)
     }
 
@@ -51,6 +54,9 @@ test.describe('Gallery Page Interactions', () => {
     const closeButton = page.locator('[data-testid="gallery-options-close-button"]').first()
     if (await closeButton.isVisible()) {
       await closeButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(300)
     }
 
@@ -75,6 +81,9 @@ test.describe('Gallery Page Interactions', () => {
     const closeButton = page.locator('[data-testid="gallery-options-close-button"]').first()
     if (await closeButton.isVisible()) {
       await closeButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(300)
     }
 
@@ -121,6 +130,9 @@ test.describe('Gallery Page Interactions', () => {
       return
     }
 
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300)
     const openStyles = await drawer.evaluate((element) => {
       const styles = window.getComputedStyle(element as HTMLElement)
@@ -137,6 +149,9 @@ test.describe('Gallery Page Interactions', () => {
 
     // Close the drawer again
     await closeButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300)
     const closedStyles = await drawer.evaluate((element) => {
       const styles = window.getComputedStyle(element as HTMLElement)
@@ -163,6 +178,9 @@ test.describe('Gallery Page Interactions', () => {
 
       // Toggle the switch
       await firstToggle.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Verify state changed
@@ -171,6 +189,9 @@ test.describe('Gallery Page Interactions', () => {
 
       // Toggle back
       await firstToggle.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Should be back to original state
@@ -192,6 +213,9 @@ test.describe('Gallery Page Interactions', () => {
 
     // Click to open popover
     await infoButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300)
 
     // Look for popover content
@@ -205,6 +229,9 @@ test.describe('Gallery Page Interactions', () => {
 
     // Click outside or press Escape to close
     await page.keyboard.press('Escape')
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(500)
 
     // Popover should be hidden - if it doesn't hide, that's a known issue we can skip
@@ -212,6 +239,9 @@ test.describe('Gallery Page Interactions', () => {
     if (isStillVisible) {
       // Some popovers may not hide immediately with Escape, try clicking outside
       await page.locator('body').click({ position: { x: 10, y: 10 } })
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(300)
 
       // If still visible after both attempts, skip this test
@@ -231,6 +261,9 @@ test.describe('Gallery Page Interactions', () => {
     if (await searchInput.isVisible()) {
       // Type search query
       await searchInput.fill('test search')
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Should trigger search (might update URL or content)
@@ -239,6 +272,9 @@ test.describe('Gallery Page Interactions', () => {
 
       // Clear search
       await searchInput.clear()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       const clearedValue = await searchInput.inputValue()
@@ -255,6 +291,9 @@ test.describe('Gallery Page Interactions', () => {
     if (await sortSelect.isVisible()) {
       // Click to open dropdown
       await sortSelect.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(300)
 
       // Look for sort options
@@ -264,6 +303,9 @@ test.describe('Gallery Page Interactions', () => {
       if (optionCount > 0) {
         // Click first available option
         await options.first().click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
         await page.waitForTimeout(500)
 
         // Dropdown should close
@@ -285,6 +327,9 @@ test.describe('Gallery Page Interactions', () => {
 
       if (await nextButton.count() > 0 && await nextButton.isEnabled()) {
         await nextButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
         await page.waitForTimeout(1000)
 
         // Should navigate to next page
@@ -293,6 +338,9 @@ test.describe('Gallery Page Interactions', () => {
 
       if (await prevButton.count() > 0 && await prevButton.isEnabled()) {
         await prevButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
         await page.waitForTimeout(1000)
 
         // Should navigate to previous page
@@ -310,6 +358,9 @@ test.describe('Gallery Page Interactions', () => {
       await closeButton.click()
     }
     await page.locator('[data-testid="gallery-view-toggle-grid"]').click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300)
 
     const firstGridItem = page.locator('[data-testid="gallery-grid-item-1"]')
@@ -370,11 +421,17 @@ test.describe('Gallery Page Interactions', () => {
     const closeButton = page.locator('[data-testid="gallery-options-close-button"]').first()
     if (await closeButton.isVisible()) {
       await closeButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(300)
     }
 
     // Switch to grid view
     await page.locator('[data-testid="gallery-view-toggle-grid"]').click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300)
 
     const gridView = page.locator('[data-testid="gallery-grid-view"]')
@@ -400,8 +457,14 @@ test.describe('Gallery Page Interactions', () => {
 
     // Select smallest (152x232) - should fit most columns
     await resolutionDropdown.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(200)
     await page.locator('[data-testid="gallery-resolution-dropdown-option-152x232"]').click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300)
 
     const smallInfo = await getGridInfo()
@@ -409,8 +472,14 @@ test.describe('Gallery Page Interactions', () => {
 
     // Select medium (256x384 - the default) - should fit fewer columns than small
     await resolutionDropdown.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(200)
     await page.locator('[data-testid="gallery-resolution-dropdown-option-256x384"]').click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300)
 
     const mediumInfo = await getGridInfo()
@@ -420,8 +489,14 @@ test.describe('Gallery Page Interactions', () => {
 
     // Select largest (512x768) - should fit fewest columns
     await resolutionDropdown.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(200)
     await page.locator('[data-testid="gallery-resolution-dropdown-option-512x768"]').click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300)
 
     const largeInfo = await getGridInfo()

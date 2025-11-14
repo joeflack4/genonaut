@@ -685,7 +685,7 @@ export async function assertSufficientTestData(
  * by checking for the presence of loading indicators to disappear and loaded indicators to appear.
  *
  * @param page - Playwright page object
- * @param section - Which analytics section to wait for ('route' or 'generation')
+ * @param section - Which analytics section to wait for ('route' | 'generation')
  * @param timeout - Maximum time to wait in milliseconds (default: 30000ms / 30s)
  *
  * @example
@@ -709,4 +709,110 @@ export async function waitForAnalyticsDataLoaded(
 
   // Give the UI a moment to stabilize after data loads
   await page.waitForTimeout(200)
+}
+
+// ============================================================================
+// NETWORK WAITING HELPERS
+// ============================================================================
+
+/**
+ * Wait for a specific API endpoint to respond
+ * This is MUCH more reliable than arbitrary waitForTimeout() calls
+ *
+ * @param page - Playwright page object
+ * @param urlPattern - URL pattern to match (string or regex)
+ * @param options - Optional configuration
+ * @returns Promise that resolves with the response when it arrives
+ *
+ * @example
+ * // Wait for gallery content API call after clicking a filter
+ * const responsePromise = waitForApiResponse(page, '/api/v1/content/unified')
+ * await filterToggle.click()
+ * await responsePromise
+ */
+export async function waitForApiResponse(
+  page: Page,
+  urlPattern: string | RegExp,
+  options: {
+    method?: string
+    status?: number
+    timeout?: number
+  } = {}
+): Promise<any> {
+  const { method, status = 200, timeout = 30000 } = options
+
+  const pattern = typeof urlPattern === 'string'
+    ? (url: string) => url.includes(urlPattern)
+    : (url: string) => urlPattern.test(url)
+
+  return page.waitForResponse(
+    response => {
+      const matchesUrl = pattern(response.url())
+      const matchesMethod = !method || response.request().method() === method
+      const matchesStatus = response.status() === status
+      return matchesUrl && matchesMethod && matchesStatus
+    },
+    { timeout }
+  )
+}
+
+/**
+ * Wait for loading indicator to disappear
+ * Replaces arbitrary timeouts with explicit waiting for UI state changes
+ *
+ * @param page - Playwright page object
+ * @param loadingTestId - data-testid of the loading indicator
+ * @param timeout - Maximum time to wait (default: 15000ms)
+ *
+ * @example
+ * await waitForLoadingComplete(page, 'gallery-results-loading')
+ */
+export async function waitForLoadingComplete(
+  page: Page,
+  loadingTestId: string,
+  timeout = 15000
+): Promise<void> {
+  try {
+    // First check if loading indicator exists
+    const loadingEl = page.locator(`[data-testid="${loadingTestId}"]`)
+    const exists = await loadingEl.count() > 0
+
+    if (exists) {
+      // Wait for it to be detached from DOM
+      await loadingEl.waitFor({ state: 'detached', timeout })
+    }
+  } catch (error) {
+    // Loading indicator might have already disappeared - that's fine
+  }
+}
+
+/**
+ * Execute an action and wait for the resulting API call to complete
+ * Combines action execution with network waiting in one call
+ *
+ * @param page - Playwright page object
+ * @param action - Async function that triggers the API call
+ * @param urlPattern - URL pattern to wait for
+ * @param options - Optional configuration
+ *
+ * @example
+ * await performActionAndWaitForApi(
+ *   page,
+ *   async () => await filterToggle.click(),
+ *   '/api/v1/content/unified'
+ * )
+ */
+export async function performActionAndWaitForApi(
+  page: Page,
+  action: () => Promise<void>,
+  urlPattern: string | RegExp,
+  options: {
+    method?: string
+    status?: number
+    timeout?: number
+  } = {}
+): Promise<void> {
+  const responsePromise = waitForApiResponse(page, urlPattern, options)
+  await action()
+  await responsePromise
 }

@@ -138,6 +138,9 @@ test.describe('Tag Hierarchy Tests', () => {
     await expect(page).toHaveURL('/tags');
 
     // Should show expanded content (wait for children to appear)
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(500); // Small delay for animation
 
     // Click collapse button
@@ -242,6 +245,9 @@ test.describe('Tag Hierarchy Tests', () => {
     // Expand a node
     const expandButton = page.locator('[aria-label="Tag hierarchy tree"] button').first();
     await expandButton.click();
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(500); // Wait for expansion
 
     // Select a tag
@@ -394,6 +400,9 @@ test.describe('Tag Hierarchy Empty States', () => {
     await firstExpandButton.click(); // Expand Root Category
 
     // Wait a moment for expansion animation
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300);
 
     // Valid Child should now be visible (nested under Root Category)

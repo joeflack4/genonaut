@@ -58,6 +58,9 @@ test.describe('Navigation Tests', () => {
     await page.keyboard.press('Enter')
 
     // Should have navigated somewhere
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(100)
     const url = page.url()
     expect(url).toMatch(/\/(dashboard|gallery|recommendations|settings|generate)/)

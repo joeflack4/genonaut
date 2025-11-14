@@ -20,6 +20,9 @@ test.describe('Generation Page Interactions', () => {
 
     // Click History tab
     await historyTab.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300)
 
     // Verify History tab is now selected
@@ -32,6 +35,9 @@ test.describe('Generation Page Interactions', () => {
 
     // Click Create tab again
     await createTab.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300)
 
     // Verify Create tab is selected again
@@ -39,7 +45,7 @@ test.describe('Generation Page Interactions', () => {
     await expect(historyTab).toHaveAttribute('aria-selected', 'false')
 
     // Verify content changed back - should show create form
-    const createSection = page.locator('text=Create')
+    const createSection = page.getByTestId('generation-form-title')
     await expect(createSection).toBeVisible()
   })
 
@@ -63,6 +69,9 @@ test.describe('Generation Page Interactions', () => {
 
     // Use Enter to activate tab
     await page.keyboard.press('Enter')
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300)
 
     // Verify History tab is now selected
