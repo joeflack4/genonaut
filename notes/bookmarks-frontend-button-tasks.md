@@ -120,11 +120,11 @@ Implement bookmark icon buttons in the UI to allow users to:
 - [x] Export hooks from hooks/index.ts
 
 #### 3.3 Frontend Unit Tests
-- [ ] Test `useBookmarkStatus` returns correct status when bookmarked
-- [ ] Test `useBookmarkStatus` returns correct status when not bookmarked
-- [ ] Test `createBookmark` mutation updates cache
-- [ ] Test `deleteBookmark` mutation updates cache
-- [ ] Test `syncCategories` mutation updates cache
+- [x] Test `useBookmarkStatus` returns correct status when bookmarked
+- [x] Test `useBookmarkStatus` returns correct status when not bookmarked
+- [x] Test `createBookmark` mutation updates cache
+- [x] Test `deleteBookmark` mutation updates cache
+- [x] Test `syncCategories` mutation updates cache
 
 ---
 
@@ -141,11 +141,11 @@ Implement bookmark icon buttons in the UI to allow users to:
 - [x] Export from components/bookmarks/index.ts
 
 #### 4.2 Component Unit Tests
-- [ ] Test BookmarkButton renders BookmarkBorderIcon when not bookmarked
-- [ ] Test BookmarkButton renders BookmarkIcon when bookmarked
-- [ ] Test clicking when not bookmarked creates bookmark
-- [ ] Test clicking when bookmarked opens modal (Phase 5)
-- [ ] Test loading states
+- [x] Test BookmarkButton renders BookmarkBorderIcon when not bookmarked
+- [x] Test BookmarkButton renders BookmarkIcon when bookmarked
+- [x] Test clicking when not bookmarked creates bookmark
+- [x] Test clicking when bookmarked opens modal (Phase 5)
+- [x] Test loading states
 
 ---
 
@@ -176,13 +176,13 @@ Implement bookmark icon buttons in the UI to allow users to:
 - [x] Show success message (skipped - optional enhancement, not required for MVP)
 
 #### 5.4 Component Unit Tests
-- [ ] Test modal renders all elements correctly
-- [ ] Test public/private toggle works
-- [ ] Test categories multi-select works
-- [ ] Test categories sorting changes order
-- [ ] Test save button calls syncCategories with correct data
-- [ ] Test remove button calls deleteBookmark
-- [ ] Test cancel button closes modal
+- [x] Test modal renders all elements correctly
+- [x] Test public/private toggle works
+- [x] Test categories multi-select works
+- [x] Test categories sorting changes order
+- [x] Test save button calls syncCategories with correct data
+- [x] Test remove button calls deleteBookmark
+- [x] Test cancel button closes modal
 
 #### 5.5 Integration Updates
 - [x] Update `BookmarkButton` to render modal when bookmarked
@@ -214,11 +214,11 @@ Implement bookmark icon buttons in the UI to allow users to:
 - [x] Add useCurrentUser hook to get userId
 
 #### 6.2 E2E Tests
-- [ ] Test bookmark button appears on image view page
-- [ ] Test clicking bookmark button when not bookmarked adds bookmark
-- [ ] Test bookmark icon changes after adding
-- [ ] Test clicking bookmark button when bookmarked opens modal (pending Phase 5)
-- [ ] Test modal operations (change categories, save, remove) (pending Phase 5)
+- [x] Test bookmark button appears on image view page
+- [x] Test clicking bookmark button when not bookmarked adds bookmark
+- [x] Test bookmark icon changes after adding
+- [x] Test clicking bookmark button when bookmarked opens modal
+- [x] Test modal operations (change categories, save, remove)
 
 ---
 
@@ -242,15 +242,15 @@ Implement bookmark icon buttons in the UI to allow users to:
 - [x] Image generation history: Uses GenerationCard (not ImageGridCell), so bookmark button integration not applicable
 
 #### 7.4 Frontend Unit Tests
-- [ ] Test ImageGridCell renders bookmark button when `showBookmarkButton=true`
-- [ ] Test ImageGridCell hides bookmark button when `showBookmarkButton=false`
-- [ ] Test button positioning is correct
+- [x] Test ImageGridCell renders bookmark button when `showBookmarkButton=true`
+- [x] Test ImageGridCell hides bookmark button when `showBookmarkButton=false`
+- [x] Test button positioning is correct
 
 #### 7.5 E2E Tests
-- [ ] Test bookmark button appears in Gallery grid cells
-- [ ] Test bookmark button does NOT appear in Dashboard grid cells
-- [ ] Test adding bookmark from grid cell
-- [ ] Test removing bookmark from grid cell modal (pending Phase 5)
+- [x] Test bookmark button appears in Gallery grid cells
+- [x] Test bookmark button does NOT appear in Dashboard grid cells
+- [x] Test adding bookmark from grid cell
+- [x] Test removing bookmark from grid cell modal
 
 ---
 

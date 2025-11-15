@@ -298,4 +298,267 @@ test.describe('Image View Page', () => {
 
     expect(duplicateKeyWarnings).toHaveLength(0);
   });
+
+  test.describe('Bookmark Button Functionality', () => {
+    test('displays bookmark button on image view page', async ({ page }) => {
+      // Navigate to gallery
+      await page.goto('/gallery');
+      await waitForPageLoad(page, 'gallery');
+
+      // Wait for gallery results to load
+      const galleryGridView = page.getByTestId('gallery-grid-view');
+      const galleryListView = page.getByTestId('gallery-results-list');
+      const emptyStateGrid = page.getByTestId('gallery-grid-empty');
+      const emptyStateList = page.getByTestId('gallery-results-empty');
+
+      const hasGridView = await galleryGridView.isVisible().catch(() => false);
+      const hasListView = await galleryListView.isVisible().catch(() => false);
+      const isEmptyGrid = await emptyStateGrid.isVisible().catch(() => false);
+      const isEmptyList = await emptyStateList.isVisible().catch(() => false);
+
+      if ((isEmptyGrid || isEmptyList) || (!hasGridView && !hasListView)) {
+        handleMissingData(
+          test,
+          'Bookmark button test',
+          'gallery data (content_items)',
+          'make init-test'
+        );
+        return;
+      }
+
+      // Click first image to go to view page
+      const firstImage = page.locator('[data-testid^="gallery-grid-item-"], [data-testid^="gallery-result-item-"]').first();
+      await expect(firstImage).toBeVisible({ timeout: 5000 });
+      await firstImage.click();
+
+      // Verify we're on the view page
+      await expect(page).toHaveURL(/\/view\/\d+/);
+
+      // Extract contentId from URL
+      const url = page.url();
+      const contentId = url.match(/\/view\/(\d+)/)?.[1];
+
+      if (!contentId) {
+        throw new Error('Could not extract contentId from URL');
+      }
+
+      // Check bookmark button is present
+      const bookmarkButton = page.getByTestId(`bookmark-button-${contentId}`);
+      await expect(bookmarkButton).toBeVisible();
+    });
+
+    test('adds bookmark when clicking unbookmarked button and shows filled icon', async ({ page }) => {
+      // Navigate to gallery
+      await page.goto('/gallery');
+      await waitForPageLoad(page, 'gallery');
+
+      // Wait for gallery results to load
+      const galleryGridView = page.getByTestId('gallery-grid-view');
+      const emptyStateGrid = page.getByTestId('gallery-grid-empty');
+      const hasGridView = await galleryGridView.isVisible().catch(() => false);
+      const isEmptyGrid = await emptyStateGrid.isVisible().catch(() => false);
+
+      if (isEmptyGrid || !hasGridView) {
+        handleMissingData(test, 'Bookmark add test', 'gallery data', 'make init-test');
+        return;
+      }
+
+      // Click first image
+      const firstImage = page.locator('[data-testid^="gallery-grid-item-"]').first();
+      await firstImage.click();
+      await expect(page).toHaveURL(/\/view\/\d+/);
+
+      const url = page.url();
+      const contentId = url.match(/\/view\/(\d+)/)?.[1];
+
+      if (!contentId) {
+        throw new Error('Could not extract contentId');
+      }
+
+      const bookmarkButton = page.getByTestId(`bookmark-button-${contentId}`);
+      await expect(bookmarkButton).toBeVisible();
+
+      // Check initial state - should show outline icon (not bookmarked)
+      const outlineIcon = bookmarkButton.getByTestId('bookmark-icon-outline');
+      const filledIcon = bookmarkButton.getByTestId('bookmark-icon-filled');
+
+      const hasOutline = await outlineIcon.isVisible().catch(() => false);
+      const hasFilled = await filledIcon.isVisible().catch(() => false);
+
+      // If already bookmarked, we need to remove it first
+      if (hasFilled) {
+        // Click to open modal
+        await bookmarkButton.click();
+
+        // Wait for modal to open
+        await expect(page.getByRole('heading', { name: /manage bookmark/i })).toBeVisible();
+
+        // Click remove button
+        await page.getByTestId('bookmark-remove-button').click();
+
+        // Wait for modal to close
+        await expect(page.getByRole('heading', { name: /manage bookmark/i })).not.toBeVisible();
+
+        // Verify outline icon is now visible
+        await expect(outlineIcon).toBeVisible();
+      } else {
+        expect(hasOutline).toBe(true);
+      }
+
+      // Click bookmark button to add bookmark
+      await bookmarkButton.click();
+
+      // Wait for the API call to complete and icon to change
+      await expect(filledIcon).toBeVisible({ timeout: 3000 });
+      await expect(outlineIcon).not.toBeVisible();
+
+      // Verify button aria-label changed
+      await expect(bookmarkButton).toHaveAttribute('aria-label', 'Manage bookmark');
+    });
+
+    test('opens management modal when clicking bookmarked button', async ({ page }) => {
+      // Navigate to gallery
+      await page.goto('/gallery');
+      await waitForPageLoad(page, 'gallery');
+
+      const galleryGridView = page.getByTestId('gallery-grid-view');
+      const emptyStateGrid = page.getByTestId('gallery-grid-empty');
+      const hasGridView = await galleryGridView.isVisible().catch(() => false);
+      const isEmptyGrid = await emptyStateGrid.isVisible().catch(() => false);
+
+      if (isEmptyGrid || !hasGridView) {
+        handleMissingData(test, 'Bookmark modal test', 'gallery data', 'make init-test');
+        return;
+      }
+
+      const firstImage = page.locator('[data-testid^="gallery-grid-item-"]').first();
+      await firstImage.click();
+      await expect(page).toHaveURL(/\/view\/\d+/);
+
+      const url = page.url();
+      const contentId = url.match(/\/view\/(\d+)/)?.[1];
+      if (!contentId) throw new Error('Could not extract contentId');
+
+      const bookmarkButton = page.getByTestId(`bookmark-button-${contentId}`);
+
+      // Ensure item is bookmarked first
+      const filledIcon = bookmarkButton.getByTestId('bookmark-icon-filled');
+      const isBookmarked = await filledIcon.isVisible().catch(() => false);
+
+      if (!isBookmarked) {
+        await bookmarkButton.click();
+        await expect(filledIcon).toBeVisible({ timeout: 3000 });
+      }
+
+      // Click bookmarked button to open modal
+      await bookmarkButton.click();
+
+      // Verify modal opens
+      await expect(page.getByRole('heading', { name: /manage bookmark/i })).toBeVisible();
+      await expect(page.getByTestId('bookmark-public-toggle')).toBeVisible();
+      await expect(page.getByTestId('bookmark-categories-dropdown')).toBeVisible();
+      await expect(page.getByTestId('bookmark-save-button')).toBeVisible();
+      await expect(page.getByTestId('bookmark-cancel-button')).toBeVisible();
+      await expect(page.getByTestId('bookmark-remove-button')).toBeVisible();
+    });
+
+    test('can manage bookmark categories and save changes in modal', async ({ page }) => {
+      await page.goto('/gallery');
+      await waitForPageLoad(page, 'gallery');
+
+      const galleryGridView = page.getByTestId('gallery-grid-view');
+      const emptyStateGrid = page.getByTestId('gallery-grid-empty');
+      const hasGridView = await galleryGridView.isVisible().catch(() => false);
+      const isEmptyGrid = await emptyStateGrid.isVisible().catch(() => false);
+
+      if (isEmptyGrid || !hasGridView) {
+        handleMissingData(test, 'Bookmark category test', 'gallery data', 'make init-test');
+        return;
+      }
+
+      const firstImage = page.locator('[data-testid^="gallery-grid-item-"]').first();
+      await firstImage.click();
+      await expect(page).toHaveURL(/\/view\/\d+/);
+
+      const url = page.url();
+      const contentId = url.match(/\/view\/(\d+)/)?.[1];
+      if (!contentId) throw new Error('Could not extract contentId');
+
+      const bookmarkButton = page.getByTestId(`bookmark-button-${contentId}`);
+
+      // Ensure item is bookmarked
+      const filledIcon = bookmarkButton.getByTestId('bookmark-icon-filled');
+      const isBookmarked = await filledIcon.isVisible().catch(() => false);
+
+      if (!isBookmarked) {
+        await bookmarkButton.click();
+        await expect(filledIcon).toBeVisible({ timeout: 3000 });
+      }
+
+      // Open modal
+      await bookmarkButton.click();
+      await expect(page.getByRole('heading', { name: /manage bookmark/i })).toBeVisible();
+
+      // Wait for categories to load
+      await page.waitForTimeout(500);
+
+      // Click save button to save current state
+      await page.getByTestId('bookmark-save-button').click();
+
+      // Verify modal closes
+      await expect(page.getByRole('heading', { name: /manage bookmark/i })).not.toBeVisible();
+
+      // Verify bookmark is still there
+      await expect(filledIcon).toBeVisible();
+    });
+
+    test('can remove bookmark from modal', async ({ page }) => {
+      await page.goto('/gallery');
+      await waitForPageLoad(page, 'gallery');
+
+      const galleryGridView = page.getByTestId('gallery-grid-view');
+      const emptyStateGrid = page.getByTestId('gallery-grid-empty');
+      const hasGridView = await galleryGridView.isVisible().catch(() => false);
+      const isEmptyGrid = await emptyStateGrid.isVisible().catch(() => false);
+
+      if (isEmptyGrid || !hasGridView) {
+        handleMissingData(test, 'Bookmark remove test', 'gallery data', 'make init-test');
+        return;
+      }
+
+      const firstImage = page.locator('[data-testid^="gallery-grid-item-"]').first();
+      await firstImage.click();
+      await expect(page).toHaveURL(/\/view\/\d+/);
+
+      const url = page.url();
+      const contentId = url.match(/\/view\/(\d+)/)?.[1];
+      if (!contentId) throw new Error('Could not extract contentId');
+
+      const bookmarkButton = page.getByTestId(`bookmark-button-${contentId}`);
+
+      // Ensure item is bookmarked
+      const filledIcon = bookmarkButton.getByTestId('bookmark-icon-filled');
+      const outlineIcon = bookmarkButton.getByTestId('bookmark-icon-outline');
+      const isBookmarked = await filledIcon.isVisible().catch(() => false);
+
+      if (!isBookmarked) {
+        await bookmarkButton.click();
+        await expect(filledIcon).toBeVisible({ timeout: 3000 });
+      }
+
+      // Open modal
+      await bookmarkButton.click();
+      await expect(page.getByRole('heading', { name: /manage bookmark/i })).toBeVisible();
+
+      // Click remove button
+      await page.getByTestId('bookmark-remove-button').click();
+
+      // Verify modal closes
+      await expect(page.getByRole('heading', { name: /manage bookmark/i })).not.toBeVisible();
+
+      // Verify bookmark was removed (outline icon should be visible)
+      await expect(outlineIcon).toBeVisible({ timeout: 3000 });
+      await expect(filledIcon).not.toBeVisible();
+    });
+  });
 });
