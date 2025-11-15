@@ -69,6 +69,9 @@ test.describe('Gallery URL Query Parameters', () => {
       }
 
       // Wait for switches to be fully rendered and stable
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(1000)
 
       // Get the switch labels, then find inputs inside them
@@ -154,6 +157,9 @@ test.describe('Gallery URL Query Parameters', () => {
       }
 
       // Wait for switches to be fully rendered and stable
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(1000)
 
       // Get the switch labels, then find inputs inside them
@@ -235,6 +241,9 @@ test.describe('Gallery URL Query Parameters', () => {
       }
 
       // Wait for switches to be fully rendered and stable
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(1000)
 
       // Get the switch labels, then find inputs inside them
@@ -314,6 +323,9 @@ test.describe('Gallery URL Query Parameters', () => {
       }
 
       // Wait for toggles to be stable
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Turn OFF "Your gens" toggle
@@ -394,6 +406,9 @@ test.describe('Gallery URL Query Parameters', () => {
       }
 
       // Wait for switches to be fully rendered and stable
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(1000)
 
       // Get the switch label, then find input inside it
@@ -406,6 +421,9 @@ test.describe('Gallery URL Query Parameters', () => {
       // Turn it back ON
       // Use check for reliable interaction
       await yourGensToggle.check()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Verify URL no longer contains notGenSource
@@ -470,6 +488,9 @@ test.describe('Gallery URL Query Parameters', () => {
       }
 
       // Wait for toggles to be stable
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Turn OFF multiple toggles
@@ -492,6 +513,9 @@ test.describe('Gallery URL Query Parameters', () => {
       await yourGensToggleLabel.click()
       await expect(yourGensToggle).not.toBeChecked()
       await page.waitForFunction(() => window.location.search.includes('your-g'), { timeout: 3000 })
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       await yourAutoGensToggleLabel.click()
@@ -499,6 +523,9 @@ test.describe('Gallery URL Query Parameters', () => {
       await page.waitForFunction(() => window.location.search.includes('your-ag'), { timeout: 3000 })
       // Verify both toggles are still unchecked
       await expect(yourGensToggle).not.toBeChecked()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       await communityGensToggleLabel.click()
@@ -507,6 +534,9 @@ test.describe('Gallery URL Query Parameters', () => {
       // Verify all three toggles are still unchecked
       await expect(yourGensToggle).not.toBeChecked()
       await expect(yourAutoGensToggle).not.toBeChecked()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Verify URL contains all three disabled sources
@@ -587,6 +617,9 @@ test.describe('Gallery URL Query Parameters', () => {
         await page.getByTestId('gallery-content-toggles-title').waitFor({ state: 'visible' })
       }
 
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(1000)
 
       // Verify toggles still match - get labels then find inputs inside

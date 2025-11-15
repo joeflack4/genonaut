@@ -24,6 +24,9 @@ test.describe('Gallery Tag Search Tests', () => {
 
     if (!isTagFilterVisible) {
       await optionsButton.click();
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(300);
     }
 
@@ -44,6 +47,9 @@ test.describe('Gallery Tag Search Tests', () => {
     await page.waitForSelector('[data-testid^="tag-filter-chip-"]');
 
     // Give extra time for initial render
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(500);
 
     // Type "anime" in search
@@ -51,6 +57,9 @@ test.describe('Gallery Tag Search Tests', () => {
     await searchInput.fill('anime');
 
     // Wait for debounce (1 second)
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1200);
 
     // Should show tags that contain words starting with "anime"
@@ -76,6 +85,9 @@ test.describe('Gallery Tag Search Tests', () => {
     await page.waitForSelector('[data-testid^="tag-filter-chip-"]');
 
     // Give extra time for initial render
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(500);
 
     // Type "3d art" in search
@@ -83,6 +95,9 @@ test.describe('Gallery Tag Search Tests', () => {
     await searchInput.fill('3d art');
 
     // Wait for debounce (1 second)
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1200);
 
     // Should show tags with words starting with "3d" or "art"
@@ -116,6 +131,9 @@ test.describe('Gallery Tag Search Tests', () => {
     await searchInput.fill('"3d-render"');
 
     // Wait for debounce (1 second)
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1200);
 
     // Should show only tags containing the exact string "3d-render"
@@ -141,6 +159,9 @@ test.describe('Gallery Tag Search Tests', () => {
     await searchInput.fill('zzzznonexistenttag');
 
     // Wait for debounce (1 second)
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1200);
 
     // Should show "no matches" message
@@ -162,6 +183,9 @@ test.describe('Gallery Tag Search Tests', () => {
     await searchInput.fill('anime');
 
     // Wait for debounce (1 second)
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1200);
 
     // Should have fewer tags now
@@ -173,6 +197,9 @@ test.describe('Gallery Tag Search Tests', () => {
     await searchInput.clear();
 
     // Wait for debounce (1 second)
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1200);
 
     // Should show all tags again
@@ -194,6 +221,9 @@ test.describe('Gallery Tag Search Tests', () => {
     await searchInput.fill('anime');
 
     // Wait for debounce (1 second)
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1200);
 
     // If there are very few results, pagination might be hidden
@@ -219,6 +249,9 @@ test.describe('Gallery Tag Search Tests', () => {
     await page.waitForSelector('[data-testid^="tag-filter-chip-"]');
 
     // Give extra time for initial render
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(500);
 
     // Type uppercase search
@@ -226,6 +259,9 @@ test.describe('Gallery Tag Search Tests', () => {
     await searchInput.fill('ANIME');
 
     // Wait for debounce (1 second)
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1200);
 
     // Should still find lowercase "anime" tag
@@ -249,6 +285,9 @@ test.describe('Gallery Tag Search Tests', () => {
     await page.waitForSelector('[data-testid^="tag-filter-chip-"]');
 
     // Give extra time for initial render
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(500);
 
     // Search for "3d" which should match "3D-render"
@@ -256,6 +295,9 @@ test.describe('Gallery Tag Search Tests', () => {
     await searchInput.fill('3d');
 
     // Wait for debounce (1 second)
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1200);
 
     // Should show tags where a word starts with "3d"

@@ -7,13 +7,16 @@
 - [`data-scaling-tests.md`](../../by_priority/low/data-scaling-tests.md)
 - [`msw-for-e2e-tests.md`](../../by_priority/low/msw-for-e2e-tests.md) - MSW (Mock Service Worker) approach for reliable E2E tests
 - [Grouping issues for related paused tests](paused)
+- [gallery-stats-test-issues.md](gallery-stats-test-issues.md)
 
 
 ## Inline test task issues
 ## Paused tests
 
 ### Generation Analytics - Celery Aggregation Tests (Priority: 2/5 - Low-Medium)
-These tests verify the hourly aggregation of generation metrics but are currently failing due to test setup timing/timezone issues, NOT code bugs. The aggregation code is based on proven patterns from route analytics (which works correctly). The data pipeline is fully tested and working - events flow correctly from Redis → PostgreSQL.
+These tests verify the hourly aggregation of generation metrics but are currently failing due to test setup 
+timing/timezone issues, NOT code bugs. The aggregation code is based on proven patterns from route analytics (which 
+works correctly). The data pipeline is fully tested and working - events flow correctly from Redis → PostgreSQL.
 
 **Status:** 2/5 passing (3 failing)
 **Root Cause:** Timezone mismatch between test data timestamps and aggregation query's hour boundaries
@@ -52,11 +55,29 @@ These tests verify the hourly aggregation of generation metrics but are currentl
 See `notes/gen-analytics-tasks.md` for detailed debugging steps and implementation notes.
 
 ### Mock API and Data Display Issues - tests
-These tests are failing because mock API patterns aren't matching correctly, resulting in expected content not being displayed on the page. The unified gallery API integration uses complex URL patterns with query parameters, and the mock setup needs precise pattern matching to return the correct data for different pagination states.
+These tests are failing because mock API patterns aren't matching correctly, resulting in expected content not being 
+displayed on the page. The unified gallery API integration uses complex URL patterns with query parameters, and the mock
+setup needs precise pattern matching to return the correct data for different pagination states.
 
 #### Medium-High Effort
-- [ ] **navigates to next page correctly** - **PARTIALLY FIXED** - Test was failing when trying to verify "Page 1 Item 1" content is visible on the first page due to mock API pattern mismatches. **Major Progress Made**: Successfully resolved the "No gallery items found" issue by fixing mock API patterns to match actual `useUnifiedGallery` requests. The actual API calls include complex query parameters like `/api/v1/content/unified?page=1&page_size=10&content_types=regular,auto&creator_filter=all&user_id=121e194b-4caa-4b81-ad4f-86ca3919d5b9&sort_field=created_at&sort_order=desc`. Fixed mock data structure to include proper `source_type` and `stats` fields matching the API contract. **Remaining Issue**: Page 2 navigation doesn't work - clicking "Go to page 2" doesn't update content or set `aria-current="true"` on the button. This indicates the page=2 API call pattern isn't matching correctly, possibly due to React Query caching behavior or the specific URL pattern not being caught by the mock. **Next Steps**: Need to debug exact URL patterns for page=2 requests, potentially inspect network requests in browser dev tools during test execution, consider React Query cache invalidation, and ensure mock patterns handle all query parameter combinations precisely. May also need to investigate component state management for pagination updates.
-- [ ] **large dataset pagination performance** - Test fails when trying to verify pagination text "/1,000,000 pages showing 10,000,000 results/" is visible on a deep page (page 50000). The mock data provides the correct pagination structure (10M total_count, 1M total_pages), but the component isn't displaying the formatted text. This could be due to the options panel not opening by default, the unified API call not matching the mock pattern, or the toLocaleString() formatting not working as expected. Fix requires ensuring the mock API call matches correctly for deep pages and verifying the pagination text display logic in the component.
+- [ ] **navigates to next page correctly** - **PARTIALLY FIXED** - Test was failing when trying to verify "Page 1 Item 
+  1" content is visible on the first page due to mock API pattern mismatches. **Major Progress Made**: Successfully 
+  resolved the "No gallery items found" issue by fixing mock API patterns to match actual `useUnifiedGallery` requests. 
+  The actual API calls include complex query parameters like `/api/v1/content/unified?page=1&page_size=10&content_types
+  =regular,auto&creator_filter=all&user_id=121e194b-4caa-4b81-ad4f-86ca3919d5b9&sort_field=created_at&sort_order=desc`. 
+  Fixed mock data structure to include proper `source_type` and `stats` fields matching the API contract. **Remaining 
+  Issue**: Page 2 navigation doesn't work - clicking "Go to page 2" doesn't update content or set `aria-current="true"` 
+  on the button. This indicates the page=2 API call pattern isn't matching correctly, possibly due to React Query 
+  caching behavior or the specific URL pattern not being caught by the mock. **Next Steps**: Need to debug exact URL 
+  patterns for page=2 requests, potentially inspect network requests in browser dev tools during test execution,
+  consider React Query cache invalidation, and ensure mock patterns handle all query parameter combinations precisely. 
+  May also need to investigate component state management for pagination updates.
+  - [ ] **large dataset pagination performance** - Test fails when trying to verify pagination text "/1,000,000 pages 
+  showing 10,000,000 results/" is visible on a deep page (page 50000). The mock data provides the correct pagination 
+  structure (10M total_count, 1M total_pages), but the component isn't displaying the formatted text. This could be due
+  to the options panel not opening by default, the unified API call not matching the mock pattern, or the 
+  `toLocaleString()` formatting not working as expected. Fix requires ensuring the mock API call matches correctly for 
+  deep pages and verifying the pagination text display logic in the component.
 
 ## Skipped until...
 ### Generation Feature

@@ -44,6 +44,9 @@ test.describe('Settings page (Real API)', () => {
     await waitForPageLoad(page, 'settings')
 
     // Wait a bit for the form to load user data
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1000)
 
     // Check for profile form elements
@@ -76,6 +79,9 @@ test.describe('Settings page (Real API)', () => {
         await saveButton.click()
 
         // Wait for save to complete
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
         await page.waitForTimeout(1000)
 
         // Look for success message
@@ -95,6 +101,9 @@ test.describe('Settings page (Real API)', () => {
 
         if (foundSuccess) {
           // Wait a bit for the API to update
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
           await page.waitForTimeout(500)
 
           // Verify changes were actually saved to the API
@@ -119,6 +128,9 @@ test.describe('Settings page (Real API)', () => {
           await nameInput.fill(initialUser.name || 'Test User')
           if (await saveButton.count() > 0) {
             await saveButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
             await page.waitForTimeout(500)
           }
         }
@@ -186,6 +198,9 @@ test.describe('Settings page (Real API)', () => {
       await nameInput.clear()
 
       // Wait a moment for validation to trigger
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Check if button becomes disabled
@@ -194,6 +209,9 @@ test.describe('Settings page (Real API)', () => {
       // If button is not disabled, try to save and check for validation errors
       if (!isButtonDisabled) {
         await saveButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
         await page.waitForTimeout(500)
 
         // Should show validation error or prevent saving
@@ -242,6 +260,9 @@ test.describe('Settings page (Real API)', () => {
       await saveButton.click()
 
       // Wait for response
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(2000)
 
       // Check if any error messages are shown
@@ -278,6 +299,9 @@ test.describe('Settings page (Real API)', () => {
       await nameInput.fill(originalValue)
       if (await saveButton.isEnabled()) {
         await saveButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
         await page.waitForTimeout(500)
       }
     }
@@ -325,6 +349,9 @@ async function testThemePersistence(page: any) {
 
     // Toggle theme
     await themeToggle.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(500)
 
     // Check if theme changed

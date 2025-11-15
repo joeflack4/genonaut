@@ -46,6 +46,9 @@ test.describe('Tag Hierarchy Debug', () => {
     }
 
     // Wait a bit for React to render and API calls
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(5000);
 
     // Check API requests

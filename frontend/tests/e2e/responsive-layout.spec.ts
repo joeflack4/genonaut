@@ -34,6 +34,9 @@ test.describe('Responsive Layout Tests', () => {
 
     // Click menu to open sidebar (should be drawer on mobile)
     await menuButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(300) // Wait for drawer animation
 
     // Verify sidebar is now visible
@@ -83,6 +86,9 @@ test.describe('Responsive Layout Tests', () => {
       const menuButton = page.locator('[data-testid="app-layout-toggle-sidebar"]')
       if (await menuButton.isVisible()) {
         await menuButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
         await page.waitForTimeout(300)
       }
     }
@@ -99,6 +105,9 @@ test.describe('Responsive Layout Tests', () => {
     const closeButton = page.locator('[data-testid="gallery-options-close-button"]')
     if (await closeButton.isVisible().catch(() => false)) {
       await closeButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(300)
     }
 
@@ -106,6 +115,9 @@ test.describe('Responsive Layout Tests', () => {
     const sidebarBackdrop = page.locator('.MuiBackdrop-root')
     if (await sidebarBackdrop.isVisible().catch(() => false)) {
       await sidebarBackdrop.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(300)
     }
 

@@ -22,6 +22,9 @@ test.describe('Tags Page Interactions', () => {
 
       // Click toggle
       await toggleButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Verify button state changed or content changed
@@ -37,6 +40,9 @@ test.describe('Tags Page Interactions', () => {
 
       // Toggle back
       await toggleButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Verify we can toggle back
@@ -57,6 +63,9 @@ test.describe('Tags Page Interactions', () => {
       await expect(refreshButton).toBeVisible()
 
       // Wait for any loading state to complete
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(1000)
     } else {
       test.skip()
@@ -75,6 +84,9 @@ test.describe('Tags Page Interactions', () => {
       await firstItem.click()
 
       // Should navigate to gallery with tag filter (or expand if it's a parent node)
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Check if we navigated to gallery with tag parameter
@@ -93,6 +105,9 @@ test.describe('Tags Page Interactions', () => {
     const searchToggle = page.locator('button[aria-label*="search"]').first()
     if (await searchToggle.isVisible()) {
       await searchToggle.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
     }
 
@@ -102,6 +117,9 @@ test.describe('Tags Page Interactions', () => {
     if (await searchInput.isVisible()) {
       // Type in search
       await searchInput.fill('test tag')
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Look for search results or filtered content
@@ -112,6 +130,9 @@ test.describe('Tags Page Interactions', () => {
 
       // Clear search
       await searchInput.clear()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
     } else {
       test.skip()

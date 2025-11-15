@@ -281,6 +281,9 @@ test.describe('Image View Page', () => {
     await expect(tagsSection).toBeVisible();
 
     // Give React a moment to render and report any warnings
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1000);
 
     // Check that there are no duplicate key warnings

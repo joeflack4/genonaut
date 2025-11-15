@@ -80,6 +80,9 @@ test.describe('Content CRUD Operations (Real API)', () => {
       await generateButton.click()
 
       // Wait for generation to start
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(2000)
 
       // Look for success indicators
@@ -260,6 +263,9 @@ test.describe('Content CRUD Operations (Real API)', () => {
 
     if (editButton) {
       await editButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Look for edit form
@@ -291,6 +297,9 @@ test.describe('Content CRUD Operations (Real API)', () => {
           const saveButton = page.getByRole('button', { name: /save|update|apply/i })
           if (await saveButton.count() > 0) {
             await saveButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
             await page.waitForTimeout(1000)
 
             // Look for success feedback
@@ -355,6 +364,9 @@ test.describe('Content CRUD Operations (Real API)', () => {
 
     if (deleteButton) {
       await deleteButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
       await page.waitForTimeout(500)
 
       // Look for confirmation dialog
@@ -374,6 +386,9 @@ test.describe('Content CRUD Operations (Real API)', () => {
           const confirmButton = element.getByRole('button', { name: /delete|confirm|yes/i })
           if (await confirmButton.count() > 0) {
             await confirmButton.click()
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
             await page.waitForTimeout(1000)
 
             // Look for success feedback
@@ -406,6 +421,9 @@ test.describe('Content CRUD Operations (Real API)', () => {
 
       if (!foundConfirmation) {
         // Maybe deletion happens immediately without confirmation
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
         await page.waitForTimeout(1000)
 
         // Check if content is gone
@@ -429,6 +447,9 @@ test.describe('Content CRUD Operations (Real API)', () => {
     // Test various error scenarios that might occur
     // Test 1: Try to access non-existent content
     await page.goto('/content/non-existent-id')
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1000)
 
     // Should handle gracefully (404 page, redirect, or error message)

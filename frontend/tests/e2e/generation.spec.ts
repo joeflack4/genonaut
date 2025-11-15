@@ -16,6 +16,39 @@ test.describe('ComfyUI Generation', () => {
     const promptInput = page.getByPlaceholder('Describe the image you want to generate...')
     await promptInput.fill('cat')
 
+    // Wait for models to finish loading (this may take time as it loads from API)
+    // If models don't load, the form validation will show an error which the test handles
+    const loadingModelsText = page.locator('text=Loading models...')
+    try {
+      // Wait for "Loading models..." to disappear (max 10 seconds)
+      await loadingModelsText.waitFor({ state: 'detached', timeout: 10000 }).catch(() => {
+        // Loading text might not appear if models load very fast
+      })
+    } catch {
+      // Models might already be loaded
+    }
+
+    // Select a checkpoint model (required - models should be available in test database)
+    // Wait for the model selector to be ready
+    const modelSelector = page.getByTestId('model-selector')
+    await expect(modelSelector).toBeVisible({ timeout: 5000 })
+
+    // Find the Select combobox (MUI Select component)
+    const selectCombobox = modelSelector.locator('[role="combobox"]')
+    await expect(selectCombobox).toBeVisible()
+
+    // Click to open the dropdown
+    await selectCombobox.click()
+
+    // MUI Select renders options as li elements - select the first one
+    // Wait for at least one option to appear
+    const firstOption = page.locator('li[role="option"]').first()
+    await expect(firstOption).toBeVisible({ timeout: 5000 })
+    await firstOption.click()
+
+    // Wait a moment for the selection to register
+    await page.waitForTimeout(500)
+
     // Submit the form
     const generateButton = page.locator('[data-testid="generate-button"]')
     await expect(generateButton).toBeEnabled()
@@ -23,6 +56,9 @@ test.describe('ComfyUI Generation', () => {
 
     // Wait for submission to complete by checking when button is no longer busy
     // The button shows aria-busy="true" and loading spinner while submitting
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1000) // Give time for submission to start
 
     // Wait for loading spinner to disappear (indicates submission complete)
@@ -32,6 +68,9 @@ test.describe('ComfyUI Generation', () => {
     })
 
     // Wait a bit more for any error to appear
+    // TODO: If this test fails, consider refactoring to use the Batched API Wait Pattern
+    // instead of arbitrary waitForTimeout(). See docs/testing/e2e-network-wait-pattern.md
+    // for details on waiting for actual API responses rather than guessing with fixed delays.
     await page.waitForTimeout(1000)
 
     // Check if an error appeared
