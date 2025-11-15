@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Box, ButtonBase, Typography } from '@mui/material'
 import InsertPhotoIcon from '@mui/icons-material/InsertPhoto'
-import type { GalleryItem, ThumbnailResolution } from '../../types/domain'
+import type { GalleryItem, ThumbnailResolution, Bookmark } from '../../types/domain'
 import { resolveImageSourceCandidates } from '../../utils/image-url'
 import { BookmarkButton } from '../bookmarks'
 
@@ -12,6 +12,14 @@ export interface ImageGridCellProps {
   dataTestId?: string
   showBookmarkButton?: boolean
   userId?: string
+  /**
+   * Optional pre-fetched bookmark status from batch query
+   * If provided, will be passed to BookmarkButton to avoid individual API calls
+   */
+  bookmarkStatus?: {
+    isBookmarked: boolean
+    bookmark: Bookmark | undefined
+  }
 }
 
 export function ImageGridCell({
@@ -20,7 +28,8 @@ export function ImageGridCell({
   onClick,
   dataTestId = `gallery-grid-item-${item.id}`,
   showBookmarkButton = false,
-  userId
+  userId,
+  bookmarkStatus,
 }: ImageGridCellProps) {
   const [imageError, setImageError] = useState(false)
 
@@ -139,6 +148,7 @@ export function ImageGridCell({
               contentSourceType={item.sourceType === 'auto' ? 'auto' : 'items'}
               userId={userId}
               size="small"
+              bookmarkStatus={bookmarkStatus}
             />
           )}
         </Box>

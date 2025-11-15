@@ -34,6 +34,11 @@ export function useBookmarkMutations(userId: string) {
       queryClient.invalidateQueries({
         queryKey: bookmarkedItemsQueryKey(userId),
       })
+      // Invalidate and refetch batch bookmark status queries
+      queryClient.invalidateQueries({
+        queryKey: ['bookmark-status-batch'],
+        refetchType: 'active', // Force active queries to refetch immediately
+      })
     },
   })
 
@@ -55,6 +60,11 @@ export function useBookmarkMutations(userId: string) {
       // Invalidate bookmarks list queries
       queryClient.invalidateQueries({
         queryKey: bookmarkedItemsQueryKey(userId),
+      })
+      // Invalidate and refetch batch bookmark status queries
+      queryClient.invalidateQueries({
+        queryKey: ['bookmark-status-batch'],
+        refetchType: 'active', // Force active queries to refetch immediately
       })
     },
   })

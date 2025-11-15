@@ -16,14 +16,25 @@ import {
   Image as ImageIcon,
 } from '@mui/icons-material'
 import type { GenerationJobResponse } from '../../services/generation-job-service'
-import type { ThumbnailResolution } from '../../types/domain'
+import type { ThumbnailResolution, Bookmark } from '../../types/domain'
 import { resolveImageSourceCandidates } from '../../utils/image-url'
+import { BookmarkButton } from '../bookmarks'
 
 interface GenerationCardProps {
   generation: GenerationJobResponse
   resolution: ThumbnailResolution
   onClick?: () => void
   onDelete: () => void
+  showBookmarkButton?: boolean
+  userId?: string
+  /**
+   * Optional pre-fetched bookmark status from batch query
+   * If provided, will be passed to BookmarkButton to avoid individual API calls
+   */
+  bookmarkStatus?: {
+    isBookmarked: boolean
+    bookmark: Bookmark | undefined
+  }
 }
 
 const STATUS_COLORS = {
@@ -35,7 +46,15 @@ const STATUS_COLORS = {
   cancelled: 'secondary' as const,
 }
 
-export function GenerationCard({ generation, resolution, onClick, onDelete }: GenerationCardProps) {
+export function GenerationCard({
+  generation,
+  resolution,
+  onClick,
+  onDelete,
+  showBookmarkButton = false,
+  userId,
+  bookmarkStatus
+}: GenerationCardProps) {
   const statusColor = STATUS_COLORS[generation.status as keyof typeof STATUS_COLORS] || 'default'
   // Use content_id to construct image URL, fallback to output_paths for backward compatibility
   const hasImages = (generation.content_id !== null && generation.content_id !== undefined) || (generation.output_paths && generation.output_paths.length > 0)
@@ -197,6 +216,15 @@ export function GenerationCard({ generation, resolution, onClick, onDelete }: Ge
 
           {!isSmallestResolution && (
             <Box sx={{ display: 'flex', gap: 0.5, ml: 1 }}>
+              {showBookmarkButton && userId && generation.content_id && (
+                <BookmarkButton
+                  contentId={generation.content_id}
+                  contentSourceType="items"
+                  userId={userId}
+                  size="small"
+                  bookmarkStatus={bookmarkStatus}
+                />
+              )}
               {hasImages && (
                 <Tooltip title="Download Images">
                   <IconButton
@@ -248,6 +276,15 @@ export function GenerationCard({ generation, resolution, onClick, onDelete }: Ge
         {/* Action buttons for smallest resolution - bottom left */}
         {isSmallestResolution && (
           <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
+            {showBookmarkButton && userId && generation.content_id && (
+              <BookmarkButton
+                contentId={generation.content_id}
+                contentSourceType="items"
+                userId={userId}
+                size="small"
+                bookmarkStatus={bookmarkStatus}
+              />
+            )}
             {hasImages && (
               <Tooltip title="Download Images">
                 <IconButton

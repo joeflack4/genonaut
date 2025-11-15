@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from genonaut.api.dependencies import get_database_session
 from genonaut.api.services.bookmark_service import BookmarkService
@@ -13,6 +14,7 @@ from genonaut.api.models.requests import (
     BookmarkCreateRequest,
     BookmarkUpdateRequest,
     BookmarkListRequest,
+    BookmarkCheckBatchRequest,
     CategoryMembershipAddRequest,
     CategoryMembershipUpdateRequest,
     BookmarkCategorySyncRequest
@@ -20,11 +22,13 @@ from genonaut.api.models.requests import (
 from genonaut.api.models.responses import (
     BookmarkResponse,
     BookmarkListResponse,
+    BookmarkCheckResponse,
+    BookmarkCheckBatchResponse,
     CategoryMembershipResponse,
     CategoryMembershipListResponse,
     SuccessResponse,
 )
-from genonaut.api.exceptions import EntityNotFoundError, ValidationError
+from genonaut.api.exceptions import EntityNotFoundError, ValidationError, DatabaseError
 
 router = APIRouter(prefix="/api/v1/bookmarks", tags=["bookmarks"])
 
@@ -49,6 +53,129 @@ async def create_bookmark(
         return BookmarkResponse.model_validate(bookmark)
     except ValidationError as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+    except EntityNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except DatabaseError as e:
+        # Handle database errors (which may wrap IntegrityErrors)
+        db.rollback()
+        error_msg = str(e)
+        if 'unique constraint' in error_msg.lower() or 'uq_bookmark_user_content' in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Bookmark already exists for this content"
+            )
+        if 'foreign key' in error_msg.lower() or 'fk_' in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Referenced content does not exist"
+            )
+        # Re-raise other database errors
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}"
+        )
+    except IntegrityError as e:
+        # Handle direct database constraint violations (e.g., foreign key errors)
+        db.rollback()
+        error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
+        if 'foreign key' in error_msg.lower() or 'fk_' in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Referenced content does not exist"
+            )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Database constraint violation: {error_msg}"
+        )
+    except Exception as e:
+        # Catch-all for unexpected errors with logging
+        import traceback
+        print(f"ERROR creating bookmark: {type(e).__name__}: {str(e)}")
+        print(traceback.format_exc())
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+@router.get("/check", response_model=BookmarkCheckResponse)
+async def check_bookmark_status(
+    user_id: UUID = Query(..., description="User ID"),
+    content_id: int = Query(..., description="Content ID to check"),
+    content_source_type: str = Query("items", description="Content source type"),
+    db: Session = Depends(get_database_session)
+):
+    """Check if a bookmark exists for specific content.
+
+    Returns 200 with bookmarked status regardless of whether bookmark exists.
+    This eliminates 404 console noise when checking unbookmarked content.
+    """
+    service = BookmarkService(db)
+    bookmark = service.bookmark_repo.get_by_user_and_content(
+        user_id=user_id,
+        content_id=content_id,
+        content_source_type=content_source_type
+    )
+
+    if not bookmark:
+        return BookmarkCheckResponse(bookmarked=False, bookmark=None)
+
+    return BookmarkCheckResponse(
+        bookmarked=True,
+        bookmark=BookmarkResponse.model_validate(bookmark)
+    )
+
+
+@router.post("/check-batch", response_model=BookmarkCheckBatchResponse)
+async def check_bookmarks_batch(
+    request: BookmarkCheckBatchRequest,
+    user_id: UUID = Query(..., description="User ID"),
+    db: Session = Depends(get_database_session)
+):
+    """Check bookmark status for multiple content items in a single query.
+
+    This endpoint efficiently fetches bookmark status for multiple content items,
+    reducing the number of API calls from N (one per item) to 1 (single batch call).
+
+    Args:
+        request: Batch check request with list of content items
+        user_id: User ID
+        db: Database session
+
+    Returns:
+        Map of 'contentId-sourceType' to bookmark (null if not bookmarked)
+
+    Example response:
+        {
+            "bookmarks": {
+                "3000134-items": { ...bookmark object... },
+                "3000133-items": null,
+                "3000132-auto": { ...bookmark object... }
+            }
+        }
+    """
+    service = BookmarkService(db)
+    try:
+        # Convert request content items to tuples for service call
+        content_items = [
+            (item.content_id, item.content_source_type)
+            for item in request.content_items
+        ]
+
+        # Get batch results
+        bookmarks_dict = service.check_bookmarks_batch(user_id, content_items)
+
+        # Convert Bookmark objects to BookmarkResponse or None
+        response_dict = {}
+        for key, bookmark in bookmarks_dict.items():
+            if bookmark is not None:
+                response_dict[key] = BookmarkResponse.model_validate(bookmark)
+            else:
+                response_dict[key] = None
+
+        return BookmarkCheckBatchResponse(bookmarks=response_dict)
+
     except EntityNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 

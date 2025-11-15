@@ -231,6 +231,231 @@ class TestBookmarkCRUD:
         bookmark_ids = [b["id"] for b in data["items"]]
         assert bookmark["id"] not in bookmark_ids
 
+    def test_check_bookmarks_batch_all_bookmarked(self, api_client, test_user):
+        """Test batch checking bookmark status when all items are bookmarked."""
+        # Create multiple content items and bookmark them all
+        content_items = []
+        for i in range(3):
+            content_response = api_client.post("/api/v1/content", json_data={
+                "title": f"Content {i}",
+                "content_type": "text",
+                "content_data": f"Content {i}",
+                "prompt": "test",
+                "creator_id": test_user["id"],
+                "is_private": False
+            })
+            content = content_response.json()
+
+            # Create bookmark for this content
+            bookmark_data = {
+                "content_id": content["id"],
+                "content_source_type": "items",
+                "note": f"Note {i}"
+            }
+            api_client.post(
+                f"/api/v1/bookmarks?user_id={test_user['id']}",
+                json_data=bookmark_data
+            )
+
+            content_items.append({
+                "content_id": content["id"],
+                "content_source_type": "items"
+            })
+
+        # Batch check bookmark status
+        batch_request = {"content_items": content_items}
+        response = api_client.post(
+            f"/api/v1/bookmarks/check-batch?user_id={test_user['id']}",
+            json_data=batch_request
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify all are bookmarked
+        assert "bookmarks" in data
+        for item in content_items:
+            key = f"{item['content_id']}-{item['content_source_type']}"
+            assert key in data["bookmarks"]
+            assert data["bookmarks"][key] is not None
+            assert data["bookmarks"][key]["content_id"] == item["content_id"]
+            assert data["bookmarks"][key]["content_source_type"] == item["content_source_type"]
+
+    def test_check_bookmarks_batch_none_bookmarked(self, api_client, test_user):
+        """Test batch checking bookmark status when none are bookmarked."""
+        # Create multiple content items but don't bookmark them
+        content_items = []
+        for i in range(3):
+            content_response = api_client.post("/api/v1/content", json_data={
+                "title": f"Unbookmarked Content {i}",
+                "content_type": "text",
+                "content_data": f"Content {i}",
+                "prompt": "test",
+                "creator_id": test_user["id"],
+                "is_private": False
+            })
+            content = content_response.json()
+
+            content_items.append({
+                "content_id": content["id"],
+                "content_source_type": "items"
+            })
+
+        # Batch check bookmark status
+        batch_request = {"content_items": content_items}
+        response = api_client.post(
+            f"/api/v1/bookmarks/check-batch?user_id={test_user['id']}",
+            json_data=batch_request
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify none are bookmarked
+        assert "bookmarks" in data
+        for item in content_items:
+            key = f"{item['content_id']}-{item['content_source_type']}"
+            assert key in data["bookmarks"]
+            assert data["bookmarks"][key] is None
+
+    def test_check_bookmarks_batch_mixed(self, api_client, test_user):
+        """Test batch checking bookmark status with mix of bookmarked and not bookmarked."""
+        # Create content items - bookmark some but not others
+        content_items = []
+        bookmarked_ids = []
+
+        for i in range(5):
+            content_response = api_client.post("/api/v1/content", json_data={
+                "title": f"Mixed Content {i}",
+                "content_type": "text",
+                "content_data": f"Content {i}",
+                "prompt": "test",
+                "creator_id": test_user["id"],
+                "is_private": False
+            })
+            content = content_response.json()
+
+            # Only bookmark items 1 and 3
+            if i in [1, 3]:
+                bookmark_data = {
+                    "content_id": content["id"],
+                    "content_source_type": "items"
+                }
+                api_client.post(
+                    f"/api/v1/bookmarks?user_id={test_user['id']}",
+                    json_data=bookmark_data
+                )
+                bookmarked_ids.append(content["id"])
+
+            content_items.append({
+                "content_id": content["id"],
+                "content_source_type": "items"
+            })
+
+        # Batch check bookmark status
+        batch_request = {"content_items": content_items}
+        response = api_client.post(
+            f"/api/v1/bookmarks/check-batch?user_id={test_user['id']}",
+            json_data=batch_request
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify correct bookmark status for each item
+        assert "bookmarks" in data
+        for item in content_items:
+            key = f"{item['content_id']}-{item['content_source_type']}"
+            assert key in data["bookmarks"]
+
+            if item["content_id"] in bookmarked_ids:
+                # Should be bookmarked
+                assert data["bookmarks"][key] is not None
+                assert data["bookmarks"][key]["content_id"] == item["content_id"]
+            else:
+                # Should not be bookmarked
+                assert data["bookmarks"][key] is None
+
+    def test_check_bookmarks_batch_large_batch(self, api_client, test_user):
+        """Test batch checking with larger number of items (performance test)."""
+        # Create 10 content items and bookmark half of them
+        content_items = []
+        bookmarked_ids = set()
+
+        for i in range(10):
+            content_response = api_client.post("/api/v1/content", json_data={
+                "title": f"Batch Content {i}",
+                "content_type": "text",
+                "content_data": f"Content {i}",
+                "prompt": "test",
+                "creator_id": test_user["id"],
+                "is_private": False
+            })
+            content = content_response.json()
+
+            # Bookmark even-indexed items (0, 2, 4, 6, 8)
+            if i % 2 == 0:
+                bookmark_data = {
+                    "content_id": content["id"],
+                    "content_source_type": "items"
+                }
+                api_client.post(
+                    f"/api/v1/bookmarks?user_id={test_user['id']}",
+                    json_data=bookmark_data
+                )
+                bookmarked_ids.add(content["id"])
+
+            content_items.append({
+                "content_id": content["id"],
+                "content_source_type": "items"
+            })
+
+        # Batch check all 10 items in a single request
+        batch_request = {"content_items": content_items}
+        response = api_client.post(
+            f"/api/v1/bookmarks/check-batch?user_id={test_user['id']}",
+            json_data=batch_request
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify all 10 items are present with correct status
+        assert "bookmarks" in data
+        assert len(data["bookmarks"]) == 10
+
+        for item in content_items:
+            key = f"{item['content_id']}-{item['content_source_type']}"
+            assert key in data["bookmarks"]
+
+            if item["content_id"] in bookmarked_ids:
+                assert data["bookmarks"][key] is not None
+                assert data["bookmarks"][key]["content_id"] == item["content_id"]
+            else:
+                assert data["bookmarks"][key] is None
+
+    def test_check_bookmarks_batch_empty_list(self, api_client, test_user):
+        """Test batch checking with empty content items list should fail validation."""
+        batch_request = {"content_items": []}
+        response = api_client.post(
+            f"/api/v1/bookmarks/check-batch?user_id={test_user['id']}",
+            json_data=batch_request
+        )
+        # Should fail validation due to min_length=1
+        assert response.status_code == 422
+
+    def test_check_bookmarks_batch_nonexistent_user(self, api_client):
+        """Test batch checking with non-existent user returns 404."""
+        import uuid as uuid_lib
+        fake_user_id = str(uuid_lib.uuid4())
+
+        batch_request = {
+            "content_items": [
+                {"content_id": 999999, "content_source_type": "items"}
+            ]
+        }
+        response = api_client.post(
+            f"/api/v1/bookmarks/check-batch?user_id={fake_user_id}",
+            json_data=batch_request
+        )
+        assert response.status_code == 404
+
 
 @pytest.mark.api_server
 class TestBookmarkCategory:

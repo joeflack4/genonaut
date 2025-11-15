@@ -491,4 +491,288 @@ describe('BookmarksService', () => {
       expect(result.items[0].content?.sourceType).toBe('regular')
     })
   })
+
+  describe('checkBookmarkStatusBatch()', () => {
+    it('should return bookmark status for all bookmarked items', async () => {
+      server.use(
+        http.post('https://api.example.test/api/v1/bookmarks/check-batch', async ({ request }) => {
+          const body = await request.json() as {
+            content_items: Array<{ content_id: number; content_source_type: string }>
+          }
+
+          expect(body.content_items).toHaveLength(2)
+
+          return HttpResponse.json({
+            bookmarks: {
+              '1001-items': {
+                id: 'bookmark-1',
+                user_id: 'user-uuid',
+                content_id: 1001,
+                content_source_type: 'items',
+                note: null,
+                pinned: false,
+                is_public: false,
+                created_at: '2025-01-01T00:00:00Z',
+                updated_at: '2025-01-01T00:00:00Z',
+              },
+              '1002-items': {
+                id: 'bookmark-2',
+                user_id: 'user-uuid',
+                content_id: 1002,
+                content_source_type: 'items',
+                note: 'Test note',
+                pinned: true,
+                is_public: false,
+                created_at: '2025-01-02T00:00:00Z',
+                updated_at: '2025-01-02T00:00:00Z',
+              },
+            },
+          })
+        })
+      )
+
+      const result = await service.checkBookmarkStatusBatch('user-uuid', [
+        { contentId: 1001, contentSourceType: 'items' },
+        { contentId: 1002, contentSourceType: 'items' },
+      ])
+
+      expect(result).toEqual({
+        '1001-items': {
+          id: 'bookmark-1',
+          userId: 'user-uuid',
+          contentId: 1001,
+          contentSourceType: 'items',
+          note: null,
+          pinned: false,
+          isPublic: false,
+          createdAt: '2025-01-01T00:00:00Z',
+          updatedAt: '2025-01-01T00:00:00Z',
+        },
+        '1002-items': {
+          id: 'bookmark-2',
+          userId: 'user-uuid',
+          contentId: 1002,
+          contentSourceType: 'items',
+          note: 'Test note',
+          pinned: true,
+          isPublic: false,
+          createdAt: '2025-01-02T00:00:00Z',
+          updatedAt: '2025-01-02T00:00:00Z',
+        },
+      })
+    })
+
+    it('should return null for unbookmarked items', async () => {
+      server.use(
+        http.post('https://api.example.test/api/v1/bookmarks/check-batch', () => {
+          return HttpResponse.json({
+            bookmarks: {
+              '1001-items': null,
+              '1002-items': null,
+            },
+          })
+        })
+      )
+
+      const result = await service.checkBookmarkStatusBatch('user-uuid', [
+        { contentId: 1001, contentSourceType: 'items' },
+        { contentId: 1002, contentSourceType: 'items' },
+      ])
+
+      expect(result).toEqual({
+        '1001-items': null,
+        '1002-items': null,
+      })
+    })
+
+    it('should handle mixed bookmarked and unbookmarked items', async () => {
+      server.use(
+        http.post('https://api.example.test/api/v1/bookmarks/check-batch', () => {
+          return HttpResponse.json({
+            bookmarks: {
+              '1001-items': {
+                id: 'bookmark-1',
+                user_id: 'user-uuid',
+                content_id: 1001,
+                content_source_type: 'items',
+                note: null,
+                pinned: false,
+                is_public: false,
+                created_at: '2025-01-01T00:00:00Z',
+                updated_at: '2025-01-01T00:00:00Z',
+              },
+              '1002-items': null,
+              '1003-auto': null,
+            },
+          })
+        })
+      )
+
+      const result = await service.checkBookmarkStatusBatch('user-uuid', [
+        { contentId: 1001, contentSourceType: 'items' },
+        { contentId: 1002, contentSourceType: 'items' },
+        { contentId: 1003, contentSourceType: 'auto' },
+      ])
+
+      expect(result).toEqual({
+        '1001-items': {
+          id: 'bookmark-1',
+          userId: 'user-uuid',
+          contentId: 1001,
+          contentSourceType: 'items',
+          note: null,
+          pinned: false,
+          isPublic: false,
+          createdAt: '2025-01-01T00:00:00Z',
+          updatedAt: '2025-01-01T00:00:00Z',
+        },
+        '1002-items': null,
+        '1003-auto': null,
+      })
+    })
+
+    it('should transform API bookmarks to domain Bookmarks correctly', async () => {
+      server.use(
+        http.post('https://api.example.test/api/v1/bookmarks/check-batch', () => {
+          return HttpResponse.json({
+            bookmarks: {
+              '1001-items': {
+                id: 'bookmark-uuid',
+                user_id: 'user-uuid',
+                content_id: 1001,
+                content_source_type: 'items',
+                note: 'Important note',
+                pinned: true,
+                is_public: true,
+                created_at: '2025-01-01T00:00:00Z',
+                updated_at: '2025-01-02T00:00:00Z',
+              },
+            },
+          })
+        })
+      )
+
+      const result = await service.checkBookmarkStatusBatch('user-uuid', [
+        { contentId: 1001, contentSourceType: 'items' },
+      ])
+
+      expect(result['1001-items']).toMatchObject({
+        id: 'bookmark-uuid',
+        userId: 'user-uuid',
+        contentId: 1001,
+        contentSourceType: 'items',
+        note: 'Important note',
+        pinned: true,
+        isPublic: true,
+        createdAt: '2025-01-01T00:00:00Z',
+        updatedAt: '2025-01-02T00:00:00Z',
+      })
+    })
+
+    it('should handle different content source types', async () => {
+      server.use(
+        http.post('https://api.example.test/api/v1/bookmarks/check-batch', () => {
+          return HttpResponse.json({
+            bookmarks: {
+              '1001-items': {
+                id: 'bookmark-items',
+                user_id: 'user-uuid',
+                content_id: 1001,
+                content_source_type: 'items',
+                note: null,
+                pinned: false,
+                is_public: false,
+                created_at: '2025-01-01T00:00:00Z',
+                updated_at: '2025-01-01T00:00:00Z',
+              },
+              '1001-auto': {
+                id: 'bookmark-auto',
+                user_id: 'user-uuid',
+                content_id: 1001,
+                content_source_type: 'auto',
+                note: null,
+                pinned: false,
+                is_public: false,
+                created_at: '2025-01-01T00:00:00Z',
+                updated_at: '2025-01-01T00:00:00Z',
+              },
+            },
+          })
+        })
+      )
+
+      const result = await service.checkBookmarkStatusBatch('user-uuid', [
+        { contentId: 1001, contentSourceType: 'items' },
+        { contentId: 1001, contentSourceType: 'auto' },
+      ])
+
+      expect(result['1001-items']?.contentSourceType).toBe('items')
+      expect(result['1001-auto']?.contentSourceType).toBe('auto')
+      expect(result['1001-items']?.id).toBe('bookmark-items')
+      expect(result['1001-auto']?.id).toBe('bookmark-auto')
+    })
+
+    it('should handle empty content items array', async () => {
+      server.use(
+        http.post('https://api.example.test/api/v1/bookmarks/check-batch', () => {
+          return HttpResponse.json({
+            bookmarks: {},
+          })
+        })
+      )
+
+      const result = await service.checkBookmarkStatusBatch('user-uuid', [])
+
+      expect(result).toEqual({})
+    })
+
+    it('should send request to correct endpoint with user_id query param', async () => {
+      let requestUrl = ''
+
+      server.use(
+        http.post('https://api.example.test/api/v1/bookmarks/check-batch', ({ request }) => {
+          requestUrl = request.url
+          return HttpResponse.json({
+            bookmarks: {
+              '1001-items': null,
+            },
+          })
+        })
+      )
+
+      await service.checkBookmarkStatusBatch('test-user-123', [
+        { contentId: 1001, contentSourceType: 'items' },
+      ])
+
+      expect(requestUrl).toContain('user_id=test-user-123')
+    })
+
+    it('should send content items with snake_case field names', async () => {
+      let requestBody: unknown = null
+
+      server.use(
+        http.post('https://api.example.test/api/v1/bookmarks/check-batch', async ({ request }) => {
+          requestBody = await request.json()
+          return HttpResponse.json({
+            bookmarks: {
+              '1001-items': null,
+            },
+          })
+        })
+      )
+
+      await service.checkBookmarkStatusBatch('user-uuid', [
+        { contentId: 1001, contentSourceType: 'items' },
+      ])
+
+      expect(requestBody).toEqual({
+        content_items: [
+          {
+            content_id: 1001,
+            content_source_type: 'items',
+          },
+        ],
+      })
+    })
+  })
 })

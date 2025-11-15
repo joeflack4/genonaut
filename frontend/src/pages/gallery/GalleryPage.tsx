@@ -37,7 +37,7 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import GridViewIcon from '@mui/icons-material/GridView'
-import { useUnifiedGallery, useCurrentUser, useRecentSearches, useAddSearchHistory, useDeleteSearchHistory, useTags } from '../../hooks'
+import { useUnifiedGallery, useCurrentUser, useRecentSearches, useAddSearchHistory, useDeleteSearchHistory, useTags, useBookmarkStatusBatch } from '../../hooks'
 import { ADMIN_USER_ID } from '../../constants/config'
 import type { GalleryItem, ThumbnailResolutionId, ViewMode } from '../../types/domain'
 import {
@@ -563,6 +563,19 @@ export function GalleryPage() {
   const items = data?.items ?? []
   const stats = statsData?.stats || unifiedData?.stats  // Use stats from lazy query if available, fallback to main query
 
+  // Batch fetch bookmark statuses for all items (if user is logged in and items exist)
+  const contentItemsForBatch = useMemo(() => {
+    return items.map(item => ({
+      contentId: item.id,
+      contentSourceType: item.sourceType === 'auto' ? 'auto' : 'items'
+    }))
+  }, [items])
+
+  const { getBookmarkStatus, isLoading: isLoadingBookmarks } = useBookmarkStatusBatch(
+    currentUser?.id,
+    contentItemsForBatch
+  )
+
   // Track if critical data has loaded for E2E tests
   const isAppReady = !isLoading && data !== undefined
 
@@ -605,18 +618,27 @@ export function GalleryPage() {
           px: 1,
         }}
       >
-        {row.map((item) => (
-          <ImageGridCell
-            key={item.id}
-            item={item}
-            resolution={currentResolution}
-            onClick={navigateToDetail}
-            dataTestId={`gallery-grid-item-${item.id}`}
-          />
-        ))}
+        {row.map((item) => {
+          // Get bookmark status from batch
+          const contentSourceType = item.sourceType === 'auto' ? 'auto' : 'items'
+          const bookmarkStatus = getBookmarkStatus(item.id, contentSourceType)
+
+          return (
+            <ImageGridCell
+              key={item.id}
+              item={item}
+              resolution={currentResolution}
+              onClick={navigateToDetail}
+              dataTestId={`gallery-grid-item-${item.id}`}
+              showBookmarkButton={!isLoadingBookmarks}
+              userId={currentUser?.id}
+              bookmarkStatus={bookmarkStatus}
+            />
+          )
+        })}
       </Box>
     ),
-    [itemsPerRow, currentResolution, navigateToDetail]
+    [itemsPerRow, currentResolution, navigateToDetail, getBookmarkStatus, currentUser?.id, isLoadingBookmarks]
   )
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -957,8 +979,9 @@ export function GalleryPage() {
                     onItemClick={navigateToDetail}
                     emptyMessage="No gallery items found. Try adjusting your filters."
                     dataTestId="gallery-grid-view"
-                    showBookmarkButton={true}
+                    showBookmarkButton={!isLoadingBookmarks}
                     userId={currentUser?.id}
+                    getBookmarkStatus={getBookmarkStatus}
                   />
                 )
               ) : isLoading ? (

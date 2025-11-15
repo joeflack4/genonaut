@@ -116,39 +116,73 @@ export class BookmarksService {
     contentId: number,
     contentSourceType: string = 'items'
   ): Promise<Bookmark | null> {
-    try {
-      const response = await this.listBookmarks(userId, {
-        limit: 1,
-        includeContent: false,
-      })
+    const response = await this.api.get<{
+      bookmarked: boolean
+      bookmark: ApiBookmark | null
+    }>(
+      `/api/v1/bookmarks/check?user_id=${userId}&content_id=${contentId}&content_source_type=${contentSourceType}`
+    )
 
-      // Find matching bookmark in the list
-      const bookmark = response.items.find(
-        (item) =>
-          item.contentId === contentId &&
-          item.contentSourceType === contentSourceType
-      )
-
-      if (!bookmark) {
-        return null
-      }
-
-      // Transform to Bookmark (without content)
-      return {
-        id: bookmark.id,
-        userId: bookmark.userId,
-        contentId: bookmark.contentId,
-        contentSourceType: bookmark.contentSourceType,
-        note: bookmark.note,
-        pinned: bookmark.pinned,
-        isPublic: bookmark.isPublic,
-        createdAt: bookmark.createdAt,
-        updatedAt: bookmark.updatedAt,
-      }
-    } catch (error) {
-      // If we get a 404 or other error, assume not bookmarked
+    // If not bookmarked, return null
+    if (!response.bookmarked || !response.bookmark) {
       return null
     }
+
+    // Transform to Bookmark
+    return {
+      id: response.bookmark.id,
+      userId: response.bookmark.user_id,
+      contentId: response.bookmark.content_id,
+      contentSourceType: response.bookmark.content_source_type,
+      note: response.bookmark.note,
+      pinned: response.bookmark.pinned,
+      isPublic: response.bookmark.is_public,
+      createdAt: response.bookmark.created_at,
+      updatedAt: response.bookmark.updated_at,
+    }
+  }
+
+  /**
+   * Check bookmark status for multiple content items in a single batch request
+   * Returns a map of 'contentId-sourceType' to bookmark status
+   */
+  async checkBookmarkStatusBatch(
+    userId: string,
+    contentItems: Array<{ contentId: number; contentSourceType: string }>
+  ): Promise<Record<string, Bookmark | null>> {
+    const response = await this.api.post<{
+      bookmarks: Record<string, ApiBookmark | null>
+    }>(
+      `/api/v1/bookmarks/check-batch?user_id=${userId}`,
+      {
+        content_items: contentItems.map(item => ({
+          content_id: item.contentId,
+          content_source_type: item.contentSourceType
+        }))
+      }
+    )
+
+    // Transform API bookmarks to domain Bookmarks
+    const result: Record<string, Bookmark | null> = {}
+    for (const [key, apiBookmark] of Object.entries(response.bookmarks)) {
+      if (apiBookmark) {
+        result[key] = {
+          id: apiBookmark.id,
+          userId: apiBookmark.user_id,
+          contentId: apiBookmark.content_id,
+          contentSourceType: apiBookmark.content_source_type,
+          note: apiBookmark.note,
+          pinned: apiBookmark.pinned,
+          isPublic: apiBookmark.is_public,
+          createdAt: apiBookmark.created_at,
+          updatedAt: apiBookmark.updated_at,
+        }
+      } else {
+        result[key] = null
+      }
+    }
+
+    return result
   }
 
   /**

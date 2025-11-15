@@ -424,6 +424,17 @@ class BookmarkListRequest(BaseModel):
     sort_order: str = Field("desc", pattern="^(asc|desc)$", description="Sort order")
 
 
+class ContentItemReference(BaseModel):
+    """Reference to a content item for batch operations."""
+    content_id: int = Field(..., gt=0, description="Content item ID")
+    content_source_type: str = Field(..., pattern="^(items|auto)$", description="Content source type ('items' or 'auto')")
+
+
+class BookmarkCheckBatchRequest(BaseModel):
+    """Request model for batch checking bookmark status."""
+    content_items: List[ContentItemReference] = Field(..., min_length=1, max_length=100, description="List of content items to check (max 100)")
+
+
 # Bookmark category request models
 class BookmarkCategoryCreateRequest(BaseModel):
     """Request model for creating a bookmark category."""

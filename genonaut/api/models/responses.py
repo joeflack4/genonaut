@@ -732,6 +732,24 @@ class BookmarkWithContentResponse(BookmarkResponse):
     user_rating: Optional[int] = Field(None, description="User's rating for this content (1-5 scale, None if not rated)")
 
 
+class BookmarkCheckBatchResponse(BaseModel):
+    """Response model for batch bookmark status check."""
+    bookmarks: Dict[str, Optional[BookmarkResponse]] = Field(
+        ...,
+        description="Map of 'contentId-sourceType' to bookmark (null if not bookmarked)"
+    )
+
+    model_config = {"from_attributes": True}
+
+
+class BookmarkCheckResponse(BaseModel):
+    """Response model for individual bookmark status check."""
+    bookmarked: bool = Field(..., description="Whether the content is bookmarked")
+    bookmark: Optional[BookmarkResponse] = Field(None, description="Bookmark details if bookmarked, null otherwise")
+
+    model_config = {"from_attributes": True}
+
+
 # Bookmark category response models
 class BookmarkCategoryResponse(BaseModel):
     """Response model for bookmark category data."""

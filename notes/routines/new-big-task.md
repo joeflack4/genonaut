@@ -20,7 +20,9 @@ Create a new `.md` document in `notes/`, and in it, write:
 types of tests: (frontend | backend) x (unit | integration / e2e). Large tasks will often include documentation updates 
 (maybe a small bit in the README.md, but usually just in docs/). You should lean towards good documentation and test 
 coverage for big tasks.
-3. You should also have a final round of testing. See: `notes/routines/do-and-test.md`
+3. Do manual QC: Do this if you did any frontend work. Use the playwright MCP to load a browser and test the features 
+that you added in the various phases. Make sure that each feature works as you would expect.
+4. You should also have a final round of testing. See: `notes/routines/do-and-test.md`
 
 ### 4. Execution
 When you're ready to start working on the tasks, follow the SOP outlined in: `notes/routines/iteration.md`

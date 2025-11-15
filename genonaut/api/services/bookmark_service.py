@@ -309,3 +309,26 @@ class BookmarkService:
         # Verify user exists
         self.user_repo.get_or_404(user_id)
         return self.bookmark_repo.get_pinned_bookmarks(user_id, skip=skip, limit=limit)
+
+    def check_bookmarks_batch(
+        self,
+        user_id: UUID,
+        content_items: List[tuple]
+    ) -> Dict[str, Optional[Bookmark]]:
+        """Check bookmark status for multiple content items in a single query.
+
+        Args:
+            user_id: User ID
+            content_items: List of tuples (content_id, content_source_type)
+
+        Returns:
+            Dictionary mapping 'contentId-sourceType' to Bookmark (or None if not bookmarked)
+
+        Raises:
+            EntityNotFoundError: If user not found
+        """
+        # Verify user exists
+        self.user_repo.get_or_404(user_id)
+
+        # Call repository method for batch fetch
+        return self.bookmark_repo.get_batch_by_user_and_content(user_id, content_items)

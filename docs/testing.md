@@ -1205,9 +1205,52 @@ npm run test:e2e           # Tests run against whatever is on port 8001
   ```
 
 **Pitfall 4: No `VITE_API_BASE_URL` passed**
-`VITE_API_BASE_URL` defaults to http://127.0.0.1:8001 if not passed. 
-Note that if you run `frontend-test-e2e-wt2`, it will use a localhost with port 8002 specifically designed to run off 
+`VITE_API_BASE_URL` defaults to http://127.0.0.1:8001 if not passed.
+Note that if you run `frontend-test-e2e-wt2`, it will use a localhost with port 8002 specifically designed to run off
 the test database.
+
+**Pitfall 5: E2E tests blocked by CORS - Playwright test server not in allowed origins**
+- **Problem**: Playwright E2E tests run on port 4173, but FastAPI CORS configuration only allows ports 5173, 5174, 5175, 5176, and 3000
+- **Symptoms**:
+  - Browser console errors: `Access to fetch at 'http://localhost:8001/...' from origin 'http://127.0.0.1:4173' has been blocked by CORS policy`
+  - Network errors: `net::ERR_FAILED` for all API requests
+  - Frontend shows: "0 results matching filters" or "No items found"
+  - Tests fail with: "Test database missing [gallery/generation] data" error
+- **Root Cause**: Port 4173 (Playwright test server) is missing from FastAPI `CORSMiddleware` allowed origins list
+- **Solution**: Add port 4173 to CORS configuration in `genonaut/api/main.py`:
+  ```python
+  # In genonaut/api/main.py, around line 62-75
+  app.add_middleware(
+      CORSMiddleware,
+      allow_origins=[
+          "http://localhost:5173",  # Frontend dev server
+          "http://localhost:5174",  # Alternative frontend port (Vite fallback)
+          "http://localhost:5175",  # Alternative frontend port (Vite fallback)
+          "http://localhost:5176",  # Alternative frontend port (Vite fallback)
+          "http://localhost:4173",  # Playwright E2E test server  <- ADD THIS
+          "http://localhost:3000",  # Alternative frontend port
+          "http://127.0.0.1:5173",  # IPv4 localhost
+          "http://127.0.0.1:5174",  # IPv4 localhost (Vite fallback)
+          "http://127.0.0.1:5175",  # IPv4 localhost (Vite fallback)
+          "http://127.0.0.1:5176",  # IPv4 localhost (Vite fallback)
+          "http://127.0.0.1:4173",  # IPv4 localhost (Playwright E2E test server)  <- ADD THIS
+          "http://127.0.0.1:3000",  # Alternative IPv4 port
+      ],
+      allow_credentials=True,
+      allow_methods=["*"],
+      allow_headers=["*"],
+  )
+  ```
+- **After making changes**: Restart the API server:
+  ```bash
+  make api-test-restart    # For test database
+  # OR
+  make api-demo-restart    # For demo database
+  ```
+- **Verification**:
+  1. Check API is accessible: `curl http://localhost:8001/api/v1/health`
+  2. Run a single E2E test: `npm run test:e2e -- tests/e2e/gallery.spec.ts --grep "loads gallery"`
+  3. Verify no CORS errors in browser console (run with `--headed` flag to see browser)
 
 ### Best Practices
 

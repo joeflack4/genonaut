@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -29,6 +29,7 @@ import { VirtualScrollList } from '../common/VirtualScrollList'
 import { ResolutionDropdown } from '../gallery/ResolutionDropdown'
 import { useGenerationJobService } from '../../hooks/useGenerationJobService'
 import { usePersistedState } from '../../hooks/usePersistedState'
+import { useCurrentUser, useBookmarkStatusBatch } from '../../hooks'
 import type { GenerationJobResponse, GenerationJobListParams } from '../../services/generation-job-service'
 import type { ThumbnailResolutionId } from '../../types/domain'
 import { DEFAULT_THUMBNAIL_RESOLUTION_ID, THUMBNAIL_RESOLUTION_OPTIONS } from '../../constants/gallery'
@@ -175,6 +176,24 @@ export function GenerationHistory() {
     )
   }, [generations, searchTerm])
 
+  // Get current user for bookmark functionality
+  const { data: currentUser } = useCurrentUser()
+
+  // Batch fetch bookmark statuses for all generations (if user is logged in and generations exist)
+  const contentItemsForBatch = useMemo(() => {
+    return filteredGenerations
+      .filter(gen => gen.content_id !== null && gen.content_id !== undefined)
+      .map(gen => ({
+        contentId: gen.content_id!,
+        contentSourceType: 'items'
+      }))
+  }, [filteredGenerations])
+
+  const { getBookmarkStatus, isLoading: isLoadingBookmarks } = useBookmarkStatusBatch(
+    currentUser?.id,
+    contentItemsForBatch
+  )
+
   // Group generations into rows for virtual scrolling
   const generationRows = useMemo(() => {
     const rows = []
@@ -192,7 +211,7 @@ export function GenerationHistory() {
   }, [resolution])
 
   // Render a row of generation cards for virtual scrolling
-  const renderGenerationRow = (row: GenerationJobResponse[]) => (
+  const renderGenerationRow = useCallback((row: GenerationJobResponse[]) => (
     <Box
       sx={{
         display: 'grid',
@@ -202,17 +221,27 @@ export function GenerationHistory() {
         px: 1,
       }}
     >
-      {row.map((generation) => (
-        <GenerationCard
-          key={generation.id}
-          generation={generation}
-          resolution={resolution}
-          onClick={() => handleViewGeneration(generation)}
-          onDelete={() => handleDeleteGeneration(generation.id)}
-        />
-      ))}
+      {row.map((generation) => {
+        // Get bookmark status from batch if content_id exists
+        const bookmarkStatus = generation.content_id
+          ? getBookmarkStatus(generation.content_id, 'items')
+          : undefined
+
+        return (
+          <GenerationCard
+            key={generation.id}
+            generation={generation}
+            resolution={resolution}
+            onClick={() => handleViewGeneration(generation)}
+            onDelete={() => handleDeleteGeneration(generation.id)}
+            showBookmarkButton={!isLoadingBookmarks}
+            userId={currentUser?.id}
+            bookmarkStatus={bookmarkStatus}
+          />
+        )
+      })}
     </Box>
-  )
+  ), [itemsPerRow, resolution, handleViewGeneration, handleDeleteGeneration, getBookmarkStatus, currentUser?.id, isLoadingBookmarks])
 
   const gridTemplateColumns = useMemo(
     () => `repeat(auto-fill, minmax(${resolution.width}px, 1fr))`,
@@ -316,16 +345,26 @@ export function GenerationHistory() {
               }}
               data-testid="generation-list"
             >
-              {filteredGenerations.map((generation) => (
-                <Box key={generation.id} data-testid="generation-list-item">
-                  <GenerationCard
-                    generation={generation}
-                    resolution={resolution}
-                    onClick={() => handleViewGeneration(generation)}
-                    onDelete={() => handleDeleteGeneration(generation.id)}
-                  />
-                </Box>
-              ))}
+              {filteredGenerations.map((generation) => {
+                // Get bookmark status from batch if content_id exists
+                const bookmarkStatus = generation.content_id
+                  ? getBookmarkStatus(generation.content_id, 'items')
+                  : undefined
+
+                return (
+                  <Box key={generation.id} data-testid="generation-list-item">
+                    <GenerationCard
+                      generation={generation}
+                      resolution={resolution}
+                      onClick={() => handleViewGeneration(generation)}
+                      onDelete={() => handleDeleteGeneration(generation.id)}
+                      showBookmarkButton={!isLoadingBookmarks}
+                      userId={currentUser?.id}
+                      bookmarkStatus={bookmarkStatus}
+                    />
+                  </Box>
+                )
+              })}
             </Box>
           )}
 
@@ -361,6 +400,7 @@ export function GenerationHistory() {
           justifyContent="center"
           flexDirection="column"
           sx={{ py: 8 }}
+          data-testid="generation-list-empty"
         >
           <Typography variant="h6" color="text.secondary" gutterBottom>
             No generations found

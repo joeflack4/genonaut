@@ -298,3 +298,62 @@ class BookmarkRepository(BaseRepository[Bookmark, Dict[str, Any], Dict[str, Any]
         except SQLAlchemyError as e:
             self.db.rollback()
             raise DatabaseError(f"Failed to soft delete bookmark {bookmark_id}: {str(e)}")
+
+    def get_batch_by_user_and_content(
+        self,
+        user_id: UUID,
+        content_items: List[Tuple[int, str]]
+    ) -> Dict[str, Optional[Bookmark]]:
+        """Get multiple bookmarks by user and content items in a single query.
+
+        Args:
+            user_id: User ID
+            content_items: List of tuples (content_id, content_source_type)
+
+        Returns:
+            Dictionary mapping 'contentId-sourceType' to Bookmark (or None if not bookmarked)
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        try:
+            # Fetch all matching bookmarks in a single query
+            query = (
+                self.db.query(Bookmark)
+                .filter(Bookmark.user_id == user_id)
+                .filter(Bookmark.deleted_at.is_(None))
+            )
+
+            # Build OR conditions for each content item
+            or_conditions = []
+            for content_id, content_source_type in content_items:
+                or_conditions.append(
+                    and_(
+                        Bookmark.content_id == content_id,
+                        Bookmark.content_source_type == content_source_type
+                    )
+                )
+
+            if or_conditions:
+                from sqlalchemy import or_
+                query = query.filter(or_(*or_conditions))
+
+            bookmarks = query.all()
+
+            # Build result dictionary
+            result = {}
+            # Create a map of existing bookmarks
+            bookmark_map = {
+                f"{bm.content_id}-{bm.content_source_type}": bm
+                for bm in bookmarks
+            }
+
+            # Fill result with all requested items (None if not bookmarked)
+            for content_id, content_source_type in content_items:
+                key = f"{content_id}-{content_source_type}"
+                result[key] = bookmark_map.get(key)
+
+            return result
+
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Failed to batch fetch bookmarks for user {user_id}: {str(e)}")

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Box, Skeleton, Typography } from '@mui/material'
-import type { GalleryItem, ThumbnailResolution } from '../../types/domain'
+import type { GalleryItem, ThumbnailResolution, Bookmark } from '../../types/domain'
 import { GRID_COLUMN_BREAKPOINTS } from '../../constants/gallery'
 import { ImageGridCell } from './ImageGridCell'
 
@@ -14,6 +14,14 @@ export interface GridViewProps {
   dataTestId?: string
   showBookmarkButton?: boolean
   userId?: string
+  /**
+   * Optional function to get bookmark status for batch-fetched bookmarks
+   * If provided, bookmark status will be passed to cells instead of individual fetching
+   */
+  getBookmarkStatus?: (contentId: number, contentSourceType: string) => {
+    isBookmarked: boolean
+    bookmark: Bookmark | undefined
+  }
 }
 
 const DEFAULT_LOADING_PLACEHOLDERS = 6
@@ -28,6 +36,7 @@ export function GridView({
   dataTestId = 'gallery-grid-view',
   showBookmarkButton = false,
   userId,
+  getBookmarkStatus,
 }: GridViewProps) {
   const aspectRatioPercentage = useMemo(
     () => (resolution.height / resolution.width) * 100,
@@ -76,17 +85,26 @@ export function GridView({
               <Skeleton variant="text" width="40%" />
             </Box>
           ))
-        : items.map((item) => (
-            <ImageGridCell
-              key={item.id}
-              item={item}
-              resolution={resolution}
-              onClick={onItemClick}
-              dataTestId={`gallery-grid-item-${item.id}`}
-              showBookmarkButton={showBookmarkButton}
-              userId={userId}
-            />
-          ))}
+        : items.map((item) => {
+            // Get bookmark status from batch if available
+            const contentSourceType = item.sourceType === 'auto' ? 'auto' : 'items'
+            const bookmarkStatus = getBookmarkStatus
+              ? getBookmarkStatus(item.id, contentSourceType)
+              : undefined
+
+            return (
+              <ImageGridCell
+                key={item.id}
+                item={item}
+                resolution={resolution}
+                onClick={onItemClick}
+                dataTestId={`gallery-grid-item-${item.id}`}
+                showBookmarkButton={showBookmarkButton}
+                userId={userId}
+                bookmarkStatus={bookmarkStatus}
+              />
+            )
+          })}
 
       {!isLoading && items.length === 0 && (
         <Typography

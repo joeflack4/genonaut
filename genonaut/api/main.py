@@ -61,8 +61,16 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=[
             "http://localhost:5173",  # Frontend dev server
+            "http://localhost:5174",  # Alternative frontend port (Vite fallback)
+            "http://localhost:5175",  # Alternative frontend port (Vite fallback)
+            "http://localhost:5176",  # Alternative frontend port (Vite fallback)
+            "http://localhost:4173",  # Playwright E2E test server
             "http://localhost:3000",  # Alternative frontend port
             "http://127.0.0.1:5173",  # IPv4 localhost
+            "http://127.0.0.1:5174",  # IPv4 localhost (Vite fallback)
+            "http://127.0.0.1:5175",  # IPv4 localhost (Vite fallback)
+            "http://127.0.0.1:5176",  # IPv4 localhost (Vite fallback)
+            "http://127.0.0.1:4173",  # IPv4 localhost (Playwright E2E test server)
             "http://127.0.0.1:3000",  # Alternative IPv4 port
         ],
         allow_credentials=True,
