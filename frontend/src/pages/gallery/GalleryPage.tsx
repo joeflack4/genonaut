@@ -957,6 +957,8 @@ export function GalleryPage() {
                     onItemClick={navigateToDetail}
                     emptyMessage="No gallery items found. Try adjusting your filters."
                     dataTestId="gallery-grid-view"
+                    showBookmarkButton={true}
+                    userId={currentUser?.id}
                   />
                 )
               ) : isLoading ? (

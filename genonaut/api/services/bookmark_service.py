@@ -208,7 +208,36 @@ class BookmarkService:
             'updated_at': datetime.utcnow()
         }
 
-        return self.bookmark_repo.create(bookmark_data)
+        bookmark = self.bookmark_repo.create(bookmark_data)
+
+        # Auto-assign to "Uncategorized" category
+        # Get or create the Uncategorized category for this user
+        uncategorized = self.category_repo.get_by_user_and_name(
+            user_id=user_id,
+            name="Uncategorized",
+            parent_id=None
+        )
+        if not uncategorized:
+            # Create Uncategorized category if it doesn't exist
+            uncategorized_data = {
+                'user_id': user_id,
+                'name': 'Uncategorized',
+                'description': 'Default category for uncategorized bookmarks',
+                'is_public': False,
+                'created_at': datetime.utcnow(),
+                'updated_at': datetime.utcnow()
+            }
+            uncategorized = self.category_repo.create(uncategorized_data)
+
+        # Add bookmark to Uncategorized category
+        self.member_repo.add_bookmark_to_category(
+            bookmark_id=bookmark.id,
+            category_id=uncategorized.id,
+            user_id=user_id,
+            position=None
+        )
+
+        return bookmark
 
     def update_bookmark(
         self,

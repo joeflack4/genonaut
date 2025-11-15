@@ -606,6 +606,143 @@ class TestCategoryMembership:
         data = response.json()
         assert data["total"] >= 2
 
+    def test_sync_bookmark_categories_success(self, api_client, test_user, test_content):
+        """Test syncing bookmark categories with a list of category IDs."""
+        # Create bookmark
+        bookmark_data = {
+            "content_id": test_content["id"],
+            "content_source_type": "items"
+        }
+        bookmark_response = api_client.post(
+            f"/api/v1/bookmarks?user_id={test_user['id']}",
+            json_data=bookmark_data
+        )
+        bookmark = bookmark_response.json()
+
+        # Create three categories
+        category_ids = []
+        for i in range(3):
+            category_response = api_client.post(
+                f"/api/v1/bookmark-categories?user_id={test_user['id']}",
+                json_data={"name": f"Category {i}", "is_public": False}
+            )
+            category = category_response.json()
+            category_ids.append(category["id"])
+
+        # Sync bookmark to first two categories
+        sync_data = {
+            "category_ids": category_ids[:2]
+        }
+        response = api_client.put(
+            f"/api/v1/bookmarks/{bookmark['id']}/categories/sync?user_id={test_user['id']}",
+            json_data=sync_data
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 2
+        result_category_ids = {item["category_id"] for item in data["items"]}
+        assert result_category_ids == set(category_ids[:2])
+
+    def test_sync_bookmark_categories_empty_list(self, api_client, test_user, test_content):
+        """Test syncing bookmark categories with empty list defaults to Uncategorized."""
+        # Create bookmark
+        bookmark_data = {
+            "content_id": test_content["id"],
+            "content_source_type": "items"
+        }
+        bookmark_response = api_client.post(
+            f"/api/v1/bookmarks?user_id={test_user['id']}",
+            json_data=bookmark_data
+        )
+        bookmark = bookmark_response.json()
+
+        # Sync with empty list
+        sync_data = {
+            "category_ids": []
+        }
+        response = api_client.put(
+            f"/api/v1/bookmarks/{bookmark['id']}/categories/sync?user_id={test_user['id']}",
+            json_data=sync_data
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        # Verify it's in the Uncategorized category
+        # (We can't check the exact ID since it's created automatically,
+        # but we can verify one membership exists)
+
+    def test_sync_bookmark_categories_unauthorized(self, api_client, test_user, test_content):
+        """Test syncing bookmark categories with wrong user fails."""
+        # Create bookmark for test_user
+        bookmark_data = {
+            "content_id": test_content["id"],
+            "content_source_type": "items"
+        }
+        bookmark_response = api_client.post(
+            f"/api/v1/bookmarks?user_id={test_user['id']}",
+            json_data=bookmark_data
+        )
+        bookmark = bookmark_response.json()
+
+        # Create another user
+        unique_id = str(uuid.uuid4())[:8]
+        other_user_data = {
+            "username": f"other_user_{unique_id}",
+            "email": f"other_user_{unique_id}@example.com"
+        }
+        other_user_response = api_client.post("/api/v1/users", json_data=other_user_data)
+        other_user = other_user_response.json()
+
+        # Try to sync with other user's ID
+        sync_data = {
+            "category_ids": []
+        }
+        response = api_client.put(
+            f"/api/v1/bookmarks/{bookmark['id']}/categories/sync?user_id={other_user['id']}",
+            json_data=sync_data
+        )
+        assert response.status_code == 422
+
+    def test_sync_bookmark_categories_nonexistent_bookmark(self, api_client, test_user):
+        """Test syncing categories for non-existent bookmark returns 404."""
+        import uuid as uuid_lib
+        fake_bookmark_id = str(uuid_lib.uuid4())
+
+        sync_data = {
+            "category_ids": []
+        }
+        response = api_client.put(
+            f"/api/v1/bookmarks/{fake_bookmark_id}/categories/sync?user_id={test_user['id']}",
+            json_data=sync_data
+        )
+        assert response.status_code == 404
+
+    def test_sync_bookmark_categories_nonexistent_category(self, api_client, test_user, test_content):
+        """Test syncing with non-existent category returns 404."""
+        # Create bookmark
+        bookmark_data = {
+            "content_id": test_content["id"],
+            "content_source_type": "items"
+        }
+        bookmark_response = api_client.post(
+            f"/api/v1/bookmarks?user_id={test_user['id']}",
+            json_data=bookmark_data
+        )
+        bookmark = bookmark_response.json()
+
+        # Try to sync with fake category ID
+        import uuid as uuid_lib
+        fake_category_id = str(uuid_lib.uuid4())
+
+        sync_data = {
+            "category_ids": [fake_category_id]
+        }
+        response = api_client.put(
+            f"/api/v1/bookmarks/{bookmark['id']}/categories/sync?user_id={test_user['id']}",
+            json_data=sync_data
+        )
+        assert response.status_code == 404
+
 
 @pytest.mark.api_server
 class TestBookmarkSortingAndContent:

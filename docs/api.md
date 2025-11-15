@@ -407,6 +407,7 @@ The bookmarks system allows users to save and organize content items into hierar
 - `GET /api/v1/bookmarks/{id}/categories` - List categories containing bookmark
 - `DELETE /api/v1/bookmarks/{id}/categories/{category_id}` - Remove bookmark from category
 - `PUT /api/v1/bookmarks/{id}/categories/{category_id}/position` - Update bookmark position in category
+- `PUT /api/v1/bookmarks/{id}/categories/sync` - Bulk sync bookmark category memberships (add/remove multiple)
 
 #### List Bookmarks with Content Data
 
@@ -664,6 +665,89 @@ DELETE /api/v1/bookmark-categories/cat-uuid?delete_all=true
 ```
 
 **Response:** `200 OK` with success message
+
+#### Sync Bookmark Category Memberships
+
+Bulk update a bookmark's category memberships in a single operation. This endpoint adds the bookmark to specified categories and removes it from all others.
+
+**Endpoint:**
+```
+PUT /api/v1/bookmarks/{bookmark_id}/categories/sync?user_id={uuid}
+```
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `bookmark_id` | UUID | ID of the bookmark to update |
+
+**Query Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `user_id` | UUID | User ID for ownership validation |
+
+**Request Body:**
+```json
+{
+  "category_ids": ["uuid1", "uuid2", "uuid3"]
+}
+```
+
+**Request Fields:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `category_ids` | UUID[] | Yes | List of category IDs the bookmark should belong to. Empty array defaults to "Uncategorized" |
+
+**Behavior:**
+- Compares provided category IDs with existing memberships
+- Adds bookmark to new categories (not currently a member)
+- Removes bookmark from old categories (not in the provided list)
+- Updates `updated_at` timestamp for all affected categories
+- If `category_ids` is empty, assigns bookmark to "Uncategorized" category
+- Validates that user owns both the bookmark and all specified categories
+- All operations occur in a single database transaction
+
+**Example Request:**
+```bash
+# Assign bookmark to multiple categories
+curl -X PUT "http://localhost:8001/api/v1/bookmarks/bookmark-uuid/categories/sync?user_id=user-uuid" \
+  -H "Content-Type: application/json" \
+  -d '{"category_ids": ["cat-uuid-1", "cat-uuid-2"]}'
+
+# Remove from all categories (assigns to Uncategorized)
+curl -X PUT "http://localhost:8001/api/v1/bookmarks/bookmark-uuid/categories/sync?user_id=user-uuid" \
+  -H "Content-Type: application/json" \
+  -d '{"category_ids": []}'
+```
+
+**Response Format:**
+```json
+{
+  "items": [
+    {
+      "bookmark_id": "bookmark-uuid",
+      "category_id": "cat-uuid-1",
+      "user_id": "user-uuid",
+      "position": null,
+      "added_at": "2025-01-15T10:30:00Z"
+    },
+    {
+      "bookmark_id": "bookmark-uuid",
+      "category_id": "cat-uuid-2",
+      "user_id": "user-uuid",
+      "position": null,
+      "added_at": "2025-01-15T10:30:00Z"
+    }
+  ],
+  "total": 2
+}
+```
+
+**Error Responses:**
+- `422 Unprocessable Entity` - User does not own bookmark or categories
+- `404 Not Found` - Bookmark or category does not exist
+
+**Use Case:**
+This endpoint is designed for UI components that allow users to select/deselect multiple categories at once (e.g., a multi-select dropdown in a bookmark management modal). Instead of making multiple add/remove API calls, the frontend can send the complete desired state in a single request.
 
 #### Technical Notes
 

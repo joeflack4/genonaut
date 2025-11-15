@@ -14,7 +14,8 @@ from genonaut.api.models.requests import (
     BookmarkUpdateRequest,
     BookmarkListRequest,
     CategoryMembershipAddRequest,
-    CategoryMembershipUpdateRequest
+    CategoryMembershipUpdateRequest,
+    BookmarkCategorySyncRequest
 )
 from genonaut.api.models.responses import (
     BookmarkResponse,
@@ -259,5 +260,37 @@ async def update_bookmark_position(
             position=position_data.position
         )
         return CategoryMembershipResponse.model_validate(membership)
+    except EntityNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.put("/{bookmark_id}/categories/sync", response_model=CategoryMembershipListResponse)
+async def sync_bookmark_categories(
+    bookmark_id: UUID,
+    sync_data: BookmarkCategorySyncRequest,
+    user_id: UUID = Query(..., description="User ID for validation"),
+    db: Session = Depends(get_database_session)
+):
+    """Synchronize bookmark category memberships in bulk.
+
+    This endpoint updates all category memberships for a bookmark in a single operation.
+    It will add the bookmark to new categories and remove it from categories not in the list.
+    If an empty list is provided, the bookmark will be placed in the 'Uncategorized' category.
+
+    The updated_at field of affected categories will be updated automatically.
+    """
+    service = BookmarkCategoryMemberService(db)
+    try:
+        memberships = service.sync_bookmark_categories(
+            bookmark_id=bookmark_id,
+            category_ids=sync_data.category_ids,
+            user_id=user_id
+        )
+        return CategoryMembershipListResponse(
+            items=[CategoryMembershipResponse.model_validate(membership) for membership in memberships],
+            total=len(memberships)
+        )
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
     except EntityNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

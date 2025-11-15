@@ -12,12 +12,17 @@ from genonaut.db.schema import (
     UserInteraction,
     Recommendation,
     GenerationJob,
+    Bookmark,
+    BookmarkCategory,
+    BookmarkCategoryMember,
 )
 from genonaut.api.services.user_service import UserService
 from genonaut.api.services.content_service import ContentAutoService, ContentService
 from genonaut.api.services.interaction_service import InteractionService
 from genonaut.api.services.recommendation_service import RecommendationService
 from genonaut.api.services.generation_service import GenerationService
+from genonaut.api.services.bookmark_category_member_service import BookmarkCategoryMemberService
+from genonaut.api.services.bookmark_service import BookmarkService
 from genonaut.api.exceptions import EntityNotFoundError, ValidationError
 from genonaut.api.models.requests import PaginationRequest
 from genonaut.api.models.responses import ContentResponse
@@ -966,3 +971,282 @@ class TestGenerationService:
         assert stats["running_jobs"] >= 1
         assert stats["completed_jobs"] >= 1
         assert stats["cancelled_jobs"] >= 1
+
+
+# Bookmark test fixtures
+@pytest.fixture
+def sample_bookmark(test_db_session, sample_user, sample_content):
+    """Create a sample bookmark for testing."""
+    bookmark = Bookmark(
+        user_id=sample_user.id,
+        content_id=sample_content.id,
+        content_source_type='items',
+        note="Test bookmark note",
+        pinned=False,
+        is_public=False
+    )
+    test_db_session.add(bookmark)
+    test_db_session.commit()
+    test_db_session.refresh(bookmark)
+    return bookmark
+
+
+@pytest.fixture
+def sample_categories(test_db_session, sample_user):
+    """Create sample bookmark categories for testing."""
+    categories = [
+        BookmarkCategory(
+            user_id=sample_user.id,
+            name="Category 1",
+            description="First test category"
+        ),
+        BookmarkCategory(
+            user_id=sample_user.id,
+            name="Category 2",
+            description="Second test category"
+        ),
+        BookmarkCategory(
+            user_id=sample_user.id,
+            name="Uncategorized",
+            description="Default category"
+        )
+    ]
+    test_db_session.add_all(categories)
+    test_db_session.commit()
+    for cat in categories:
+        test_db_session.refresh(cat)
+    return categories
+
+
+class TestBookmarkCategoryMemberService:
+    """Test bookmark category membership service."""
+
+    def test_add_bookmark_to_category_updates_timestamp(
+        self,
+        test_db_session,
+        sample_user,
+        sample_bookmark,
+        sample_categories
+    ):
+        """Test that adding a bookmark to a category updates category.updated_at."""
+        service = BookmarkCategoryMemberService(test_db_session)
+        category = sample_categories[0]
+        original_updated_at = category.updated_at
+
+        # Wait a moment to ensure timestamp difference
+        import time
+        time.sleep(0.1)
+
+        # Add bookmark to category
+        service.add_bookmark_to_category(
+            bookmark_id=sample_bookmark.id,
+            category_id=category.id
+        )
+
+        # Refresh category from database
+        test_db_session.refresh(category)
+
+        # Assert updated_at was updated
+        assert category.updated_at > original_updated_at
+
+    def test_remove_bookmark_from_category_updates_timestamp(
+        self,
+        test_db_session,
+        sample_user,
+        sample_bookmark,
+        sample_categories
+    ):
+        """Test that removing a bookmark from a category updates category.updated_at."""
+        service = BookmarkCategoryMemberService(test_db_session)
+        category = sample_categories[0]
+
+        # First add bookmark to category
+        service.add_bookmark_to_category(
+            bookmark_id=sample_bookmark.id,
+            category_id=category.id
+        )
+        test_db_session.refresh(category)
+        original_updated_at = category.updated_at
+
+        # Wait a moment to ensure timestamp difference
+        import time
+        time.sleep(0.1)
+
+        # Remove bookmark from category
+        removed = service.remove_bookmark_from_category(
+            bookmark_id=sample_bookmark.id,
+            category_id=category.id
+        )
+
+        assert removed is True
+
+        # Refresh category from database
+        test_db_session.refresh(category)
+
+        # Assert updated_at was updated
+        assert category.updated_at > original_updated_at
+
+    def test_sync_bookmark_categories_adds_new_categories(
+        self,
+        test_db_session,
+        sample_user,
+        sample_bookmark,
+        sample_categories
+    ):
+        """Test sync_bookmark_categories adds new category memberships."""
+        service = BookmarkCategoryMemberService(test_db_session)
+
+        # Sync bookmark with two categories
+        category_ids = [sample_categories[0].id, sample_categories[1].id]
+        result = service.sync_bookmark_categories(
+            bookmark_id=sample_bookmark.id,
+            category_ids=category_ids,
+            user_id=sample_user.id
+        )
+
+        assert len(result) == 2
+        result_category_ids = {m.category_id for m in result}
+        assert result_category_ids == set(category_ids)
+
+    def test_sync_bookmark_categories_removes_old_categories(
+        self,
+        test_db_session,
+        sample_user,
+        sample_bookmark,
+        sample_categories
+    ):
+        """Test sync_bookmark_categories removes category memberships not in the list."""
+        service = BookmarkCategoryMemberService(test_db_session)
+
+        # First add bookmark to category 1 and 2
+        service.add_bookmark_to_category(
+            bookmark_id=sample_bookmark.id,
+            category_id=sample_categories[0].id
+        )
+        service.add_bookmark_to_category(
+            bookmark_id=sample_bookmark.id,
+            category_id=sample_categories[1].id
+        )
+
+        # Now sync to only category 2 (should remove category 1)
+        category_ids = [sample_categories[1].id]
+        result = service.sync_bookmark_categories(
+            bookmark_id=sample_bookmark.id,
+            category_ids=category_ids,
+            user_id=sample_user.id
+        )
+
+        assert len(result) == 1
+        assert result[0].category_id == sample_categories[1].id
+
+    def test_sync_bookmark_categories_updates_updated_at(
+        self,
+        test_db_session,
+        sample_user,
+        sample_bookmark,
+        sample_categories
+    ):
+        """Test sync_bookmark_categories updates updated_at for affected categories."""
+        service = BookmarkCategoryMemberService(test_db_session)
+
+        category1 = sample_categories[0]
+        category2 = sample_categories[1]
+        original_updated_at_1 = category1.updated_at
+        original_updated_at_2 = category2.updated_at
+
+        # Wait a moment to ensure timestamp difference
+        import time
+        time.sleep(0.1)
+
+        # Sync bookmark to category 1
+        service.sync_bookmark_categories(
+            bookmark_id=sample_bookmark.id,
+            category_ids=[category1.id],
+            user_id=sample_user.id
+        )
+
+        # Refresh categories
+        test_db_session.refresh(category1)
+        test_db_session.refresh(category2)
+
+        # Category 1 should be updated, category 2 should not
+        assert category1.updated_at > original_updated_at_1
+        assert category2.updated_at == original_updated_at_2
+
+    def test_sync_bookmark_categories_empty_list_defaults_to_uncategorized(
+        self,
+        test_db_session,
+        sample_user,
+        sample_bookmark,
+        sample_categories
+    ):
+        """Test sync_bookmark_categories with empty list defaults to 'Uncategorized'."""
+        service = BookmarkCategoryMemberService(test_db_session)
+
+        # Sync with empty list
+        result = service.sync_bookmark_categories(
+            bookmark_id=sample_bookmark.id,
+            category_ids=[],
+            user_id=sample_user.id
+        )
+
+        assert len(result) == 1
+        # Find the "Uncategorized" category
+        uncategorized = next(c for c in sample_categories if c.name == "Uncategorized")
+        assert result[0].category_id == uncategorized.id
+
+    def test_sync_bookmark_categories_validates_user_ownership(
+        self,
+        test_db_session,
+        sample_user,
+        sample_bookmark,
+        sample_categories
+    ):
+        """Test sync_bookmark_categories validates bookmark belongs to user."""
+        service = BookmarkCategoryMemberService(test_db_session)
+
+        # Create another user
+        other_user = User(
+            username="otheruser",
+            email="other@example.com"
+        )
+        test_db_session.add(other_user)
+        test_db_session.commit()
+
+        # Try to sync with wrong user_id
+        with pytest.raises(ValidationError, match="does not belong to the specified user"):
+            service.sync_bookmark_categories(
+                bookmark_id=sample_bookmark.id,
+                category_ids=[sample_categories[0].id],
+                user_id=other_user.id
+            )
+
+    def test_create_bookmark_auto_assigns_to_uncategorized(
+        self,
+        test_db_session,
+        sample_user,
+        sample_content
+    ):
+        """Test that creating a bookmark automatically assigns it to Uncategorized category."""
+        bookmark_service = BookmarkService(test_db_session)
+        member_service = BookmarkCategoryMemberService(test_db_session)
+
+        # Create bookmark
+        bookmark = bookmark_service.create_bookmark(
+            user_id=sample_user.id,
+            content_id=sample_content.id,
+            content_source_type='items',
+            note="Test bookmark"
+        )
+
+        # Get bookmark's categories
+        memberships = member_service.get_bookmark_categories(bookmark.id)
+
+        # Should be in exactly one category (Uncategorized)
+        assert len(memberships) == 1
+
+        # Verify it's the Uncategorized category
+        from genonaut.api.repositories.bookmark_category_repository import BookmarkCategoryRepository
+        category_repo = BookmarkCategoryRepository(test_db_session)
+        category = category_repo.get(memberships[0].category_id)
+        assert category.name == "Uncategorized"

@@ -21,7 +21,8 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import ImageNotSupportedIcon from '@mui/icons-material/ImageNotSupported'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { useGalleryItem, useTags } from '../../hooks'
+import { useGalleryItem, useTags, useCurrentUser } from '../../hooks'
+import { BookmarkButton } from '../../components/bookmarks'
 import { resolveImageSourceCandidates } from '../../utils/image-url'
 
 type MetadataRecord = Record<string, unknown>
@@ -87,6 +88,7 @@ export function ImageViewPage() {
   const params = useParams<{ id: string }>()
   const navigate = useNavigate()
   const location = useLocation()
+  const { data: currentUser } = useCurrentUser()
 
   // Tag sorting state - persisted to localStorage (separate from gallery page)
   const [tagSortOption, setTagSortOption] = useState<TagSortOption>(() => {
@@ -348,21 +350,31 @@ export function ImageViewPage() {
             >
               {truncatedTitle}
             </Typography>
-            <Tooltip title="Delete Content">
-              <IconButton
-                onClick={handleDelete}
-                aria-label="Delete content"
-                data-testid="delete-content-button"
-                sx={{
-                  color: 'text.secondary',
-                  '&:hover': {
-                    color: 'error.main',
-                  },
-                }}
-              >
-                <DeleteIcon />
-              </IconButton>
-            </Tooltip>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              {currentUser && contentId !== undefined && (
+                <BookmarkButton
+                  contentId={contentId}
+                  contentSourceType={data.sourceType === 'auto' ? 'auto' : 'items'}
+                  userId={currentUser.id}
+                  size="medium"
+                />
+              )}
+              <Tooltip title="Delete Content">
+                <IconButton
+                  onClick={handleDelete}
+                  aria-label="Delete content"
+                  data-testid="delete-content-button"
+                  sx={{
+                    color: 'text.secondary',
+                    '&:hover': {
+                      color: 'error.main',
+                    },
+                  }}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Box>
 
           <Stack

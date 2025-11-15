@@ -3,15 +3,25 @@ import { Box, ButtonBase, Typography } from '@mui/material'
 import InsertPhotoIcon from '@mui/icons-material/InsertPhoto'
 import type { GalleryItem, ThumbnailResolution } from '../../types/domain'
 import { resolveImageSourceCandidates } from '../../utils/image-url'
+import { BookmarkButton } from '../bookmarks'
 
 export interface ImageGridCellProps {
   item: GalleryItem
   resolution: ThumbnailResolution
   onClick?: (item: GalleryItem) => void
   dataTestId?: string
+  showBookmarkButton?: boolean
+  userId?: string
 }
 
-export function ImageGridCell({ item, resolution, onClick, dataTestId = `gallery-grid-item-${item.id}` }: ImageGridCellProps) {
+export function ImageGridCell({
+  item,
+  resolution,
+  onClick,
+  dataTestId = `gallery-grid-item-${item.id}`,
+  showBookmarkButton = false,
+  userId
+}: ImageGridCellProps) {
   const [imageError, setImageError] = useState(false)
 
   const mediaSource = useMemo(() => {
@@ -112,15 +122,26 @@ export function ImageGridCell({ item, resolution, onClick, dataTestId = `gallery
         )}
       </Box>
       <Box sx={{ px: 2, py: 1.5 }} data-testid={`${dataTestId}-meta`}>
-        <Typography
-          variant="caption"
-          display="block"
-          noWrap
-          title={item.title}
-          data-testid={`${dataTestId}-title`}
-        >
-          {item.title}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.5, mb: 0.5 }}>
+          <Typography
+            variant="caption"
+            display="block"
+            noWrap
+            title={item.title}
+            data-testid={`${dataTestId}-title`}
+            sx={{ flexGrow: 1, minWidth: 0 }}
+          >
+            {item.title}
+          </Typography>
+          {showBookmarkButton && userId && (
+            <BookmarkButton
+              contentId={item.id}
+              contentSourceType={item.sourceType === 'auto' ? 'auto' : 'items'}
+              userId={userId}
+              size="small"
+            />
+          )}
+        </Box>
         {item.createdAt && (
           <Typography
             variant="caption"

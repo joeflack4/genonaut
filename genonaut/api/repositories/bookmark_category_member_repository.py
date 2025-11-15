@@ -65,7 +65,7 @@ class BookmarkCategoryMemberRepository(BaseRepository[BookmarkCategoryMember, Di
             return (
                 self.db.query(BookmarkCategoryMember)
                 .filter(BookmarkCategoryMember.bookmark_id == bookmark_id)
-                .order_by(BookmarkCategoryMember.created_at.desc())
+                .order_by(BookmarkCategoryMember.added_at.desc())
                 .all()
             )
         except SQLAlchemyError as e:
@@ -96,7 +96,7 @@ class BookmarkCategoryMemberRepository(BaseRepository[BookmarkCategoryMember, Di
                 .filter(BookmarkCategoryMember.category_id == category_id)
                 .order_by(
                     BookmarkCategoryMember.position.asc().nullslast(),
-                    BookmarkCategoryMember.created_at.desc()
+                    BookmarkCategoryMember.added_at.desc()
                 )
                 .offset(skip)
                 .limit(limit)
@@ -137,7 +137,7 @@ class BookmarkCategoryMemberRepository(BaseRepository[BookmarkCategoryMember, Di
                 )
                 .order_by(
                     BookmarkCategoryMember.position.asc().nullslast(),
-                    BookmarkCategoryMember.created_at.desc()
+                    BookmarkCategoryMember.added_at.desc()
                 )
                 .offset(skip)
                 .limit(limit)
@@ -264,8 +264,7 @@ class BookmarkCategoryMemberRepository(BaseRepository[BookmarkCategoryMember, Di
                 bookmark_id=bookmark_id,
                 category_id=category_id,
                 user_id=user_id,
-                position=position,
-                created_at=datetime.utcnow()
+                position=position
             )
             self.db.add(membership)
             self.db.commit()

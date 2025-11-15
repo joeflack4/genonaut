@@ -2,13 +2,16 @@ import { ApiClient } from './api-client'
 import type {
   ApiBookmarkWithContent,
   ApiBookmarkListResponse,
-  ApiBookmarkQueryParams
+  ApiBookmarkQueryParams,
+  ApiBookmark,
+  ApiCategoryMembershipListResponse
 } from '../types/api'
 import type {
   BookmarkWithContent,
   PaginatedResult,
   BookmarkQueryParams,
-  GalleryItem
+  GalleryItem,
+  Bookmark
 } from '../types/domain'
 
 export class BookmarksService {
@@ -102,6 +105,122 @@ export class BookmarksService {
       content: item.content ? this.transformContentItem(item.content) : null,
       userRating: item.user_rating,
     }
+  }
+
+  /**
+   * Check if a content item is bookmarked by the user
+   * Returns the bookmark if it exists, null otherwise
+   */
+  async checkBookmarkStatus(
+    userId: string,
+    contentId: number,
+    contentSourceType: string = 'items'
+  ): Promise<Bookmark | null> {
+    try {
+      const response = await this.listBookmarks(userId, {
+        limit: 1,
+        includeContent: false,
+      })
+
+      // Find matching bookmark in the list
+      const bookmark = response.items.find(
+        (item) =>
+          item.contentId === contentId &&
+          item.contentSourceType === contentSourceType
+      )
+
+      if (!bookmark) {
+        return null
+      }
+
+      // Transform to Bookmark (without content)
+      return {
+        id: bookmark.id,
+        userId: bookmark.userId,
+        contentId: bookmark.contentId,
+        contentSourceType: bookmark.contentSourceType,
+        note: bookmark.note,
+        pinned: bookmark.pinned,
+        isPublic: bookmark.isPublic,
+        createdAt: bookmark.createdAt,
+        updatedAt: bookmark.updatedAt,
+      }
+    } catch (error) {
+      // If we get a 404 or other error, assume not bookmarked
+      return null
+    }
+  }
+
+  /**
+   * Create a new bookmark
+   */
+  async createBookmark(
+    userId: string,
+    contentId: number,
+    contentSourceType: string = 'items',
+    options: {
+      note?: string
+      pinned?: boolean
+      isPublic?: boolean
+    } = {}
+  ): Promise<Bookmark> {
+    const response = await this.api.post<ApiBookmark>(
+      `/api/v1/bookmarks?user_id=${userId}`,
+      {
+        content_id: contentId,
+        content_source_type: contentSourceType,
+        note: options.note,
+        pinned: options.pinned ?? false,
+        is_public: options.isPublic ?? false,
+      }
+    )
+
+    return {
+      id: response.id,
+      userId: response.user_id,
+      contentId: response.content_id,
+      contentSourceType: response.content_source_type,
+      note: response.note,
+      pinned: response.pinned,
+      isPublic: response.is_public,
+      createdAt: response.created_at,
+      updatedAt: response.updated_at,
+    }
+  }
+
+  /**
+   * Delete a bookmark
+   */
+  async deleteBookmark(bookmarkId: string, userId: string): Promise<void> {
+    await this.api.delete(`/api/v1/bookmarks/${bookmarkId}?user_id=${userId}`)
+  }
+
+  /**
+   * Sync bookmark category memberships
+   * Updates all category memberships for a bookmark in a single operation
+   */
+  async syncCategories(
+    bookmarkId: string,
+    userId: string,
+    categoryIds: string[]
+  ): Promise<void> {
+    await this.api.put(
+      `/api/v1/bookmarks/${bookmarkId}/categories/sync?user_id=${userId}`,
+      {
+        category_ids: categoryIds,
+      }
+    )
+  }
+
+  /**
+   * Get all categories that a bookmark belongs to
+   */
+  async getBookmarkCategories(bookmarkId: string): Promise<string[]> {
+    const response = await this.api.get<ApiCategoryMembershipListResponse>(
+      `/api/v1/bookmarks/${bookmarkId}/categories`
+    )
+
+    return response.items.map((item) => item.category_id)
   }
 
   /**

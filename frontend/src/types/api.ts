@@ -384,3 +384,16 @@ export interface ApiBookmarkCategoryQueryParams {
   sort_field?: string
   sort_order?: 'asc' | 'desc'
 }
+
+export interface ApiCategoryMembership {
+  bookmark_id: string  // UUID
+  category_id: string  // UUID
+  user_id: string  // UUID
+  position: number | null
+  added_at: string
+}
+
+export interface ApiCategoryMembershipListResponse {
+  items: ApiCategoryMembership[]
+  total: number
+}

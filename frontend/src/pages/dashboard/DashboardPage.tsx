@@ -241,6 +241,7 @@ export function DashboardPage() {
               loadingPlaceholderCount={3}
               dataTestId="dashboard-user-recent-grid"
               emptyMessage="No recent gens available."
+              showBookmarkButton={false}
             />
           ) : userRecentGalleryLoading ? (
             <Stack spacing={2} data-testid="dashboard-user-recent-loading">
@@ -289,6 +290,7 @@ export function DashboardPage() {
               loadingPlaceholderCount={3}
               dataTestId="dashboard-user-autogens-grid"
               emptyMessage="No recent auto-gens available."
+              showBookmarkButton={false}
             />
           ) : userRecentAutoGensLoading ? (
             <Stack spacing={2} data-testid="dashboard-user-autogens-loading">
@@ -337,6 +339,7 @@ export function DashboardPage() {
               loadingPlaceholderCount={3}
               dataTestId="dashboard-community-recent-grid"
               emptyMessage="No community gens available."
+              showBookmarkButton={false}
             />
           ) : recentGalleryLoading ? (
             <Stack spacing={2} data-testid="dashboard-community-recent-loading">
@@ -385,6 +388,7 @@ export function DashboardPage() {
               loadingPlaceholderCount={3}
               dataTestId="dashboard-community-autogens-grid"
               emptyMessage="No community auto-gens available."
+              showBookmarkButton={false}
             />
           ) : communityRecentAutoGensLoading ? (
             <Stack spacing={2} data-testid="dashboard-community-autogens-loading">

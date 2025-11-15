@@ -12,6 +12,8 @@ export interface GridViewProps {
   emptyMessage?: string
   loadingPlaceholderCount?: number
   dataTestId?: string
+  showBookmarkButton?: boolean
+  userId?: string
 }
 
 const DEFAULT_LOADING_PLACEHOLDERS = 6
@@ -24,6 +26,8 @@ export function GridView({
   emptyMessage = 'No gallery items found. Try adjusting your filters.',
   loadingPlaceholderCount = DEFAULT_LOADING_PLACEHOLDERS,
   dataTestId = 'gallery-grid-view',
+  showBookmarkButton = false,
+  userId,
 }: GridViewProps) {
   const aspectRatioPercentage = useMemo(
     () => (resolution.height / resolution.width) * 100,
@@ -79,6 +83,8 @@ export function GridView({
               resolution={resolution}
               onClick={onItemClick}
               dataTestId={`gallery-grid-item-${item.id}`}
+              showBookmarkButton={showBookmarkButton}
+              userId={userId}
             />
           ))}
 

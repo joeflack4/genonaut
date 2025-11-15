@@ -789,7 +789,7 @@ class CategoryMembershipResponse(BaseModel):
     category_id: UUID = Field(..., description="Category ID")
     user_id: UUID = Field(..., description="User ID")
     position: Optional[int] = Field(None, description="Position within category")
-    created_at: datetime = Field(..., description="Creation timestamp")
+    added_at: datetime = Field(..., description="Timestamp when bookmark was added to category")
 
     model_config = {"from_attributes": True}
 

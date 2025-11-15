@@ -485,6 +485,14 @@ class CategoryMembershipAddRequest(BaseModel):
     position: Optional[int] = Field(None, description="Position within the category")
 
 
+class BookmarkCategorySyncRequest(BaseModel):
+    """Request model for syncing bookmark category memberships in bulk."""
+    category_ids: List[UUID] = Field(
+        ...,
+        description="List of category IDs the bookmark should belong to. Empty list defaults to 'Uncategorized'."
+    )
+
+
 class CategoryMembershipUpdateRequest(BaseModel):
     """Request model for updating bookmark position in a category."""
     position: int = Field(..., ge=0, description="New position within the category")
