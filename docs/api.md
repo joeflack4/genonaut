@@ -109,6 +109,73 @@ The API provides **77 endpoints** across 6 main categories:
 - `GET /api/v1/content/unified` - Get combined regular and auto-generated content with advanced filtering
 - `GET /api/v1/content/stats/unified` - Get statistics for all content types
 
+### Content Deletion Endpoints
+
+Content can be permanently deleted using the DELETE endpoints. This is a **hard delete** operation that removes the content record from the database while preserving related analytics data.
+
+#### Regular Content Deletion
+```
+DELETE /api/v1/content/{content_id}
+```
+
+**Response:**
+```json
+{
+  "message": "Content {content_id} deleted successfully"
+}
+```
+
+#### Auto-Generated Content Deletion
+```
+DELETE /api/v1/content-auto/{content_id}
+```
+
+**Response:**
+```json
+{
+  "message": "Auto content {content_id} deleted successfully"
+}
+```
+
+#### Deletion Behavior
+
+When content is deleted, the following cascade behaviors occur:
+
+**Deleted (CASCADE):**
+- **Bookmarks**: All bookmarks to the content are automatically removed
+- **Extension data**: Content metadata extensions are removed
+- **Flagged content**: Moderation flags are removed
+
+**Preserved (SET NULL):**
+- **User interactions**: Interaction records are kept for analytics but content_id is set to NULL
+- **Recommendations**: Recommendation records are kept for analytics but content_id is set to NULL
+- **Generation jobs**: Job history is preserved but content_id is set to NULL
+- **User notifications**: Notification history is preserved but content_id is set to NULL
+
+**Files:**
+- Content deletion **does not delete** the associated image/video files from disk
+- Files remain in the storage directory for manual cleanup if needed
+
+#### Security Warning
+
+**IMPORTANT**: These endpoints currently lack authentication and authorization checks. Any user can delete any content.
+
+- Do not expose these endpoints in production without implementing proper authentication
+- Consider implementing owner-only deletion or admin-level permissions
+- See `notes/issues/groupings/security/content-deletion-auth.md` for detailed security requirements
+
+#### Error Responses
+
+**404 Not Found:**
+```json
+{
+  "detail": "Content with id {content_id} not found"
+}
+```
+
+**500 Internal Server Error:**
+May occur if there are database constraint violations or other system errors.
+
 ### Tag Management Endpoints
 
 **Core Tag Operations:**

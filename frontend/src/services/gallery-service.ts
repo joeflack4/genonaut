@@ -3,7 +3,8 @@ import type {
   ApiContentItem,
   ApiContentQueryParams,
   ApiPaginatedResponse,
-  ApiEnhancedPaginatedResponse
+  ApiEnhancedPaginatedResponse,
+  ApiSuccessResponse
 } from '../types/api'
 import type {
   GalleryItem,
@@ -275,5 +276,26 @@ export class GalleryService {
       sortField: 'created_at',
       sortOrder: 'desc'
     })
+  }
+
+  /**
+   * Delete content by ID
+   *
+   * @param contentId - The ID of the content to delete
+   * @param options - Optional parameters to specify source type
+   * @returns Promise with success response
+   *
+   * Note: This performs a hard delete on the database record only.
+   * Image files on disk are not deleted (intentional design decision).
+   */
+  async deleteContent(
+    contentId: number,
+    options: { sourceType?: 'regular' | 'auto' } = {}
+  ): Promise<ApiSuccessResponse> {
+    const endpoint = options.sourceType === 'auto'
+      ? `/api/v1/content-auto/${contentId}`
+      : `/api/v1/content/${contentId}`
+
+    return this.api.delete<ApiSuccessResponse>(endpoint)
   }
 }

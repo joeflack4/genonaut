@@ -397,3 +397,9 @@ export interface ApiCategoryMembershipListResponse {
   items: ApiCategoryMembership[]
   total: number
 }
+
+// Success/Error Response types
+export interface ApiSuccessResponse {
+  success: boolean
+  message: string
+}

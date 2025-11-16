@@ -179,7 +179,7 @@ class UserNotification(Base):
     notification_type = Column(String(50), nullable=False, index=True)  # job_completed, job_failed, system, etc.
     read_status = Column(Boolean, default=False, nullable=False, index=True)
     related_job_id = Column(Integer, ForeignKey('generation_jobs.id'), nullable=True)
-    related_content_id = Column(Integer, ForeignKey('content_items.id'), nullable=True)
+    related_content_id = Column(Integer, ForeignKey('content_items.id', ondelete='SET NULL'), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     read_at = Column(DateTime, nullable=True)
 
@@ -480,7 +480,7 @@ class ContentItemAutoExt(Base):
 
 class UserInteraction(Base):
     """User interaction model for tracking user engagement with content.
-    
+
     Attributes:
         id: Primary key
         user_id: Foreign key to the user
@@ -492,10 +492,10 @@ class UserInteraction(Base):
         interaction_metadata: Additional interaction metadata
     """
     __tablename__ = 'user_interactions'
-    
+
     id = Column(Integer, Identity(), primary_key=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
-    content_item_id = Column(Integer, ForeignKey('content_items.id'), nullable=False, index=True)
+    content_item_id = Column(Integer, ForeignKey('content_items.id', ondelete='SET NULL'), nullable=True, index=True)
     interaction_type = Column(String(50), nullable=False, index=True)  # view, like, share, download, etc.
     rating = Column(Integer, nullable=True)  # 1-5 scale
     duration = Column(Integer, nullable=True)  # seconds
@@ -529,7 +529,7 @@ class UserInteraction(Base):
 
 class Recommendation(Base):
     """Recommendation model for storing AI-generated recommendations.
-    
+
     Attributes:
         id: Primary key
         user_id: Foreign key to the user receiving the recommendation
@@ -541,10 +541,10 @@ class Recommendation(Base):
         rec_metadata: Additional recommendation metadata
     """
     __tablename__ = 'recommendations'
-    
+
     id = Column(Integer, Identity(), primary_key=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
-    content_item_id = Column(Integer, ForeignKey('content_items.id'), nullable=False, index=True)
+    content_item_id = Column(Integer, ForeignKey('content_items.id', ondelete='SET NULL'), nullable=True, index=True)
     recommendation_score = Column(Float, nullable=False)  # 0-1 confidence score
     algorithm_version = Column(String(50), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -615,7 +615,7 @@ class GenerationJob(Base):
     prompt = Column(String(20000), nullable=False)  # Generation prompt (immutable via trigger)
     params = Column(JSONB, default=dict)  # All generation parameters including sampler settings
     status = Column(String(20), default='pending', nullable=False, index=True)  # pending, running, completed, failed, cancelled
-    content_id = Column(Integer, ForeignKey('content_items.id'), nullable=True)  # 1 job = 1 ContentItem
+    content_id = Column(Integer, ForeignKey('content_items.id', ondelete='SET NULL'), nullable=True)  # 1 job = 1 ContentItem
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     started_at = Column(DateTime, nullable=True)
@@ -1485,7 +1485,8 @@ class Bookmark(Base):
         ForeignKeyConstraint(
             ['content_id', 'content_source_type'],
             ['content_items_all.id', 'content_items_all.source_type'],
-            name='fk_bookmark_content'
+            name='fk_bookmark_content',
+            ondelete='CASCADE'
         ),
         # Unique constraint: one user can only bookmark a content item once
         UniqueConstraint('user_id', 'content_id', 'content_source_type', name='uq_bookmark_user_content'),
@@ -1580,7 +1581,8 @@ class BookmarkCategory(Base):
         ForeignKeyConstraint(
             ['cover_content_id', 'cover_content_source_type'],
             ['content_items_all.id', 'content_items_all.source_type'],
-            name='fk_bookmark_category_cover_content'
+            name='fk_bookmark_category_cover_content',
+            ondelete='SET NULL'
         ),
         # Composite unique constraint for user_id enforcement on joins
         UniqueConstraint('id', 'user_id', name='uq_bookmark_category_id_user'),

@@ -13,6 +13,7 @@ import {
   InputLabel,
   MenuItem,
   Select,
+  Snackbar,
   Stack,
   Tooltip,
   Typography,
@@ -21,8 +22,9 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import ImageNotSupportedIcon from '@mui/icons-material/ImageNotSupported'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { useGalleryItem, useTags, useCurrentUser } from '../../hooks'
+import { useGalleryItem, useTags, useCurrentUser, useDeleteContent } from '../../hooks'
 import { BookmarkButton } from '../../components/bookmarks'
+import { DeleteContentDialog } from '../../components/dialogs'
 import { resolveImageSourceCandidates } from '../../utils/image-url'
 
 type MetadataRecord = Record<string, unknown>
@@ -89,6 +91,15 @@ export function ImageViewPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { data: currentUser } = useCurrentUser()
+
+  // Delete functionality state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false)
+  const [showErrorSnackbar, setShowErrorSnackbar] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string>('')
+
+  // Delete mutation hook
+  const { mutate: deleteContent, isPending: isDeleting } = useDeleteContent()
 
   // Tag sorting state - persisted to localStorage (separate from gallery page)
   const [tagSortOption, setTagSortOption] = useState<TagSortOption>(() => {
@@ -204,9 +215,41 @@ export function ImageViewPage() {
     }
   }
 
+  /**
+   * Opens the delete confirmation dialog
+   */
   const handleDelete = () => {
-    // TODO: Implement delete functionality
-    console.log('Delete content:', contentId)
+    setShowDeleteDialog(true)
+  }
+
+  /**
+   * Handles the actual content deletion after confirmation
+   * Navigates to gallery on success, shows error on failure
+   */
+  const handleConfirmDelete = () => {
+    if (!contentId) {
+      return
+    }
+
+    deleteContent(
+      {
+        contentId,
+        sourceType: data?.sourceType,
+      },
+      {
+        onSuccess: () => {
+          setShowSuccessSnackbar(true)
+          // Navigate to gallery after a short delay to show the success message
+          setTimeout(() => {
+            navigate('/gallery')
+          }, 1000)
+        },
+        onError: (error) => {
+          setErrorMessage(error.message || 'Failed to delete content. Please try again.')
+          setShowErrorSnackbar(true)
+        },
+      }
+    )
   }
 
   if (!contentId) {
@@ -359,20 +402,26 @@ export function ImageViewPage() {
                   size="medium"
                 />
               )}
-              <Tooltip title="Delete Content">
-                <IconButton
-                  onClick={handleDelete}
-                  aria-label="Delete content"
-                  data-testid="delete-content-button"
-                  sx={{
-                    color: 'text.secondary',
-                    '&:hover': {
-                      color: 'error.main',
-                    },
-                  }}
-                >
-                  <DeleteIcon />
-                </IconButton>
+              <Tooltip title={isDeleting ? "Deleting..." : "Delete Content"}>
+                <span>
+                  <IconButton
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    aria-label="Delete content"
+                    data-testid="delete-content-button"
+                    sx={{
+                      color: 'text.secondary',
+                      '&:hover': {
+                        color: 'error.main',
+                      },
+                      '&.Mui-disabled': {
+                        color: 'text.disabled',
+                      },
+                    }}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </span>
               </Tooltip>
             </Box>
           </Box>
@@ -470,6 +519,50 @@ export function ImageViewPage() {
           </Stack>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      {contentId !== undefined && (
+        <DeleteContentDialog
+          open={showDeleteDialog}
+          onClose={() => setShowDeleteDialog(false)}
+          onConfirm={handleConfirmDelete}
+          contentId={contentId}
+        />
+      )}
+
+      {/* Success Snackbar */}
+      <Snackbar
+        open={showSuccessSnackbar}
+        autoHideDuration={4000}
+        onClose={() => setShowSuccessSnackbar(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setShowSuccessSnackbar(false)}
+          severity="success"
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          Content deleted successfully
+        </Alert>
+      </Snackbar>
+
+      {/* Error Snackbar */}
+      <Snackbar
+        open={showErrorSnackbar}
+        autoHideDuration={6000}
+        onClose={() => setShowErrorSnackbar(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setShowErrorSnackbar(false)}
+          severity="error"
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {errorMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }

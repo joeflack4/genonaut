@@ -4,6 +4,7 @@
 - [tests skipped because of troublesome patterns](tests-skipped-troublesome-patterns.md)
 
 ## Links: Specific issues
+- [`content-deletion.md`](content-deletion.md) - Deferred E2E and integration tests for content deletion feature
 - [`data-scaling-tests.md`](../../by_priority/low/data-scaling-tests.md)
 - [`msw-for-e2e-tests.md`](../../by_priority/low/msw-for-e2e-tests.md) - MSW (Mock Service Worker) approach for reliable E2E tests
 - [Grouping issues for related paused tests](paused)

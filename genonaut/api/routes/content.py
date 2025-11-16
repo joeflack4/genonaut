@@ -259,7 +259,15 @@ async def delete_content(
     content_id: int,
     db: Session = Depends(get_database_session)
 ):
-    """Delete content."""
+    """Delete content.
+
+    TODO: CRITICAL SECURITY - Add authentication and authorization
+    Currently this endpoint allows anyone to delete any content without authentication.
+    See notes/issues/groupings/security/content-deletion-auth.md for requirements:
+    - Implement user authentication
+    - Verify user owns content OR has admin permissions
+    - Log all deletion attempts for audit trail
+    """
     service = ContentService(db)
     try:
         service.delete_content(content_id)
