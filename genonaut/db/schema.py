@@ -1476,7 +1476,8 @@ class Bookmark(Base):
     category_memberships = relationship(
         "BookmarkCategoryMember",
         back_populates="bookmark",
-        overlaps="category_memberships"
+        overlaps="category_memberships",
+        passive_deletes=True  # Let database CASCADE handle deletions
     )
 
     # Constraints and indexes

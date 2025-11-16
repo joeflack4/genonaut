@@ -36,6 +36,7 @@ import { useDebounce } from '../../hooks'
 import type {
   BookmarkCategory,
   BookmarkCategoryUpdateRequest,
+  GalleryItem,
   ThumbnailResolution,
   ThumbnailResolutionId,
 } from '../../types/domain'
@@ -76,6 +77,17 @@ export function BookmarksCategoryPage() {
   const navigate = useNavigate()
   const { data: currentUser } = useCurrentUser()
   const userId = currentUser?.id || ''
+
+  // Navigate to detail view
+  const navigateToDetail = (item: GalleryItem) => {
+    navigate(`/view/${item.id}`, {
+      state: {
+        sourceType: item.sourceType,
+        from: 'bookmarks-category',
+        fallbackPath: `/bookmarks/${categoryId}`,
+      },
+    })
+  }
 
   // Load preferences from localStorage
   const [itemsSort, setItemsSort] = useState<ItemsSortOption>(() => {
@@ -416,8 +428,8 @@ export function BookmarksCategoryPage() {
 
           {/* Resolution Dropdown */}
           <ResolutionDropdown
-            value={resolutionId}
-            onChange={handleResolutionChange}
+            currentResolution={resolutionId}
+            onResolutionChange={handleResolutionChange}
             dataTestId="bookmarks-category-page-resolution-dropdown"
           />
         </Stack>
@@ -458,6 +470,7 @@ export function BookmarksCategoryPage() {
                   key={bookmark.id}
                   item={bookmark.content}
                   resolution={resolution}
+                  onClick={navigateToDetail}
                   dataTestId={`bookmarks-category-page-item-${bookmark.content.id}`}
                 />
               ) : null

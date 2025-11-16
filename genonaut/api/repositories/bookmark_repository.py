@@ -276,8 +276,34 @@ class BookmarkRepository(BaseRepository[Bookmark, Dict[str, Any], Dict[str, Any]
         except SQLAlchemyError as e:
             raise DatabaseError(f"Failed to get bookmarks with content for user {user_id}: {str(e)}")
 
+    def delete(self, bookmark_id: UUID) -> bool:
+        """Hard delete a bookmark (permanently removes from database).
+
+        This will also cascade delete bookmark_category_members due to FK constraint.
+
+        Args:
+            bookmark_id: Bookmark ID
+
+        Returns:
+            True if deleted successfully
+
+        Raises:
+            EntityNotFoundError: If bookmark not found
+            DatabaseError: If database operation fails
+        """
+        try:
+            bookmark = self.get_or_404(bookmark_id)
+            self.db.delete(bookmark)
+            self.db.commit()
+            return True
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            raise DatabaseError(f"Failed to delete bookmark {bookmark_id}: {str(e)}")
+
     def soft_delete(self, bookmark_id: UUID) -> bool:
         """Soft delete a bookmark by setting deleted_at timestamp.
+
+        DEPRECATED: Use delete() instead. Soft-delete causes issues with unique constraints.
 
         Args:
             bookmark_id: Bookmark ID

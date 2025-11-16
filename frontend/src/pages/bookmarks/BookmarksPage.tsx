@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -30,6 +31,7 @@ import type {
   BookmarkCategory,
   BookmarkCategoryCreateRequest,
   BookmarkCategoryUpdateRequest,
+  GalleryItem,
   ThumbnailResolution,
 } from '../../types/domain'
 import { THUMBNAIL_RESOLUTION_OPTIONS } from '../../constants/gallery'
@@ -77,8 +79,20 @@ const itemsPerPageOptions = [10, 15, 20, 25, 30]
  * Each section shows up to N bookmarks (configurable) with a "More..." cell for navigation.
  */
 export function BookmarksPage() {
+  const navigate = useNavigate()
   const { data: currentUser } = useCurrentUser()
   const userId = currentUser?.id || ''
+
+  // Navigate to detail view
+  const navigateToDetail = (item: GalleryItem) => {
+    navigate(`/view/${item.id}`, {
+      state: {
+        sourceType: item.sourceType,
+        from: 'bookmarks',
+        fallbackPath: '/bookmarks',
+      },
+    })
+  }
 
   // Load preferences from localStorage
   const [categorySort, setCategorySort] = useState<CategorySortOption>(() => {
@@ -425,6 +439,7 @@ export function BookmarksPage() {
             resolution={defaultResolution}
             onPublicToggle={handlePublicToggle}
             onEditCategory={handleEditCategory}
+            onItemClick={navigateToDetail}
           />
         ))}
       </Stack>
@@ -469,6 +484,7 @@ interface CategorySectionWithBookmarksProps {
   resolution: ThumbnailResolution
   onPublicToggle: (categoryId: string, isPublic: boolean) => void
   onEditCategory: (category: BookmarkCategory) => void
+  onItemClick?: (item: GalleryItem) => void
 }
 
 function CategorySectionWithBookmarks({
@@ -479,6 +495,7 @@ function CategorySectionWithBookmarks({
   resolution,
   onPublicToggle,
   onEditCategory,
+  onItemClick,
 }: CategorySectionWithBookmarksProps) {
   const { data: bookmarksData, isLoading } = useCategoryBookmarks(category.id, userId, {
     limit: itemsPerPage,
@@ -497,6 +514,7 @@ function CategorySectionWithBookmarks({
       itemsPerPage={itemsPerPage}
       onPublicToggle={onPublicToggle}
       onEditCategory={onEditCategory}
+      onItemClick={onItemClick}
       dataTestId={`bookmarks-page-category-${category.id}`}
     />
   )

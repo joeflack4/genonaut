@@ -6,7 +6,8 @@ import type {
   ApiBookmarkCategoryCreateRequest,
   ApiBookmarkCategoryUpdateRequest,
   ApiBookmarkListResponse,
-  ApiBookmarkWithContent
+  ApiBookmarkWithContent,
+  ApiBookmarksInCategoryResponse
 } from '../types/api'
 import type {
   BookmarkCategory,
@@ -122,15 +123,15 @@ export class BookmarkCategoriesService {
 
     const query = searchParams.toString()
 
-    const response = await this.api.get<ApiBookmarkListResponse>(
+    const response = await this.api.get<ApiBookmarksInCategoryResponse>(
       `/api/v1/bookmark-categories/${categoryId}/bookmarks?${query}`
     )
 
     return {
-      items: response.items.map((item) => this.transformBookmarkWithContent(item)),
+      items: response.bookmarks.map((item) => this.transformBookmarkWithContent(item)),
       total: response.total,
-      limit: response.limit,
-      skip: response.skip,
+      limit: params.limit ?? 100,
+      skip: params.skip ?? 0,
     }
   }
 

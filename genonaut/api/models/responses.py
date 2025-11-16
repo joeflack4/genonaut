@@ -823,5 +823,5 @@ class CategoryMembershipListResponse(BaseModel):
 class BookmarksInCategoryResponse(BaseModel):
     """Response model for bookmarks in a category."""
     category: BookmarkCategoryResponse = Field(..., description="Category details")
-    bookmarks: List[BookmarkResponse] = Field(..., description="Bookmarks in the category")
+    bookmarks: List[Union[BookmarkResponse, BookmarkWithContentResponse]] = Field(..., description="Bookmarks in the category (with or without content)")
     total: int = Field(..., description="Total number of bookmarks in category")

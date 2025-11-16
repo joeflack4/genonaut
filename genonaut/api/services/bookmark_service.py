@@ -274,7 +274,9 @@ class BookmarkService:
         return self.bookmark_repo.update(bookmark_id, update_data)
 
     def delete_bookmark(self, bookmark_id: UUID) -> bool:
-        """Soft delete a bookmark.
+        """Delete a bookmark (hard delete).
+
+        Also cascade deletes bookmark_category_members via FK constraint.
 
         Args:
             bookmark_id: Bookmark ID
@@ -285,7 +287,7 @@ class BookmarkService:
         Raises:
             EntityNotFoundError: If bookmark not found
         """
-        return self.bookmark_repo.soft_delete(bookmark_id)
+        return self.bookmark_repo.delete(bookmark_id)
 
     def get_pinned_bookmarks(
         self,

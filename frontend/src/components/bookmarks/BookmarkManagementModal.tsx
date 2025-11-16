@@ -163,6 +163,8 @@ export function BookmarkManagementModal({
       fullWidth
       disableRestoreFocus
       data-testid={dataTestId}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       <DialogTitle data-testid={`${dataTestId}-title`}>
         Manage Bookmark

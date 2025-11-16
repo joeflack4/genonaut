@@ -346,6 +346,12 @@ export interface ApiBookmarkCategoryListResponse {
   skip: number
 }
 
+export interface ApiBookmarksInCategoryResponse {
+  category: ApiBookmarkCategory
+  bookmarks: ApiBookmarkWithContent[]
+  total: number
+}
+
 export interface ApiBookmarkCategoryCreateRequest {
   name: string
   description?: string
