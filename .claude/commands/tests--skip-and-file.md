@@ -1,6 +1,20 @@
+---
+description:  [Args - REQUIRED_PROMPT, OPTIONAL_DOC_NAMES ]
+---
+
 # Tests - skip and file
 Sometimes, we have persistent test failures and they end up being more trouble than they are worth. When this happens, 
 you'll be asked to execute this procedure.
+
+## Background information
+### User prompt
+$1
+
+### Documents
+The test tasks being referred to exist in the following document(s): ($2)
+
+Note: if the above just shows () and doesn't show any documents, then please consult the document(s) containing markdown 
+checkbox task(s) that we have been working on in this session / conversation.
 
 ## Tasks
 1. Skip the test(s) - Apply the appropriate method to skip them.

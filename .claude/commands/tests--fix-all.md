@@ -45,7 +45,7 @@ Iteratively, for each of the "test suites", in the order shown above, do the fol
   independently as possible. However, when you prompt the user with your report and/or questions, you should also 
   remind them of their role: (i) they should examine `notes/test-fails-N-NAME.md` to see what you have completed, and to
   see your '@recommend*' or '@need-feedback*' annotations. Remidn the user that if we choose to skip any tests, we 
-  should follow the SOP outlined in `notes/routines/tests--skip-and-file.md`.
+  should follow the SOP outlined in `.claude/commands/tests--skip-and-file.md`.
 
 By the end of this process, after fixing tests and working with the user to decide any tests to explicitly skip or 
 delete, all of the test suites should have a 100% pass rate.

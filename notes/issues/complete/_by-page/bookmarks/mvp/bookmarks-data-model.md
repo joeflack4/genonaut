@@ -65,9 +65,9 @@ PRIMARY KEY (bookmark_id, category_id)
 
 **Required prerequisite reading**:
 Read and follow instructions laid out in these documents:
-- notes/routines/new-big-task.md
+- .claude/commands/new-big-task.md
 - notes/routines/iteration.md
-- notes/routines/migrations.md
+- .claude/commands/migrations.md
 
 **First tasks**:
 - [x] 1. Read and understand the 'Required prerequisite reading'.

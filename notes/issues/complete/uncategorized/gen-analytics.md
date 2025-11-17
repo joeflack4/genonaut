@@ -6,7 +6,7 @@ writes) and PostgreSQL (for long-term analytics and reporting).
 Context: This will enable long-term generation monitoring, user behavior analysis, performance tracking, and capacity
 planning for image generation infrastructure.
 
-When you actually go about working on this, follow the SOP in `notes/routines/new-big-task.md`.
+When you actually go about working on this, follow the SOP in `.claude/commands/new-big-task.md`.
 
 For inspiration, you can look towards work that was recently completed that is quite similar (they should be direclty 
 in notes/ or nested somewhere in there):

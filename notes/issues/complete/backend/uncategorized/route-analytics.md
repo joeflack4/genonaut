@@ -10,7 +10,7 @@ choosing what to cache? Maybe we should consider that, if so.
 First, just think about this, and make a report of your recommendations here in the "Reports" section. Let us know what 
 your number one recommendation is, if you have one.
 
-When you actually go about working on this, follow the SOP in `notes/routines/new-big-task.md`.
+When you actually go about working on this, follow the SOP in `.claude/commands/new-big-task.md`.
 
 ## Phase 5 Implementation Notes
 

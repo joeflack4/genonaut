@@ -246,6 +246,6 @@ Follow these high level steps:
 3. If anything is unclear, create: notes/config-env-refactor-questions-unanswered.md, and prompt me to answer them before 
 continuing. If later on you ever encounter another stopping point and have a question, also append them to this file and
 stop and ask me to answer.
-4. Read: notes/routines/interation.md, and follow those instructions on how to iterate and complete the tasks.
+4. Read: .claude/commands/interation.md, and follow those instructions on how to iterate and complete the tasks.
 5. Finally, get started on the tasks! Work as independently as you can, completing as many phases as you can (all of 
 them ideally) before prompting me, unless you hit a sticking point.
