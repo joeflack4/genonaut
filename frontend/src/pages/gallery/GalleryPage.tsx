@@ -37,7 +37,7 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import GridViewIcon from '@mui/icons-material/GridView'
-import { useUnifiedGallery, useCurrentUser, useRecentSearches, useAddSearchHistory, useDeleteSearchHistory, useTags, useBookmarkStatusBatch } from '../../hooks'
+import { useUnifiedGallery, useCurrentUser, useRecentSearches, useAddSearchHistory, useDeleteSearchHistory, useTags, useBookmarkStatusBatch, usePaginationCursorCache } from '../../hooks'
 import { ADMIN_USER_ID } from '../../constants/config'
 import type { GalleryItem, ThumbnailResolutionId, ViewMode } from '../../types/domain'
 import {
@@ -49,7 +49,7 @@ import {
   THUMBNAIL_RESOLUTION_OPTIONS,
 } from '../../constants/gallery'
 import { loadViewMode, persistViewMode } from '../../utils/viewModeStorage'
-import { GridView as GalleryGridView, ResolutionDropdown } from '../../components/gallery'
+import { GridView as GalleryGridView, ResolutionDropdown, GoToPageButton } from '../../components/gallery'
 import { TagFilter } from '../../components/gallery/TagFilter'
 import { SearchHistoryDropdown } from '../../components/search/SearchHistoryDropdown'
 import { VirtualScrollList } from '../../components/common/VirtualScrollList'
@@ -70,7 +70,6 @@ interface FiltersState {
   search: string
   sort: SortOption
   page: number
-  cursor?: string
 }
 
 interface ContentToggles {
@@ -97,6 +96,9 @@ function arraysEqualIgnoreOrder(a: string[], b: string[]): boolean {
 export function GalleryPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
+  // Cursor cache for hybrid pagination (page numbers in URL, cursors under the hood)
+  const { getCursor, setCursor, updateFilters: updateCursorFilters } = usePaginationCursorCache()
+
   // Initialize search input from URL parameter
   const [searchInput, setSearchInput] = useState(() => searchParams.get('search') || '')
   const [showSearchHistory, setShowSearchHistory] = useState(false)
@@ -105,12 +107,12 @@ export function GalleryPage() {
   // Initialize filters from URL parameters
   const [filters, setFilters] = useState<FiltersState>(() => {
     const searchFromUrl = searchParams.get('search') || ''
-    const cursorFromUrl = searchParams.get('cursor') || undefined
+    const pageFromUrl = searchParams.get('p')
+    const pageNumber = pageFromUrl ? Math.max(1, parseInt(pageFromUrl, 10)) : 1
     return {
       search: searchFromUrl,
       sort: 'recent' as SortOption,
-      page: 0,
-      cursor: cursorFromUrl,
+      page: pageNumber - 1, // Convert to 0-based for internal use
     }
   })
 
@@ -309,12 +311,18 @@ export function GalleryPage() {
     }
   }, [allTagsData])
 
-  // Sync search input with URL and filters
+  // Sync search input and page from URL
   useEffect(() => {
     const searchFromUrl = searchParams.get('search') || ''
-    const cursorFromUrl = searchParams.get('cursor') || undefined
-    if (searchFromUrl !== filters.search || cursorFromUrl !== filters.cursor) {
-      setFilters((prev) => ({ ...prev, search: searchFromUrl, cursor: cursorFromUrl, page: 0 }))
+    const pageFromUrl = searchParams.get('p')
+    const pageNumber = pageFromUrl ? Math.max(1, parseInt(pageFromUrl, 10)) : 1
+
+    if (searchFromUrl !== filters.search || (pageNumber - 1) !== filters.page) {
+      setFilters((prev) => ({
+        ...prev,
+        search: searchFromUrl,
+        page: pageNumber - 1  // Convert to 0-based
+      }))
       setSearchInput(searchFromUrl)
     }
   }, [searchParams])
@@ -455,8 +463,8 @@ export function GalleryPage() {
             newParams.delete('notGenSource')
           }
 
-          // Clear cursor when content toggles change
-          newParams.delete('cursor')
+          // Reset to page 1 when content toggles change
+          newParams.delete('p')
 
           return newParams
         })
@@ -522,6 +530,17 @@ export function GalleryPage() {
     return types
   }, [contentToggles])
 
+  // Clear cursor cache when filters change
+  useEffect(() => {
+    const filtersKey = {
+      search: filters.search,
+      sort: filters.sort,
+      contentSourceTypes,
+      selectedTags,
+    }
+    updateCursorFilters(filtersKey)
+  }, [filters.search, filters.sort, contentSourceTypes, selectedTags, updateCursorFilters])
+
   // Determine if we should wait for tags to load before making API calls
   // Wait if: (1) there are tag params in URL AND (2) tags haven't been initialized yet
   const hasTagsInUrl = searchParams.get('tags') !== null
@@ -531,11 +550,14 @@ export function GalleryPage() {
   // Use unified gallery API with new content source types
   const tagFilterParam = selectedTags.length === 0 ? undefined : selectedTags
 
+  // Get cursor for current page from cache (if available)
+  const currentPageCursor = getCursor(filters.page + 1)
+
   // Main query - WITHOUT stats for better performance
   const { data: unifiedData, isLoading } = useUnifiedGallery({
-    page: filters.page + 1, // Convert from 0-based to 1-based
+    page: currentPageCursor ? undefined : (filters.page + 1), // Use page-based only if no cursor
     pageSize: (useVirtualScrolling && virtualScrollingFeatureEnabled) ? VIRTUAL_SCROLL_PAGE_SIZE : PAGE_SIZE,
-    cursor: filters.cursor,
+    cursor: currentPageCursor,
     contentSourceTypes,  // NEW: Use specific combinations instead of contentTypes + creatorFilter
     userId,
     searchTerm: filters.search || undefined,
@@ -547,9 +569,9 @@ export function GalleryPage() {
 
   // Lazy-loaded stats query - only runs when shouldLoadStats is true
   const { data: statsData } = useUnifiedGallery({
-    page: filters.page + 1,
+    page: currentPageCursor ? undefined : (filters.page + 1),
     pageSize: (useVirtualScrolling && virtualScrollingFeatureEnabled) ? VIRTUAL_SCROLL_PAGE_SIZE : PAGE_SIZE,
-    cursor: filters.cursor,
+    cursor: currentPageCursor,
     contentSourceTypes,
     userId,
     searchTerm: filters.search || undefined,
@@ -562,6 +584,16 @@ export function GalleryPage() {
   const data = unifiedData
   const items = data?.items ?? []
   const stats = statsData?.stats || unifiedData?.stats  // Use stats from lazy query if available, fallback to main query
+
+  // Cache next and previous page cursors when data arrives
+  useEffect(() => {
+    if (data?.nextCursor) {
+      setCursor(filters.page + 2, data.nextCursor) // Next page is current + 1 (1-based)
+    }
+    if (data?.prevCursor && filters.page > 0) {
+      setCursor(filters.page, data.prevCursor) // Previous page (1-based)
+    }
+  }, [data?.nextCursor, data?.prevCursor, filters.page, setCursor])
 
   // Batch fetch bookmark statuses for all items (if user is logged in and items exist)
   const contentItemsForBatch = useMemo(() => {
@@ -650,7 +682,7 @@ export function GalleryPage() {
       addSearchHistory.mutate(trimmedSearch)
     }
 
-    // Update URL params with search
+    // Update URL params with search and reset to page 1
     setSearchParams((params) => {
       const newParams = new URLSearchParams(params)
       if (trimmedSearch) {
@@ -658,56 +690,38 @@ export function GalleryPage() {
       } else {
         newParams.delete('search')
       }
-      // Clear cursor when search changes
-      newParams.delete('cursor')
+      newParams.delete('p')  // Reset to page 1
       return newParams
     })
 
-    setFilters((prev) => ({ ...prev, search: trimmedSearch, page: 0, cursor: undefined }))
+    setFilters((prev) => ({ ...prev, search: trimmedSearch, page: 0 }))
     setShowSearchHistory(false)
   }
 
   const handleSortChange = (event: SelectChangeEvent<SortOption>) => {
-    // Clear cursor when sort changes
+    setFilters((prev) => ({ ...prev, sort: event.target.value as SortOption, page: 0 }))
+    // Reset to page 1 in URL
     setSearchParams((params) => {
       const newParams = new URLSearchParams(params)
-      newParams.delete('cursor')
+      newParams.delete('p')
       return newParams
     })
-    setFilters((prev) => ({ ...prev, sort: event.target.value as SortOption, page: 0, cursor: undefined }))
   }
 
   const handlePageChange = (_event: React.ChangeEvent<unknown>, page: number) => {
-    const direction = page > (filters.page + 1) ? 'next' : 'prev'
+    // Update URL with page number
+    setSearchParams((params) => {
+      const newParams = new URLSearchParams(params)
+      if (page > 1) {
+        newParams.set('p', page.toString())
+      } else {
+        newParams.delete('p')  // Don't show ?p=1
+      }
+      return newParams
+    })
 
-    // Use cursor if available and moving forward/backward by 1 page
-    if (direction === 'next' && data?.nextCursor && page === (filters.page + 1) + 1) {
-      setFilters((prev) => ({ ...prev, page: page - 1, cursor: data.nextCursor }))
-      setSearchParams((params) => {
-        const newParams = new URLSearchParams(params)
-        if (data.nextCursor) {
-          newParams.set('cursor', data.nextCursor)
-        }
-        return newParams
-      })
-    } else if (direction === 'prev' && data?.prevCursor && page === (filters.page + 1) - 1) {
-      setFilters((prev) => ({ ...prev, page: page - 1, cursor: data.prevCursor }))
-      setSearchParams((params) => {
-        const newParams = new URLSearchParams(params)
-        if (data.prevCursor) {
-          newParams.set('cursor', data.prevCursor)
-        }
-        return newParams
-      })
-    } else {
-      // Jump to arbitrary page - clear cursor and use offset pagination
-      setFilters((prev) => ({ ...prev, page: page - 1, cursor: undefined }))
-      setSearchParams((params) => {
-        const newParams = new URLSearchParams(params)
-        newParams.delete('cursor')
-        return newParams
-      })
-    }
+    // Update filters with 0-based page number
+    setFilters((prev) => ({ ...prev, page: page - 1 }))
   }
 
   const handleToggleChange = (toggleKey: keyof ContentToggles) => (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -719,13 +733,18 @@ export function GalleryPage() {
       [toggleKey]: checked,
     }))
 
-    // Reset page and cursor when toggling content types
-    setFilters((prev) => ({ ...prev, page: 0, cursor: undefined }))
+    // Reset to page 1 when toggling content types
+    setFilters((prev) => ({ ...prev, page: 0 }))
+    setSearchParams((params) => {
+      const newParams = new URLSearchParams(params)
+      newParams.delete('p')
+      return newParams
+    })
   }
 
   const handleTagFilterChange = (tags: string[]) => {
     setSelectedTags(tags)
-    setFilters((prev) => ({ ...prev, page: 0, cursor: undefined }))
+    setFilters((prev) => ({ ...prev, page: 0 }))
     setSearchParams((params) => {
       const newParams = new URLSearchParams(params)
 
@@ -740,8 +759,8 @@ export function GalleryPage() {
         newParams.delete('tags')
       }
 
-      // Clear cursor when tags change
-      newParams.delete('cursor')
+      // Reset to page 1 when tags change
+      newParams.delete('p')
 
       return newParams
     })
@@ -780,11 +799,10 @@ export function GalleryPage() {
     setSearchParams((params) => {
       const newParams = new URLSearchParams(params)
       newParams.set('search', searchQuery)
-      // Clear cursor when executing a search from history
-      newParams.delete('cursor')
+      newParams.delete('p')  // Reset to page 1
       return newParams
     })
-    setFilters((prev) => ({ ...prev, search: searchQuery, page: 0, cursor: undefined }))
+    setFilters((prev) => ({ ...prev, search: searchQuery, page: 0 }))
     setShowSearchHistory(false)
   }
 
@@ -800,13 +818,12 @@ export function GalleryPage() {
     setSearchParams((params) => {
       const newParams = new URLSearchParams(params)
       newParams.delete('search')
-      // Clear cursor when clearing search
-      newParams.delete('cursor')
+      newParams.delete('p')  // Reset to page 1
       return newParams
     })
 
     // Clear search from filters and reset to first page
-    setFilters((prev) => ({ ...prev, search: '', page: 0, cursor: undefined }))
+    setFilters((prev) => ({ ...prev, search: '', page: 0 }))
     setShowSearchHistory(false)
   }
 
@@ -827,12 +844,11 @@ export function GalleryPage() {
       } else {
         newParams.delete('search')
       }
-      // Clear cursor when executing search
-      newParams.delete('cursor')
+      newParams.delete('p')  // Reset to page 1
       return newParams
     })
 
-    setFilters((prev) => ({ ...prev, search: trimmedSearch, page: 0, cursor: undefined }))
+    setFilters((prev) => ({ ...prev, search: trimmedSearch, page: 0 }))
     setShowSearchHistory(false)
   }
 
@@ -1072,7 +1088,12 @@ export function GalleryPage() {
           </Card>
 
           {!(useVirtualScrolling && virtualScrollingFeatureEnabled) && (
-            <Box display="flex" justifyContent="flex-start" data-testid="gallery-pagination">
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+              data-testid="gallery-pagination"
+            >
               <Pagination
                 count={totalPages}
                 page={filters.page + 1}
@@ -1080,6 +1101,11 @@ export function GalleryPage() {
                 color="primary"
                 shape="rounded"
                 data-testid="gallery-pagination-control"
+              />
+              <GoToPageButton
+                totalPages={totalPages}
+                currentPage={filters.page + 1}
+                onPageChange={(page) => handlePageChange(null as any, page)}
               />
             </Box>
           )}
