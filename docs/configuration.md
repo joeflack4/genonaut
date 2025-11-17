@@ -388,6 +388,57 @@ Individual components can override these defaults by passing props:
 |---------|------|---------|-------------|
 | `GENERATION_TIMEOUT_WARNING_MS` | `number` | `60000` | Time before showing "request taking longer than expected" warning during image generation (60 seconds) |
 | `MIN_SUBMIT_DURATION_MS` | `number` | `300` | Minimum duration to show submission state to prevent UI flashing on fast requests |
+| `SEARCH_HISTORY_DROPDOWN_LIMIT` | `number` | `5` | Maximum number of recent search history items to display in dropdown widgets |
+
+## Frontend Feature Configuration
+
+Frontend feature flags and settings are configured in `frontend/src/config/features.ts`.
+
+### Pagination Settings
+
+Controls the pagination strategy used in the gallery and other list views:
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `PAGINATION.USE_CURSOR_PAGINATION` | `boolean` | `false` | Use cursor-based vs offset-based pagination. `false` = simple offset-based (reliable), `true` = cursor-based (better for large datasets) |
+| `PAGINATION.DEFAULT_PAGE_SIZE` | `number` | `50` | Default number of items per page |
+| `PAGINATION.MAX_PAGE_SIZE` | `number` | `100` | Maximum allowed page size |
+
+**Pagination Modes:**
+- **Offset-based (default)**: Simple, reliable pagination using `page` and `page_size` parameters. Best for datasets < 10,000 items.
+- **Cursor-based**: Performance-optimized pagination using opaque cursor tokens. Better for very large datasets but more complex.
+
+**Example:**
+
+To enable cursor-based pagination:
+
+```typescript
+// frontend/src/config/features.ts
+export const FEATURES_CONFIG = {
+  PAGINATION: {
+    USE_CURSOR_PAGINATION: true,  // Enable cursor mode
+    DEFAULT_PAGE_SIZE: 50,
+    MAX_PAGE_SIZE: 100,
+  },
+}
+```
+
+**Backend Support:**
+
+The backend automatically detects which pagination mode to use based on the parameters sent:
+- If `cursor` parameter is provided → Uses cursor-based pagination
+- If only `page` parameter is provided → Uses offset-based pagination
+
+No backend configuration is needed; it adapts to the frontend's choice.
+
+### Virtual Scrolling Settings
+
+Controls virtual scrolling behavior in galleries:
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `VIRTUAL_SCROLLING.ENABLED` | `boolean` | `false` | Enable virtual scrolling for large galleries |
+| `VIRTUAL_SCROLLING.PAGE_SIZE` | `number` | `200` | Page size when virtual scrolling is enabled |
 
 ## See Also
 

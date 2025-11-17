@@ -1029,13 +1029,19 @@ class ContentService:
                     query = query.filter(exists_clause)
 
             # Apply sorting (enables partition-wise sorting with MergeAppend)
+            # For backward pagination, temporarily reverse sort order to get items closest to cursor
+            effective_sort_order = sort_order.lower()
+            if pagination.cursor and pagination.backward:
+                # Reverse sort order for backward pagination
+                effective_sort_order = "asc" if effective_sort_order == "desc" else "desc"
+
             if sort_field == "created_at":
-                if sort_order.lower() == "desc":
+                if effective_sort_order == "desc":
                     query = query.order_by(desc(ContentItemAll.created_at), desc(ContentItemAll.id))
                 else:
                     query = query.order_by(ContentItemAll.created_at, ContentItemAll.id)
             elif sort_field == "quality_score":
-                if sort_order.lower() == "desc":
+                if effective_sort_order == "desc":
                     query = query.order_by(desc(ContentItemAll.quality_score), desc(ContentItemAll.id))
                 else:
                     query = query.order_by(ContentItemAll.quality_score, ContentItemAll.id)
@@ -1052,27 +1058,56 @@ class ContentService:
                     cursor_created_at, cursor_id, cursor_src = decode_cursor(pagination.cursor)
 
                     # Apply cursor filter based on sort order (keyset pagination)
+                    # For backward pagination (prevCursor), invert the comparison operators
                     if sort_field == "created_at":
                         if sort_order.lower() == "desc":
-                            query = query.filter(
-                                or_(
-                                    ContentItemAll.created_at < cursor_created_at,
-                                    and_(
-                                        ContentItemAll.created_at == cursor_created_at,
-                                        ContentItemAll.id < cursor_id
+                            # DESC order: newer items first
+                            if pagination.backward:
+                                # Backward: get items NEWER than cursor (created_at > cursor)
+                                query = query.filter(
+                                    or_(
+                                        ContentItemAll.created_at > cursor_created_at,
+                                        and_(
+                                            ContentItemAll.created_at == cursor_created_at,
+                                            ContentItemAll.id > cursor_id
+                                        )
                                     )
                                 )
-                            )
+                            else:
+                                # Forward: get items OLDER than cursor (created_at < cursor)
+                                query = query.filter(
+                                    or_(
+                                        ContentItemAll.created_at < cursor_created_at,
+                                        and_(
+                                            ContentItemAll.created_at == cursor_created_at,
+                                            ContentItemAll.id < cursor_id
+                                        )
+                                    )
+                                )
                         else:
-                            query = query.filter(
-                                or_(
-                                    ContentItemAll.created_at > cursor_created_at,
-                                    and_(
-                                        ContentItemAll.created_at == cursor_created_at,
-                                        ContentItemAll.id > cursor_id
+                            # ASC order: older items first
+                            if pagination.backward:
+                                # Backward: get items OLDER than cursor (created_at < cursor)
+                                query = query.filter(
+                                    or_(
+                                        ContentItemAll.created_at < cursor_created_at,
+                                        and_(
+                                            ContentItemAll.created_at == cursor_created_at,
+                                            ContentItemAll.id < cursor_id
+                                        )
                                     )
                                 )
-                            )
+                            else:
+                                # Forward: get items NEWER than cursor (created_at > cursor)
+                                query = query.filter(
+                                    or_(
+                                        ContentItemAll.created_at > cursor_created_at,
+                                        and_(
+                                            ContentItemAll.created_at == cursor_created_at,
+                                            ContentItemAll.id > cursor_id
+                                        )
+                                    )
+                                )
                 except CursorError:
                     # Invalid cursor - ignore and fall back to OFFSET/LIMIT
                     pass
@@ -1107,6 +1142,10 @@ class ContentService:
 
             # Execute query and format results
             rows = query.all()
+
+            # For backward pagination, reverse results to restore original sort order
+            if use_cursor_pagination and pagination.backward:
+                rows = list(reversed(rows))
 
             t_after_query = time.perf_counter()
             timings['query_execution'] = t_after_query - t_before_query

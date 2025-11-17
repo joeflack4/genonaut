@@ -39,6 +39,7 @@ import ViewListIcon from '@mui/icons-material/ViewList'
 import GridViewIcon from '@mui/icons-material/GridView'
 import { useUnifiedGallery, useCurrentUser, useRecentSearches, useAddSearchHistory, useDeleteSearchHistory, useTags, useBookmarkStatusBatch, usePaginationCursorCache } from '../../hooks'
 import { ADMIN_USER_ID } from '../../constants/config'
+import { FEATURES_CONFIG } from '../../config/features'
 import type { GalleryItem, ThumbnailResolutionId, ViewMode } from '../../types/domain'
 import {
   DEFAULT_GRID_VIEW_MODE,
@@ -97,6 +98,8 @@ export function GalleryPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   // Cursor cache for hybrid pagination (page numbers in URL, cursors under the hood)
+  // Only use cursor caching when cursor pagination is enabled in configuration
+  const useCursorPagination = FEATURES_CONFIG.PAGINATION.USE_CURSOR_PAGINATION
   const { getCursor, setCursor, updateFilters: updateCursorFilters } = usePaginationCursorCache()
 
   // Initialize search input from URL parameter
@@ -182,6 +185,9 @@ export function GalleryPage() {
 
   // Calculate items per row for virtual scrolling
   const [itemsPerRow, setItemsPerRow] = useState(4)
+
+  // Track previous page to determine navigation direction
+  const previousPageRef = useRef<number>(0)
 
   // Popover state for stats
   const [statsAnchorEl, setStatsAnchorEl] = useState<HTMLElement | null>(null)
@@ -311,21 +317,34 @@ export function GalleryPage() {
     }
   }, [allTagsData])
 
+  // Extract URL params for use in effect dependencies
+  const urlSearch = searchParams.get('search') || ''
+  const urlPage = searchParams.get('p') || ''
+
+  console.log('[Render] Current state:', {
+    urlSearch,
+    urlPage,
+    filtersPage: filters.page,
+    filtersSearch: filters.search,
+  })
+
   // Sync search input and page from URL
   useEffect(() => {
-    const searchFromUrl = searchParams.get('search') || ''
-    const pageFromUrl = searchParams.get('p')
-    const pageNumber = pageFromUrl ? Math.max(1, parseInt(pageFromUrl, 10)) : 1
+    const pageNumber = urlPage ? Math.max(1, parseInt(urlPage, 10)) : 1
+    console.log('[URL Sync Effect] Running with:', { urlSearch, urlPage, pageNumber })
 
-    if (searchFromUrl !== filters.search || (pageNumber - 1) !== filters.page) {
-      setFilters((prev) => ({
+    // Always sync from URL to state (URL is source of truth)
+    setFilters((prev) => {
+      const newFilters = {
         ...prev,
-        search: searchFromUrl,
+        search: urlSearch,
         page: pageNumber - 1  // Convert to 0-based
-      }))
-      setSearchInput(searchFromUrl)
-    }
-  }, [searchParams])
+      }
+      console.log('[URL Sync Effect] Setting filters:', { prev, newFilters })
+      return newFilters
+    })
+    setSearchInput(urlSearch)
+  }, [urlSearch, urlPage])
 
   // Sync Selected tags with URL parameters (supports navigation/back links)
   useEffect(() => {
@@ -359,7 +378,7 @@ export function GalleryPage() {
 
     if (!arraysEqualIgnoreOrder(tagIdsFromUrl, selectedTags)) {
       setSelectedTags(tagIdsFromUrl)
-      setFilters((prev) => ({ ...prev, page: 0 }))
+      // Page reset is handled by URL sync effect
     }
 
     // Mark tags as initialized once we've processed the URL params
@@ -411,7 +430,7 @@ export function GalleryPage() {
         togglesFromParams.communityGens !== prevToggles.communityGens ||
         togglesFromParams.communityAutoGens !== prevToggles.communityAutoGens
       ) {
-        setFilters((prev) => ({ ...prev, page: 0 }))
+        // Page reset is handled by URL sync effect
         return togglesFromParams
       }
       return prevToggles
@@ -538,8 +557,10 @@ export function GalleryPage() {
       contentSourceTypes,
       selectedTags,
     }
-    updateCursorFilters(filtersKey)
-  }, [filters.search, filters.sort, contentSourceTypes, selectedTags, updateCursorFilters])
+    if (useCursorPagination) {
+      updateCursorFilters(filtersKey)
+    }
+  }, [filters.search, filters.sort, contentSourceTypes, selectedTags, updateCursorFilters, useCursorPagination])
 
   // Determine if we should wait for tags to load before making API calls
   // Wait if: (1) there are tag params in URL AND (2) tags haven't been initialized yet
@@ -550,14 +571,31 @@ export function GalleryPage() {
   // Use unified gallery API with new content source types
   const tagFilterParam = selectedTags.length === 0 ? undefined : selectedTags
 
-  // Get cursor for current page from cache (if available)
-  const currentPageCursor = getCursor(filters.page + 1)
+  // Get cursor for current page from cache (if available and cursor mode enabled)
+  const currentPageCursor = useCursorPagination ? getCursor(filters.page + 1) : undefined
+
+  // Determine if we're navigating backward (for cursor pagination)
+  // If current page < previous page, we're going backward
+  const isBackwardNavigation = useCursorPagination && filters.page < previousPageRef.current && !!currentPageCursor
+
+  // Update previous page ref for next render
+  useEffect(() => {
+    previousPageRef.current = filters.page
+  }, [filters.page])
+
+  console.log('[Query Params] Building query with:', {
+    filtersPage: filters.page,
+    currentPageCursor,
+    pageParam: currentPageCursor ? undefined : (filters.page + 1),
+    isBackwardNavigation,
+  })
 
   // Main query - WITHOUT stats for better performance
   const { data: unifiedData, isLoading } = useUnifiedGallery({
     page: currentPageCursor ? undefined : (filters.page + 1), // Use page-based only if no cursor
     pageSize: (useVirtualScrolling && virtualScrollingFeatureEnabled) ? VIRTUAL_SCROLL_PAGE_SIZE : PAGE_SIZE,
     cursor: currentPageCursor,
+    backward: isBackwardNavigation,  // Indicate backward navigation when using prevCursor
     contentSourceTypes,  // NEW: Use specific combinations instead of contentTypes + creatorFilter
     userId,
     searchTerm: filters.search || undefined,
@@ -572,6 +610,7 @@ export function GalleryPage() {
     page: currentPageCursor ? undefined : (filters.page + 1),
     pageSize: (useVirtualScrolling && virtualScrollingFeatureEnabled) ? VIRTUAL_SCROLL_PAGE_SIZE : PAGE_SIZE,
     cursor: currentPageCursor,
+    backward: isBackwardNavigation,  // Indicate backward navigation when using prevCursor
     contentSourceTypes,
     userId,
     searchTerm: filters.search || undefined,
@@ -583,17 +622,31 @@ export function GalleryPage() {
 
   const data = unifiedData
   const items = data?.items ?? []
+
+  // Log what data we're actually rendering
+  console.log('[Data to Render]', {
+    itemsCount: items.length,
+    firstItemId: items[0]?.id,
+    firstItemPrompt: items[0]?.prompt?.substring(0, 50),
+    firstItemCreatedAt: items[0]?.created_at,
+    filtersPage: filters.page,
+    hasNextCursor: !!data?.nextCursor,
+  })
   const stats = statsData?.stats || unifiedData?.stats  // Use stats from lazy query if available, fallback to main query
 
-  // Cache next and previous page cursors when data arrives
+  // Cache next and previous page cursors when data arrives (only in cursor mode)
   useEffect(() => {
+    if (!useCursorPagination) return // Skip cursor caching in offset mode
+
     if (data?.nextCursor) {
       setCursor(filters.page + 2, data.nextCursor) // Next page is current + 1 (1-based)
     }
-    if (data?.prevCursor && filters.page > 0) {
+    // NOTE: We deliberately do NOT cache prevCursor for page 1
+    // Page 1 should always use offset pagination (no cursor) for consistency
+    if (data?.prevCursor && filters.page > 1) {  // Changed from > 0 to > 1
       setCursor(filters.page, data.prevCursor) // Previous page (1-based)
     }
-  }, [data?.nextCursor, data?.prevCursor, filters.page, setCursor])
+  }, [data?.nextCursor, data?.prevCursor, filters.page, setCursor, useCursorPagination])
 
   // Batch fetch bookmark statuses for all items (if user is logged in and items exist)
   const contentItemsForBatch = useMemo(() => {
@@ -694,7 +747,7 @@ export function GalleryPage() {
       return newParams
     })
 
-    setFilters((prev) => ({ ...prev, search: trimmedSearch, page: 0 }))
+    // URL sync effect will update filters
     setShowSearchHistory(false)
   }
 
@@ -709,7 +762,8 @@ export function GalleryPage() {
   }
 
   const handlePageChange = (_event: React.ChangeEvent<unknown>, page: number) => {
-    // Update URL with page number
+    console.log('[handlePageChange] Called with page:', page)
+    // Update URL with page number - the sync effect will update filters
     setSearchParams((params) => {
       const newParams = new URLSearchParams(params)
       if (page > 1) {
@@ -717,11 +771,9 @@ export function GalleryPage() {
       } else {
         newParams.delete('p')  // Don't show ?p=1
       }
+      console.log('[handlePageChange] Setting search params:', newParams.toString())
       return newParams
     })
-
-    // Update filters with 0-based page number
-    setFilters((prev) => ({ ...prev, page: page - 1 }))
   }
 
   const handleToggleChange = (toggleKey: keyof ContentToggles) => (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -733,8 +785,7 @@ export function GalleryPage() {
       [toggleKey]: checked,
     }))
 
-    // Reset to page 1 when toggling content types
-    setFilters((prev) => ({ ...prev, page: 0 }))
+    // Reset to page 1 when toggling content types (URL sync will update filters)
     setSearchParams((params) => {
       const newParams = new URLSearchParams(params)
       newParams.delete('p')
@@ -744,7 +795,7 @@ export function GalleryPage() {
 
   const handleTagFilterChange = (tags: string[]) => {
     setSelectedTags(tags)
-    setFilters((prev) => ({ ...prev, page: 0 }))
+    // URL sync will update filters.page
     setSearchParams((params) => {
       const newParams = new URLSearchParams(params)
 
@@ -802,7 +853,7 @@ export function GalleryPage() {
       newParams.delete('p')  // Reset to page 1
       return newParams
     })
-    setFilters((prev) => ({ ...prev, search: searchQuery, page: 0 }))
+    // URL sync effect will update filters
     setShowSearchHistory(false)
   }
 
@@ -822,8 +873,7 @@ export function GalleryPage() {
       return newParams
     })
 
-    // Clear search from filters and reset to first page
-    setFilters((prev) => ({ ...prev, search: '', page: 0 }))
+    // URL sync effect will update filters
     setShowSearchHistory(false)
   }
 
@@ -848,7 +898,7 @@ export function GalleryPage() {
       return newParams
     })
 
-    setFilters((prev) => ({ ...prev, search: trimmedSearch, page: 0 }))
+    // URL sync effect will update filters
     setShowSearchHistory(false)
   }
 

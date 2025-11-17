@@ -1,10 +1,12 @@
 import { ApiClient } from './api-client'
 import type { GalleryItem, PaginatedResult } from '../types/domain'
+import { FEATURES_CONFIG } from '../config/features'
 
 export interface UnifiedGalleryParams {
   page?: number
   pageSize?: number
   cursor?: string  // Cursor for keyset pagination
+  backward?: boolean  // True for backward pagination (prevCursor), false for forward (nextCursor)
   contentTypes?: string[]
   creatorFilter?: 'all' | 'user' | 'community'
   contentSourceTypes?: string[]  // NEW: Preferred method - specific combinations like ['user-regular', 'community-auto']
@@ -39,16 +41,32 @@ export class UnifiedGalleryService {
   async getUnifiedContent(params: UnifiedGalleryParams = {}): Promise<UnifiedGalleryResult> {
     const searchParams = new URLSearchParams()
 
-    if (params.page !== undefined) {
-      searchParams.set('page', String(params.page))
+    // Determine pagination mode
+    const useCursorPagination = FEATURES_CONFIG.PAGINATION.USE_CURSOR_PAGINATION
+
+    if (useCursorPagination) {
+      // Cursor-based pagination mode
+      // Only send cursor if provided, otherwise use page for initial request
+      if (params.cursor) {
+        searchParams.set('cursor', params.cursor)
+
+        if (params.backward !== undefined) {
+          searchParams.set('backward', String(params.backward))
+        }
+      } else if (params.page !== undefined) {
+        // Fall back to page number if no cursor available
+        searchParams.set('page', String(params.page))
+      }
+    } else {
+      // Offset-based pagination mode (default)
+      // Always use page number, ignore cursor even if provided
+      if (params.page !== undefined) {
+        searchParams.set('page', String(params.page))
+      }
     }
 
     if (params.pageSize !== undefined) {
       searchParams.set('page_size', String(params.pageSize))
-    }
-
-    if (params.cursor) {
-      searchParams.set('cursor', params.cursor)
     }
 
     // NEW: Use contentSourceTypes if provided (preferred method)

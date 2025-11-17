@@ -1,23 +1,138 @@
 # Gallery Pagination Updates - Hybrid Page Number + Cursor System
 
-## Status: COMPLETED
+## Status: IN PROGRESS
 
-**Completion Date**: 2025-11-16
+**Started**: 2025-11-16
 
 ### What Was Implemented:
 - [x] Clean URL pagination (`?p=2` instead of `?cursor=xyz`)
 - [x] Hybrid cursor caching for performance (cursors used internally when available)
 - [x] "Go to Page" button for direct page navigation
-- [x] All three original bugs fixed:
-  - [x] Refresh now maintains page position
-  - [x] Back navigation returns to correct page
-  - [x] Page transitions work smoothly
-- [x] Browser-tested and verified working
+- [x] Backend cursor support added to `/api/v1/content/unified` endpoint
+- [x] Forward pagination working (page 1 -> 2 -> 3)
+- [ ] **ACTIVE BUG**: Backward pagination broken (page 2 -> 1 shows page 2 content)
 
 ### Key Files Modified/Created:
-- `frontend/src/pages/gallery/GalleryPage.tsx` - Updated pagination logic
+- `frontend/src/pages/gallery/GalleryPage.tsx` - Updated pagination logic, URL sync
 - `frontend/src/hooks/usePaginationCursorCache.ts` - New cursor cache hook
+- `frontend/src/hooks/useUnifiedGallery.ts` - Updated query key for proper cache invalidation
 - `frontend/src/components/gallery/GoToPageButton.tsx` - New component
+- `genonaut/api/routes/content.py` - Added cursor parameter support
+- `genonaut/api/services/content_service.py` - Already had cursor support
+
+## Bug Fixes
+
+### Bug Fix 1: Forward Pagination Not Working (FIXED - 2025-11-16)
+
+**Root Cause**: Backend `/api/v1/content/unified` endpoint didn't accept cursor parameter, so frontend was sending cursors but backend was ignoring them and always using offset pagination.
+
+**Symptoms**:
+- Clicking page 2 button updated URL to `?p=2`
+- Pagination UI highlighted page 2
+- But content remained from page 1 (same images shown)
+- API was returning same data for all page requests
+
+**Investigation**:
+1. Console logging showed:
+   - URL sync effect was firing correctly
+   - Filters state was updating correctly
+   - React Query was fetching with cursor parameter
+   - **But API was returning identical data for page 1 and page 2**
+2. Backend endpoint inspection revealed:
+   - `/api/v1/content/unified` had `page` and `page_size` parameters
+   - But NO `cursor` parameter (unlike other endpoints in the codebase)
+   - Backend service layer HAD cursor support but endpoint wasn't exposing it
+
+**Fix**:
+1. **Backend** (`genonaut/api/routes/content.py`):
+   - Changed `page` parameter from required `int` to `Optional[int]`
+   - Added `cursor: Optional[str] = Query(None, ...)` parameter
+   - Updated `PaginationRequest` construction to include cursor:
+     ```python
+     pagination = PaginationRequest(
+         page=page or 1,  # Default to page 1 if not provided
+         page_size=page_size,
+         cursor=cursor  # Added cursor support
+     )
+     ```
+
+2. **Frontend** (`frontend/src/hooks/useUnifiedGallery.ts`):
+   - Updated query key to include `_pageKey` for proper cache separation:
+     ```typescript
+     const queryKey = ['unified-gallery', {
+       ...params,
+       _pageKey: params.cursor || params.page || 1,
+     }]
+     ```
+
+**Result**: Forward pagination now works correctly. Page 1 shows "cat" items, page 2 shows "llama" items.
+
+### Bug Fix 2: Backward Pagination to Page 1 (FIXED - 2025-11-16)
+
+**Root Cause**: prevCursor was being cached for page 1, causing page 1 to use cursor-based pagination instead of offset-based.
+
+**Symptoms**:
+- Navigate from page 1 -> page 2: ✅ Works (content updates correctly)
+- Navigate from page 2 -> page 1: ❌ Broken (shows page 2 content)
+
+**Fix**:
+Changed the prevCursor caching condition from `filters.page > 0` to `filters.page > 1`:
+```typescript
+// Before: This cached prevCursor for page 1
+if (data?.prevCursor && filters.page > 0) {
+  setCursor(filters.page, data.prevCursor)
+}
+
+// After: Page 1 always uses offset pagination (no cursor)
+if (data?.prevCursor && filters.page > 1) {
+  setCursor(filters.page, data.prevCursor)
+}
+```
+
+**Result**: Backward navigation to page 1 now works correctly.
+
+### Bug Fix 3: Backward Pagination to Page 2+ (ACTIVE)
+
+**Symptoms**:
+- Navigate: page 1 -> page 2 -> page 3: ✅ All work correctly
+- Navigate back: page 3 -> page 2: ❌ Shows wrong content
+  - Content is almost identical to page 3
+  - But shifted by exactly one image
+  - The image that was the LAST image on original page 2 is now SECOND-TO-LAST on new page 2
+
+**Observed Behavior**:
+```
+Original Page 2: [img1, img2, img3, ..., img24, img25]
+Page 3:          [img26, img27, img28, ..., img49, img50]
+Back to Page 2:  [img27, img28, img29, ..., img50, img51] ← WRONG!
+                  ↑ Should be img26, not img27
+```
+
+**Status**: FIXED ✅
+
+**Root Cause**: The backend cursor filter logic didn't distinguish between forward and backward pagination. Both nextCursor and prevCursor were treated identically:
+- For DESC order (newest first), the query always used: `WHERE created_at < cursor OR (created_at = cursor AND id < cursor_id)`
+- This is CORRECT for forward pagination (nextCursor) - get items older than cursor
+- This is WRONG for backward pagination (prevCursor) - should get items newer than cursor
+
+**Why this caused the off-by-one shift**:
+1. Page 3 starts with item 3000070, so prevCursor is encoded with that item's timestamp/id
+2. When navigating back to page 2, backend used `WHERE created_at < cursor` + `ORDER BY created_at DESC`
+3. This got the 25 oldest items before the cursor, which were from page 1, not page 2
+
+**Fix Implemented**:
+1. **Backend API** (`genonaut/api/routes/content.py:61`): Added `backward` parameter to `/api/v1/content/unified` endpoint
+2. **Backend Model** (`genonaut/api/models/requests.py:312`): Added `backward: bool` field to `PaginationRequest`
+3. **Backend Service** (`genonaut/api/services/content_service.py:1059-1036, 1147-1148`):
+   - Inverted cursor filter for backward pagination (`WHERE created_at > cursor` instead of `< cursor`)
+   - Temporarily reversed sort order during query (`ASC` instead of `DESC`)
+   - Reversed results after fetching to restore original sort order
+4. **Frontend Service** (`frontend/src/services/unified-gallery-service.ts:8, 55-57`): Added `backward` parameter support
+5. **Frontend Page** (`frontend/src/pages/gallery/GalleryPage.tsx:187, 572-579, 593, 608`):
+   - Added `previousPageRef` to track navigation direction
+   - Set `backward=true` when `currentPage < previousPage` and cursor exists
+
+**Testing Results**: Navigation workflow 1→2→3→2→1 now works correctly with proper content on all pages
 
 ## Overview
 

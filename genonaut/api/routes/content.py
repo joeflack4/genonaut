@@ -55,8 +55,10 @@ async def create_content(
 
 @router.get("/unified")
 async def get_unified_content(
-    page: int = Query(1, ge=1, description="Page number"),
+    page: Optional[int] = Query(None, ge=1, description="Page number (for offset pagination)"),
     page_size: int = Query(10, ge=1, le=1000, description="Items per page"),
+    cursor: Optional[str] = Query(None, description="Cursor for cursor-based pagination"),
+    backward: bool = Query(False, description="True for backward pagination (prevCursor), False for forward (nextCursor)"),
     content_types: Optional[str] = Query(None, description="Comma-separated content types (regular, auto). Defaults to 'regular,auto' if not provided. Send empty string to get no results."),
     creator_filter: str = Query("all", description="Creator filter (all, user, community)"),
     content_source_types: Optional[List[str]] = Query(None, description="Specific content-source combinations (user-regular, user-auto, community-regular, community-auto). When provided, overrides content_types and creator_filter."),
@@ -126,9 +128,12 @@ async def get_unified_content(
             )
 
     # Create pagination request
+    # Support both page-based and cursor-based pagination
     pagination = PaginationRequest(
-        page=page,
-        page_size=page_size
+        page=page or 1,  # Default to page 1 if not provided
+        page_size=page_size,
+        cursor=cursor,
+        backward=backward
     )
 
     # Normalize tag filters
