@@ -1,3 +1,7 @@
+---
+description: Think up and create new tests at the start of a new session. [Args - None ]
+---
+
 # Create new batch of tests
 ## Overview
 I want to make sure we have good test coverage. Please do an analysis. Iterate through every frontend page, and on each 
@@ -8,7 +12,7 @@ tests you could add for these: unit, end-to-end, integration, performance, etc. 
 for the respective page / endpoint to make sure that there is not already a test that already exists; don't want to 
 write the same test twice.
 
-Start by ideating like this, and creating a document called notes/new-tests-YYYY-MM-DD.md, where YYYY-MM-DD is today's 
+Start by ideating like this, and creating a document called `notes/new-tests-YYYY-MM-DD.md`, where `YYYY-MM-DD` is today's 
 date. The major sections of this should be "Very high priority", "High priority", "Medium priority", and "Low priority".
 Then, in each of those sections, add subsections "Backend" and "Frontend". then, in each of those, add further 
 subsections, one for each kind of test, "Unit", "E2E", etc.
@@ -28,7 +32,8 @@ Go ahead, get started! Thanks in advance.
 ## Additional info
 ### Worktree-Specific Testing
 
-**IMPORTANT**: If you are working in a worktree other than the main development worktree (`/Users/joeflack4/projects/genonaut`), you must use the worktree-specific infrastructure to avoid port conflicts.
+**IMPORTANT**: If you are working in a worktree other than the main development worktree (
+`/Users/joeflack4/projects/genonaut`), you must use the worktree-specific infrastructure to avoid port conflicts.
 
 See [docs/testing-test-worktree.md](../../docs/testing-test-worktree.md) for complete instructions.
 

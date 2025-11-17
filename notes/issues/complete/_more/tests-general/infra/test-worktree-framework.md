@@ -63,9 +63,9 @@ the reader that if they are not currently on the main worktree (that is, their p
 separate test-specific processes are running, and to make sure that they run tests against those processes. The 
 documents that need these references are:
  
-- `notes/routines/do-and-test.md`
-- `notes/routines/tests--new.md`
-- `notes/routines/tests--new--playwright.md`
+- `.claude/commands/do-and-test.md`
+- `.claude/commands/tests--new.md`
+- `.claude/commands/tests--new--playwright.md`
 - `tests--fix-all.mdtests--fix-all.md`
 - `test/AGENTS.md`
 - `test/CLAUDE.md`
@@ -224,10 +224,10 @@ If you are working in a secondary git worktree (e.g., `/Users/joeflack4/projects
 
 **Update routine documentation files:**
 Add this note to the following files:
-- `notes/routines/do-and-test.md`
-- `notes/routines/tests--new.md`
-- `notes/routines/tests--new--playwright.md`
-- `notes/routines/tests--fix-all.md`
+- `.claude/commands/do-and-test.md`
+- `.claude/commands/tests--new.md`
+- `.claude/commands/tests--new--playwright.md`
+- `.claude/commands/tests--fix-all.md`
 - `test/AGENTS.md`
 - `test/CLAUDE.md`
 
@@ -340,10 +340,10 @@ make test-performance-wt2        # Performance tests
 ### Documentation
 - [x] Create docs/testing-test-worktree.md with complete guide (include Redis namespace and queue name info)
 - [x] Update docs/testing.md with link to testing-test-worktree.md
-- [x] Add worktree testing note to notes/routines/do-and-test.md
-- [x] Add worktree testing note to notes/routines/tests--new.md
-- [x] Add worktree testing note to notes/routines/tests--new--playwright.md
-- [x] Add worktree testing note to notes/routines/tests--fix-all.md
+- [x] Add worktree testing note to .claude/commands/do-and-test.md
+- [x] Add worktree testing note to .claude/commands/tests--new.md
+- [x] Add worktree testing note to .claude/commands/tests--new--playwright.md
+- [x] Add worktree testing note to .claude/commands/tests--fix-all.md
 - [x] Add worktree testing note to test/AGENTS.md
 - [x] Add worktree testing note to test/CLAUDE.md
 

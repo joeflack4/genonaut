@@ -78,5 +78,5 @@ Add some playwright tests to ensure that at least 1 checkpoint and 1 lora model 
 
 ## High level tasks
 1. Make a document: `notes/gen-page-mdl-defaults-tasks.md`, where you put a phased checklist of your tasks.
-2. Use the routine: `notes/routines/iteration.`md for this work.
+2. Use the routine: `.claude/commands/iteration.`md for this work.
 3. Start execution on those tasks, phase by phase.

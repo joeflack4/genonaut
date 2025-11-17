@@ -1,7 +1,13 @@
+---
+description: Think up and create new playwright tests at the start of a new session. [Args - None ]
+---
+
 # New playwright tests
 I'd like to ensure that we have good frontend test coverage. Perhaps we do, but I don't know if we've covered all the 
 bases.
 
+- [ ] Create new doc: C`notes/new-tests-YYYY-MM-DD.md`, where `YYYY-MM-DD` is today's 
+date. The major sections of this should be "Very high priority", "High priority", "Medium priority", and "Low priority".
 - [ ] Iterate through each page of the frontend
   - [ ] For each page, consider all of the UI elements that, when engaged with by the user (e.g. click), result in some
   state change. For all such element interactions, ensure that there is a playwright test that covers the interaction
@@ -31,7 +37,8 @@ TODO: Any additional notes, if applicable
 ## Additional info
 ### Worktree-Specific Testing
 
-**IMPORTANT**: If you are working in a worktree other than the main development worktree (`/Users/joeflack4/projects/genonaut`), you must use the worktree-specific infrastructure to avoid port conflicts.
+**IMPORTANT**: If you are working in a worktree other than the main development worktree (
+`/Users/joeflack4/projects/genonaut`), you must use the worktree-specific infrastructure to avoid port conflicts.
 
 See [docs/testing-test-worktree.md](../../docs/testing-test-worktree.md) for complete instructions.
 
