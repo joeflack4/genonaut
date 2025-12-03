@@ -1,6 +1,7 @@
 """Genonaut CLI for running services with proper configuration."""
 
 import os
+import socket
 from pathlib import Path
 from typing import Optional
 
@@ -14,6 +15,43 @@ app = typer.Typer(add_completion=False, help="Genonaut CLI for running services"
 CONFIG_ENV_ERR = (
     "Error: Either --config-path or --env-target must be provided matching the names of config .json files in "
     "config/, e.g. '--env-target local-demo' for 'config/local-demo.json'.")
+
+
+def check_port_available(host: str, port: int) -> tuple[bool, str]:
+    """Check if a port is available for binding.
+
+    Args:
+        host: Host address to check (e.g., '0.0.0.0', '127.0.0.1')
+        port: Port number to check
+
+    Returns:
+        Tuple of (is_available, message)
+    """
+    # Check localhost specifically since it takes precedence over 0.0.0.0
+    for check_host in ['127.0.0.1', host] if host == '0.0.0.0' else [host]:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind((check_host, port))
+            sock.close()
+        except OSError as e:
+            sock.close()
+            if check_host == '127.0.0.1' and host == '0.0.0.0':
+                msg = (
+                    f"Port {port} is already in use on localhost (127.0.0.1).\n"
+                    f"  Another service is blocking this port.\n"
+                    f"  Even though {host}:{port} might bind successfully, localhost connections\n"
+                    f"  will be routed to the other service instead of Genonaut.\n\n"
+                    f"  To fix this:\n"
+                    f"    1. Find the process: lsof -i :{port}\n"
+                    f"    2. Stop it: kill <PID> or pkill -f <process_name>\n"
+                    f"    3. Then restart this server"
+                )
+            else:
+                msg = f"Port {port} is already in use on {check_host}: {e}"
+            return False, msg
+
+    return True, f"Port {port} is available on {host}"
 
 
 def _load_envs(explicit_env: Optional[str]):
@@ -104,6 +142,12 @@ def run_api(
     typer.echo(f"  Host: {actual_host}:{actual_port}")
     typer.echo(f"  Reload: {reload}")
     typer.echo(f"  Workers: {workers or 'default'}")
+
+    # Check if port is available before starting
+    is_available, msg = check_port_available(actual_host, actual_port)
+    if not is_available:
+        typer.echo(f"\nERROR: {msg}", err=True)
+        raise typer.Exit(1)
 
     # Build uvicorn kwargs
     uvicorn_kwargs = dict(host=actual_host, port=actual_port, reload=reload)
